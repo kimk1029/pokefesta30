@@ -1,76 +1,45 @@
 import Link from 'next/link';
-import { AppHeader } from '@/components/AppHeader';
-import { CongBadge } from '@/components/CongBadge';
-import { StatusBar } from '@/components/StatusBar';
+import { CongCompact } from '@/components/CongCompact';
+import { ReportCard } from '@/components/ReportCard';
+import { AppBar } from '@/components/ui/AppBar';
+import { LivePill } from '@/components/ui/LivePill';
+import { SectionTitle } from '@/components/ui/SectionTitle';
+import { StatusBar } from '@/components/ui/StatusBar';
 import type { FeedItem, Place } from '@/lib/types';
 
 interface Props {
   places: Place[];
-  feed: FeedItem[];
+  reports: FeedItem[];
 }
 
-export function LiveScreen({ places, feed }: Props) {
+export function LiveScreen({ places, reports }: Props) {
   return (
     <>
       <StatusBar />
-      <AppHeader />
-      <div className="screen-title-bar">
-        <div>
-          <h1>실시간 현황</h1>
-          <div className="sub">사용자 제보 · 방금 업데이트</div>
-        </div>
-        <span className="live-dot">실시간</span>
+      <AppBar title="실시간 현황" right={<LivePill />} />
+
+      <div className="sect" style={{ marginTop: 14 }}>
+        <SectionTitle
+          title="장소별 혼잡도"
+          right={<span className="more">{places.length}곳</span>}
+        />
+        <CongCompact places={places} />
       </div>
 
-      <div className="section">
-        <div className="section-title">
-          <h2>장소별 · {places.length}곳</h2>
-        </div>
-        {places.map((p) => (
-          <div key={p.id} className="place-card">
-            <div className="place-icon" style={{ background: p.bg }}>{p.emoji}</div>
-            <div className="place-main">
-              <div className="place-name">
-                {p.name}
-                {p.mins <= 5 && <span className="new-pill">새로움</span>}
-              </div>
-              <div className="place-meta">
-                <span className={p.mins <= 5 ? 'fresh' : p.mins > 15 ? 'stale' : ''}>
-                  {p.mins <= 1 ? '방금 전' : `${p.mins}분 전`}
-                </span>
-                {' · '}제보 {p.count}
-                {p.mins > 15 && <span className="stale"> · 신뢰도 낮음</span>}
-              </div>
-            </div>
-            <CongBadge level={p.level} />
+      <div className="sect">
+        <SectionTitle title="최근 제보" />
+        {reports.length === 0 ? (
+          <div className="trade-card">
+            <div className="trade-title">아직 제보가 없어요. 첫 번째 제보를 남겨보세요!</div>
           </div>
-        ))}
+        ) : (
+          reports.map((r) => <ReportCard key={r.id} item={r} />)
+        )}
       </div>
 
-      <div className="section">
-        <div className="section-title">
-          <h2>최근 제보</h2>
-        </div>
-        {feed.length === 0 ? (
-          <div className="feed-item"><div className="feed-body"><div className="feed-text">아직 제보가 없어요. 첫 번째가 되어보세요!</div></div></div>
-        ) : feed.map((f) => (
-          <div key={f.id} className="feed-item">
-            <div className="feed-avatar">{f.user}</div>
-            <div className="feed-body">
-              <div className="feed-top">
-                <span className={`dot-s ${f.level}`} />
-                <span className="feed-place">{f.place}</span>
-                <span className="feed-time">{f.time}</span>
-              </div>
-              <div className="feed-text">{f.text}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <div className="bggap" />
 
-      <div style={{ height: 90 }} />
-
-      <Link href="/report" className="fab-floating">
+      <Link href="/report" className="fab-btn">
         + 제보하기
       </Link>
     </>

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
-import { Tabbar } from '@/components/Tabbar';
+import { PhoneShell } from '@/components/PhoneShell';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -12,7 +12,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#EDE7DA',
+  themeColor: '#E8DFB8',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -22,19 +22,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=DotGothic16&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap"
           rel="stylesheet"
         />
       </head>
       <body>
-        <div className="page-wrap">
-          <div className="phone">
-            <div className="phone-screen">
-              {children}
-            </div>
-            <Tabbar />
-          </div>
-        </div>
+        <PhoneShell>{children}</PhoneShell>
       </body>
     </html>
   );

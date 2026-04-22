@@ -2,46 +2,65 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ICONS, PixIcon } from './PixIcon';
+import { LineIcon, type LineIconName } from './Icons';
 
-const TABS = [
-  { id: 'home',   href: '/',        label: '홈',   icon: ICONS.home },
-  { id: 'live',   href: '/live',    label: '현황', icon: ICONS.live },
-  { id: 'report', href: '/report',  label: '제보', icon: ICONS.plus, fab: true },
-  { id: 'trade',  href: '/trade',   label: '거래', icon: ICONS.trade },
-  { id: 'my',     href: '/my',      label: '마이', icon: ICONS.my },
-] as const;
+type TabId = 'home' | 'live' | 'fab' | 'trade' | 'my';
 
-function activeId(pathname: string): string {
-  if (pathname === '/')                return 'home';
-  if (pathname.startsWith('/live'))    return 'live';
-  if (pathname.startsWith('/report'))  return 'report';
-  if (pathname.startsWith('/trade'))   return 'trade';
-  if (pathname.startsWith('/my'))      return 'my';
-  if (pathname.startsWith('/map'))     return 'home'; // 지도는 홈 탭 강조 (원본 phone.jsx tabMap 규칙)
+interface Tab {
+  id: TabId;
+  label: string;
+  icon: LineIconName;
+  href?: string;
+  fab?: boolean;
+}
+
+const TABS: Tab[] = [
+  { id: 'home', label: '홈', icon: 'home', href: '/' },
+  { id: 'live', label: '현황', icon: 'live', href: '/live' },
+  { id: 'fab', label: '+', icon: 'plus', fab: true },
+  { id: 'trade', label: '거래', icon: 'trade', href: '/trade' },
+  { id: 'my', label: '마이', icon: 'my', href: '/my' },
+];
+
+function activeId(pathname: string): TabId | '' {
+  if (pathname === '/') return 'home';
+  if (pathname.startsWith('/live')) return 'live';
+  if (pathname.startsWith('/trade')) return 'trade';
+  if (pathname.startsWith('/my')) return 'my';
+  if (pathname.startsWith('/feed')) return 'home';
+  if (pathname.startsWith('/map')) return 'home';
   return '';
 }
 
-export function Tabbar() {
+interface Props {
+  onFab: () => void;
+}
+
+export function Tabbar({ onFab }: Props) {
   const pathname = usePathname();
   const active = activeId(pathname);
+
   return (
     <div className="tabbar">
       {TABS.map((t) => {
-        const cls = [
-          'tab-item',
-          active === t.id ? 'active' : '',
-          'fab' in t && t.fab ? 'fab' : '',
-        ].filter(Boolean).join(' ');
-        return (
-          <Link key={t.id} href={t.href} className={cls}>
-            {'fab' in t && t.fab ? (
-              <div className="fab-circle" style={{ color: 'white' }}>
-                <PixIcon d={[...t.icon]} size={22} />
+        const cls = ['tab', active === t.id ? 'on' : '', t.fab ? 'fab-tab' : '']
+          .filter(Boolean)
+          .join(' ');
+
+        if (t.fab) {
+          return (
+            <button key={t.id} type="button" className={cls} onClick={onFab} aria-label="작성">
+              <div className="fab-circle">
+                <LineIcon name={t.icon} />
               </div>
-            ) : (
-              <PixIcon d={[...t.icon]} size={18} />
-            )}
+              <span>{t.label}</span>
+            </button>
+          );
+        }
+
+        return (
+          <Link key={t.id} href={t.href!} className={cls}>
+            <LineIcon name={t.icon} />
             <span>{t.label}</span>
           </Link>
         );
