@@ -29,6 +29,9 @@ function activeId(pathname: string): TabId | '' {
   if (pathname.startsWith('/my')) return 'my';
   if (pathname.startsWith('/feed')) return 'home';
   if (pathname.startsWith('/map')) return 'home';
+  if (pathname.startsWith('/report')) return 'live';
+  if (pathname.startsWith('/write/trade')) return 'trade';
+  if (pathname.startsWith('/write/feed')) return 'home';
   return '';
 }
 

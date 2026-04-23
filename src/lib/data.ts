@@ -6,7 +6,7 @@ export const PLACES: Place[] = [
   { id: 'secret',    name: '시크릿 포레스트',   emoji: '🌲', bg: '#3A5BD9', level: 'normal', mins: 6,  count: 5 },
   { id: 'metamong',  name: '메타몽 놀이터',     emoji: '🎪', bg: '#FFD23F', level: 'busy',   mins: 2,  count: 9 },
   { id: 'shoe',      name: '구두테마공원',       emoji: '👟', bg: '#FB923C', level: 'normal', mins: 14, count: 3 },
-  { id: 'rainbow',   name: '무지개어린이공원',   emoji: '🌈', bg: '#F7F3E3', level: 'empty',  mins: 32, count: 2 },
+  { id: 'rainbow',   name: '무지개어린이공원',   emoji: '🌈', bg: '#FAE8FF', level: 'empty',  mins: 32, count: 2 },
 ];
 
 export const TRADES: Trade[] = [
