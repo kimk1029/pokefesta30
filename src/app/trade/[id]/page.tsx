@@ -1,9 +1,12 @@
+import { getServerSession } from 'next-auth';
 import { notFound } from 'next/navigation';
 import { BookmarkButton } from '@/components/BookmarkButton';
+import { BumpButton } from '@/components/BumpButton';
 import { KakaoButton } from '@/components/KakaoButton';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { Tag } from '@/components/ui/Tag';
+import { authOptions } from '@/lib/auth';
 import { getTradeById } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
@@ -16,8 +19,10 @@ export default async function Page({ params }: Props) {
   const id = Number(params.id);
   if (isNaN(id)) notFound();
 
-  const trade = await getTradeById(id);
+  const [trade, session] = await Promise.all([getTradeById(id), getServerSession(authOptions)]);
   if (!trade) notFound();
+
+  const isAuthor = !!session?.user?.id && session.user.id === trade.authorId;
 
   const STATUS_LABEL: Record<string, string> = {
     open: '거래 중',
@@ -63,6 +68,12 @@ export default async function Page({ params }: Props) {
         {trade.kakaoId && (
           <div style={{ marginTop: 8 }}>
             <KakaoButton kakaoId={trade.kakaoId} />
+          </div>
+        )}
+
+        {isAuthor && (
+          <div style={{ marginTop: 4 }}>
+            <BumpButton tradeId={trade.id} initialCount={trade.bumpCount ?? 0} />
           </div>
         )}
       </div>

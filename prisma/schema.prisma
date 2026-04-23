@@ -74,6 +74,8 @@ model Trade {
   author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
   authorEmoji String   @default("익명")
   kakaoId     String?
+  bumpCount   Int      @default(0)
+  bumpedAt    DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

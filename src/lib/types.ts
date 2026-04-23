@@ -20,6 +20,7 @@ export interface Trade {
   time: string;
   price: string;
   kakaoId?: string | null;
+  bumpCount?: number;
 }
 
 export interface FeedItem {
@@ -37,6 +38,7 @@ export interface TradeDetail extends Trade {
   body: string;
   status: TradeStatus;
   authorEmoji: string;
+  authorId?: string | null;
 }
 
 export interface FeedPost {

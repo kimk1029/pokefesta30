@@ -118,7 +118,7 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
   try {
     const rows = await prisma.trade.findMany({
       where: filter === 'all' ? {} : { type: filter },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { bumpedAt: 'desc' },
       include: { place: { select: { name: true } } },
     });
     return rows.map((r) => ({
@@ -126,9 +126,10 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
       type: r.type as TradeType,
       title: r.title,
       place: r.place?.name ?? '',
-      time: relTime(r.createdAt),
+      time: relTime(r.bumpedAt ?? r.createdAt),
       price: r.price ?? '제안',
       kakaoId: r.kakaoId ?? null,
+      bumpCount: r.bumpCount,
     }));
   } catch (err) {
     console.error('[getTrades] fallback to mock:', err);
@@ -150,10 +151,12 @@ export async function getTradeById(id: number): Promise<TradeDetail | null> {
       body: r.body,
       price: r.price ?? '제안',
       place: r.place?.name ?? '',
-      time: relTime(r.createdAt),
+      time: relTime(r.bumpedAt ?? r.createdAt),
       status: asTradeStatus(r.status),
       authorEmoji: r.authorEmoji,
+      authorId: r.authorId ?? null,
       kakaoId: r.kakaoId ?? null,
+      bumpCount: r.bumpCount,
     };
   } catch (err) {
     console.error('[getTradeById]', err);
