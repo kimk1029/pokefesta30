@@ -29,10 +29,16 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
+            # 빌드 캐시 잔해 제거 (이전 부분 실패가 남긴 artifact 방지)
+            rm -rf .next
+
             npm ci
             npx prisma generate
             npx prisma db push --accept-data-loss
             npm run build
+
+            # 빌드 결과 검증
+            test -f .next/BUILD_ID || { echo "::error::build did not produce .next/BUILD_ID"; exit 1; }
 
             pm2 restart pokefesta30 --update-env \
               || pm2 start npm --name pokefesta30 -- start
