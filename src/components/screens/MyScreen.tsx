@@ -13,11 +13,11 @@ const STATS = [
   { n: '7', l: '찜한 글' },
 ];
 
-const ACTIVITY: Array<{ em: string; bg: string; lb: string }> = [
-  { em: '📝', bg: '#FFD23F', lb: '내가 쓴 거래글' },
-  { em: '📢', bg: '#FB923C', lb: '내가 올린 제보' },
-  { em: '🗣', bg: '#6B3FA0', lb: '내 피드' },
-  { em: '💛', bg: '#3A5BD9', lb: '찜한 글' },
+const ACTIVITY: Array<{ em: string; bg: string; lb: string; href: string }> = [
+  { em: '📝', bg: '#FFD23F', lb: '내가 쓴 거래글', href: '/my/trades' },
+  { em: '📢', bg: '#FB923C', lb: '내가 올린 제보', href: '/my/reports' },
+  { em: '🗣', bg: '#6B3FA0', lb: '내 피드', href: '/my/feeds' },
+  { em: '💛', bg: '#3A5BD9', lb: '찜한 글', href: '/my/bookmarks' },
 ];
 
 interface Props {
@@ -99,13 +99,13 @@ export function MyScreen({ session }: Props) {
       <div className="sect">
         <SectionTitle title="내 활동" />
         {ACTIVITY.map((it) => (
-          <div key={it.lb} className="my-item">
+          <Link key={it.lb} href={it.href} className="my-item">
             <div className="mi-icon" style={{ background: it.bg }}>
               {it.em}
             </div>
             <div className="mi-main">{it.lb}</div>
             <span className="mi-arr">▶</span>
-          </div>
+          </Link>
         ))}
       </div>
 

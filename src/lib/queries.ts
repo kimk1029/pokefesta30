@@ -159,6 +159,112 @@ export async function getTradeById(id: number): Promise<TradeDetail | null> {
   }
 }
 
+export async function getMyFeeds(userId: string, limit = 30): Promise<FeedPost[]> {
+  try {
+    const rows = await prisma.feed.findMany({
+      where: { authorId: userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { place: { select: { name: true } } },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      place: r.place?.name ?? null,
+      text: r.text,
+      time: relTime(r.createdAt),
+      user: r.authorEmoji ?? '🐣',
+    }));
+  } catch (err) {
+    console.error('[getMyFeeds]', err);
+    return [];
+  }
+}
+
+export async function getMyTrades(userId: string, limit = 30): Promise<Trade[]> {
+  try {
+    const rows = await prisma.trade.findMany({
+      where: { authorId: userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { place: { select: { name: true } } },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      type: r.type as TradeType,
+      title: r.title,
+      place: r.place?.name ?? '',
+      time: relTime(r.createdAt),
+      price: r.price ?? '제안',
+    }));
+  } catch (err) {
+    console.error('[getMyTrades]', err);
+    return [];
+  }
+}
+
+export async function getMyReports(userId: string, limit = 30): Promise<FeedItem[]> {
+  try {
+    const rows = await prisma.report.findMany({
+      where: { authorId: userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { place: { select: { name: true } } },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      place: r.place?.name ?? '알 수 없음',
+      level: asCongestionLevel(r.level),
+      text: r.note ?? '',
+      time: relTime(r.createdAt),
+      user: r.authorEmoji ?? '🐣',
+    }));
+  } catch (err) {
+    console.error('[getMyReports]', err);
+    return [];
+  }
+}
+
+export async function getMyBookmarks(userId: string, limit = 30): Promise<{ trades: Trade[]; feeds: FeedPost[] }> {
+  try {
+    const rows = await prisma.bookmark.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        trade: { include: { place: { select: { name: true } } } },
+        feed: { include: { place: { select: { name: true } } } },
+      },
+    });
+    const trades: Trade[] = [];
+    const feeds: FeedPost[] = [];
+    for (const b of rows) {
+      if (b.trade) {
+        trades.push({
+          id: b.trade.id,
+          type: b.trade.type as TradeType,
+          title: b.trade.title,
+          place: b.trade.place?.name ?? '',
+          time: relTime(b.trade.createdAt),
+          price: b.trade.price ?? '제안',
+        });
+      }
+      if (b.feed) {
+        feeds.push({
+          id: b.feed.id,
+          place: b.feed.place?.name ?? null,
+          text: b.feed.text,
+          time: relTime(b.feed.createdAt),
+          user: b.feed.authorEmoji ?? '🐣',
+        });
+      }
+    }
+    return { trades, feeds };
+  } catch (err) {
+    console.error('[getMyBookmarks]', err);
+    return { trades: [], feeds: [] };
+  }
+}
+
 export async function getTodayReportCount(): Promise<number> {
   try {
     const start = new Date();

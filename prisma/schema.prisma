@@ -19,9 +19,10 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  reports Report[]
-  trades  Trade[]
-  feeds   Feed[]
+  reports   Report[]
+  trades    Trade[]
+  feeds     Feed[]
+  bookmarks Bookmark[]
 
   @@map("users")
 }
@@ -75,6 +76,8 @@ model Trade {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  bookmarks   Bookmark[]
+
   @@index([createdAt(sort: Desc)])
   @@index([type])
   @@index([status])
@@ -92,6 +95,24 @@ model Feed {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  bookmarks   Bookmark[]
+
   @@index([createdAt(sort: Desc)])
   @@map("feeds")
+}
+
+model Bookmark {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tradeId   Int?
+  trade     Trade?   @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  feedId    Int?
+  feed      Feed?    @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tradeId])
+  @@unique([userId, feedId])
+  @@index([userId])
+  @@map("bookmarks")
 }
