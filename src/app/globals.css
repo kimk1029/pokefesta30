@@ -546,6 +546,64 @@ a{color:inherit;text-decoration:none;}
 .mi-main{flex:1;font-family:var(--f1);font-size:14px;letter-spacing:.5px;}
 .mi-arr{font-family:var(--f1);font-size:19px;}
 
+/* ── LEVEL / XP CARD (MyScreen) ── */
+.level-card{
+  margin:var(--gap);padding:18px;
+  background:linear-gradient(135deg,var(--nav) 0%,var(--nav-lt) 100%);
+  display:flex;flex-direction:column;gap:14px;
+  box-shadow:
+    -4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
+    inset 0 4px 0 var(--blu-lt),inset 0 -5px 0 var(--nav-dk),
+    8px 8px 0 var(--ink);}
+.level-top{display:flex;align-items:center;gap:14px;}
+.lv-avatar{width:62px;height:62px;background:var(--yel);
+  display:grid;place-items:center;flex-shrink:0;
+  box-shadow:
+    -3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.18),
+    4px 4px 0 var(--ink);}
+.lv-info{flex:1;min-width:0;}
+.lv-name{font-family:var(--f1);font-size:17px;color:var(--white);letter-spacing:1px;}
+.lv-badge{display:inline-flex;align-items:center;gap:6px;margin-top:6px;
+  background:var(--yel);color:var(--ink);
+  font-family:var(--f1);font-size:14px;padding:4px 10px;letter-spacing:1px;
+  box-shadow:
+    -2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    inset 0 2px 0 var(--yel-lt),inset 0 -2px 0 var(--yel-dk),
+    3px 3px 0 var(--ink);}
+.lv-sub{font-family:var(--f1);font-size:10px;color:rgba(255,255,255,.7);
+  margin-top:6px;letter-spacing:.5px;}
+.xp-wrap{background:rgba(0,0,0,.35);padding:2px;
+  box-shadow:
+    -2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    inset 0 2px 0 rgba(0,0,0,.4);}
+.xp-bar-bg{height:14px;background:var(--ink2);position:relative;overflow:hidden;}
+.xp-bar-fill{height:100%;
+  background:linear-gradient(90deg,var(--yel-dk),var(--yel),var(--yel-lt));
+  position:relative;transition:width .6s steps(12);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.4),inset 0 -2px 0 rgba(0,0,0,.3);}
+.xp-bar-fill::after{content:'';position:absolute;top:0;right:0;width:4px;height:100%;
+  background:var(--white);opacity:.7;animation:pf-xp-shine 1.5s steps(2) infinite;}
+@keyframes pf-xp-shine{0%,49%{opacity:.7}50%,100%{opacity:0}}
+.xp-label{display:flex;justify-content:space-between;margin-top:5px;
+  font-family:var(--f1);font-size:10px;color:rgba(255,255,255,.7);letter-spacing:.5px;}
+.point-chip{display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.12);color:var(--white);
+  font-family:var(--f1);font-size:13px;padding:6px 10px;letter-spacing:.5px;
+  box-shadow:
+    -2px 0 0 rgba(255,255,255,.3),2px 0 0 rgba(255,255,255,.3),
+    0 -2px 0 rgba(255,255,255,.3),0 2px 0 rgba(255,255,255,.3);}
+.lv-draw-btn{background:var(--yel);color:var(--ink);
+  font-family:var(--f1);font-size:13px;letter-spacing:1px;padding:8px 12px;cursor:pointer;
+  box-shadow:
+    -2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    inset 0 2px 0 var(--yel-lt),inset 0 -2px 0 var(--yel-dk),
+    3px 3px 0 var(--ink);
+  transition:transform .05s steps(1),box-shadow .05s steps(1);}
+.lv-draw-btn:active{transform:translate(2px,2px);
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    2px 2px 0 var(--ink);}
+
 /* ── POINTS CARD ── */
 .points-card{margin:0 var(--gap) var(--cg);padding:14px 16px;background:var(--ink);
   color:var(--yel);display:flex;align-items:center;gap:12px;

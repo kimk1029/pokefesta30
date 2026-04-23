@@ -35,9 +35,17 @@ export const FEED: FeedItem[] = [
 export const MY_PROFILE: MyProfile = {
   name: '트레이너_24',
   avatar: '🐣',
+  starter: 'bulbasaur',
+  title: '잉어킹 마스터',
+  level: 7,
+  maxLevel: 10,
+  xp: 340,
+  xpNeeded: 500,
   rating: '★★★★☆',
   reportCount: 12,
-  points: 1250,
+  tradeCount: 3,
+  savedCount: 7,
+  points: 1280,
 };
 
 export const SHOP_ITEMS: ShopItem[] = [

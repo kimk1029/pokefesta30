@@ -84,10 +84,20 @@ export interface OripaResult {
   time: string;
 }
 
+export type StarterId = 'bulbasaur' | 'charmander' | 'squirtle';
+
 export interface MyProfile {
   name: string;
   avatar: string;
+  starter: StarterId;
+  title: string;
+  level: number;
+  maxLevel: number;
+  xp: number;
+  xpNeeded: number;
   rating: string;
   reportCount: number;
+  tradeCount: number;
+  savedCount: number;
   points: number;
 }
