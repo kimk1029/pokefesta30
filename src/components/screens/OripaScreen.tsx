@@ -1,9 +1,10 @@
 import Link from 'next/link';
+import { LivePointsPill } from '@/components/LivePointsPill';
 import { AppBar } from '@/components/ui/AppBar';
 import { LivePill } from '@/components/ui/LivePill';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { MY_PROFILE, ORIPA_MACHINE, ORIPA_RESULTS } from '@/lib/data';
+import { ORIPA_MACHINE, ORIPA_RESULTS } from '@/lib/data';
 import type { OripaGrade, OripaPrize } from '@/lib/types';
 
 const GRADE_LABEL: Record<OripaGrade, string> = {
@@ -36,7 +37,7 @@ export function OripaScreen() {
       <AppBar
         title="오리파"
         showBack
-        right={<LivePill label={`${MY_PROFILE.points.toLocaleString()}P`} />}
+        right={<LivePointsPill />}
       />
 
       {/* Hero */}

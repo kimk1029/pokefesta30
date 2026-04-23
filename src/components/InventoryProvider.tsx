@@ -8,6 +8,7 @@ import {
   pickAvatar as pickAvatarAction,
   pickBackground as pickBgAction,
   pickFrame as pickFrameAction,
+  spendPoints as spendPointsAction,
 } from '@/app/inventory-actions';
 import { DEFAULT_AVATAR, DEFAULT_OWNED, type AvatarId } from '@/lib/avatars';
 import type { InventorySnapshot } from '@/lib/queries';
@@ -33,6 +34,8 @@ export interface InventoryCtxValue extends InventorySnapshot {
   buyAvatar: (id: AvatarId, price: number) => Promise<MutResult>;
   buyBg: (id: BackgroundId, price: number) => Promise<MutResult>;
   buyFrame: (id: FrameId, price: number) => Promise<MutResult>;
+  /** 임의 차감 (오리파 등). */
+  spend: (amount: number) => Promise<MutResult>;
 }
 
 const Ctx = createContext<InventoryCtxValue | null>(null);
@@ -76,6 +79,7 @@ export function InventoryProvider({
       buyAvatar: wrap(buyAvatarAction),
       buyBg: wrap(buyBgAction),
       buyFrame: wrap(buyFrameAction),
+      spend: wrap(spendPointsAction),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [snap, isLoggedIn],

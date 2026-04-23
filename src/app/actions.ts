@@ -87,6 +87,21 @@ export async function submitFeed(formData: FormData): Promise<void> {
   const authorId = await ensureUser(session);
   const authorEmoji = authorTokenFromForm(formData, session);
   const reward = kind === 'report' ? REWARDS.feed_report : REWARDS.feed_general;
+
+  // 작성 시점의 배경/테두리 스냅샷 (author 인벤토리 기준)
+  let snapBg = 'default';
+  let snapFrame = 'none';
+  if (authorId) {
+    const u = await prisma.user.findUnique({
+      where: { id: authorId },
+      select: { backgroundId: true, frameId: true },
+    });
+    if (u) {
+      snapBg = u.backgroundId;
+      snapFrame = u.frameId;
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.feed.create({
       data: {
@@ -96,6 +111,8 @@ export async function submitFeed(formData: FormData): Promise<void> {
         text,
         authorId,
         authorEmoji,
+        authorBgId: snapBg,
+        authorFrameId: snapFrame,
       },
     });
     if (kind === 'report' && placeId && level) {
@@ -151,6 +168,19 @@ export async function submitTrade(formData: FormData): Promise<void> {
   if (!title) throw new Error('title required');
 
   const authorId = await ensureUser(session);
+  let snapBg = 'default';
+  let snapFrame = 'none';
+  if (authorId) {
+    const u = await prisma.user.findUnique({
+      where: { id: authorId },
+      select: { backgroundId: true, frameId: true },
+    });
+    if (u) {
+      snapBg = u.backgroundId;
+      snapFrame = u.frameId;
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.trade.create({
       data: {
@@ -162,6 +192,8 @@ export async function submitTrade(formData: FormData): Promise<void> {
         kakaoId,
         authorId,
         authorEmoji: authorTokenFromForm(formData, session),
+        authorBgId: snapBg,
+        authorFrameId: snapFrame,
       },
     });
     if (authorId) {

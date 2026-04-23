@@ -5,7 +5,7 @@ export function QuickGrid() {
     <div className="quick-grid">
       <QuickItem href="/live" color="r" icon="📍" label="현황" />
       <QuickItem href="/trade" color="b" icon="🤝" label="거래" />
-      <QuickItem href="/feed" color="y" icon="💬" label="피드" />
+      <QuickItem href="/cards" color="y" icon="📊" label="시세" />
       <QuickItem href="/map" color="g" icon="🗺" label="지도" />
     </div>
   );

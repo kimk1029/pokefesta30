@@ -1,5 +1,5 @@
 import { BookmarkButton } from './BookmarkButton';
-import { PokemonAvatar } from './PokemonAvatar';
+import { ComposedAvatar } from './ComposedAvatar';
 import { CongBadge } from './ui/CongBadge';
 import type { FeedPost } from '@/lib/types';
 
@@ -8,7 +8,13 @@ export function FeedRow({ post }: { post: FeedPost }) {
   return (
     <div className="feed-item">
       <div className="fi-avatar">
-        <PokemonAvatar id={post.user} size={52} fallback={post.user} />
+        <ComposedAvatar
+          avatar={post.user}
+          bg={post.authorBgId}
+          frame={post.authorFrameId}
+          size={52}
+          fallback={post.user}
+        />
       </div>
       <div className="fi-body">
         <div className="fi-top">
@@ -24,11 +30,13 @@ export function FeedRow({ post }: { post: FeedPost }) {
             </span>
           )}
           {isReport && post.level && <CongBadge level={post.level} size="small" />}
-          <span className="fi-time">{post.time}</span>
         </div>
         <div className="fi-text">{post.text}</div>
       </div>
-      <BookmarkButton feedId={post.id} />
+      <div className="fi-right">
+        <BookmarkButton feedId={post.id} />
+        <span className="fi-time">{post.time}</span>
+      </div>
     </div>
   );
 }

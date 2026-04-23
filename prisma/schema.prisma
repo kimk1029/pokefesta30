@@ -63,7 +63,9 @@ model Trade {
   status      String   @default("open") // 'open' | 'reserved' | 'done' | 'cancelled'
   authorId    String?
   author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  authorEmoji String   @default("익명")
+  authorEmoji      String @default("익명")
+  authorBgId       String @default("default")
+  authorFrameId    String @default("none")
   kakaoId     String?
   bumpCount   Int      @default(0)
   bumpedAt    DateTime?
@@ -89,7 +91,9 @@ model Feed {
   text        String
   authorId    String?
   author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  authorEmoji String   @default("🐣")
+  authorEmoji     String  @default("🐣")
+  authorBgId      String  @default("default")
+  authorFrameId   String  @default("none")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

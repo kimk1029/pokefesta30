@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useInventory } from '@/components/InventoryProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { MY_PROFILE, ORIPA_MACHINE, ORIPA_TICKETS } from '@/lib/data';
+import { ORIPA_MACHINE, ORIPA_TICKETS } from '@/lib/data';
 import type { OripaGrade, OripaTicket } from '@/lib/types';
 
 interface Result {
@@ -30,17 +31,21 @@ function pickGrade(seed: number) {
 }
 
 export function OripaPlayScreen() {
+  const inv = useInventory();
   const [tickets, setTickets] = useState<OripaTicket[]>(() => ORIPA_TICKETS);
-  const [points, setPoints] = useState(MY_PROFILE.points);
   const [result, setResult] = useState<Result | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const remaining = useMemo(() => tickets.filter((t) => !t.drawn).length, [tickets]);
 
-  const draw = (idx: number) => {
-    if (tickets[idx].drawn) return;
-    if (points < ORIPA_MACHINE.pricePerPull) {
-      setFlash('포인트가 부족해요');
+  const draw = async (idx: number) => {
+    if (busy || tickets[idx].drawn) return;
+    setBusy(true);
+    const r = await inv.spend(ORIPA_MACHINE.pricePerPull);
+    setBusy(false);
+    if (!r.ok) {
+      setFlash(r.msg ?? '포인트가 부족해요');
       setTimeout(() => setFlash(null), 1400);
       return;
     }
@@ -56,7 +61,6 @@ export function OripaPlayScreen() {
       drawnAt: '방금 전',
     };
     setTickets(next);
-    setPoints((p) => p - ORIPA_MACHINE.pricePerPull);
     setResult({ index: idx, grade: g.g, name: g.name, emoji: g.emoji });
   };
 
@@ -76,7 +80,7 @@ export function OripaPlayScreen() {
         </div>
         <div className="tgrid-stat pts">
           <span className="lbl">보유 포인트</span>
-          <span className="val">🪙 {points.toLocaleString()}P</span>
+          <span className="val">🪙 {inv.points.toLocaleString()}P</span>
         </div>
       </div>
 

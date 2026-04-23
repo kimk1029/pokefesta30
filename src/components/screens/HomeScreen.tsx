@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AppBarProfile } from '@/components/AppBarProfile';
 import { CongCompact } from '@/components/CongCompact';
 import { FeedChart } from '@/components/FeedChart';
 import { FeedRow } from '@/components/FeedRow';
@@ -22,13 +23,7 @@ export function HomeScreen({ places, feeds, todayCount }: Props) {
   return (
     <>
       <StatusBar />
-      <AppBar
-        right={
-          <Link href="/my" className="appbar-right" aria-label="마이페이지">
-            👤
-          </Link>
-        }
-      />
+      <AppBar right={<AppBarProfile />} />
       <HeroSlider />
       <QuickGrid />
 

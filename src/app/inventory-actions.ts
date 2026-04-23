@@ -136,6 +136,23 @@ export async function buyBackground(id: string, expectedPrice: number): Promise<
   return genericBuy(userId, 'bg', id as BackgroundId, expectedPrice);
 }
 
+/**
+ * 임의 포인트 차감 (오리파 뽑기 등). 서버 검증으로 잔액 부족 방지.
+ */
+export async function spendPoints(amount: number): Promise<Result> {
+  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: 'invalid amount' };
+  const userId = await sessionUserId();
+  if (!userId) return { ok: false, error: 'unauthorized' };
+  const u = await prisma.user.findUnique({ where: { id: userId } });
+  if (!u) return { ok: false, error: 'user not found' };
+  if (u.points < amount) return { ok: false, error: '포인트 부족' };
+  await prisma.user.update({
+    where: { id: userId },
+    data: { points: { decrement: amount } },
+  });
+  return { ok: true, inv: await getMyInventory(userId) };
+}
+
 export async function buyFrame(id: string, expectedPrice: number): Promise<Result> {
   if (!isFrameId(id)) return { ok: false, error: 'invalid frame' };
   const meta = FRAMES.find((f) => f.id === id);

@@ -2,8 +2,8 @@ import { getServerSession } from 'next-auth';
 import { notFound } from 'next/navigation';
 import { BookmarkButton } from '@/components/BookmarkButton';
 import { BumpButton } from '@/components/BumpButton';
+import { ComposedAvatar } from '@/components/ComposedAvatar';
 import { KakaoButton } from '@/components/KakaoButton';
-import { PokemonAvatar } from '@/components/PokemonAvatar';
 import { TradeStatusActions } from '@/components/TradeStatusActions';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -52,7 +52,13 @@ export default async function Page({ params }: Props) {
         <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.4 }}>{trade.title}</div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
-          <PokemonAvatar id={trade.authorEmoji} size={48} fallback={trade.authorEmoji} />
+          <ComposedAvatar
+            avatar={trade.authorEmoji}
+            bg={trade.authorBgId}
+            frame={trade.authorFrameId}
+            size={48}
+            fallback={trade.authorEmoji}
+          />
           <span>{trade.time}</span>
           <span>·</span>
           <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{trade.price}</span>

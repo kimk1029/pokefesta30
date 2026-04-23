@@ -72,6 +72,8 @@ type FeedRow = {
   placeId: string | null;
   text: string;
   authorEmoji: string;
+  authorBgId?: string;
+  authorFrameId?: string;
   createdAt: Date;
   place: { name: string } | null;
 };
@@ -87,6 +89,8 @@ function toFeedPost(r: FeedRow): FeedPost {
     time: relTime(r.createdAt),
     createdAt: r.createdAt.toISOString(),
     user: r.authorEmoji ?? '🐣',
+    authorBgId: r.authorBgId,
+    authorFrameId: r.authorFrameId,
   };
 }
 
@@ -217,6 +221,8 @@ export async function getTradeById(id: number): Promise<TradeDetail | null> {
       time: relTime(r.bumpedAt ?? r.createdAt),
       status: asTradeStatus(r.status),
       authorEmoji: r.authorEmoji,
+      authorBgId: r.authorBgId,
+      authorFrameId: r.authorFrameId,
       authorId: r.authorId ?? null,
       kakaoId: r.kakaoId ?? null,
       bumpCount: r.bumpCount,

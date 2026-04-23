@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Session } from 'next-auth';
+import { PointChipLive } from '@/components/LivePointsPill';
 import { LogoutButton } from '@/components/LogoutButton';
 import { ProfileAvatarClient } from '@/components/ProfileAvatarClient';
 import { AppBar } from '@/components/ui/AppBar';
@@ -84,7 +85,7 @@ export function MyScreen({ session }: Props) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="point-chip">🪙 {p.points.toLocaleString()} 포인트</div>
+          <PointChipLive />
           <Link href="/my/oripa" className="lv-draw-btn">
             🎲 뽑기
           </Link>

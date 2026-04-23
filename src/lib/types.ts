@@ -40,6 +40,8 @@ export interface TradeDetail extends Trade {
   body: string;
   status: TradeStatus;
   authorEmoji: string;
+  authorBgId?: string;
+  authorFrameId?: string;
   authorId?: string | null;
 }
 
@@ -52,7 +54,9 @@ export interface FeedPost {
   text: string;
   time: string;
   createdAt: string;
-  user: string;
+  user: string;         // authorEmoji (아바타 id or 이모지)
+  authorBgId?: string;
+  authorFrameId?: string;
 }
 
 export type ShopCategory = 'charge' | 'ticket' | 'skin';
