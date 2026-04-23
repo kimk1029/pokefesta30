@@ -2,37 +2,53 @@
 
 import { useState } from 'react';
 import { AvatarPicker } from './AvatarPicker';
+import { PixelBackground } from './PixelBackground';
 import { PokemonAvatar } from './PokemonAvatar';
-import { useAvatar } from '@/lib/use-avatar';
+import { useInventory } from '@/lib/use-inventory';
 
-export function ProfileAvatarClient({ size = 88 }: { size?: number }) {
-  const { id, set } = useAvatar();
+export function ProfileAvatarClient({
+  size = 88,
+  allowEdit = true,
+}: {
+  size?: number;
+  allowEdit?: boolean;
+}) {
+  const inv = useInventory();
   const [open, setOpen] = useState(false);
+  const content = (
+    <div
+      className={`prof-wrap frm-${inv.frame}`}
+      style={{
+        width: size,
+        height: size,
+      }}
+    >
+      <PixelBackground id={inv.bg} />
+      <PokemonAvatar id={inv.avatar} size={Math.floor(size * 0.8)} />
+    </div>
+  );
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="avatar-hit"
-        aria-label="프로필 캐릭터 변경"
-        style={{
-          display: 'grid',
-          placeItems: 'center',
-          width: '100%',
-          height: '100%',
-          cursor: 'pointer',
-        }}
-      >
-        <PokemonAvatar id={id} size={size} />
-      </button>
+      {allowEdit ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="프로필 캐릭터 변경"
+          style={{
+            all: 'unset',
+            cursor: 'pointer',
+            display: 'inline-block',
+          }}
+        >
+          {content}
+        </button>
+      ) : (
+        content
+      )}
       {open && (
         <AvatarPicker
-          current={id}
+          inv={inv}
           onClose={() => setOpen(false)}
-          onPick={(newId) => {
-            set(newId);
-            setOpen(false);
-          }}
         />
       )}
     </>

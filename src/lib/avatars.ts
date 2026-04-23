@@ -1,39 +1,77 @@
 export type AvatarId =
-  | 'bulbasaur'
-  | 'charmander'
-  | 'squirtle'
-  | 'pikachu'
-  | 'eevee'
-  | 'snorlax'
-  | 'ditto'
-  | 'lapras'
-  | 'mewtwo'
-  | 'moltres';
+  | 'bulbasaur'   // 이상해씨  #1
+  | 'charmander'  // 파이리    #4
+  | 'squirtle'    // 꼬부기    #7
+  | 'butterfree'  // 버터플    #12
+  | 'pidgeotto'   // 피존      #17
+  | 'rattata'     // 꼬렛      #19
+  | 'pikachu'     // 피카츄    #25
+  | 'diglett'     // 디그다    #50
+  | 'voltorb'     // 찌리리공  #100
+  | 'mr-mime'     // 마임맨    #122
+  | 'jynx'        // 루주라    #124
+  | 'gyarados'    // 갸라도스  #130
+  | 'lapras'      // 라프라스  #131
+  | 'ditto'       // 메타몽    #132
+  | 'eevee'       // 이브이    #133
+  | 'porygon'     // 폴리곤    #137
+  | 'snorlax'     // 잠만보    #143
+  | 'articuno'    // 프리저    #144
+  | 'zapdos'      // 썬더      #145
+  | 'moltres'     // 파이어    #146
+  | 'mewtwo'      // 뮤츠      #150
+  | 'mew';        // 뮤        #151
+
+export type UnlockMode = 'free' | 'level' | 'shop';
 
 export interface AvatarMeta {
   id: AvatarId;
+  dex: number;
   name: string;
-  locked: boolean;
-  unlockHint?: string;
+  mode: UnlockMode;
+  level?: number;
+  price?: number;
+  tag?: 'legend' | 'hot' | 'new';
 }
 
 export const AVATARS: AvatarMeta[] = [
-  { id: 'bulbasaur',  name: '이상해씨', locked: false },
-  { id: 'charmander', name: '파이리',   locked: false },
-  { id: 'squirtle',   name: '꼬부기',   locked: false },
-  { id: 'pikachu',    name: '피카츄',   locked: false },
-  { id: 'eevee',      name: '이브이',   locked: false },
-  { id: 'ditto',      name: '메타몽',   locked: true, unlockHint: 'LV.5 달성' },
-  { id: 'snorlax',    name: '잠만보',   locked: true, unlockHint: '제보 20건' },
-  { id: 'lapras',     name: '라프라스', locked: true, unlockHint: '거래 5건 완료' },
-  { id: 'moltres',    name: '파이어',   locked: true, unlockHint: '이벤트 한정' },
-  { id: 'mewtwo',     name: '뮤츠',     locked: true, unlockHint: '🏆 레전드 등급' },
+  // 무료 (3)
+  { id: 'bulbasaur',  dex: 1,   name: '이상해씨', mode: 'free' },
+  { id: 'charmander', dex: 4,   name: '파이리',   mode: 'free' },
+  { id: 'squirtle',   dex: 7,   name: '꼬부기',   mode: 'free' },
+  // 레벨 달성 (3)
+  { id: 'rattata',    dex: 19,  name: '꼬렛',     mode: 'level', level: 2  },
+  { id: 'pikachu',    dex: 25,  name: '피카츄',   mode: 'level', level: 3, tag: 'hot' },
+  { id: 'diglett',    dex: 50,  name: '디그다',   mode: 'level', level: 5  },
+  // 포인트 상점 — 저가 (5)
+  { id: 'butterfree', dex: 12,  name: '버터플',   mode: 'shop', price: 300 },
+  { id: 'pidgeotto',  dex: 17,  name: '피존',     mode: 'shop', price: 300 },
+  { id: 'voltorb',    dex: 100, name: '찌리리공', mode: 'shop', price: 400 },
+  { id: 'ditto',      dex: 132, name: '메타몽',   mode: 'shop', price: 500 },
+  { id: 'eevee',      dex: 133, name: '이브이',   mode: 'shop', price: 500, tag: 'hot' },
+  // 중가 (5)
+  { id: 'mr-mime',    dex: 122, name: '마임맨',   mode: 'shop', price: 800  },
+  { id: 'jynx',       dex: 124, name: '루주라',   mode: 'shop', price: 900  },
+  { id: 'porygon',    dex: 137, name: '폴리곤',   mode: 'shop', price: 1000, tag: 'new' },
+  { id: 'snorlax',    dex: 143, name: '잠만보',   mode: 'shop', price: 1200 },
+  { id: 'lapras',     dex: 131, name: '라프라스', mode: 'shop', price: 1500 },
+  // 전설 (6)
+  { id: 'gyarados',   dex: 130, name: '갸라도스', mode: 'shop', price: 2200, tag: 'legend' },
+  { id: 'articuno',   dex: 144, name: '프리저',   mode: 'shop', price: 3000, tag: 'legend' },
+  { id: 'zapdos',     dex: 145, name: '썬더',     mode: 'shop', price: 3000, tag: 'legend' },
+  { id: 'moltres',    dex: 146, name: '파이어',   mode: 'shop', price: 3000, tag: 'legend' },
+  { id: 'mewtwo',     dex: 150, name: '뮤츠',     mode: 'shop', price: 5000, tag: 'legend' },
+  { id: 'mew',        dex: 151, name: '뮤',       mode: 'shop', price: 5000, tag: 'legend' },
 ];
 
 export const DEFAULT_AVATAR: AvatarId = 'bulbasaur';
 
-const AVATAR_IDS = new Set<string>(AVATARS.map((a) => a.id));
+/** 항상 무료 보유인 아바타 */
+export const DEFAULT_OWNED: AvatarId[] = AVATARS
+  .filter((a) => a.mode === 'free')
+  .map((a) => a.id);
 
+const AVATAR_IDS = new Set<string>(AVATARS.map((a) => a.id));
 export function isAvatarId(v: unknown): v is AvatarId {
   return typeof v === 'string' && AVATAR_IDS.has(v);
 }

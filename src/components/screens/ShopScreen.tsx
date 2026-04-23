@@ -1,83 +1,201 @@
 'use client';
 
 import { useState } from 'react';
+import { PixelBackground } from '@/components/PixelBackground';
+import { PokemonAvatar } from '@/components/PokemonAvatar';
 import { AppBar } from '@/components/ui/AppBar';
 import { LivePill } from '@/components/ui/LivePill';
 import { SectionTitle } from '@/components/ui/SectionTitle';
+import { Segmented } from '@/components/ui/Segmented';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { MY_PROFILE, SHOP_ITEMS } from '@/lib/data';
-import type { ShopCategory, ShopItem } from '@/lib/types';
+import { AVATARS, type AvatarId } from '@/lib/avatars';
+import { BACKGROUNDS, FRAMES, type BackgroundId, type FrameId } from '@/lib/shop';
+import { useInventory } from '@/lib/use-inventory';
 
-type Tab = 'all' | ShopCategory;
-
+type Tab = 'avatar' | 'bg' | 'frame' | 'charge';
 const TABS: Array<{ id: Tab; label: string }> = [
-  { id: 'all', label: '전체' },
-  { id: 'charge', label: '포인트 충전' },
-  { id: 'ticket', label: '이용권' },
-  { id: 'skin', label: '꾸미기' },
+  { id: 'avatar', label: '포켓몬' },
+  { id: 'bg',     label: '배경' },
+  { id: 'frame',  label: '테두리' },
+  { id: 'charge', label: '포인트' },
 ];
 
-const TAG_LABEL: Record<NonNullable<ShopItem['tag']>, string> = {
-  hot: 'HOT',
-  new: 'NEW',
-  limited: 'LIMIT',
-};
+const CHARGE_PACKS = [
+  { id: 'p-500',  label: '500P',    price: '₩1,000', bonus: '' },
+  { id: 'p-1200', label: '1,200P',  price: '₩2,000', bonus: '+200P 보너스' },
+  { id: 'p-3500', label: '3,500P',  price: '₩5,000', bonus: '+500P 보너스' },
+  { id: 'p-8000', label: '8,000P',  price: '₩10,000', bonus: '+2,000P 보너스' },
+];
 
 export function ShopScreen() {
-  const [tab, setTab] = useState<Tab>('all');
-  const list = SHOP_ITEMS.filter((it) => tab === 'all' || it.category === tab);
+  const inv = useInventory();
+  const [tab, setTab] = useState<Tab>('avatar');
+  const [flash, setFlash] = useState<string | null>(null);
+
+  const flashMsg = (msg: string) => {
+    setFlash(msg);
+    setTimeout(() => setFlash(null), 1400);
+  };
+
+  const buyAvatar = (id: AvatarId, price: number) => {
+    if (inv.avatarOwned.includes(id)) {
+      inv.pickAvatar(id);
+      flashMsg(`✓ ${id} 선택`);
+      return;
+    }
+    const r = inv.buyAvatar(id, price);
+    flashMsg(r.ok ? '✓ 획득!' : r.msg ?? '실패');
+  };
+  const buyBg = (id: BackgroundId, price: number) => {
+    const r = inv.buyBg(id, price);
+    flashMsg(r.ok ? '✓ 적용!' : r.msg ?? '실패');
+  };
+  const buyFrame = (id: FrameId, price: number) => {
+    const r = inv.buyFrame(id, price);
+    flashMsg(r.ok ? '✓ 적용!' : r.msg ?? '실패');
+  };
 
   return (
     <>
       <StatusBar />
-      <AppBar title="상점" showBack right={<LivePill label={`${MY_PROFILE.points.toLocaleString()}P`} />} />
+      <AppBar
+        title="꾸미기 샵"
+        showBack
+        right={<LivePill label={`${inv.points.toLocaleString()}P`} />}
+      />
 
       <div style={{ height: 14 }} />
+      <Segmented items={TABS} value={tab} onChange={setTab} />
 
-      <div className="shop-seg seg-wrap" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)' }}>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={`seg ${tab === t.id ? 'on' : ''}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {flash && (
+        <div
+          style={{
+            margin: '0 var(--gap) var(--cg)',
+            padding: 10,
+            background: 'var(--ink)',
+            color: 'var(--yel)',
+            fontFamily: 'var(--f1)',
+            fontSize: 10,
+            letterSpacing: 1,
+            textAlign: 'center',
+            boxShadow:
+              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),3px 3px 0 var(--yel-dk)',
+          }}
+        >
+          {flash}
+        </div>
+      )}
 
-      <div className="sect">
-        <SectionTitle title="추천 상품" right={<span className="more">{list.length}개</span>} />
-        {list.length === 0 ? (
-          <div className="shop-card">
-            <div className="sh-main">
-              <div className="sh-title">준비 중이에요</div>
-            </div>
-          </div>
-        ) : (
-          list.map((it) => (
-            <div key={it.id} className="shop-card">
-              <div className="sh-icon" style={{ background: it.bg }}>
-                {it.emoji}
-              </div>
-              <div className="sh-main">
-                <div className="sh-title">
-                  {it.name}
-                  {it.tag && <span className={`sh-tag ${it.tag}`}>{TAG_LABEL[it.tag]}</span>}
+      {tab === 'avatar' && (
+        <div className="sect">
+          <SectionTitle title="포켓몬 아바타" right={<span className="more">총 {AVATARS.length}종</span>} />
+          <div className="shop-avatar-grid">
+            {AVATARS.map((a) => {
+              const owned = inv.avatarOwned.includes(a.id);
+              const current = inv.avatar === a.id;
+              const levelLocked = a.mode === 'level' && !owned;
+              return (
+                <div key={a.id} className={`shop-avatar-card${current ? ' on' : ''}`}>
+                  <div className="sac-img"><PokemonAvatar id={a.id} size={60} /></div>
+                  <div className="sac-name">{a.name}</div>
+                  {a.tag && <div className={`sac-tag tag-${a.tag}`}>{a.tag.toUpperCase()}</div>}
+                  <button
+                    type="button"
+                    className={`sac-btn ${owned ? 'owned' : ''} ${levelLocked ? 'locked' : ''}`}
+                    disabled={levelLocked}
+                    onClick={() => buyAvatar(a.id, a.price ?? 0)}
+                  >
+                    {owned
+                      ? current ? '선택됨' : '선택'
+                      : levelLocked
+                        ? `🔒 LV.${a.level}`
+                        : a.mode === 'shop'
+                          ? `🪙 ${(a.price ?? 0).toLocaleString()}`
+                          : '획득'}
+                  </button>
                 </div>
-                <div className="sh-desc">{it.desc}</div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === 'bg' && (
+        <div className="sect">
+          <SectionTitle title="배경" right={<span className="more">총 {BACKGROUNDS.length}종</span>} />
+          <div className="shop-avatar-grid">
+            {BACKGROUNDS.map((b) => {
+              const owned = inv.bgOwned.includes(b.id);
+              const current = inv.bg === b.id;
+              return (
+                <div key={b.id} className={`shop-avatar-card${current ? ' on' : ''}`}>
+                  <div className="sac-img" style={{ position: 'relative', width: 72, height: 48, overflow: 'hidden' }}>
+                    <PixelBackground id={b.id} />
+                  </div>
+                  <div className="sac-name">{b.name}</div>
+                  {b.tag && <div className={`sac-tag tag-${b.tag}`}>{b.tag.toUpperCase()}</div>}
+                  <button
+                    type="button"
+                    className={`sac-btn ${owned ? 'owned' : ''}`}
+                    onClick={() => buyBg(b.id, b.price)}
+                  >
+                    {owned ? (current ? '선택됨' : '선택') : `🪙 ${b.price.toLocaleString()}`}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === 'frame' && (
+        <div className="sect">
+          <SectionTitle title="테두리" right={<span className="more">총 {FRAMES.length}종</span>} />
+          <div className="shop-avatar-grid">
+            {FRAMES.map((f) => {
+              const owned = inv.frameOwned.includes(f.id);
+              const current = inv.frame === f.id;
+              return (
+                <div key={f.id} className={`shop-avatar-card${current ? ' on' : ''}`}>
+                  <div className={`sac-img frm-${f.id}`} style={{ width: 64, height: 64, background: 'var(--pap2)' }}>
+                    <PokemonAvatar id="bulbasaur" size={44} />
+                  </div>
+                  <div className="sac-name">{f.name}</div>
+                  {f.tag && <div className={`sac-tag tag-${f.tag}`}>{f.tag.toUpperCase()}</div>}
+                  <button
+                    type="button"
+                    className={`sac-btn ${owned ? 'owned' : ''}`}
+                    onClick={() => buyFrame(f.id, f.price)}
+                  >
+                    {owned ? (current ? '선택됨' : '선택') : `🪙 ${f.price.toLocaleString()}`}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === 'charge' && (
+        <div className="sect">
+          <SectionTitle title="포인트 충전" right={<LivePill />} />
+          {CHARGE_PACKS.map((p) => (
+            <div key={p.id} className="shop-card">
+              <div className="sh-icon" style={{ background: '#3A5BD9', color: '#fff' }}>🪙</div>
+              <div className="sh-main">
+                <div className="sh-title">{p.label}</div>
+                {p.bonus && <div className="sh-desc" style={{ color: 'var(--grn-dk)' }}>✨ {p.bonus}</div>}
               </div>
               <div className="sh-right">
-                <span className="sh-price">💎 {it.price.toLocaleString()}P</span>
-                <button type="button" className="sh-buy">
-                  구매
+                <span className="sh-price">{p.price}</span>
+                <button type="button" className="sh-buy" onClick={() => flashMsg('결제 시스템 준비 중 🚧')}>
+                  결제
                 </button>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       <div className="bggap" />
     </>

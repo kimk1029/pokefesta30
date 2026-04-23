@@ -1,17 +1,29 @@
 import { isAvatarId, type AvatarId } from '@/lib/avatars';
 
-/** 국가도감 번호 매핑 — /public/sprites/{id}.png 로 해석됨. */
+/** 국가도감 번호 매핑 — /public/sprites/{id}.gif 로 해석됨. */
 const POKEMON_NO: Record<AvatarId, number> = {
   bulbasaur: 1,
   charmander: 4,
   squirtle: 7,
+  butterfree: 12,
+  pidgeotto: 17,
+  rattata: 19,
   pikachu: 25,
-  eevee: 133,
-  ditto: 132,
-  snorlax: 143,
+  diglett: 50,
+  voltorb: 100,
+  'mr-mime': 122,
+  jynx: 124,
+  gyarados: 130,
   lapras: 131,
-  mewtwo: 150,
+  ditto: 132,
+  eevee: 133,
+  porygon: 137,
+  snorlax: 143,
+  articuno: 144,
+  zapdos: 145,
   moltres: 146,
+  mewtwo: 150,
+  mew: 151,
 };
 
 interface Props {
