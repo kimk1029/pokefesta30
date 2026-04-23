@@ -1,5 +1,6 @@
 import { getServerSession } from 'next-auth';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { BookmarkButton } from '@/components/BookmarkButton';
 import { BumpButton } from '@/components/BumpButton';
 import { ComposedAvatar } from '@/components/ComposedAvatar';
@@ -71,6 +72,16 @@ export default async function Page({ params }: Props) {
           <div style={{ fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
             {trade.body}
           </div>
+        )}
+
+        {!isAuthor && (
+          <Link
+            href={`/trade/${trade.id}/chat`}
+            className="chat-cta"
+            aria-label="1:1 문의하기"
+          >
+            💬 1:1 문의하기 ▶
+          </Link>
         )}
 
         {trade.kakaoId && (
