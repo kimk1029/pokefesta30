@@ -1,17 +1,33 @@
 'use server';
 
+import { getServerSession } from 'next-auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import type { CongestionLevel, TradeType } from '@/lib/types';
 
 const LEVELS: readonly CongestionLevel[] = ['empty', 'normal', 'busy', 'full'] as const;
 const TRADE_TYPES: readonly TradeType[] = ['buy', 'sell'] as const;
 
+async function requireSession() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    throw new Error('로그인이 필요합니다');
+  }
+  return session;
+}
+
+function authorEmojiFrom(session: Awaited<ReturnType<typeof requireSession>>): string {
+  return session.user.name?.slice(0, 2) ?? '🐣';
+}
+
 /* ============================================================
  * Report (제보)
  * ========================================================== */
 export async function submitReport(formData: FormData): Promise<void> {
+  const session = await requireSession();
+
   const placeId = String(formData.get('place_id') ?? '');
   const rawLevel = String(formData.get('level') ?? '');
   const note = String(formData.get('note') ?? '').trim();
@@ -24,7 +40,12 @@ export async function submitReport(formData: FormData): Promise<void> {
 
   await prisma.$transaction(async (tx) => {
     await tx.report.create({
-      data: { placeId, level, note },
+      data: {
+        placeId,
+        level,
+        note,
+        authorEmoji: authorEmojiFrom(session),
+      },
     });
     await tx.place.update({
       where: { id: placeId },
@@ -45,6 +66,8 @@ export async function submitReport(formData: FormData): Promise<void> {
  * Trade (거래글 작성)
  * ========================================================== */
 export async function submitTrade(formData: FormData): Promise<void> {
+  const session = await requireSession();
+
   const placeId = String(formData.get('place_id') ?? '');
   const rawType = String(formData.get('type') ?? '');
   const title = String(formData.get('title') ?? '').trim();
@@ -64,6 +87,7 @@ export async function submitTrade(formData: FormData): Promise<void> {
       title,
       body,
       price,
+      authorEmoji: authorEmojiFrom(session),
     },
   });
 
@@ -76,6 +100,8 @@ export async function submitTrade(formData: FormData): Promise<void> {
  * Feed (잡담)
  * ========================================================== */
 export async function submitFeed(formData: FormData): Promise<void> {
+  const session = await requireSession();
+
   const placeIdRaw = String(formData.get('place_id') ?? '').trim();
   const text = String(formData.get('text') ?? '').trim();
 
@@ -85,6 +111,7 @@ export async function submitFeed(formData: FormData): Promise<void> {
     data: {
       placeId: placeIdRaw || null,
       text,
+      authorEmoji: authorEmojiFrom(session),
     },
   });
 

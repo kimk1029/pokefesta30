@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import type { Session } from 'next-auth';
 import { AppBar } from '@/components/ui/AppBar';
 import { IconButton } from '@/components/ui/IconButton';
+import { LogoutButton } from '@/components/LogoutButton';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { MY_PROFILE } from '@/lib/data';
@@ -18,8 +20,14 @@ const ACTIVITY: Array<{ em: string; bg: string; lb: string }> = [
   { em: '💛', bg: '#3A5BD9', lb: '찜한 글' },
 ];
 
-export function MyScreen() {
-  const p = MY_PROFILE;
+interface Props {
+  session: Session;
+}
+
+export function MyScreen({ session }: Props) {
+  const name = session.user?.name ?? MY_PROFILE.name;
+  const avatar = session.user?.image ? null : MY_PROFILE.avatar;
+  const provider = session.user?.provider;
 
   return (
     <>
@@ -34,17 +42,28 @@ export function MyScreen() {
       />
 
       <div className="profile-card">
-        <div className="p-avatar">{p.avatar}</div>
+        <div className="p-avatar">
+          {avatar ?? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={session.user!.image!}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          )}
+        </div>
         <div>
-          <div className="pf-name">{p.name}</div>
-          <div className="pf-meta">제보 {p.reportCount}건 · 신뢰도 {p.rating}</div>
+          <div className="pf-name">{name}</div>
+          <div className="pf-meta">
+            {provider ? `${provider} · ` : ''}제보 {MY_PROFILE.reportCount}건 · 신뢰도 {MY_PROFILE.rating}
+          </div>
         </div>
       </div>
 
       <div className="points-card">
         <div>
           <div className="pt-label">보유 포인트</div>
-          <div className="pt-amount">💎 {p.points.toLocaleString()} P</div>
+          <div className="pt-amount">💎 {MY_PROFILE.points.toLocaleString()} P</div>
         </div>
         <Link href="/my/shop" className="pt-cta">
           충전 ▶
@@ -90,6 +109,9 @@ export function MyScreen() {
         ))}
       </div>
 
+      <div style={{ margin: '0 var(--gap) var(--cg)' }}>
+        <LogoutButton />
+      </div>
       <div className="bggap" />
     </>
   );

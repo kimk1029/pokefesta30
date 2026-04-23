@@ -1,6 +1,13 @@
+import { getServerSession } from 'next-auth';
 import { NextResponse, type NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+
+async function requireAuth() {
+  const session = await getServerSession(authOptions);
+  return session?.user ? session : null;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -22,8 +29,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   return NextResponse.json({ data: row });
 }
 
-/** PATCH /api/feeds/:id — body: { text?, placeId? } */
+/** PATCH /api/feeds/:id — body: { text?, placeId? } (auth required) */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await requireAuth())) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const id = parseId(params.id);
   if (id === null) return NextResponse.json({ error: 'invalid id' }, { status: 400 });
 
@@ -56,8 +64,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-/** DELETE /api/feeds/:id */
+/** DELETE /api/feeds/:id (auth required) */
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  if (!(await requireAuth())) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const id = parseId(params.id);
   if (id === null) return NextResponse.json({ error: 'invalid id' }, { status: 400 });
 

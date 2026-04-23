@@ -1,5 +1,7 @@
+import { getServerSession } from 'next-auth';
 import { NextResponse, type NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -31,10 +33,15 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/trades
- * body: { placeId, type: 'buy'|'sell', title, body?, price?, authorEmoji? }
+ * POST /api/trades (auth required)
+ * body: { placeId, type: 'buy'|'sell', title, body?, price? }
  */
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -47,7 +54,6 @@ export async function POST(req: NextRequest) {
     title,
     body: content,
     price,
-    authorEmoji,
   } = (body ?? {}) as Record<string, string | undefined>;
 
   if (!placeId) return NextResponse.json({ error: 'placeId required' }, { status: 400 });
@@ -65,7 +71,7 @@ export async function POST(req: NextRequest) {
       title: title.trim(),
       body: content?.trim() ?? '',
       price: price?.trim() || '제안',
-      authorEmoji: authorEmoji || '익명',
+      authorEmoji: session.user.name?.slice(0, 2) ?? '익명',
     },
   });
   return NextResponse.json({ data: created }, { status: 201 });

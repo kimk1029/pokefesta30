@@ -1,5 +1,7 @@
+import { getServerSession } from 'next-auth';
 import { NextResponse, type NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -12,8 +14,10 @@ function parseId(raw: string): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/** PATCH /api/trades/:id/status — body: { status: 'open'|'reserved'|'done'|'cancelled' } */
+/** PATCH /api/trades/:id/status — body: { status: 'open'|'reserved'|'done'|'cancelled' } (auth required) */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const id = parseId(params.id);
   if (id === null) return NextResponse.json({ error: 'invalid id' }, { status: 400 });
 

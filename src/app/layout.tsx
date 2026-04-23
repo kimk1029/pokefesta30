@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { PhoneShell } from '@/components/PhoneShell';
+import { Providers } from '@/components/Providers';
 import 'galmuri/dist/galmuri.css';
 import './globals.css';
 
@@ -28,7 +29,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <PhoneShell>{children}</PhoneShell>
+        <Providers>
+          <PhoneShell>{children}</PhoneShell>
+        </Providers>
       </body>
     </html>
   );
