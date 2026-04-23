@@ -128,6 +128,7 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
       place: r.place?.name ?? '',
       time: relTime(r.createdAt),
       price: r.price ?? '제안',
+      kakaoId: r.kakaoId ?? null,
     }));
   } catch (err) {
     console.error('[getTrades] fallback to mock:', err);
@@ -152,6 +153,7 @@ export async function getTradeById(id: number): Promise<TradeDetail | null> {
       time: relTime(r.createdAt),
       status: asTradeStatus(r.status),
       authorEmoji: r.authorEmoji,
+      kakaoId: r.kakaoId ?? null,
     };
   } catch (err) {
     console.error('[getTradeById]', err);
@@ -195,6 +197,7 @@ export async function getMyTrades(userId: string, limit = 30): Promise<Trade[]> 
       place: r.place?.name ?? '',
       time: relTime(r.createdAt),
       price: r.price ?? '제안',
+      kakaoId: r.kakaoId ?? null,
     }));
   } catch (err) {
     console.error('[getMyTrades]', err);

@@ -1,3 +1,4 @@
+import { BookmarkButton } from './BookmarkButton';
 import type { FeedPost } from '@/lib/types';
 
 export function FeedRow({ post }: { post: FeedPost }) {
@@ -15,6 +16,7 @@ export function FeedRow({ post }: { post: FeedPost }) {
         </div>
         <div className="fi-text">{post.text}</div>
       </div>
+      <BookmarkButton feedId={post.id} />
     </div>
   );
 }

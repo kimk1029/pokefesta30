@@ -19,6 +19,7 @@ export interface Trade {
   place: string;
   time: string;
   price: string;
+  kakaoId?: string | null;
 }
 
 export interface FeedItem {

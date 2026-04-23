@@ -73,6 +73,7 @@ export async function submitTrade(formData: FormData): Promise<void> {
   const title = String(formData.get('title') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
   const price = String(formData.get('price') ?? '').trim() || '제안';
+  const kakaoId = String(formData.get('kakao_id') ?? '').trim() || null;
 
   if (!placeId) throw new Error('place_id required');
   if (!TRADE_TYPES.includes(rawType as TradeType)) {
@@ -87,6 +88,7 @@ export async function submitTrade(formData: FormData): Promise<void> {
       title,
       body,
       price,
+      kakaoId,
       authorEmoji: authorEmojiFrom(session),
     },
   });

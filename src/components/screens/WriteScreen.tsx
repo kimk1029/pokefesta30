@@ -37,6 +37,7 @@ export function WriteScreen({ mode, places }: Props) {
   const [ttype, setTtype] = useState<TradeType>('buy');
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
+  const [kakaoId, setKakaoId] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -78,6 +79,7 @@ export function WriteScreen({ mode, places }: Props) {
       fd.set('title', title);
       fd.set('body', note);
       fd.set('price', price);
+      if (kakaoId) fd.set('kakao_id', kakaoId);
       startTransition(async () => {
         try {
           await submitTrade(fd);
@@ -180,6 +182,14 @@ export function WriteScreen({ mode, places }: Props) {
               placeholder="예) 15,000원 / 정가 / 협의"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
+            />
+          </div>
+          <div className="form-sect">
+            <div className="form-label">💬 카카오톡 ID / 오픈채팅 링크 <span style={{ fontSize: 11, opacity: 0.6 }}>(선택)</span></div>
+            <TextInput
+              placeholder="예) kakao_id 또는 https://open.kakao.com/o/..."
+              value={kakaoId}
+              onChange={(e) => setKakaoId(e.target.value)}
             />
           </div>
         </>
