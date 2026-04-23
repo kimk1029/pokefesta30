@@ -30,19 +30,30 @@ export function PokemonAvatar({ id, size = 60, fallback = '🐣' }: Props) {
   }
   const no = POKEMON_NO[id as AvatarId];
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/sprites/${no}.gif`}
-      width={size}
-      height={size}
-      alt={String(id)}
-      loading="lazy"
-      decoding="async"
+    <span
       style={{
-        imageRendering: 'pixelated',
-        objectFit: 'contain',
-        display: 'block',
+        display: 'inline-grid',
+        placeItems: 'center',
+        width: size,
+        height: size,
+        lineHeight: 0,
       }}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/sprites/${no}.gif`}
+        alt={String(id)}
+        loading="lazy"
+        decoding="async"
+        style={{
+          maxWidth: '100%',
+          maxHeight: '100%',
+          width: 'auto',
+          height: 'auto',
+          imageRendering: 'pixelated',
+          display: 'block',
+        }}
+      />
+    </span>
   );
 }

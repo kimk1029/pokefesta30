@@ -4,17 +4,28 @@
  */
 export function PixelKarp({ size = 130 }: { size?: number }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/sprites/129.gif"
-      width={size}
-      height={size}
-      alt="잉어킹"
+    <span
       style={{
-        imageRendering: 'pixelated',
-        objectFit: 'contain',
-        display: 'block',
+        display: 'inline-grid',
+        placeItems: 'center',
+        width: size,
+        height: size,
+        lineHeight: 0,
       }}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/sprites/129.gif"
+        alt="잉어킹"
+        style={{
+          maxWidth: '100%',
+          maxHeight: '100%',
+          width: 'auto',
+          height: 'auto',
+          imageRendering: 'pixelated',
+          display: 'block',
+        }}
+      />
+    </span>
   );
 }
