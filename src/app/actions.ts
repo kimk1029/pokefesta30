@@ -22,6 +22,24 @@ function authorEmojiFrom(session: Awaited<ReturnType<typeof requireSession>>): s
   return session.user.name?.slice(0, 2) ?? '🐣';
 }
 
+/**
+ * NextAuth 세션 user 를 users 테이블에 upsert 해서 FK 안전하게 만듬.
+ * JWT 세션이라 token.sub(provider-scoped id)를 PK 로 사용.
+ */
+async function ensureUser(
+  session: Awaited<ReturnType<typeof requireSession>>,
+): Promise<string | null> {
+  const id = session.user.id;
+  if (!id) return null;
+  const name = session.user.name ?? '트레이너';
+  await prisma.user.upsert({
+    where: { id },
+    update: { name },
+    create: { id, name, avatar: '🐣' },
+  });
+  return id;
+}
+
 /** form 의 avatar_id 필드 우선, 없으면 이모지 폴백. */
 function authorTokenFromForm(
   formData: FormData,
@@ -65,6 +83,7 @@ export async function submitFeed(formData: FormData): Promise<void> {
     level = rawLevel as CongestionLevel;
   }
 
+  const authorId = await ensureUser(session);
   const authorEmoji = authorTokenFromForm(formData, session);
   await prisma.$transaction(async (tx) => {
     await tx.feed.create({
@@ -73,7 +92,7 @@ export async function submitFeed(formData: FormData): Promise<void> {
         level,
         placeId,
         text,
-        authorId: session.user.id ?? null,
+        authorId,
         authorEmoji,
       },
     });
@@ -123,6 +142,7 @@ export async function submitTrade(formData: FormData): Promise<void> {
   }
   if (!title) throw new Error('title required');
 
+  const authorId = await ensureUser(session);
   await prisma.trade.create({
     data: {
       placeId,
@@ -131,7 +151,7 @@ export async function submitTrade(formData: FormData): Promise<void> {
       body,
       price,
       kakaoId,
-      authorId: session.user.id ?? null,
+      authorId,
       authorEmoji: authorTokenFromForm(formData, session),
     },
   });

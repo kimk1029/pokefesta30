@@ -64,6 +64,17 @@ export async function POST(req: NextRequest) {
     resolvedLevel = level as CongestionLevel;
   }
 
+  // users 행 확보 (FK 안전)
+  let authorId: string | null = null;
+  if (session.user.id) {
+    await prisma.user.upsert({
+      where: { id: session.user.id },
+      update: { name: session.user.name ?? '트레이너' },
+      create: { id: session.user.id, name: session.user.name ?? '트레이너' },
+    });
+    authorId = session.user.id;
+  }
+
   const created = await prisma.$transaction(async (tx) => {
     const row = await tx.feed.create({
       data: {
@@ -71,7 +82,7 @@ export async function POST(req: NextRequest) {
         level: resolvedLevel,
         placeId: placeId || null,
         text: text.trim(),
-        authorId: session.user.id ?? null,
+        authorId,
         authorEmoji: session.user.name?.slice(0, 2) ?? '🐣',
       },
     });

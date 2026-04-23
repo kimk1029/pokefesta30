@@ -64,6 +64,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'title required' }, { status: 400 });
   }
 
+  let authorId: string | null = null;
+  if (session.user.id) {
+    await prisma.user.upsert({
+      where: { id: session.user.id },
+      update: { name: session.user.name ?? '트레이너' },
+      create: { id: session.user.id, name: session.user.name ?? '트레이너' },
+    });
+    authorId = session.user.id;
+  }
+
   const created = await prisma.trade.create({
     data: {
       placeId,
@@ -71,6 +81,7 @@ export async function POST(req: NextRequest) {
       title: title.trim(),
       body: content?.trim() ?? '',
       price: price?.trim() || '제안',
+      authorId,
       authorEmoji: session.user.name?.slice(0, 2) ?? '익명',
     },
   });
