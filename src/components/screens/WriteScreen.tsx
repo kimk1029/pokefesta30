@@ -1,8 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { submitReport } from '@/app/actions';
+import { submitFeed, submitReport, submitTrade } from '@/app/actions';
 import { AppBar } from '@/components/ui/AppBar';
 import { Chip } from '@/components/ui/Chip';
 import { CongOption } from '@/components/ui/CongOption';
@@ -33,7 +32,6 @@ interface Props {
 }
 
 export function WriteScreen({ mode, places }: Props) {
-  const router = useRouter();
   const [place, setPlace] = useState<string>(places[0]?.id ?? '');
   const [level, setLevel] = useState<CongestionLevel>('normal');
   const [ttype, setTtype] = useState<TradeType>('buy');
@@ -44,14 +42,23 @@ export function WriteScreen({ mode, places }: Props) {
   const [pending, startTransition] = useTransition();
 
   const submit = () => {
-    if (!place) {
+    if (mode !== 'feed' && !place) {
       setError('장소를 선택해주세요');
+      return;
+    }
+    if (mode === 'trade' && !title.trim()) {
+      setError('제목을 입력해주세요');
+      return;
+    }
+    if (mode === 'feed' && !note.trim()) {
+      setError('내용을 입력해주세요');
       return;
     }
     setError(null);
 
+    const fd = new FormData();
+
     if (mode === 'report') {
-      const fd = new FormData();
       fd.set('place_id', place);
       fd.set('level', level);
       fd.set('note', note);
@@ -65,8 +72,32 @@ export function WriteScreen({ mode, places }: Props) {
       return;
     }
 
-    // trade/feed: 현재는 mock (클라이언트 라우팅만). 추후 actions에 엔드포인트 추가.
-    router.push(mode === 'trade' ? '/trade' : '/feed');
+    if (mode === 'trade') {
+      fd.set('place_id', place);
+      fd.set('type', ttype);
+      fd.set('title', title);
+      fd.set('body', note);
+      fd.set('price', price);
+      startTransition(async () => {
+        try {
+          await submitTrade(fd);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : '거래글 등록 실패');
+        }
+      });
+      return;
+    }
+
+    // feed
+    if (place) fd.set('place_id', place);
+    fd.set('text', note);
+    startTransition(async () => {
+      try {
+        await submitFeed(fd);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '피드 등록 실패');
+      }
+    });
   };
 
   const submitLabel =

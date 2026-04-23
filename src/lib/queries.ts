@@ -1,14 +1,31 @@
-import { FEED as MOCK_FEED, PLACES as MOCK_PLACES, TRADES as MOCK_TRADES } from './data';
-import { pool } from './db';
-import type { CongestionLevel, FeedItem, Place, Trade, TradeType } from './types';
+import {
+  FEED as MOCK_FEED,
+  PLACES as MOCK_PLACES,
+  TRADES as MOCK_TRADES,
+} from './data';
+import { prisma } from './prisma';
+import type {
+  CongestionLevel,
+  FeedItem,
+  FeedPost,
+  Place,
+  Trade,
+  TradeDetail,
+  TradeStatus,
+  TradeType,
+} from './types';
 
-function minsSince(iso: string | Date | null | undefined): number {
+/* ------------------------------------------------------------------ */
+/* helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+function minsSince(iso: Date | string | null | undefined): number {
   if (!iso) return 9_999;
   const t = typeof iso === 'string' ? new Date(iso).getTime() : iso.getTime();
   return Math.max(0, Math.floor((Date.now() - t) / 60_000));
 }
 
-function relTime(iso: string | Date): string {
+function relTime(iso: Date | string): string {
   const mins = minsSince(iso);
   if (mins <= 1) return '방금 전';
   if (mins < 60) return `${mins}분 전`;
@@ -17,28 +34,33 @@ function relTime(iso: string | Date): string {
   return `${Math.floor(hrs / 24)}일 전`;
 }
 
+function asCongestionLevel(s: string): CongestionLevel {
+  return (['empty', 'normal', 'busy', 'full'] as const).includes(s as CongestionLevel)
+    ? (s as CongestionLevel)
+    : 'normal';
+}
+
+function asTradeStatus(s: string): TradeStatus {
+  return (['open', 'reserved', 'done', 'cancelled'] as const).includes(s as TradeStatus)
+    ? (s as TradeStatus)
+    : 'open';
+}
+
+/* ------------------------------------------------------------------ */
+/* reads                                                               */
+/* ------------------------------------------------------------------ */
+
 export async function getPlaces(): Promise<Place[]> {
-  if (!pool) return MOCK_PLACES;
   try {
-    const { rows } = await pool.query<{
-      id: string;
-      name: string;
-      emoji: string;
-      bg: string;
-      level: CongestionLevel;
-      count: number;
-      last_report_at: Date | null;
-    }>(
-      'SELECT id, name, emoji, bg, level, count, last_report_at FROM places ORDER BY id',
-    );
+    const rows = await prisma.place.findMany({ orderBy: { id: 'asc' } });
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
       emoji: r.emoji,
       bg: r.bg,
-      level: r.level,
-      mins: minsSince(r.last_report_at),
-      count: r.count ?? 0,
+      level: asCongestionLevel(r.level),
+      mins: minsSince(r.lastReportAt),
+      count: r.count,
     }));
   } catch (err) {
     console.error('[getPlaces] fallback to mock:', err);
@@ -46,69 +68,65 @@ export async function getPlaces(): Promise<Place[]> {
   }
 }
 
-export async function getFeed(limit = 20): Promise<FeedItem[]> {
-  if (!pool) return MOCK_FEED.slice(0, limit);
+/** 최근 제보 — LiveScreen "최근 제보" 섹션에서 사용 */
+export async function getReports(limit = 20): Promise<FeedItem[]> {
   try {
-    const { rows } = await pool.query<{
-      id: number | string;
-      place_name: string | null;
-      level: CongestionLevel;
-      note: string | null;
-      created_at: Date;
-      author: string | null;
-    }>(
-      `SELECT r.id, p.name AS place_name, r.level, r.note, r.created_at, r.author
-       FROM reports r
-       JOIN places p ON p.id = r.place_id
-       ORDER BY r.created_at DESC
-       LIMIT $1`,
-      [limit],
-    );
+    const rows = await prisma.report.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { place: { select: { name: true } } },
+    });
     return rows.map((r) => ({
-      id: Number(r.id),
-      place: r.place_name ?? '알 수 없음',
-      level: r.level,
+      id: r.id,
+      place: r.place?.name ?? '알 수 없음',
+      level: asCongestionLevel(r.level),
       text: r.note ?? '',
-      time: relTime(r.created_at),
-      user: r.author ?? '🐣',
+      time: relTime(r.createdAt),
+      user: r.authorEmoji ?? '🐣',
     }));
   } catch (err) {
-    console.error('[getFeed] fallback to mock:', err);
+    console.error('[getReports] fallback to mock:', err);
     return MOCK_FEED.slice(0, limit);
   }
 }
 
-export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trade[]> {
-  if (!pool) {
-    return filter === 'all' ? MOCK_TRADES : MOCK_TRADES.filter((t) => t.type === filter);
-  }
+/** 기존 호환 (reports 기반) */
+export const getFeed = getReports;
+
+/** 잡담 피드 — FeedScreen "현장 피드" 에서 사용 (reports 와 분리) */
+export async function getFeedPosts(limit = 30): Promise<FeedPost[]> {
   try {
-    const params: unknown[] = [];
-    let sql =
-      `SELECT t.id, t.type, t.title, p.name AS place_name, t.price, t.created_at
-       FROM trades t
-       JOIN places p ON p.id = t.place_id`;
-    if (filter !== 'all') {
-      sql += ' WHERE t.type = $1';
-      params.push(filter);
-    }
-    sql += ' ORDER BY t.created_at DESC';
-
-    const { rows } = await pool.query<{
-      id: number | string;
-      type: TradeType;
-      title: string;
-      place_name: string | null;
-      price: string | null;
-      created_at: Date;
-    }>(sql, params);
-
+    const rows = await prisma.feed.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { place: { select: { name: true } } },
+    });
     return rows.map((r) => ({
-      id: Number(r.id),
-      type: r.type,
+      id: r.id,
+      place: r.place?.name ?? null,
+      text: r.text,
+      time: relTime(r.createdAt),
+      user: r.authorEmoji ?? '🐣',
+    }));
+  } catch (err) {
+    console.error('[getFeedPosts] fallback to empty:', err);
+    return [];
+  }
+}
+
+export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trade[]> {
+  try {
+    const rows = await prisma.trade.findMany({
+      where: filter === 'all' ? {} : { type: filter },
+      orderBy: { createdAt: 'desc' },
+      include: { place: { select: { name: true } } },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      type: r.type as TradeType,
       title: r.title,
-      place: r.place_name ?? '',
-      time: relTime(r.created_at),
+      place: r.place?.name ?? '',
+      time: relTime(r.createdAt),
       price: r.price ?? '제안',
     }));
   } catch (err) {
@@ -117,18 +135,37 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
   }
 }
 
-/**
- * 오늘 00:00 이후 누적 제보 건수.
- */
-export async function getTodayReportCount(): Promise<number> {
-  if (!pool) return MOCK_FEED.length;
+export async function getTradeById(id: number): Promise<TradeDetail | null> {
   try {
-    const { rows } = await pool.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM reports WHERE created_at >= date_trunc('day', NOW())`,
-    );
-    return Number(rows[0]?.count ?? 0);
+    const r = await prisma.trade.findUnique({
+      where: { id },
+      include: { place: { select: { name: true } } },
+    });
+    if (!r) return null;
+    return {
+      id: r.id,
+      type: r.type as TradeType,
+      title: r.title,
+      body: r.body,
+      price: r.price ?? '제안',
+      place: r.place?.name ?? '',
+      time: relTime(r.createdAt),
+      status: asTradeStatus(r.status),
+      authorEmoji: r.authorEmoji,
+    };
   } catch (err) {
-    console.error('[getTodayReportCount] fallback to mock:', err);
+    console.error('[getTradeById]', err);
+    return null;
+  }
+}
+
+export async function getTodayReportCount(): Promise<number> {
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return await prisma.report.count({ where: { createdAt: { gte: start } } });
+  } catch (err) {
+    console.error('[getTodayReportCount] fallback:', err);
     return MOCK_FEED.length;
   }
 }

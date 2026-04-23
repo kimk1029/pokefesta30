@@ -2,11 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { pool } from '@/lib/db';
-import type { CongestionLevel } from '@/lib/types';
+import { prisma } from '@/lib/prisma';
+import type { CongestionLevel, TradeType } from '@/lib/types';
 
 const LEVELS: readonly CongestionLevel[] = ['empty', 'normal', 'busy', 'full'] as const;
+const TRADE_TYPES: readonly TradeType[] = ['buy', 'sell'] as const;
 
+/* ============================================================
+ * Report (제보)
+ * ========================================================== */
 export async function submitReport(formData: FormData): Promise<void> {
   const placeId = String(formData.get('place_id') ?? '');
   const rawLevel = String(formData.get('level') ?? '');
@@ -18,31 +22,73 @@ export async function submitReport(formData: FormData): Promise<void> {
   }
   const level = rawLevel as CongestionLevel;
 
-  if (pool) {
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      await client.query(
-        `INSERT INTO reports (place_id, level, note) VALUES ($1, $2, $3)`,
-        [placeId, level, note],
-      );
-      await client.query(
-        `UPDATE places
-         SET level = $2, last_report_at = NOW(), count = count + 1
-         WHERE id = $1`,
-        [placeId, level],
-      );
-      await client.query('COMMIT');
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
-  }
+  await prisma.$transaction(async (tx) => {
+    await tx.report.create({
+      data: { placeId, level, note },
+    });
+    await tx.place.update({
+      where: { id: placeId },
+      data: {
+        level,
+        lastReportAt: new Date(),
+        count: { increment: 1 },
+      },
+    });
+  });
 
-  // DB 미설정 상태에서도 UX 는 일관되게 — 캐시 무효화 + 리다이렉트
   revalidatePath('/live');
   revalidatePath('/');
   redirect('/live');
+}
+
+/* ============================================================
+ * Trade (거래글 작성)
+ * ========================================================== */
+export async function submitTrade(formData: FormData): Promise<void> {
+  const placeId = String(formData.get('place_id') ?? '');
+  const rawType = String(formData.get('type') ?? '');
+  const title = String(formData.get('title') ?? '').trim();
+  const body = String(formData.get('body') ?? '').trim();
+  const price = String(formData.get('price') ?? '').trim() || '제안';
+
+  if (!placeId) throw new Error('place_id required');
+  if (!TRADE_TYPES.includes(rawType as TradeType)) {
+    throw new Error(`invalid type: ${rawType}`);
+  }
+  if (!title) throw new Error('title required');
+
+  await prisma.trade.create({
+    data: {
+      placeId,
+      type: rawType,
+      title,
+      body,
+      price,
+    },
+  });
+
+  revalidatePath('/trade');
+  revalidatePath('/');
+  redirect('/trade');
+}
+
+/* ============================================================
+ * Feed (잡담)
+ * ========================================================== */
+export async function submitFeed(formData: FormData): Promise<void> {
+  const placeIdRaw = String(formData.get('place_id') ?? '').trim();
+  const text = String(formData.get('text') ?? '').trim();
+
+  if (!text) throw new Error('text required');
+
+  await prisma.feed.create({
+    data: {
+      placeId: placeIdRaw || null,
+      text,
+    },
+  });
+
+  revalidatePath('/feed');
+  revalidatePath('/');
+  redirect('/feed');
 }

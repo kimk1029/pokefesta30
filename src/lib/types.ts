@@ -30,6 +30,22 @@ export interface FeedItem {
   user: string;
 }
 
+export type TradeStatus = 'open' | 'reserved' | 'done' | 'cancelled';
+
+export interface TradeDetail extends Trade {
+  body: string;
+  status: TradeStatus;
+  authorEmoji: string;
+}
+
+export interface FeedPost {
+  id: number;
+  place: string | null;
+  text: string;
+  time: string;
+  user: string;
+}
+
 export type ShopCategory = 'charge' | 'ticket' | 'skin';
 
 export interface ShopItem {
