@@ -137,6 +137,21 @@ export async function buyBackground(id: string, expectedPrice: number): Promise<
 }
 
 /**
+ * 결제 mock — 사업자 등록 전까지 실제 결제 없이 포인트 가상 충전.
+ * 실제 결제 붙일 때 이 액션 내부를 PG 검증으로 교체.
+ */
+export async function mockCharge(amount: number): Promise<Result> {
+  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: 'invalid amount' };
+  const userId = await sessionUserId();
+  if (!userId) return { ok: false, error: 'unauthorized' };
+  await prisma.user.update({
+    where: { id: userId },
+    data: { points: { increment: amount } },
+  });
+  return { ok: true, inv: await getMyInventory(userId) };
+}
+
+/**
  * 임의 포인트 차감 (오리파 뽑기 등). 서버 검증으로 잔액 부족 방지.
  */
 export async function spendPoints(amount: number): Promise<Result> {

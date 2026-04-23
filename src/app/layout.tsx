@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { InventoryProvider } from '@/components/InventoryProvider';
 import { PhoneShell } from '@/components/PhoneShell';
 import { Providers } from '@/components/Providers';
+import { ToastProvider } from '@/components/ToastProvider';
 import { authOptions } from '@/lib/auth';
 import { getMyInventory } from '@/lib/queries';
 import 'galmuri/dist/galmuri.css';
@@ -39,9 +40,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       </head>
       <body>
         <Providers>
-          <InventoryProvider initial={inventory} isLoggedIn={!!userId}>
-            <PhoneShell>{children}</PhoneShell>
-          </InventoryProvider>
+          <ToastProvider>
+            <InventoryProvider initial={inventory} isLoggedIn={!!userId}>
+              <PhoneShell>{children}</PhoneShell>
+            </InventoryProvider>
+          </ToastProvider>
         </Providers>
       </body>
     </html>

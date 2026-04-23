@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useInventory } from '@/components/InventoryProvider';
 import { PixelBackground } from '@/components/PixelBackground';
 import { PokemonAvatar } from '@/components/PokemonAvatar';
+import { useToast } from '@/components/ToastProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { LivePill } from '@/components/ui/LivePill';
 import { SectionTitle } from '@/components/ui/SectionTitle';
@@ -20,39 +21,38 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'charge', label: '포인트' },
 ];
 
-const CHARGE_PACKS = [
-  { id: 'p-500',  label: '500P',    price: '₩1,000', bonus: '' },
-  { id: 'p-1200', label: '1,200P',  price: '₩2,000', bonus: '+200P 보너스' },
-  { id: 'p-3500', label: '3,500P',  price: '₩5,000', bonus: '+500P 보너스' },
-  { id: 'p-8000', label: '8,000P',  price: '₩10,000', bonus: '+2,000P 보너스' },
+const CHARGE_PACKS: Array<{ id: string; label: string; price: string; bonus: string; points: number }> = [
+  { id: 'p-500',  label: '500P',    price: '₩1,000',  bonus: '',              points: 500  },
+  { id: 'p-1200', label: '1,200P',  price: '₩2,000',  bonus: '+200P 보너스',  points: 1200 },
+  { id: 'p-3500', label: '3,500P',  price: '₩5,000',  bonus: '+500P 보너스',  points: 3500 },
+  { id: 'p-8000', label: '8,000P',  price: '₩10,000', bonus: '+2,000P 보너스', points: 8000 },
 ];
 
 export function ShopScreen() {
   const inv = useInventory();
+  const toast = useToast();
   const [tab, setTab] = useState<Tab>('avatar');
-  const [flash, setFlash] = useState<string | null>(null);
-
-  const flashMsg = (msg: string) => {
-    setFlash(msg);
-    setTimeout(() => setFlash(null), 1400);
-  };
 
   const buyAvatar = async (id: AvatarId, price: number) => {
     if (inv.avatarOwned.includes(id)) {
       const r = await inv.pickAvatar(id);
-      flashMsg(r.ok ? `✓ ${id} 선택` : r.msg ?? '실패');
+      r.ok ? toast.success(`${id} 선택`) : toast.error(r.msg ?? '실패');
       return;
     }
     const r = await inv.buyAvatar(id, price);
-    flashMsg(r.ok ? '✓ 획득!' : r.msg ?? '실패');
+    r.ok ? toast.success('획득!') : toast.error(r.msg ?? '실패');
   };
   const buyBg = async (id: BackgroundId, price: number) => {
     const r = await inv.buyBg(id, price);
-    flashMsg(r.ok ? '✓ 적용!' : r.msg ?? '실패');
+    r.ok ? toast.success('적용!') : toast.error(r.msg ?? '실패');
   };
   const buyFrame = async (id: FrameId, price: number) => {
     const r = await inv.buyFrame(id, price);
-    flashMsg(r.ok ? '✓ 적용!' : r.msg ?? '실패');
+    r.ok ? toast.success('적용!') : toast.error(r.msg ?? '실패');
+  };
+  const charge = async (label: string, points: number) => {
+    const r = await inv.charge(points);
+    r.ok ? toast.success(`${label} 충전 완료 · +${points.toLocaleString()}P`) : toast.error(r.msg ?? '실패');
   };
 
   return (
@@ -66,25 +66,6 @@ export function ShopScreen() {
 
       <div style={{ height: 14 }} />
       <Segmented items={TABS} value={tab} onChange={setTab} />
-
-      {flash && (
-        <div
-          style={{
-            margin: '0 var(--gap) var(--cg)',
-            padding: 10,
-            background: 'var(--ink)',
-            color: 'var(--yel)',
-            fontFamily: 'var(--f1)',
-            fontSize: 10,
-            letterSpacing: 1,
-            textAlign: 'center',
-            boxShadow:
-              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),3px 3px 0 var(--yel-dk)',
-          }}
-        >
-          {flash}
-        </div>
-      )}
 
       {tab === 'avatar' && (
         <div className="sect">
@@ -188,12 +169,29 @@ export function ShopScreen() {
               </div>
               <div className="sh-right">
                 <span className="sh-price">{p.price}</span>
-                <button type="button" className="sh-buy" onClick={() => flashMsg('결제 시스템 준비 중 🚧')}>
+                <button type="button" className="sh-buy" onClick={() => charge(p.label, p.points)}>
                   결제
                 </button>
               </div>
             </div>
           ))}
+          <div
+            style={{
+              margin: '4px 0 0',
+              padding: '10px 12px',
+              background: 'var(--pap2)',
+              fontFamily: 'var(--f1)',
+              fontSize: 9,
+              color: 'var(--ink2)',
+              lineHeight: 1.8,
+              letterSpacing: 0.3,
+              textAlign: 'center',
+              boxShadow:
+                '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+            }}
+          >
+            🚧 실제 결제는 아직 붙지 않았어요. 버튼 누르면 테스트 포인트 지급.
+          </div>
         </div>
       )}
 

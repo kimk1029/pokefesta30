@@ -147,11 +147,18 @@ export async function getFeedPage(opts: {
     });
     const hasMore = rows.length > limit;
     const slice = hasMore ? rows.slice(0, limit) : rows;
-    const items = slice.map(toFeedPost);
+    const items = slice.map((r) =>
+      toFeedPost({
+        ...r,
+        // 레거시 row 에 컬럼이 없을 경우 안전한 기본값
+        authorBgId: (r as unknown as { authorBgId?: string }).authorBgId ?? 'default',
+        authorFrameId: (r as unknown as { authorFrameId?: string }).authorFrameId ?? 'none',
+      }),
+    );
     const nextCursor = hasMore ? slice[slice.length - 1].createdAt.toISOString() : null;
     return { items, nextCursor };
   } catch (err) {
-    console.error('[getFeedPage] fallback:', err);
+    console.error('[getFeedPage] query failed:', err);
     return { items: [], nextCursor: null };
   }
 }

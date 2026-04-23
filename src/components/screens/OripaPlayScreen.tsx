@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useInventory } from '@/components/InventoryProvider';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useToast } from '@/components/ToastProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { ORIPA_MACHINE, ORIPA_TICKETS } from '@/lib/data';
@@ -14,7 +15,12 @@ interface Result {
   emoji: string;
 }
 
-const GRADES: Array<{ g: 'S' | 'A' | 'B' | 'C'; weight: number; name: string; emoji: string }> = [
+const GRADES: Array<{
+  g: 'S' | 'A' | 'B' | 'C';
+  weight: number;
+  name: string;
+  emoji: string;
+}> = [
   { g: 'S', weight: 3,  name: '잉어킹 홀로 프레임', emoji: '🖼' },
   { g: 'A', weight: 12, name: '프리미엄 뱃지',       emoji: '🏅' },
   { g: 'B', weight: 25, name: '몬스터볼 스킨',       emoji: '⚪' },
@@ -31,37 +37,85 @@ function pickGrade(seed: number) {
 }
 
 export function OripaPlayScreen() {
-  const inv = useInventory();
+  const router = useRouter();
+  const sp = useSearchParams();
+  const toast = useToast();
+
+  const qty = Math.max(1, Math.min(10, Number(sp.get('qty') ?? '1') || 1));
+
   const [tickets, setTickets] = useState<OripaTicket[]>(() => ORIPA_TICKETS);
-  const [result, setResult] = useState<Result | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [revealing, setRevealing] = useState<number[]>([]); // 현재 오픈 애니메이션 중인 index
+  const [revealStage, setRevealStage] = useState<'idle' | 'running' | 'done'>('idle');
+  const [results, setResults] = useState<Result[]>([]);
+  const [activeReveal, setActiveReveal] = useState<Result | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
+  const unmountedRef = useRef(false);
+
+  useEffect(
+    () => () => {
+      unmountedRef.current = true;
+    },
+    [],
+  );
 
   const remaining = useMemo(() => tickets.filter((t) => !t.drawn).length, [tickets]);
+  const selectionDone = selected.length === qty;
 
-  const draw = async (idx: number) => {
-    if (busy || tickets[idx].drawn) return;
-    setBusy(true);
-    const r = await inv.spend(ORIPA_MACHINE.pricePerPull);
-    setBusy(false);
-    if (!r.ok) {
-      setFlash(r.msg ?? '포인트가 부족해요');
-      setTimeout(() => setFlash(null), 1400);
-      return;
+  const toggleSelect = (idx: number) => {
+    if (revealStage !== 'idle') return;
+    if (tickets[idx].drawn) return;
+    setSelected((prev) => {
+      if (prev.includes(idx)) return prev.filter((x) => x !== idx);
+      if (prev.length >= qty) {
+        toast.info(`${qty}장만 선택할 수 있어요`);
+        return prev;
+      }
+      return [...prev, idx];
+    });
+  };
+
+  const runReveals = async () => {
+    if (selected.length !== qty || revealStage !== 'idle') return;
+    setRevealStage('running');
+    const nextTickets = [...tickets];
+    const acc: Result[] = [];
+    for (let i = 0; i < selected.length; i++) {
+      const idx = selected[i];
+      const g = pickGrade(idx + Date.now() + i);
+      // 긴장감: 뽑기 전 500ms, 공개 후 900ms
+      setRevealing((r) => [...r, idx]);
+      await delay(500);
+      if (unmountedRef.current) return;
+      const r: Result = { index: idx, grade: g.g, name: g.name, emoji: g.emoji };
+      acc.push(r);
+      setActiveReveal(r);
+      nextTickets[idx] = {
+        ...nextTickets[idx],
+        drawn: true,
+        grade: g.g,
+        prizeName: g.name,
+        prizeEmoji: g.emoji,
+        drawnBy: '나',
+        drawnAt: '방금 전',
+      };
+      setTickets([...nextTickets]);
+      await delay(900);
+      if (unmountedRef.current) return;
+      setActiveReveal(null);
+      setRevealing((rv) => rv.filter((x) => x !== idx));
     }
-    const g = pickGrade(idx + Date.now());
-    const next = [...tickets];
-    next[idx] = {
-      ...next[idx],
-      drawn: true,
-      grade: g.g,
-      prizeName: g.name,
-      prizeEmoji: g.emoji,
-      drawnBy: '나',
-      drawnAt: '방금 전',
-    };
-    setTickets(next);
-    setResult({ index: idx, grade: g.g, name: g.name, emoji: g.emoji });
+    setResults(acc);
+    setRevealStage('done');
+    setShowSummary(true);
+  };
+
+  const closeSummary = () => {
+    setShowSummary(false);
+    setSelected([]);
+    setResults([]);
+    setRevealStage('idle');
+    toast.success(`${qty}장 뽑기 완료`);
   };
 
   return (
@@ -73,20 +127,22 @@ export function OripaPlayScreen() {
 
       <div className="tgrid-info">
         <div className="tgrid-stat">
+          <span className="lbl">구매 수량</span>
+          <span className="val">
+            {selected.length} / {qty}
+          </span>
+        </div>
+        <div className="tgrid-stat pts">
           <span className="lbl">잔여 티켓</span>
           <span className="val">
             {remaining} / {ORIPA_MACHINE.totalTickets}
           </span>
         </div>
-        <div className="tgrid-stat pts">
-          <span className="lbl">보유 포인트</span>
-          <span className="val">🪙 {inv.points.toLocaleString()}P</span>
-        </div>
       </div>
 
       <div className="tgrid-legend">
         <span className="lg">
-          <span className="sw avail" />남은 티켓
+          <span className="sw avail" />미오픈
         </span>
         <span className="lg">
           <span className="sw s" />S상
@@ -102,77 +158,147 @@ export function OripaPlayScreen() {
         </span>
       </div>
 
-      {flash && (
-        <div
-          style={{
-            margin: '0 14px 12px',
-            padding: 10,
-            background: 'var(--ink)',
-            color: 'var(--yel)',
-            fontFamily: 'var(--f1)',
-            fontSize: 11,
-            letterSpacing: 1,
-            textAlign: 'center',
-            boxShadow:
-              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),3px 3px 0 var(--red-dk)',
-          }}
-        >
-          ⚠ {flash}
-        </div>
-      )}
-
       <div className="tgrid">
         {tickets.map((t) => {
+          const isSelected = selected.includes(t.index);
+          const isRevealing = revealing.includes(t.index);
           const cls = t.drawn
             ? `ticket drawn g-${t.grade ?? 'C'}`
-            : 'ticket';
+            : `ticket${isSelected ? ' selected' : ''}${isRevealing ? ' revealing' : ''}`;
           return (
             <button
               key={t.index}
               type="button"
               className={cls}
-              onClick={() => draw(t.index)}
+              onClick={() => toggleSelect(t.index)}
               aria-label={t.drawn ? `${t.grade}상 티켓` : '미오픈 티켓'}
+              disabled={t.drawn || revealStage !== 'idle'}
             >
               {t.drawn && <span className="tk-grade">{t.grade}</span>}
+              {isSelected && !t.drawn && <span className="tk-check">✓</span>}
             </button>
           );
         })}
       </div>
 
+      {/* 가이드 / CTA */}
       <div
         style={{
           margin: '0 var(--gap) var(--cg)',
-          padding: 12,
-          background: 'var(--pap2)',
+          padding: '12px 14px',
+          background: selectionDone ? 'var(--red)' : 'var(--pap2)',
+          color: selectionDone ? 'var(--white)' : 'var(--ink2)',
           fontFamily: 'var(--f1)',
-          fontSize: 9,
-          color: 'var(--ink2)',
-          lineHeight: 1.8,
-          letterSpacing: 0.3,
+          fontSize: 10,
+          letterSpacing: 0.5,
+          lineHeight: 1.7,
+          textAlign: 'center',
           boxShadow:
-            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),3px 3px 0 var(--ink)',
+            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),4px 4px 0 var(--ink)',
         }}
       >
-        💡 원하는 티켓을 탭하면 {ORIPA_MACHINE.pricePerPull}P 가 차감되고 숨겨진 상이 공개됩니다. 드래곤 X
-        는 이미 뽑힌 티켓.
+        {revealStage === 'running'
+          ? '✨ 뽑기 중...'
+          : selectionDone
+            ? `${qty}장 선택 완료 · 아래 버튼으로 오픈`
+            : `티켓을 ${qty - selected.length}장 더 선택하세요`}
       </div>
+
+      <button
+        type="button"
+        className="pri-btn"
+        onClick={runReveals}
+        disabled={!selectionDone || revealStage !== 'idle'}
+        style={{ opacity: selectionDone && revealStage === 'idle' ? 1 : 0.55 }}
+      >
+        {revealStage === 'running' ? '▶ 오픈 중 ▶' : `▶ ${qty}장 오픈 ▶`}
+      </button>
 
       <div className="bggap" />
 
-      {result && (
-        <div className="pull-overlay" onClick={() => setResult(null)}>
+      {/* 개별 공개 애니메이션 — 풀스크린 오버레이 (1장씩 긴장감) */}
+      {activeReveal && (
+        <div className="pull-overlay" style={{ animation: 'pf-fade-in 200ms steps(4) backwards' }}>
+          <div
+            className="pull-card"
+            style={{ animation: 'pf-reveal-pop 500ms steps(6) backwards' }}
+          >
+            <div className={`pull-tier g-${activeReveal.grade}`}>{activeReveal.grade}상 당첨</div>
+            <div className="pull-emoji" style={{ fontSize: 72 }}>
+              {activeReveal.emoji}
+            </div>
+            <div className="pull-name">{activeReveal.name}</div>
+            <div className="pull-sub">티켓 #{activeReveal.index + 1}</div>
+          </div>
+        </div>
+      )}
+
+      {/* 최종 결과 요약 모달 */}
+      {showSummary && (
+        <div className="pull-overlay" onClick={closeSummary}>
           <div className="pull-card" onClick={(e) => e.stopPropagation()}>
-            <div className={`pull-tier g-${result.grade}`}>{result.grade}상 당첨</div>
-            <div className="pull-emoji">{result.emoji}</div>
-            <div className="pull-name">{result.name}</div>
-            <div className="pull-sub">티켓 #{result.index + 1} · 마이페이지 보관함 확인</div>
-            <button type="button" className="pull-btn" onClick={() => setResult(null)}>
+            <div className="pull-tier" style={{ background: 'var(--ink)', color: 'var(--yel)' }}>
+              {qty}장 뽑기 결과
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8, width: '100%' }}>
+              {results.map((r, i) => (
+                <div
+                  key={i}
+                  className={`ticket drawn g-${r.grade}`}
+                  style={{ position: 'relative', pointerEvents: 'none' }}
+                >
+                  <span className="tk-grade">{r.grade}</span>
+                </div>
+              ))}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-around',
+                gap: 8,
+                width: '100%',
+                fontFamily: 'var(--f1)',
+                fontSize: 9,
+              }}
+            >
+              {(['S', 'A', 'B', 'C'] as const).map((g) => {
+                const n = results.filter((r) => r.grade === g).length;
+                return (
+                  <span key={g} style={{ color: n > 0 ? 'var(--red)' : 'var(--ink3)' }}>
+                    {g}: {n}
+                  </span>
+                );
+              })}
+            </div>
+            <button type="button" className="pull-btn" onClick={closeSummary}>
               확인
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                closeSummary();
+                router.push('/my/oripa');
+              }}
+              style={{
+                background: 'transparent',
+                color: 'var(--ink3)',
+                fontFamily: 'var(--f1)',
+                fontSize: 9,
+                padding: 6,
+                cursor: 'pointer',
+                border: 'none',
+                textDecoration: 'underline',
+              }}
+            >
+              다른 박스 뽑으러 가기 →
             </button>
           </div>
         </div>
       )}
     </>
   );
+}
+
+function delay(ms: number) {
+  return new Promise<void>((r) => setTimeout(r, ms));
 }

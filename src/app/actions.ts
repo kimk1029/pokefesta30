@@ -102,32 +102,39 @@ export async function submitFeed(formData: FormData): Promise<void> {
     }
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.feed.create({
-      data: {
-        kind,
-        level,
-        placeId,
-        text,
-        authorId,
-        authorEmoji,
-        authorBgId: snapBg,
-        authorFrameId: snapFrame,
-      },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.feed.create({
+        data: {
+          kind,
+          level,
+          placeId,
+          text,
+          authorId,
+          authorEmoji,
+          authorBgId: snapBg,
+          authorFrameId: snapFrame,
+        },
+      });
+      if (kind === 'report' && placeId && level) {
+        await tx.place.update({
+          where: { id: placeId },
+          data: { level, lastReportAt: new Date(), count: { increment: 1 } },
+        });
+      }
+      if (authorId) {
+        await tx.user.update({
+          where: { id: authorId },
+          data: { points: { increment: reward } },
+        });
+      }
     });
-    if (kind === 'report' && placeId && level) {
-      await tx.place.update({
-        where: { id: placeId },
-        data: { level, lastReportAt: new Date(), count: { increment: 1 } },
-      });
-    }
-    if (authorId) {
-      await tx.user.update({
-        where: { id: authorId },
-        data: { points: { increment: reward } },
-      });
-    }
-  });
+  } catch (err) {
+    console.error('[submitFeed] transaction failed:', err);
+    throw new Error(
+      err instanceof Error ? `등록 실패: ${err.message.slice(0, 140)}` : '등록 실패',
+    );
+  }
 
   revalidatePath('/feed');
   revalidatePath('/live');

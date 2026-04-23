@@ -5,6 +5,7 @@ import {
   buyAvatar as buyAvatarAction,
   buyBackground as buyBgAction,
   buyFrame as buyFrameAction,
+  mockCharge as mockChargeAction,
   pickAvatar as pickAvatarAction,
   pickBackground as pickBgAction,
   pickFrame as pickFrameAction,
@@ -36,6 +37,8 @@ export interface InventoryCtxValue extends InventorySnapshot {
   buyFrame: (id: FrameId, price: number) => Promise<MutResult>;
   /** 임의 차감 (오리파 등). */
   spend: (amount: number) => Promise<MutResult>;
+  /** 결제 mock — 사업자 등록 전까지 가상 충전. */
+  charge: (amount: number) => Promise<MutResult>;
 }
 
 const Ctx = createContext<InventoryCtxValue | null>(null);
@@ -80,6 +83,7 @@ export function InventoryProvider({
       buyBg: wrap(buyBgAction),
       buyFrame: wrap(buyFrameAction),
       spend: wrap(spendPointsAction),
+      charge: wrap(mockChargeAction),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [snap, isLoggedIn],
