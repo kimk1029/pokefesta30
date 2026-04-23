@@ -3,30 +3,17 @@
 import { useState } from 'react';
 import { CongBadge } from './ui/CongBadge';
 import { MapButton } from './ui/MapButton';
-import type { CongestionLevel, Place, Trade } from '@/lib/types';
+import { STAMP_SPOTS } from '@/lib/stamps';
+import type { Place, Trade } from '@/lib/types';
 
-type PinId = string;
-
-interface Pin {
-  id: PinId;
-  top: string;
-  left: string;
-}
-
-const PINS: Pin[] = [
-  { id: 'seongsu', top: '20%', left: '76%' },
-  { id: 'seoulsup', top: '55%', left: '16%' },
-  { id: 'secret', top: '30%', left: '48%' },
-  { id: 'metamong', top: '38%', left: '82%' },
-  { id: 'shoe', top: '60%', left: '68%' },
-  { id: 'rainbow', top: '78%', left: '34%' },
-];
-
-const PIN_CLS: Record<CongestionLevel, string> = {
-  empty: 'pe',
-  normal: 'pn',
-  busy: 'pb',
-  full: 'pf',
+/** 스탬프 랠리 6개 지점 좌표 (지도 내 %). */
+const PIN_POS: Record<number, { top: string; left: string }> = {
+  1: { top: '74%', left: '34%' }, // 무지개 어린이공원 (메타몽 놀이터)
+  2: { top: '58%', left: '62%' }, // 트렌드 팟
+  3: { top: '62%', left: '82%' }, // 성수 어린이 테마공원
+  4: { top: '40%', left: '78%' }, // 뚝섬역
+  5: { top: '22%', left: '80%' }, // 성수역
+  6: { top: '28%', left: '50%' }, // 서울숲 은행나무길
 };
 
 interface Props {
@@ -35,11 +22,9 @@ interface Props {
 }
 
 export function MapView({ places, trades }: Props) {
-  const first = places[0]?.id ?? 'seongsu';
-  const [sel, setSel] = useState<string>(first);
-  const selPlace = places.find((p) => p.id === sel) ?? places[0];
-
-  if (!selPlace) return null;
+  const [selNo, setSelNo] = useState<number>(1);
+  const spot = STAMP_SPOTS.find((s) => s.no === selNo) ?? STAMP_SPOTS[0];
+  const matchedPlace: Place | undefined = places.find((p) => p.id === spot.placeId);
 
   return (
     <>
@@ -76,32 +61,19 @@ export function MapView({ places, trades }: Props) {
           <rect x="255" y="185" width="78" height="52" fill="#D9D2BB" />
           <rect x="215" y="248" width="128" height="35" fill="#D9D2BB" />
 
-          <g opacity={0.4}>
-            <rect x="30" y="22" width="65" height="3" fill="#fff" />
-            <rect x="105" y="22" width="48" height="3" fill="#fff" />
-            <rect x="165" y="22" width="65" height="3" fill="#fff" />
-            <rect x="245" y="22" width="88" height="3" fill="#fff" />
-            <rect x="165" y="65" width="65" height="3" fill="#fff" />
-            <rect x="245" y="80" width="88" height="3" fill="#fff" />
-            <rect x="165" y="128" width="155" height="3" fill="#fff" />
-          </g>
-
           <line x1="0" y1="12" x2="360" y2="12" stroke="#8A7F56" strokeWidth="2" strokeDasharray="6 4" />
           <text style={{ font: '8px DotGothic16', fill: '#6B6A5A' }} x="8" y="9">
             지하철 2호선
           </text>
-
           <rect x="0" y="78" width="360" height="7" fill="#FFF" />
           <line x1="0" y1="81" x2="360" y2="81" stroke="#E6D89A" strokeWidth="1" strokeDasharray="8 6" />
           <text style={{ font: '8px DotGothic16', fill: '#6B6A5A' }} x="8" y="75">
             성수이로
           </text>
-
           <rect x="0" y="178" width="360" height="6" fill="#FFF" />
           <text style={{ font: '8px DotGothic16', fill: '#6B6A5A' }} x="272" y="175">
             뚝섬로
           </text>
-
           <rect x="152" y="0" width="7" height="285" fill="#FFF" />
           <line x1="155" y1="0" x2="155" y2="285" stroke="#E6D89A" strokeWidth="1" strokeDasharray="8 6" />
           <rect x="244" y="0" width="6" height="285" fill="#FFF" />
@@ -122,37 +94,28 @@ export function MapView({ places, trades }: Props) {
           </g>
         </svg>
 
-        {PINS.map((pin) => {
-          const p = places.find((pl) => pl.id === pin.id);
-          if (!p) return null;
+        {STAMP_SPOTS.map((s) => {
+          const pos = PIN_POS[s.no] ?? { top: '50%', left: '50%' };
+          const isSel = s.no === selNo;
           return (
             <button
-              key={pin.id}
+              key={s.no}
               type="button"
-              className={`map-pin ${PIN_CLS[p.level]} ${sel === pin.id ? 'sel' : ''}`}
-              style={{ top: pin.top, left: pin.left }}
-              onClick={() => setSel(pin.id)}
-              aria-label={p.name}
+              className={`map-pin stamp-pin${isSel ? ' sel' : ''}`}
+              style={{ top: pos.top, left: pos.left, background: s.bg }}
+              onClick={() => setSelNo(s.no)}
+              aria-label={`${s.no}번 ${s.name}`}
             >
-              {p.emoji}
+              <span className="stamp-pin-num">{s.no}</span>
+              <span className="stamp-pin-emoji">{s.emoji}</span>
             </button>
           );
         })}
 
         <div className="map-legend">
-          {(
-            [
-              ['e', '여유'],
-              ['n', '보통'],
-              ['b', '혼잡'],
-              ['f', '매우혼잡'],
-            ] as const
-          ).map(([l, lb]) => (
-            <span key={l} className="mi">
-              <span className={`ldot ${l}`} />
-              {lb}
-            </span>
-          ))}
+          <span className="mi" style={{ fontFamily: 'var(--f1)', fontSize: 10 }}>
+            스탬프 1~6
+          </span>
         </div>
       </div>
 
@@ -160,33 +123,80 @@ export function MapView({ places, trades }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <div
             className="p-icon"
-            style={{ background: selPlace.bg, width: 42, height: 42, fontSize: 26 }}
+            style={{
+              background: spot.bg,
+              width: 44,
+              height: 44,
+              fontSize: 20,
+              position: 'relative',
+            }}
           >
-            {selPlace.emoji}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 14, letterSpacing: '.5px' }}>
-              {selPlace.name}
-            </div>
+            {spot.emoji}
             <div
               style={{
+                position: 'absolute',
+                top: -6,
+                left: -6,
+                width: 20,
+                height: 20,
+                display: 'grid',
+                placeItems: 'center',
+                background: 'var(--red)',
+                color: 'var(--white)',
                 fontFamily: 'var(--f1)',
                 fontSize: 10,
-                color: 'var(--ink3)',
-                marginTop: 5,
-                letterSpacing: '.5px',
+                boxShadow:
+                  '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
               }}
             >
-              {selPlace.mins <= 1 ? '방금 전' : `${selPlace.mins}분 전`} · 제보 {selPlace.count}
+              {spot.no}
             </div>
           </div>
-          <CongBadge level={selPlace.level} size="small" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.5 }}>
+              {spot.name}
+            </div>
+            {spot.subtitle && (
+              <div
+                style={{
+                  fontFamily: 'var(--f1)',
+                  fontSize: 8,
+                  color: 'var(--ink3)',
+                  marginTop: 4,
+                  letterSpacing: 0.3,
+                }}
+              >
+                {spot.subtitle}
+              </div>
+            )}
+            {matchedPlace && (
+              <div
+                style={{
+                  fontFamily: 'var(--f1)',
+                  fontSize: 7,
+                  color: 'var(--ink3)',
+                  marginTop: 4,
+                  letterSpacing: 0.3,
+                }}
+              >
+                제보 {matchedPlace.count} · {matchedPlace.mins <= 1 ? '방금 전' : `${matchedPlace.mins}분 전`}
+              </div>
+            )}
+          </div>
+          {matchedPlace && <CongBadge level={matchedPlace.level} size="small" />}
         </div>
         <div className="map-btn-row">
           <MapButton variant="sec">
-            거래 {trades.filter((t) => t.place === selPlace.name).length}건
+            거래 {trades.filter((t) => matchedPlace && t.place === matchedPlace.name).length}건
           </MapButton>
-          <MapButton variant="pri" onClick={() => (window.location.href = '/report')}>
+          <MapButton
+            variant="pri"
+            onClick={() =>
+              (window.location.href = matchedPlace
+                ? '/write/feed?kind=report'
+                : '/write/feed')
+            }
+          >
             + 제보
           </MapButton>
         </div>

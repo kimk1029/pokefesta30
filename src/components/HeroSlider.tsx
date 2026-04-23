@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { PixelKarp } from './PixelKarp';
+import { StampRallyModal } from './StampRallyModal';
 
 interface Slide {
   cls: 'slide-a' | 'slide-b' | 'slide-c';
@@ -10,6 +11,8 @@ interface Slide {
   title: string;
   sub: string;
   visual: ReactNode;
+  onClick?: 'stamp-rally' | null;
+  ctaHint?: string;
 }
 
 const SLIDES: Slide[] = [
@@ -17,8 +20,10 @@ const SLIDES: Slide[] = [
     cls: 'slide-a',
     badge: '★ 포케페스타30 공식',
     title: '잉어킹\n프로모!',
-    sub: '지금 어디가 덜 붐비는지\n실시간으로 확인하세요',
+    sub: '성수 6곳 스탬프 랠리\n탭해서 이벤트 상세 보기',
     visual: <PixelKarp size={82} />,
+    onClick: 'stamp-rally',
+    ctaHint: '👉 TAP',
   },
   {
     cls: 'slide-b',
@@ -26,6 +31,7 @@ const SLIDES: Slide[] = [
     title: '삽니다\n팝니다',
     sub: '성수 현장 직거래\n장소 태그로 빠르게 연결',
     visual: <div style={{ fontSize: 69, lineHeight: 1 }}>💬</div>,
+    onClick: null,
   },
   {
     cls: 'slide-c',
@@ -33,6 +39,7 @@ const SLIDES: Slide[] = [
     title: '지금\n제보하기',
     sub: '방금 본 현장 상황을\n다른 트레이너에게 알려주세요',
     visual: <div style={{ fontSize: 69, lineHeight: 1 }}>📢</div>,
+    onClick: null,
   },
 ];
 
@@ -40,7 +47,9 @@ const AUTOPLAY_MS = 3500;
 
 export function HeroSlider() {
   const [cur, setCur] = useState(0);
+  const [showRally, setShowRally] = useState(false);
   const startX = useRef(0);
+  const dragged = useRef(false);
   const tmr = useRef<ReturnType<typeof setInterval> | null>(null);
   const n = SLIDES.length;
 
@@ -58,66 +67,94 @@ export function HeroSlider() {
     };
   }, [n]);
 
+  const handleSlideClick = (slide: Slide) => {
+    if (dragged.current) {
+      dragged.current = false;
+      return;
+    }
+    if (slide.onClick === 'stamp-rally') {
+      setShowRally(true);
+      if (tmr.current) clearInterval(tmr.current);
+    }
+  };
+
   return (
-    <div
-      className="hero-wrap"
-      onTouchStart={(e) => {
-        startX.current = e.touches[0].clientX;
-      }}
-      onTouchEnd={(e) => {
-        const dx = e.changedTouches[0].clientX - startX.current;
-        if (dx < -30) {
-          go(cur + 1);
-          reset();
-        } else if (dx > 30) {
-          go(cur - 1);
-          reset();
-        }
-      }}
-    >
-      <div className="hero-track" style={{ transform: `translateX(${-cur * 100}%)` }}>
-        {SLIDES.map((sl, i) => (
-          <div key={i} className={`hero-slide ${sl.cls}`}>
-            <span className="hero-badge">{sl.badge}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <h1>
-                  {sl.title.split('\n').map((line, j) => (
-                    <span key={j}>
-                      {line}
-                      <br />
-                    </span>
-                  ))}
-                </h1>
-                <p>
-                  {sl.sub.split('\n').map((line, j) => (
-                    <span key={j}>
-                      {line}
-                      <br />
-                    </span>
-                  ))}
-                </p>
+    <>
+      <div
+        className="hero-wrap"
+        onTouchStart={(e) => {
+          startX.current = e.touches[0].clientX;
+          dragged.current = false;
+        }}
+        onTouchMove={(e) => {
+          const dx = Math.abs(e.touches[0].clientX - startX.current);
+          if (dx > 8) dragged.current = true;
+        }}
+        onTouchEnd={(e) => {
+          const dx = e.changedTouches[0].clientX - startX.current;
+          if (dx < -30) {
+            go(cur + 1);
+            reset();
+          } else if (dx > 30) {
+            go(cur - 1);
+            reset();
+          }
+        }}
+      >
+        <div className="hero-track" style={{ transform: `translateX(${-cur * 100}%)` }}>
+          {SLIDES.map((sl, i) => (
+            <div
+              key={i}
+              className={`hero-slide ${sl.cls}${sl.onClick ? ' clickable' : ''}`}
+              onClick={() => handleSlideClick(sl)}
+              role={sl.onClick ? 'button' : undefined}
+              tabIndex={sl.onClick ? 0 : undefined}
+            >
+              <span className="hero-badge">{sl.badge}</span>
+              {sl.ctaHint && <span className="hero-cta-hint">{sl.ctaHint}</span>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <h1>
+                    {sl.title.split('\n').map((line, j) => (
+                      <span key={j}>
+                        {line}
+                        <br />
+                      </span>
+                    ))}
+                  </h1>
+                  <p>
+                    {sl.sub.split('\n').map((line, j) => (
+                      <span key={j}>
+                        {line}
+                        <br />
+                      </span>
+                    ))}
+                  </p>
+                </div>
+                {sl.visual}
               </div>
-              {sl.visual}
+              <div className="hero-vis">
+                <div className="hero-vis-lbl">[ 메가페스타 공식 비주얼 ]</div>
+              </div>
             </div>
-            <div className="hero-vis">
-              <div className="hero-vis-lbl">[ 메가페스타 공식 비주얼 ]</div>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        <div className="hero-dots">
+          {SLIDES.map((_, i) => (
+            <div
+              key={i}
+              className={`hdot ${i === cur ? 'on' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                go(i);
+                reset();
+              }}
+            />
+          ))}
+        </div>
       </div>
-      <div className="hero-dots">
-        {SLIDES.map((_, i) => (
-          <div
-            key={i}
-            className={`hdot ${i === cur ? 'on' : ''}`}
-            onClick={() => {
-              go(i);
-              reset();
-            }}
-          />
-        ))}
-      </div>
-    </div>
+
+      {showRally && <StampRallyModal onClose={() => setShowRally(false)} />}
+    </>
   );
 }
