@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
-import { DEFAULT_AVATAR, isAvatarId } from '@/lib/avatars';
+import { isAvatarId } from '@/lib/avatars';
 import { prisma } from '@/lib/prisma';
 import { REWARDS } from '@/lib/rewards';
 import type { CongestionLevel, FeedKind, TradeType } from '@/lib/types';
@@ -55,8 +55,6 @@ function authorTokenFromForm(
   if (raw && isAvatarId(raw)) return raw;
   return authorEmojiFrom(session);
 }
-
-export { DEFAULT_AVATAR };
 
 /* ============================================================
  * Feed — 통합 작성 (일반 + 제보)
