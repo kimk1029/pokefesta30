@@ -988,14 +988,31 @@ a{color:inherit;text-decoration:none;}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
   padding:4px;color:var(--pap3);
   font-family:var(--f1);font-size:11px;letter-spacing:.5px;cursor:pointer;position:relative;}
-.tab svg{width:26px;height:26px;display:block;stroke-width:2.2;}
-.tab span{font-size:11px;color:var(--pap3);}
+.tab svg{width:26px;height:26px;display:block;stroke-width:2.2;
+  transition:color 180ms steps(5),transform 180ms steps(4);}
+.tab span{font-size:11px;color:var(--pap3);transition:color 180ms steps(5);}
 .tab.on span{color:var(--yel);}
-.tab.on svg{color:var(--yel);}
-.tab.on::after{content:'';position:absolute;top:-10px;width:20px;height:3px;
-  background:var(--yel);box-shadow:0 0 0 1px var(--ink);}
+.tab.on svg{color:var(--yel);transform:translateY(-2px);}
+
+/* 활성 인디케이터 — 탭바 안쪽 하단에 위치한 노란 도트 (상단 ink 테두리와 겹치지 않음) */
+.tab:not(.fab-tab)::after{content:'';position:absolute;bottom:8px;left:50%;
+  width:5px;height:5px;background:var(--yel);
+  transform:translateX(-50%) scale(0);
+  box-shadow:-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink);
+  transition:transform 220ms steps(6);}
+.tab.on:not(.fab-tab)::after{transform:translateX(-50%) scale(1);
+  animation:pf-tab-pulse 1.4s steps(6) infinite .22s;}
+@keyframes pf-tab-pulse{
+  0%,100%{transform:translateX(-50%) scale(1);}
+  50%{transform:translateX(-50%) scale(1.5);}}
+.tab.on:not(.fab-tab) svg{animation:pf-tab-bob .55s steps(4) 1;}
+@keyframes pf-tab-bob{
+  0%{transform:translateY(0);}
+  40%{transform:translateY(-5px);}
+  70%{transform:translateY(-1px);}
+  100%{transform:translateY(-2px);}}
 .fab-tab{position:relative;}
-.fab-circle{position:absolute;top:-28px;width:62px;height:62px;
+.fab-circle{position:absolute;top:-36px;width:62px;height:62px;
   border-radius:50%;border:3px solid var(--ink);
   background:linear-gradient(to bottom,
     var(--red) 0,var(--red) 46%,
@@ -1109,3 +1126,69 @@ a{color:inherit;text-decoration:none;}
 /* ── MISC ── */
 .bggap{height:30px;}
 .icon-svg{width:26px;height:26px;stroke-width:2.2;}
+
+/* ============================================================
+ * Global motion — subtle pixel-era animations
+ * ========================================================== */
+@keyframes pf-in-up{
+  from{opacity:0;transform:translateY(10px);}
+  to{opacity:1;transform:translateY(0);}}
+@keyframes pf-in-left{
+  from{opacity:0;transform:translateX(-12px);}
+  to{opacity:1;transform:translateX(0);}}
+@keyframes pf-pop-in{
+  0%{opacity:0;transform:scale(.92);}
+  60%{opacity:1;transform:scale(1.03);}
+  100%{transform:scale(1);}}
+@keyframes pf-fade-in{from{opacity:0;}to{opacity:1;}}
+
+/* 컨텐츠 컨테이너들 — 마운트 시 부드러운 상승 페이드 */
+.feed-item,
+.trade-card,
+.shop-card,
+.prize-card,
+.shop-item,
+.oripa-res,
+.oripa-box,
+.cc-item,
+.qi{animation:pf-in-up 260ms steps(6) backwards;}
+
+.level-card,
+.profile-card,
+.points-card,
+.oripa-hero,
+.hero-wrap{animation:pf-in-up 320ms steps(8) backwards;}
+
+.stat-card,
+.my-feat{animation:pf-pop-in 300ms steps(6) backwards;}
+
+/* 마이페이지 my-item / 사이드 메뉴 — 좌측에서 들어옴 */
+.my-item{animation:pf-in-left 240ms steps(6) backwards;}
+
+/* FAB 메뉴 — 열리면서 배경 페이드 + 항목 팝인 스태거 */
+.fab-overlay{animation:pf-fade-in 160ms linear backwards;}
+.fab-menu-btn{animation:pf-pop-in 260ms steps(5) backwards;}
+.fab-menu-btn:nth-child(1){animation-delay:40ms;}
+.fab-menu-btn:nth-child(2){animation-delay:110ms;}
+.fab-menu-btn:nth-child(3){animation-delay:180ms;}
+.fab-close{animation:pf-pop-in 280ms steps(5) 260ms backwards;}
+
+/* 오리파 뽑기 결과 — 오버레이 페이드 + 카드 팝 */
+.pull-overlay{animation:pf-fade-in 200ms linear backwards;}
+.pull-card{animation:pf-pop-in 360ms steps(6) backwards 100ms;}
+
+/* 로그인 화면 버튼 — 순차 등장 */
+.login-logo-wrap{animation:pf-in-up 440ms steps(8) backwards;}
+.login-btn{animation:pf-in-up 320ms steps(6) backwards;}
+.login-btn:nth-of-type(1){animation-delay:120ms;}
+.login-btn:nth-of-type(2){animation-delay:200ms;}
+.login-btn:nth-of-type(3){animation-delay:280ms;}
+.login-skip{animation:pf-fade-in 400ms linear 380ms backwards;}
+
+/* 장소 혼잡도 뱃지 — hover scale (데스크 전용에서만 감지) */
+@media (hover:hover){
+  .my-feat:hover,
+  .prize-card:hover,
+  .shop-card:hover,
+  .shop-item:hover{transform:translate(-1px,-1px);transition:transform 150ms steps(4);}
+}
