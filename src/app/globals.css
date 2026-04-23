@@ -994,17 +994,7 @@ a{color:inherit;text-decoration:none;}
 .tab.on span{color:var(--yel);}
 .tab.on svg{color:var(--yel);transform:translateY(-2px);}
 
-/* 활성 인디케이터 — 탭바 안쪽 하단에 위치한 노란 도트 (상단 ink 테두리와 겹치지 않음) */
-.tab:not(.fab-tab)::after{content:'';position:absolute;bottom:8px;left:50%;
-  width:5px;height:5px;background:var(--yel);
-  transform:translateX(-50%) scale(0);
-  box-shadow:-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink);
-  transition:transform 220ms steps(6);}
-.tab.on:not(.fab-tab)::after{transform:translateX(-50%) scale(1);
-  animation:pf-tab-pulse 1.4s steps(6) infinite .22s;}
-@keyframes pf-tab-pulse{
-  0%,100%{transform:translateX(-50%) scale(1);}
-  50%{transform:translateX(-50%) scale(1.5);}}
+/* 활성 탭 — 아이콘 색 전환 + 선택 순간 바운스만 */
 .tab.on:not(.fab-tab) svg{animation:pf-tab-bob .55s steps(4) 1;}
 @keyframes pf-tab-bob{
   0%{transform:translateY(0);}
