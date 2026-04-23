@@ -1,4 +1,5 @@
 import { BookmarkButton } from './BookmarkButton';
+import { PokemonAvatar } from './PokemonAvatar';
 import { CongBadge } from './ui/CongBadge';
 import type { FeedPost } from '@/lib/types';
 
@@ -6,7 +7,9 @@ export function FeedRow({ post }: { post: FeedPost }) {
   const isReport = post.kind === 'report';
   return (
     <div className="feed-item">
-      <div className="fi-avatar">{post.user}</div>
+      <div className="fi-avatar">
+        <PokemonAvatar id={post.user} size={28} fallback={post.user} />
+      </div>
       <div className="fi-body">
         <div className="fi-top">
           <span

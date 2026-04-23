@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { BookmarkButton } from '@/components/BookmarkButton';
 import { BumpButton } from '@/components/BumpButton';
 import { KakaoButton } from '@/components/KakaoButton';
+import { PokemonAvatar } from '@/components/PokemonAvatar';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { Tag } from '@/components/ui/Tag';
@@ -50,7 +51,7 @@ export default async function Page({ params }: Props) {
         <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.4 }}>{trade.title}</div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
-          <span>{trade.authorEmoji}</span>
+          <PokemonAvatar id={trade.authorEmoji} size={24} fallback={trade.authorEmoji} />
           <span>{trade.time}</span>
           <span>·</span>
           <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{trade.price}</span>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { submitFeed, submitTrade } from '@/app/actions';
+import { useAvatar } from '@/lib/use-avatar';
 import { AppBar } from '@/components/ui/AppBar';
 import { Chip } from '@/components/ui/Chip';
 import { CongOption } from '@/components/ui/CongOption';
@@ -39,6 +40,7 @@ interface Props {
 }
 
 export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
+  const { id: avatarId } = useAvatar();
   const [kind, setKind] = useState<FeedKind>(defaultKind);
   const [place, setPlace] = useState<string>(places[0]?.id ?? '');
   const [level, setLevel] = useState<CongestionLevel>('normal');
@@ -72,6 +74,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
       fd.set('title', title);
       fd.set('body', note);
       fd.set('price', price);
+      fd.set('avatar_id', avatarId);
       if (kakaoId) fd.set('kakao_id', kakaoId);
       startTransition(async () => {
         try {
@@ -86,6 +89,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
     // feed (general / report)
     fd.set('kind', kind);
     fd.set('text', note);
+    fd.set('avatar_id', avatarId);
     if (place) fd.set('place_id', place);
     if (isReport) fd.set('level', level);
     startTransition(async () => {

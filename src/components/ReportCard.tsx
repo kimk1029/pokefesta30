@@ -1,3 +1,4 @@
+import { PokemonAvatar } from './PokemonAvatar';
 import { CongBadge } from './ui/CongBadge';
 import { Tag } from './ui/Tag';
 import type { FeedItem } from '@/lib/types';
@@ -14,7 +15,15 @@ export function ReportCard({ item }: { item: FeedItem }) {
       <div className="trade-meta">
         <span>{item.time}</span>
         <span>·</span>
-        <span>{item.user}</span>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            verticalAlign: 'middle',
+          }}
+        >
+          <PokemonAvatar id={item.user} size={18} fallback={item.user} />
+        </span>
       </div>
     </div>
   );

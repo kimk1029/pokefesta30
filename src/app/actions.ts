@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
+import { DEFAULT_AVATAR, isAvatarId } from '@/lib/avatars';
 import { prisma } from '@/lib/prisma';
 import type { CongestionLevel, FeedKind, TradeType } from '@/lib/types';
 
@@ -20,6 +21,18 @@ async function requireSession() {
 function authorEmojiFrom(session: Awaited<ReturnType<typeof requireSession>>): string {
   return session.user.name?.slice(0, 2) ?? '🐣';
 }
+
+/** form 의 avatar_id 필드 우선, 없으면 이모지 폴백. */
+function authorTokenFromForm(
+  formData: FormData,
+  session: Awaited<ReturnType<typeof requireSession>>,
+): string {
+  const raw = String(formData.get('avatar_id') ?? '').trim();
+  if (raw && isAvatarId(raw)) return raw;
+  return authorEmojiFrom(session);
+}
+
+export { DEFAULT_AVATAR };
 
 /* ============================================================
  * Feed — 통합 작성 (일반 + 제보)
@@ -52,6 +65,7 @@ export async function submitFeed(formData: FormData): Promise<void> {
     level = rawLevel as CongestionLevel;
   }
 
+  const authorEmoji = authorTokenFromForm(formData, session);
   await prisma.$transaction(async (tx) => {
     await tx.feed.create({
       data: {
@@ -60,7 +74,7 @@ export async function submitFeed(formData: FormData): Promise<void> {
         placeId,
         text,
         authorId: session.user.id ?? null,
-        authorEmoji: authorEmojiFrom(session),
+        authorEmoji,
       },
     });
     if (kind === 'report' && placeId && level) {
@@ -118,7 +132,7 @@ export async function submitTrade(formData: FormData): Promise<void> {
       price,
       kakaoId,
       authorId: session.user.id ?? null,
-      authorEmoji: authorEmojiFrom(session),
+      authorEmoji: authorTokenFromForm(formData, session),
     },
   });
 

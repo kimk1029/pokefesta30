@@ -1,14 +1,11 @@
 import Link from 'next/link';
 import type { Session } from 'next-auth';
 import { LogoutButton } from '@/components/LogoutButton';
-import { PixelBulbasaur } from '@/components/PixelBulbasaur';
-import { PixelCharmander } from '@/components/PixelCharmander';
-import { PixelSquirtle } from '@/components/PixelSquirtle';
+import { ProfileAvatarClient } from '@/components/ProfileAvatarClient';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { MY_PROFILE } from '@/lib/data';
-import type { StarterId } from '@/lib/types';
 
 interface Props {
   session: Session;
@@ -37,12 +34,6 @@ const SETTINGS: Array<{ em: string; bg: string; lb: string }> = [
   { em: 'ℹ', bg: '#E8DFB8', lb: '공지사항 · FAQ' },
 ];
 
-function StarterAvatar({ starter }: { starter: StarterId }) {
-  const size = 44;
-  if (starter === 'charmander') return <PixelCharmander size={size} />;
-  if (starter === 'squirtle') return <PixelSquirtle size={size} />;
-  return <PixelBulbasaur size={size} />;
-}
 
 export function MyScreen({ session }: Props) {
   const p = MY_PROFILE;
@@ -65,7 +56,7 @@ export function MyScreen({ session }: Props) {
       <div className="level-card">
         <div className="level-top">
           <div className="lv-avatar">
-            <StarterAvatar starter={p.starter} />
+            <ProfileAvatarClient size={44} />
           </div>
           <div className="lv-info">
             <div className="lv-name">{name}</div>
