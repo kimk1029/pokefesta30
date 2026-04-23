@@ -29,3 +29,46 @@ export interface FeedItem {
   time: string;
   user: string;
 }
+
+export type ShopCategory = 'charge' | 'ticket' | 'skin';
+
+export interface ShopItem {
+  id: string;
+  category: ShopCategory;
+  emoji: string;
+  bg: string;
+  name: string;
+  desc: string;
+  price: number;
+  tag?: 'hot' | 'new' | 'limited';
+}
+
+export type OripaTier = 'normal' | 'rare' | 'legend';
+
+export interface OripaBox {
+  id: string;
+  tier: OripaTier;
+  emoji: string;
+  name: string;
+  desc: string;
+  price: number;
+  odds: string;
+}
+
+export interface OripaResult {
+  id: number;
+  user: string;
+  box: string;
+  reward: string;
+  emoji: string;
+  tier: OripaTier;
+  time: string;
+}
+
+export interface MyProfile {
+  name: string;
+  avatar: string;
+  rating: string;
+  reportCount: number;
+  points: number;
+}

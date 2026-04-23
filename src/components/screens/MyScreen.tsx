@@ -1,7 +1,9 @@
+import Link from 'next/link';
 import { AppBar } from '@/components/ui/AppBar';
 import { IconButton } from '@/components/ui/IconButton';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { MY_PROFILE } from '@/lib/data';
 
 const STATS = [
   { n: '12', l: '내 제보' },
@@ -17,6 +19,8 @@ const ACTIVITY: Array<{ em: string; bg: string; lb: string }> = [
 ];
 
 export function MyScreen() {
+  const p = MY_PROFILE;
+
   return (
     <>
       <StatusBar />
@@ -30,11 +34,38 @@ export function MyScreen() {
       />
 
       <div className="profile-card">
-        <div className="p-avatar">🐣</div>
+        <div className="p-avatar">{p.avatar}</div>
         <div>
-          <div className="pf-name">트레이너_24</div>
-          <div className="pf-meta">제보 12건 · 신뢰도 ★★★★☆</div>
+          <div className="pf-name">{p.name}</div>
+          <div className="pf-meta">제보 {p.reportCount}건 · 신뢰도 {p.rating}</div>
         </div>
+      </div>
+
+      <div className="points-card">
+        <div>
+          <div className="pt-label">보유 포인트</div>
+          <div className="pt-amount">💎 {p.points.toLocaleString()} P</div>
+        </div>
+        <Link href="/my/shop" className="pt-cta">
+          충전 ▶
+        </Link>
+      </div>
+
+      <div className="my-features">
+        <Link href="/my/shop" className="my-feat shop">
+          <div className="mf-icon">🛒</div>
+          <div>
+            <div className="mf-name">상점</div>
+            <div className="mf-desc">포인트로 구매</div>
+          </div>
+        </Link>
+        <Link href="/my/oripa" className="my-feat oripa">
+          <div className="mf-icon">🎁</div>
+          <div>
+            <div className="mf-name">오리파</div>
+            <div className="mf-desc">랜덤 뽑기</div>
+          </div>
+        </Link>
       </div>
 
       <div className="stat-row">
