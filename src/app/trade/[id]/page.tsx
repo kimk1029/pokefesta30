@@ -4,6 +4,7 @@ import { BookmarkButton } from '@/components/BookmarkButton';
 import { BumpButton } from '@/components/BumpButton';
 import { KakaoButton } from '@/components/KakaoButton';
 import { PokemonAvatar } from '@/components/PokemonAvatar';
+import { TradeStatusActions } from '@/components/TradeStatusActions';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { Tag } from '@/components/ui/Tag';
@@ -73,9 +74,16 @@ export default async function Page({ params }: Props) {
         )}
 
         {isAuthor && (
-          <div style={{ marginTop: 4 }}>
-            <BumpButton tradeId={trade.id} initialCount={trade.bumpCount ?? 0} />
-          </div>
+          <>
+            <div style={{ marginTop: 4 }}>
+              <BumpButton tradeId={trade.id} initialCount={trade.bumpCount ?? 0} />
+            </div>
+            <TradeStatusActions
+              tradeId={trade.id}
+              status={trade.status}
+              isAuthor={isAuthor}
+            />
+          </>
         )}
       </div>
 

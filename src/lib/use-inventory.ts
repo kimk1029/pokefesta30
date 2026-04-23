@@ -61,6 +61,8 @@ export interface Inventory {
   buyAvatar: (id: AvatarId, price: number) => { ok: boolean; msg?: string };
   buyBg: (id: BackgroundId, price: number) => { ok: boolean; msg?: string };
   buyFrame: (id: FrameId, price: number) => { ok: boolean; msg?: string };
+  /** 포인트 지급 (보상용). 음수 허용. */
+  grantPoints: (amount: number) => void;
 }
 
 export function useInventory(): Inventory {
@@ -80,8 +82,11 @@ export function useInventory(): Inventory {
     setFrame(readScalar(K.frame, isFrameId, DEFAULT_FRAME));
     setFrameOwned(readArr(K.frameOwned, isFrameId, [DEFAULT_FRAME]));
     try {
-      const p = Number(localStorage.getItem(K.points) ?? '');
-      if (Number.isFinite(p)) setPoints(p);
+      const raw = localStorage.getItem(K.points);
+      if (raw !== null && raw !== '') {
+        const p = Number(raw);
+        if (Number.isFinite(p)) setPoints(p);
+      }
     } catch {
       /* ignore */
     }
@@ -138,6 +143,17 @@ export function useInventory(): Inventory {
   const buyFrame = (id: FrameId, price: number) =>
     buyGeneric(id, price, frameOwned, setFrameOwned, K.frameOwned, pickFrame);
 
+  const grantPoints = useCallback(
+    (amount: number) => {
+      setPoints((prev) => {
+        const next = Math.max(0, prev + amount);
+        persist(K.points, String(next));
+        return next;
+      });
+    },
+    [],
+  );
+
   return {
     avatar,
     avatarOwned,
@@ -152,5 +168,6 @@ export function useInventory(): Inventory {
     buyAvatar,
     buyBg,
     buyFrame,
+    grantPoints,
   };
 }
