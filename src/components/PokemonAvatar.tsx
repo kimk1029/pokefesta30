@@ -1,14 +1,18 @@
-import { PixelBulbasaur } from './PixelBulbasaur';
-import { PixelCharmander } from './PixelCharmander';
-import { PixelDitto } from './PixelDitto';
-import { PixelEevee } from './PixelEevee';
-import { PixelLapras } from './PixelLapras';
-import { PixelMewtwo } from './PixelMewtwo';
-import { PixelMoltres } from './PixelMoltres';
-import { PixelPikachu } from './PixelPikachu';
-import { PixelSnorlax } from './PixelSnorlax';
-import { PixelSquirtle } from './PixelSquirtle';
 import { isAvatarId, type AvatarId } from '@/lib/avatars';
+
+/** 국가도감 번호 매핑 — /public/sprites/{id}.png 로 해석됨. */
+const POKEMON_NO: Record<AvatarId, number> = {
+  bulbasaur: 1,
+  charmander: 4,
+  squirtle: 7,
+  pikachu: 25,
+  eevee: 133,
+  ditto: 132,
+  snorlax: 143,
+  lapras: 131,
+  mewtwo: 150,
+  moltres: 146,
+};
 
 interface Props {
   id?: AvatarId | string | null;
@@ -16,9 +20,6 @@ interface Props {
   fallback?: string;
 }
 
-/**
- * id 가 유효한 아바타이면 픽셀 컴포넌트를, 아니면 이모지 폴백을 렌더.
- */
 export function PokemonAvatar({ id, size = 30, fallback = '🐣' }: Props) {
   if (!isAvatarId(id ?? '')) {
     return (
@@ -27,16 +28,21 @@ export function PokemonAvatar({ id, size = 30, fallback = '🐣' }: Props) {
       </span>
     );
   }
-  switch (id as AvatarId) {
-    case 'bulbasaur':  return <PixelBulbasaur size={size} />;
-    case 'charmander': return <PixelCharmander size={size} />;
-    case 'squirtle':   return <PixelSquirtle size={size} />;
-    case 'pikachu':    return <PixelPikachu size={size} />;
-    case 'eevee':      return <PixelEevee size={size} />;
-    case 'snorlax':    return <PixelSnorlax size={size} />;
-    case 'ditto':      return <PixelDitto size={size} />;
-    case 'lapras':     return <PixelLapras size={size} />;
-    case 'mewtwo':     return <PixelMewtwo size={size} />;
-    case 'moltres':    return <PixelMoltres size={size} />;
-  }
+  const no = POKEMON_NO[id as AvatarId];
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/sprites/${no}.png`}
+      width={size}
+      height={size}
+      alt={String(id)}
+      loading="lazy"
+      decoding="async"
+      style={{
+        imageRendering: 'pixelated',
+        objectFit: 'contain',
+        display: 'block',
+      }}
+    />
+  );
 }

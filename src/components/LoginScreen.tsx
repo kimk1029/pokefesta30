@@ -60,6 +60,23 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
           로그인 없이 둘러보기 →
         </button>
       )}
+      <div
+        style={{
+          position: 'relative',
+          marginTop: 14,
+          padding: '0 6px',
+          fontFamily: 'var(--f1)',
+          fontSize: 7,
+          lineHeight: 1.7,
+          color: 'rgba(255,255,255,.35)',
+          textAlign: 'center',
+          letterSpacing: 0.3,
+        }}
+      >
+        Pokémon © Nintendo · Game Freak · The Pokémon Company
+        <br />
+        비공식 팬 프로젝트 — 상업적 연관 없음
+      </div>
     </div>
   );
 }
