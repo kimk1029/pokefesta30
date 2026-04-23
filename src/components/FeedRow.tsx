@@ -6,7 +6,7 @@ export function FeedRow({ item }: { item: FeedItem }) {
       <div className="fi-avatar">{item.user}</div>
       <div className="fi-body">
         <div className="fi-top">
-          <span className="tag tag-place" style={{ fontSize: 7, padding: '2px 6px' }}>
+          <span className="tag tag-place" style={{ fontSize: 10, padding: '2px 6px' }}>
             📍 {item.place}
           </span>
           <span className="fi-time">{item.time}</span>

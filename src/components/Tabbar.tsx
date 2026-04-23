@@ -56,7 +56,6 @@ export function Tabbar({ onFab }: Props) {
               <div className="fab-circle">
                 <LineIcon name={t.icon} />
               </div>
-              <span>{t.label}</span>
             </button>
           );
         }

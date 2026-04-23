@@ -181,7 +181,7 @@ export function WriteScreen({ mode, places }: Props) {
       {error && (
         <div
           className="form-sect"
-          style={{ color: 'var(--red)', fontFamily: 'var(--f2)', fontSize: 12 }}
+          style={{ color: 'var(--red)', fontFamily: 'var(--f2)', fontSize: 17 }}
         >
           ⚠ {error}
         </div>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { PhoneShell } from '@/components/PhoneShell';
+import 'galmuri/dist/galmuri.css';
 import './globals.css';
 
 export const metadata: Metadata = {

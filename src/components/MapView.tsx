@@ -160,18 +160,18 @@ export function MapView({ places, trades }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <div
             className="p-icon"
-            style={{ background: selPlace.bg, width: 42, height: 42, fontSize: 18 }}
+            style={{ background: selPlace.bg, width: 42, height: 42, fontSize: 26 }}
           >
             {selPlace.emoji}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: '.5px' }}>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 14, letterSpacing: '.5px' }}>
               {selPlace.name}
             </div>
             <div
               style={{
                 fontFamily: 'var(--f1)',
-                fontSize: 7,
+                fontSize: 10,
                 color: 'var(--ink3)',
                 marginTop: 5,
                 letterSpacing: '.5px',

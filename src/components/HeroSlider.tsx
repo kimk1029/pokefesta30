@@ -25,14 +25,14 @@ const SLIDES: Slide[] = [
     badge: '⚡ 실시간 거래 활성',
     title: '삽니다\n팝니다',
     sub: '성수 현장 직거래\n장소 태그로 빠르게 연결',
-    visual: <div style={{ fontSize: 48, lineHeight: 1 }}>💬</div>,
+    visual: <div style={{ fontSize: 69, lineHeight: 1 }}>💬</div>,
   },
   {
     cls: 'slide-c',
     badge: '📢 30초 제보',
     title: '지금\n제보하기',
     sub: '방금 본 현장 상황을\n다른 트레이너에게 알려주세요',
-    visual: <div style={{ fontSize: 48, lineHeight: 1 }}>📢</div>,
+    visual: <div style={{ fontSize: 69, lineHeight: 1 }}>📢</div>,
   },
 ];
 
@@ -106,28 +106,6 @@ export function HeroSlider() {
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        className="harrow l"
-        aria-label="이전 슬라이드"
-        onClick={() => {
-          go(cur - 1);
-          reset();
-        }}
-      >
-        ◀
-      </button>
-      <button
-        type="button"
-        className="harrow r"
-        aria-label="다음 슬라이드"
-        onClick={() => {
-          go(cur + 1);
-          reset();
-        }}
-      >
-        ▶
-      </button>
       <div className="hero-dots">
         {SLIDES.map((_, i) => (
           <div
