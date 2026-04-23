@@ -22,7 +22,7 @@ export function ReportCard({ item }: { item: FeedItem }) {
             verticalAlign: 'middle',
           }}
         >
-          <PokemonAvatar id={item.user} size={18} fallback={item.user} />
+          <PokemonAvatar id={item.user} size={36} fallback={item.user} />
         </span>
       </div>
     </div>

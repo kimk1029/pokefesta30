@@ -8,7 +8,7 @@ export function FeedRow({ post }: { post: FeedPost }) {
   return (
     <div className="feed-item">
       <div className="fi-avatar">
-        <PokemonAvatar id={post.user} size={28} fallback={post.user} />
+        <PokemonAvatar id={post.user} size={52} fallback={post.user} />
       </div>
       <div className="fi-body">
         <div className="fi-top">

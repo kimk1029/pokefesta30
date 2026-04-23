@@ -51,7 +51,7 @@ export default async function Page({ params }: Props) {
         <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.4 }}>{trade.title}</div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
-          <PokemonAvatar id={trade.authorEmoji} size={24} fallback={trade.authorEmoji} />
+          <PokemonAvatar id={trade.authorEmoji} size={48} fallback={trade.authorEmoji} />
           <span>{trade.time}</span>
           <span>·</span>
           <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{trade.price}</span>

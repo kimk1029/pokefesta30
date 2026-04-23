@@ -5,7 +5,7 @@ import { AvatarPicker } from './AvatarPicker';
 import { PokemonAvatar } from './PokemonAvatar';
 import { useAvatar } from '@/lib/use-avatar';
 
-export function ProfileAvatarClient({ size = 44 }: { size?: number }) {
+export function ProfileAvatarClient({ size = 88 }: { size?: number }) {
   const { id, set } = useAvatar();
   const [open, setOpen] = useState(false);
   return (

@@ -20,10 +20,10 @@ interface Props {
   fallback?: string;
 }
 
-export function PokemonAvatar({ id, size = 30, fallback = '🐣' }: Props) {
+export function PokemonAvatar({ id, size = 60, fallback = '🐣' }: Props) {
   if (!isAvatarId(id ?? '')) {
     return (
-      <span style={{ fontSize: Math.floor(size * 0.75), lineHeight: 1 }}>
+      <span style={{ fontSize: Math.floor(size * 0.7), lineHeight: 1 }}>
         {id && id.length <= 4 ? id : fallback}
       </span>
     );
@@ -32,7 +32,7 @@ export function PokemonAvatar({ id, size = 30, fallback = '🐣' }: Props) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`/sprites/${no}.png`}
+      src={`/sprites/${no}.gif`}
       width={size}
       height={size}
       alt={String(id)}

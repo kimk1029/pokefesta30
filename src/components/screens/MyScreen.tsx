@@ -56,7 +56,7 @@ export function MyScreen({ session }: Props) {
       <div className="level-card">
         <div className="level-top">
           <div className="lv-avatar">
-            <ProfileAvatarClient size={44} />
+            <ProfileAvatarClient size={80} />
           </div>
           <div className="lv-info">
             <div className="lv-name">{name}</div>

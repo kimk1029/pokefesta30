@@ -39,7 +39,7 @@ export function AvatarPicker({ current, onPick, onClose }: Props) {
                 aria-label={a.name}
               >
                 <div className="avatar-tile-img">
-                  <PokemonAvatar id={a.id} size={44} />
+                  <PokemonAvatar id={a.id} size={80} />
                 </div>
                 <div className="avatar-tile-name">{a.name}</div>
                 {a.locked && (
