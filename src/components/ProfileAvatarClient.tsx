@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { AvatarPicker } from './AvatarPicker';
+import { useInventory } from './InventoryProvider';
 import { PixelBackground } from './PixelBackground';
 import { PokemonAvatar } from './PokemonAvatar';
-import { useInventory } from '@/lib/use-inventory';
 
 export function ProfileAvatarClient({
   size = 88,

@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import type { InventoryCtxValue } from './InventoryProvider';
 import { PokemonAvatar } from './PokemonAvatar';
 import { AVATARS, getAvatarMeta, type AvatarId } from '@/lib/avatars';
 import { MY_PROFILE } from '@/lib/data';
-import type { Inventory } from '@/lib/use-inventory';
 
 interface Props {
-  inv: Inventory;
+  inv: InventoryCtxValue;
   onClose: () => void;
 }
 
@@ -18,12 +18,12 @@ const USER_LEVEL = MY_PROFILE.level;
 export function AvatarPicker({ inv, onClose }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
 
-  const handleClick = (id: AvatarId) => {
+  const handleClick = async (id: AvatarId) => {
     const meta = getAvatarMeta(id);
     const owned = inv.avatarOwned.includes(id);
 
     if (owned) {
-      inv.pickAvatar(id);
+      await inv.pickAvatar(id);
       onClose();
       return;
     }
@@ -34,16 +34,13 @@ export function AvatarPicker({ inv, onClose }: Props) {
         setTimeout(() => setMsg(null), 1400);
         return;
       }
-      // 레벨 도달 → 즉시 획득
-      const r = inv.buyAvatar(id, 0);
-      if (r.ok) {
-        onClose();
-      }
+      const r = await inv.buyAvatar(id, 0);
+      if (r.ok) onClose();
       return;
     }
 
     if (meta.mode === 'shop' && meta.price !== undefined) {
-      const r = inv.buyAvatar(id, meta.price);
+      const r = await inv.buyAvatar(id, meta.price);
       if (!r.ok) {
         setMsg(r.msg ?? '구매 실패');
         setTimeout(() => setMsg(null), 1400);

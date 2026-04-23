@@ -2,9 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { submitFeed, submitTrade } from '@/app/actions';
-import { useAvatar } from '@/lib/use-avatar';
+import { useInventory } from '@/components/InventoryProvider';
 import { REWARDS } from '@/lib/rewards';
-import { useInventory } from '@/lib/use-inventory';
 import { AppBar } from '@/components/ui/AppBar';
 import { Chip } from '@/components/ui/Chip';
 import { CongOption } from '@/components/ui/CongOption';
@@ -42,8 +41,7 @@ interface Props {
 }
 
 export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
-  const { id: avatarId } = useAvatar();
-  const { grantPoints } = useInventory();
+  const { avatar: avatarId } = useInventory();
   const [kind, setKind] = useState<FeedKind>(defaultKind);
   const [place, setPlace] = useState<string>(places[0]?.id ?? '');
   const [level, setLevel] = useState<CongestionLevel>('normal');
@@ -79,13 +77,10 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
       fd.set('price', price);
       fd.set('avatar_id', avatarId);
       if (kakaoId) fd.set('kakao_id', kakaoId);
-      // 낙관적 포인트 지급 — redirect 가 client post-await 실행을 막아서 사전 지급
-      grantPoints(REWARDS.trade_post);
       startTransition(async () => {
         try {
           await submitTrade(fd);
         } catch (e) {
-          grantPoints(-REWARDS.trade_post); // 실패 시 롤백
           setError(e instanceof Error ? e.message : '거래글 등록 실패');
         }
       });
@@ -98,13 +93,10 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
     fd.set('avatar_id', avatarId);
     if (place) fd.set('place_id', place);
     if (isReport) fd.set('level', level);
-    const reward = isReport ? REWARDS.feed_report : REWARDS.feed_general;
-    grantPoints(reward);
     startTransition(async () => {
       try {
         await submitFeed(fd);
       } catch (e) {
-        grantPoints(-reward);
         setError(e instanceof Error ? e.message : '등록 실패');
       }
     });

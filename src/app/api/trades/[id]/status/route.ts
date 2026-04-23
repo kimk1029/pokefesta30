@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { REWARDS } from '@/lib/rewards';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,9 +37,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   try {
-    const updated = await prisma.trade.update({
-      where: { id },
-      data: { status },
+    // 완료 전환 시 작성자에게 트레이드 완료 보상 1회 지급
+    const before = await prisma.trade.findUnique({ where: { id } });
+    if (!before) return NextResponse.json({ error: 'not found' }, { status: 404 });
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const row = await tx.trade.update({ where: { id }, data: { status } });
+      const becameDone = status === 'done' && before.status !== 'done';
+      if (becameDone && before.authorId) {
+        await tx.user.update({
+          where: { id: before.authorId },
+          data: { points: { increment: REWARDS.trade_done } },
+        });
+      }
+      return row;
     });
     return NextResponse.json({ data: updated });
   } catch (err) {

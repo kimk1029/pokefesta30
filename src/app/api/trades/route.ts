@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { REWARDS } from '@/lib/rewards';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,16 +75,25 @@ export async function POST(req: NextRequest) {
     authorId = session.user.id;
   }
 
-  const created = await prisma.trade.create({
-    data: {
-      placeId,
-      type,
-      title: title.trim(),
-      body: content?.trim() ?? '',
-      price: price?.trim() || '제안',
-      authorId,
-      authorEmoji: session.user.name?.slice(0, 2) ?? '익명',
-    },
+  const created = await prisma.$transaction(async (tx) => {
+    const row = await tx.trade.create({
+      data: {
+        placeId,
+        type,
+        title: title.trim(),
+        body: content?.trim() ?? '',
+        price: price?.trim() || '제안',
+        authorId,
+        authorEmoji: session.user.name?.slice(0, 2) ?? '익명',
+      },
+    });
+    if (authorId) {
+      await tx.user.update({
+        where: { id: authorId },
+        data: { points: { increment: REWARDS.trade_post } },
+      });
+    }
+    return row;
   });
   return NextResponse.json({ data: created }, { status: 201 });
 }

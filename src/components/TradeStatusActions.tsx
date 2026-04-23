@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { REWARDS } from '@/lib/rewards';
-import { useInventory } from '@/lib/use-inventory';
 
 interface Props {
   tradeId: number;
@@ -20,7 +19,6 @@ const LABEL: Record<string, string> = {
 
 export function TradeStatusActions({ tradeId, status, isAuthor }: Props) {
   const router = useRouter();
-  const { grantPoints } = useInventory();
   const [pending, setPending] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -40,7 +38,6 @@ export function TradeStatusActions({ tradeId, status, isAuthor }: Props) {
         throw new Error(data.error ?? '상태 변경 실패');
       }
       if (next === 'done' && status !== 'done') {
-        grantPoints(REWARDS.trade_done);
         setMsg(`✓ 거래 완료 · +${REWARDS.trade_done}P 획득`);
       } else {
         setMsg(`✓ "${LABEL[next] ?? next}" 로 변경`);

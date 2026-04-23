@@ -19,6 +19,15 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // profile / inventory (클라이언트 로컬스토리지 대체)
+  points           Int      @default(1280)
+  avatarId         String   @default("bulbasaur")
+  backgroundId    String   @default("default")
+  frameId          String   @default("none")
+  ownedAvatars     String[] @default(["bulbasaur","charmander","squirtle"])
+  ownedBackgrounds String[] @default(["default"])
+  ownedFrames      String[] @default(["none"])
+
   trades    Trade[]
   feeds     Feed[]
   bookmarks Bookmark[]

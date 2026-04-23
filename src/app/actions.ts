@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { DEFAULT_AVATAR, isAvatarId } from '@/lib/avatars';
 import { prisma } from '@/lib/prisma';
+import { REWARDS } from '@/lib/rewards';
 import type { CongestionLevel, FeedKind, TradeType } from '@/lib/types';
 
 const LEVELS: readonly CongestionLevel[] = ['empty', 'normal', 'busy', 'full'] as const;
@@ -85,6 +86,7 @@ export async function submitFeed(formData: FormData): Promise<void> {
 
   const authorId = await ensureUser(session);
   const authorEmoji = authorTokenFromForm(formData, session);
+  const reward = kind === 'report' ? REWARDS.feed_report : REWARDS.feed_general;
   await prisma.$transaction(async (tx) => {
     await tx.feed.create({
       data: {
@@ -100,6 +102,12 @@ export async function submitFeed(formData: FormData): Promise<void> {
       await tx.place.update({
         where: { id: placeId },
         data: { level, lastReportAt: new Date(), count: { increment: 1 } },
+      });
+    }
+    if (authorId) {
+      await tx.user.update({
+        where: { id: authorId },
+        data: { points: { increment: reward } },
       });
     }
   });
@@ -143,17 +151,25 @@ export async function submitTrade(formData: FormData): Promise<void> {
   if (!title) throw new Error('title required');
 
   const authorId = await ensureUser(session);
-  await prisma.trade.create({
-    data: {
-      placeId,
-      type: rawType,
-      title,
-      body,
-      price,
-      kakaoId,
-      authorId,
-      authorEmoji: authorTokenFromForm(formData, session),
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.trade.create({
+      data: {
+        placeId,
+        type: rawType,
+        title,
+        body,
+        price,
+        kakaoId,
+        authorId,
+        authorEmoji: authorTokenFromForm(formData, session),
+      },
+    });
+    if (authorId) {
+      await tx.user.update({
+        where: { id: authorId },
+        data: { points: { increment: REWARDS.trade_post } },
+      });
+    }
   });
 
   revalidatePath('/trade');

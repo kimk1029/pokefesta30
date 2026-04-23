@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getFeedPage } from '@/lib/queries';
+import { REWARDS } from '@/lib/rewards';
 import type { CongestionLevel, FeedKind } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
     authorId = session.user.id;
   }
 
+  const reward = resolvedKind === 'report' ? REWARDS.feed_report : REWARDS.feed_general;
   const created = await prisma.$transaction(async (tx) => {
     const row = await tx.feed.create({
       data: {
@@ -90,6 +92,12 @@ export async function POST(req: NextRequest) {
       await tx.place.update({
         where: { id: placeId },
         data: { level: resolvedLevel, lastReportAt: new Date(), count: { increment: 1 } },
+      });
+    }
+    if (authorId) {
+      await tx.user.update({
+        where: { id: authorId },
+        data: { points: { increment: reward } },
       });
     }
     return row;

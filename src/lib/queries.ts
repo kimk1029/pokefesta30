@@ -1,9 +1,23 @@
 import {
+  DEFAULT_AVATAR,
+  DEFAULT_OWNED,
+  isAvatarId,
+  type AvatarId,
+} from './avatars';
+import {
   FEED as MOCK_FEED,
   PLACES as MOCK_PLACES,
   TRADES as MOCK_TRADES,
 } from './data';
 import { prisma } from './prisma';
+import {
+  DEFAULT_BG,
+  DEFAULT_FRAME,
+  isBackgroundId,
+  isFrameId,
+  type BackgroundId,
+  type FrameId,
+} from './shop';
 import type {
   CongestionLevel,
   FeedItem,
@@ -288,6 +302,49 @@ export async function getMyBookmarks(
   } catch (err) {
     console.error('[getMyBookmarks]', err);
     return { trades: [], feeds: [] };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* inventory (프로필/포인트/보유 아이템)                                  */
+/* ------------------------------------------------------------------ */
+
+export interface InventorySnapshot {
+  avatar: AvatarId;
+  avatarOwned: AvatarId[];
+  bg: BackgroundId;
+  bgOwned: BackgroundId[];
+  frame: FrameId;
+  frameOwned: FrameId[];
+  points: number;
+}
+
+const DEFAULT_INVENTORY: InventorySnapshot = {
+  avatar: DEFAULT_AVATAR,
+  avatarOwned: DEFAULT_OWNED,
+  bg: DEFAULT_BG,
+  bgOwned: [DEFAULT_BG],
+  frame: DEFAULT_FRAME,
+  frameOwned: [DEFAULT_FRAME],
+  points: 0,
+};
+
+export async function getMyInventory(userId: string): Promise<InventorySnapshot> {
+  try {
+    const u = await prisma.user.findUnique({ where: { id: userId } });
+    if (!u) return DEFAULT_INVENTORY;
+    return {
+      avatar: isAvatarId(u.avatarId) ? (u.avatarId as AvatarId) : DEFAULT_AVATAR,
+      avatarOwned: u.ownedAvatars.filter(isAvatarId) as AvatarId[],
+      bg: isBackgroundId(u.backgroundId) ? (u.backgroundId as BackgroundId) : DEFAULT_BG,
+      bgOwned: u.ownedBackgrounds.filter(isBackgroundId) as BackgroundId[],
+      frame: isFrameId(u.frameId) ? (u.frameId as FrameId) : DEFAULT_FRAME,
+      frameOwned: u.ownedFrames.filter(isFrameId) as FrameId[],
+      points: u.points,
+    };
+  } catch (err) {
+    console.error('[getMyInventory]', err);
+    return DEFAULT_INVENTORY;
   }
 }
 

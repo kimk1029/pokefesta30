@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useInventory } from '@/components/InventoryProvider';
 import { PixelBackground } from '@/components/PixelBackground';
 import { PokemonAvatar } from '@/components/PokemonAvatar';
 import { AppBar } from '@/components/ui/AppBar';
@@ -10,7 +11,6 @@ import { Segmented } from '@/components/ui/Segmented';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { AVATARS, type AvatarId } from '@/lib/avatars';
 import { BACKGROUNDS, FRAMES, type BackgroundId, type FrameId } from '@/lib/shop';
-import { useInventory } from '@/lib/use-inventory';
 
 type Tab = 'avatar' | 'bg' | 'frame' | 'charge';
 const TABS: Array<{ id: Tab; label: string }> = [
@@ -37,21 +37,21 @@ export function ShopScreen() {
     setTimeout(() => setFlash(null), 1400);
   };
 
-  const buyAvatar = (id: AvatarId, price: number) => {
+  const buyAvatar = async (id: AvatarId, price: number) => {
     if (inv.avatarOwned.includes(id)) {
-      inv.pickAvatar(id);
-      flashMsg(`✓ ${id} 선택`);
+      const r = await inv.pickAvatar(id);
+      flashMsg(r.ok ? `✓ ${id} 선택` : r.msg ?? '실패');
       return;
     }
-    const r = inv.buyAvatar(id, price);
+    const r = await inv.buyAvatar(id, price);
     flashMsg(r.ok ? '✓ 획득!' : r.msg ?? '실패');
   };
-  const buyBg = (id: BackgroundId, price: number) => {
-    const r = inv.buyBg(id, price);
+  const buyBg = async (id: BackgroundId, price: number) => {
+    const r = await inv.buyBg(id, price);
     flashMsg(r.ok ? '✓ 적용!' : r.msg ?? '실패');
   };
-  const buyFrame = (id: FrameId, price: number) => {
-    const r = inv.buyFrame(id, price);
+  const buyFrame = async (id: FrameId, price: number) => {
+    const r = await inv.buyFrame(id, price);
     flashMsg(r.ok ? '✓ 적용!' : r.msg ?? '실패');
   };
 
