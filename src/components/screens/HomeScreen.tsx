@@ -1,23 +1,23 @@
 import Link from 'next/link';
 import { CongCompact } from '@/components/CongCompact';
 import { FeedChart } from '@/components/FeedChart';
+import { FeedRow } from '@/components/FeedRow';
 import { HeroSlider } from '@/components/HeroSlider';
 import { QuickGrid } from '@/components/QuickGrid';
-import { TradeCard } from '@/components/TradeCard';
 import { AppBar } from '@/components/ui/AppBar';
 import { LivePill } from '@/components/ui/LivePill';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
-import type { Place, Trade } from '@/lib/types';
+import type { FeedPost, Place } from '@/lib/types';
 
 interface Props {
   places: Place[];
-  trades: Trade[];
+  feeds: FeedPost[];
   todayCount: number;
 }
 
-export function HomeScreen({ places, trades, todayCount }: Props) {
-  const recentTrades = trades.slice(0, 2);
+export function HomeScreen({ places, feeds, todayCount }: Props) {
+  const recentFeeds = feeds.slice(0, 5);
 
   return (
     <>
@@ -47,19 +47,21 @@ export function HomeScreen({ places, trades, todayCount }: Props) {
 
       <div className="sect">
         <SectionTitle
-          title="최근 거래글"
+          title="실시간 피드"
           right={
-            <Link href="/trade" className="more">
+            <Link href="/feed" className="more">
               전체 ▶
             </Link>
           }
         />
-        {recentTrades.length === 0 ? (
-          <div className="trade-card">
-            <div className="trade-title">아직 거래글이 없어요</div>
+        {recentFeeds.length === 0 ? (
+          <div className="feed-item">
+            <div className="fi-body">
+              <div className="fi-text">아직 피드가 없어요</div>
+            </div>
           </div>
         ) : (
-          recentTrades.map((t) => <TradeCard key={t.id} trade={t} />)
+          recentFeeds.map((p) => <FeedRow key={p.id} post={p} />)
         )}
       </div>
 

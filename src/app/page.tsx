@@ -1,13 +1,13 @@
 import { HomeScreen } from '@/components/screens/HomeScreen';
-import { getPlaces, getTodayReportCount, getTrades } from '@/lib/queries';
+import { getFeedPosts, getPlaces, getTodayReportCount } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const [places, trades, todayCount] = await Promise.all([
+  const [places, feeds, todayCount] = await Promise.all([
     getPlaces(),
-    getTrades('all'),
+    getFeedPosts(5),
     getTodayReportCount(),
   ]);
-  return <HomeScreen places={places} trades={trades} todayCount={todayCount} />;
+  return <HomeScreen places={places} feeds={feeds} todayCount={todayCount} />;
 }
