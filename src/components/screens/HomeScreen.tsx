@@ -1,12 +1,10 @@
 import Link from 'next/link';
 import { AppBarProfile } from '@/components/AppBarProfile';
-import { CongCompact } from '@/components/CongCompact';
-import { FeedChart } from '@/components/FeedChart';
 import { FeedRow } from '@/components/FeedRow';
 import { HeroSlider } from '@/components/HeroSlider';
+import { HomeInfoTabs } from '@/components/HomeInfoTabs';
 import { QuickGrid } from '@/components/QuickGrid';
 import { AppBar } from '@/components/ui/AppBar';
-import { LivePill } from '@/components/ui/LivePill';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 import type { FeedPost, Place } from '@/lib/types';
@@ -27,18 +25,7 @@ export function HomeScreen({ places, feeds, todayCount }: Props) {
       <HeroSlider />
       <QuickGrid />
 
-      <div className="sect">
-        <SectionTitle title="장소 혼잡도" right={<LivePill />} />
-        <CongCompact places={places} />
-      </div>
-
-      <div className="sect">
-        <SectionTitle
-          title="시간대별 제보량"
-          right={<span className="more">오늘 {todayCount}건</span>}
-        />
-        <FeedChart />
-      </div>
+      <HomeInfoTabs places={places} todayCount={todayCount} />
 
       <div className="sect">
         <SectionTitle

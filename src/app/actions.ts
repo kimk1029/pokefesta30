@@ -33,12 +33,17 @@ async function ensureUser(
   const id = session.user.id;
   if (!id) return null;
   const name = session.user.name ?? '트레이너';
-  await prisma.user.upsert({
-    where: { id },
-    update: { name },
-    create: { id, name, avatar: '🐣' },
-  });
-  return id;
+  try {
+    await prisma.user.upsert({
+      where: { id },
+      update: { name },
+      create: { id, name, avatar: '🐣' },
+    });
+    return id;
+  } catch (err) {
+    console.error('[ensureUser] upsert 실패 (DB 스키마 불일치 가능성):', err);
+    return null;
+  }
 }
 
 /** form 의 avatar_id 필드 우선, 없으면 이모지 폴백. */
@@ -92,13 +97,18 @@ export async function submitFeed(formData: FormData): Promise<void> {
   let snapBg = 'default';
   let snapFrame = 'none';
   if (authorId) {
-    const u = await prisma.user.findUnique({
-      where: { id: authorId },
-      select: { backgroundId: true, frameId: true },
-    });
-    if (u) {
-      snapBg = u.backgroundId;
-      snapFrame = u.frameId;
+    try {
+      const u = await prisma.user.findUnique({
+        where: { id: authorId },
+        select: { backgroundId: true, frameId: true },
+      });
+      if (u) {
+        snapBg = u.backgroundId;
+        snapFrame = u.frameId;
+      }
+    } catch (err) {
+      console.error('[submitFeed] 스냅샷 쿼리 실패 (컬럼 없음 가능):', err);
+      // 기본값 유지하고 계속 진행
     }
   }
 
@@ -178,16 +188,21 @@ export async function submitTrade(formData: FormData): Promise<void> {
   let snapBg = 'default';
   let snapFrame = 'none';
   if (authorId) {
-    const u = await prisma.user.findUnique({
-      where: { id: authorId },
-      select: { backgroundId: true, frameId: true },
-    });
-    if (u) {
-      snapBg = u.backgroundId;
-      snapFrame = u.frameId;
+    try {
+      const u = await prisma.user.findUnique({
+        where: { id: authorId },
+        select: { backgroundId: true, frameId: true },
+      });
+      if (u) {
+        snapBg = u.backgroundId;
+        snapFrame = u.frameId;
+      }
+    } catch (err) {
+      console.error('[submitTrade] 스냅샷 쿼리 실패:', err);
     }
   }
 
+  try {
   await prisma.$transaction(async (tx) => {
     await tx.trade.create({
       data: {
@@ -210,6 +225,12 @@ export async function submitTrade(formData: FormData): Promise<void> {
       });
     }
   });
+  } catch (err) {
+    console.error('[submitTrade] transaction failed:', err);
+    throw new Error(
+      err instanceof Error ? `등록 실패: ${err.message.slice(0, 140)}` : '등록 실패',
+    );
+  }
 
   revalidatePath('/trade');
   revalidatePath('/');

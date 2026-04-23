@@ -6,14 +6,21 @@ import { MapButton } from './ui/MapButton';
 import { STAMP_SPOTS } from '@/lib/stamps';
 import type { Place, Trade } from '@/lib/types';
 
-/** 스탬프 랠리 6개 지점 좌표 (지도 내 %). */
+/**
+ * 스탬프 랠리 6개 지점 좌표 (지도 내 %).
+ * 성수 지역 실측 기준:
+ *  - 서울숲/서울숲역: 서쪽
+ *  - 뚝섬역: 중간 (line2)
+ *  - 성수역: 동쪽 (line2)
+ *  - 성수동 주택가: 중앙~동쪽
+ */
 const PIN_POS: Record<number, { top: string; left: string }> = {
-  1: { top: '74%', left: '34%' }, // 무지개 어린이공원 (메타몽 놀이터)
-  2: { top: '58%', left: '62%' }, // 트렌드 팟
-  3: { top: '62%', left: '82%' }, // 성수 어린이 테마공원
-  4: { top: '40%', left: '78%' }, // 뚝섬역
+  1: { top: '62%', left: '44%' }, // 메타몽 놀이터 / 무지개 어린이공원
+  2: { top: '44%', left: '62%' }, // 트렌드 팟 · 올리브영 성수
+  3: { top: '64%', left: '76%' }, // 성수 어린이 테마공원
+  4: { top: '26%', left: '52%' }, // 뚝섬역
   5: { top: '22%', left: '80%' }, // 성수역
-  6: { top: '28%', left: '50%' }, // 서울숲 은행나무길
+  6: { top: '54%', left: '22%' }, // 서울숲 은행나무길
 };
 
 interface Props {
