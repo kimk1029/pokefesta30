@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Session } from 'next-auth';
 import { PointChipLive } from '@/components/LivePointsPill';
 import { LogoutButton } from '@/components/LogoutButton';
+import { MessagesInboxLink } from '@/components/MessagesInboxLink';
 import { ProfileAvatarClient } from '@/components/ProfileAvatarClient';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
@@ -105,6 +106,7 @@ export function MyScreen({ session }: Props) {
       {/* 내 활동 */}
       <div className="sect">
         <SectionTitle title="내 활동" />
+        <MessagesInboxLink />
         {ACTIVITY.map((it) => (
           <Link key={it.lb} href={it.href} className="my-item">
             <div className="mi-icon" style={{ background: it.bg }}>

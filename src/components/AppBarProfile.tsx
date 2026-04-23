@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useInventory } from './InventoryProvider';
 import { PixelBackground } from './PixelBackground';
 import { PokemonAvatar } from './PokemonAvatar';
+import { useUnread } from './UnreadProvider';
 
 /**
  * AppBar 오른쪽 자리에 들어가는 미니 프로필 (34×34).
@@ -11,6 +12,7 @@ import { PokemonAvatar } from './PokemonAvatar';
  */
 export function AppBarProfile() {
   const { avatar, bg, frame, isLoggedIn } = useInventory();
+  const { count } = useUnread();
 
   if (!isLoggedIn) {
     return (
@@ -28,15 +30,26 @@ export function AppBarProfile() {
       style={{
         position: 'relative',
         padding: 0,
-        overflow: 'hidden',
+        overflow: 'visible',
         display: 'grid',
         placeItems: 'center',
       }}
     >
-      <PixelBackground id={bg} />
-      <div style={{ position: 'relative', zIndex: 1, display: 'grid', placeItems: 'center' }}>
-        <PokemonAvatar id={avatar} size={28} />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          overflow: 'hidden',
+          display: 'grid',
+          placeItems: 'center',
+        }}
+      >
+        <PixelBackground id={bg} />
+        <div style={{ position: 'relative', zIndex: 1, display: 'grid', placeItems: 'center' }}>
+          <PokemonAvatar id={avatar} size={28} />
+        </div>
       </div>
+      {count > 0 && <span className="unread-dot" />}
     </Link>
   );
 }

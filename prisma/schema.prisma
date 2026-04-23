@@ -31,6 +31,8 @@ model User {
   trades    Trade[]
   feeds     Feed[]
   bookmarks Bookmark[]
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
 
   @@map("users")
 }
@@ -102,6 +104,24 @@ model Feed {
   @@index([createdAt(sort: Desc)])
   @@index([kind, createdAt(sort: Desc)])
   @@map("feeds")
+}
+
+/// 쪽지 (채팅 아닌 비동기 메시지). 웹소켓 없이 폴링 기반.
+model Message {
+  id         Int      @id @default(autoincrement())
+  tradeId    Int?
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  text       String
+  readAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([receiverId, readAt])
+  @@index([senderId, receiverId, createdAt])
+  @@index([tradeId])
+  @@map("messages")
 }
 
 model Bookmark {

@@ -74,13 +74,13 @@ export default async function Page({ params }: Props) {
           </div>
         )}
 
-        {!isAuthor && (
+        {!isAuthor && trade.authorId && (
           <Link
-            href={`/trade/${trade.id}/chat`}
+            href={`/my/messages/${trade.authorId}?trade=${trade.id}`}
             className="chat-cta"
-            aria-label="1:1 문의하기"
+            aria-label="1:1 쪽지 보내기"
           >
-            💬 1:1 문의하기 ▶
+            ✉ 1:1 쪽지 보내기 ▶
           </Link>
         )}
 

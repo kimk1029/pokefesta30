@@ -1297,6 +1297,40 @@ a{color:inherit;text-decoration:none;}
 .lock-hint{font-size:6px;letter-spacing:.3px;text-align:center;padding:0 2px;
   line-height:1.3;color:var(--yel);}
 
+/* ── MESSAGES INBOX ── */
+.thread-item{display:flex;align-items:center;gap:12px;padding:11px 12px;margin-bottom:8px;
+  background:var(--white);text-decoration:none;color:var(--ink);
+  position:relative;cursor:pointer;
+  box-shadow:
+    -3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 2px 0 rgba(255,255,255,.85),inset 0 -2px 0 rgba(0,0,0,.12),
+    4px 4px 0 var(--ink);
+  transition:transform .05s steps(1),box-shadow .05s steps(1);}
+.thread-item:active{transform:translate(3px,3px);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    2px 2px 0 var(--ink);}
+.thread-avatar{flex-shrink:0;width:44px;height:44px;overflow:hidden;display:grid;place-items:center;}
+.thread-main{flex:1;min-width:0;}
+.thread-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.thread-name{font-family:var(--f1);font-size:11px;letter-spacing:.3px;}
+.thread-time{font-family:var(--f1);font-size:8px;color:var(--ink3);letter-spacing:.2px;}
+.thread-last{font-family:var(--f1);font-size:9px;color:var(--ink3);letter-spacing:.2px;
+  line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.thread-me{color:var(--ink);margin-right:4px;opacity:.7;}
+.thread-unread{flex-shrink:0;background:var(--red);color:var(--white);
+  font-family:var(--f1);font-size:9px;padding:3px 7px;min-width:20px;
+  display:grid;place-items:center;letter-spacing:.3px;
+  box-shadow:-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink);}
+
+/* 안 읽은 알림 레드 닷 */
+.unread-dot{position:absolute;top:-3px;right:-3px;width:12px;height:12px;
+  background:var(--red);z-index:4;pointer-events:none;
+  box-shadow:-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink);
+  animation:pf-unread-pulse 1.4s steps(6) infinite;}
+@keyframes pf-unread-pulse{
+  0%,100%{transform:scale(1);}
+  50%{transform:scale(1.4);}}
+
 /* ── TRADE CHAT ── */
 .chat-cta{margin-top:8px;padding:13px;display:grid;place-items:center;
   background:var(--grn-dk);color:var(--white);cursor:pointer;text-decoration:none;

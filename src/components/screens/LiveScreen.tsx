@@ -1,80 +1,126 @@
+'use client';
+
 import Link from 'next/link';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CongCompact } from '@/components/CongCompact';
+import { FeedChart } from '@/components/FeedChart';
+import { FeedRow } from '@/components/FeedRow';
 import { AppBar } from '@/components/ui/AppBar';
 import { LivePill } from '@/components/ui/LivePill';
 import { SectionTitle } from '@/components/ui/SectionTitle';
+import { Segmented } from '@/components/ui/Segmented';
 import { StatusBar } from '@/components/ui/StatusBar';
-import type { FeedItem, Place } from '@/lib/types';
+import type { FeedPost, Place } from '@/lib/types';
+
+type Tab = 'cong' | 'chart';
+
+const TABS: Array<{ id: Tab; label: string }> = [
+  { id: 'cong',  label: '📍 장소 혼잡도' },
+  { id: 'chart', label: '📊 시간대별 제보량' },
+];
 
 interface Props {
   places: Place[];
-  reports: FeedItem[];
+  initialFeeds: FeedPost[];
+  initialCursor: string | null;
+  todayCount: number;
 }
 
-export function LiveScreen({ places, reports }: Props) {
-  // 레벨 카운트만 집계 — 리스트는 보여주지 않음 (피드와 중복 방지)
-  const tally = reports.reduce(
-    (acc, r) => {
-      acc[r.level] = (acc[r.level] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
+export function LiveScreen({ places, initialFeeds, initialCursor, todayCount }: Props) {
+  const [tab, setTab] = useState<Tab>('cong');
+
+  const [posts, setPosts] = useState<FeedPost[]>(initialFeeds);
+  const [cursor, setCursor] = useState<string | null>(initialCursor);
+  const [loading, setLoading] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const loadMore = useCallback(async () => {
+    if (loading || !cursor) return;
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams({ cursor, limit: '15' });
+      const r = await fetch(`/api/feeds?${qs.toString()}`, { cache: 'no-store' });
+      const data: { items: FeedPost[]; nextCursor: string | null } = await r.json();
+      setPosts((prev) => [...prev, ...data.items]);
+      setCursor(data.nextCursor);
+    } finally {
+      setLoading(false);
+    }
+  }, [cursor, loading]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !cursor) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: '200px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [cursor, loadMore]);
 
   return (
     <>
       <StatusBar />
       <AppBar title="실시간 현황" right={<LivePill />} />
 
-      <div className="sect" style={{ marginTop: 14 }}>
-        <SectionTitle
-          title="장소별 혼잡도"
-          right={<span className="more">{places.length}곳</span>}
-        />
-        <CongCompact places={places} />
-      </div>
+      <div style={{ height: 14 }} />
+
+      <Segmented items={TABS} value={tab} onChange={setTab} />
+
+      {tab === 'cong' ? (
+        <div className="sect">
+          <SectionTitle
+            title="장소별 혼잡도"
+            right={<span className="more">{places.length}곳</span>}
+          />
+          <CongCompact places={places} />
+        </div>
+      ) : (
+        <div className="sect">
+          <SectionTitle
+            title="시간대별 제보량"
+            right={<span className="more">오늘 {todayCount}건</span>}
+          />
+          <FeedChart />
+        </div>
+      )}
 
       <div className="sect">
-        <SectionTitle title="오늘 제보 요약" right={<LivePill label={`${reports.length}건`} />} />
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4,1fr)',
-            gap: 6,
-            marginBottom: 10,
-          }}
-        >
-          {([
-            ['empty',  '여유',     'var(--c-e)', 'var(--ink)'],
-            ['normal', '보통',     'var(--c-n)', 'var(--ink)'],
-            ['busy',   '혼잡',     'var(--c-b)', 'var(--white)'],
-            ['full',   '매우혼잡', 'var(--c-f)', 'var(--white)'],
-          ] as const).map(([k, label, bg, color]) => (
-            <div
-              key={k}
-              style={{
-                padding: '10px 6px',
-                background: bg,
-                color,
-                textAlign: 'center',
-                fontFamily: 'var(--f1)',
-                lineHeight: 1.5,
-                boxShadow:
-                  '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-              }}
-            >
-              <div style={{ fontSize: 14, marginBottom: 4 }}>{tally[k] ?? 0}</div>
-              <div style={{ fontSize: 8, letterSpacing: 0.3 }}>{label}</div>
+        <SectionTitle
+          title="실시간 피드"
+          right={
+            <Link href="/feed" className="more">
+              전체 ▶
+            </Link>
+          }
+        />
+        {posts.length === 0 ? (
+          <div className="feed-item">
+            <div className="fi-body">
+              <div className="fi-text">아직 피드가 없어요</div>
             </div>
-          ))}
-        </div>
-        <Link
-          href="/feed?kind=report"
-          className="map-btn pri"
-          style={{ textAlign: 'center', textDecoration: 'none' }}
-        >
-          📢 제보 타임라인 전체 보기 ▶
-        </Link>
+          </div>
+        ) : (
+          posts.map((p) => <FeedRow key={`${p.kind}-${p.id}`} post={p} />)
+        )}
+        {cursor && (
+          <div
+            ref={sentinelRef}
+            style={{
+              padding: '18px 0',
+              textAlign: 'center',
+              fontFamily: 'var(--f1)',
+              fontSize: 10,
+              color: 'var(--ink3)',
+              letterSpacing: 1,
+            }}
+          >
+            {loading ? '불러오는 중...' : '↓ 스크롤하면 더 보기'}
+          </div>
+        )}
       </div>
 
       <div className="bggap" />

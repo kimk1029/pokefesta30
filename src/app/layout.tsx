@@ -5,7 +5,9 @@ import { InventoryProvider } from '@/components/InventoryProvider';
 import { PhoneShell } from '@/components/PhoneShell';
 import { Providers } from '@/components/Providers';
 import { ToastProvider } from '@/components/ToastProvider';
+import { UnreadProvider } from '@/components/UnreadProvider';
 import { authOptions } from '@/lib/auth';
+import { getUnreadCount } from '@/lib/messages';
 import { getMyInventory } from '@/lib/queries';
 import 'galmuri/dist/galmuri.css';
 import './globals.css';
@@ -26,7 +28,10 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id ?? null;
-  const inventory = userId ? await getMyInventory(userId) : null;
+  const [inventory, unreadCount] = await Promise.all([
+    userId ? getMyInventory(userId) : Promise.resolve(null),
+    userId ? getUnreadCount(userId).catch(() => 0) : Promise.resolve(0),
+  ]);
 
   return (
     <html lang="ko">
@@ -42,7 +47,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Providers>
           <ToastProvider>
             <InventoryProvider initial={inventory} isLoggedIn={!!userId}>
-              <PhoneShell>{children}</PhoneShell>
+              <UnreadProvider initialCount={unreadCount}>
+                <PhoneShell>{children}</PhoneShell>
+              </UnreadProvider>
             </InventoryProvider>
           </ToastProvider>
         </Providers>
