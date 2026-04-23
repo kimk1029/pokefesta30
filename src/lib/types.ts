@@ -74,6 +74,44 @@ export interface OripaBox {
   odds: string;
 }
 
+/** 쿠지 등급 — S(잭팟) / A(상위) / B(중간) / C(기본) / last(라스원) */
+export type OripaGrade = 'S' | 'A' | 'B' | 'C' | 'last';
+
+export interface OripaPrize {
+  id: string;
+  grade: OripaGrade;
+  name: string;
+  emoji: string;
+  bg: string;
+  total: number;
+  remaining: number;
+  /** 환산가치 표기 (ex. "10,000P 상당") */
+  value?: string;
+}
+
+export interface OripaMachine {
+  id: string;
+  title: string;
+  subtitle: string;
+  heroEmoji: string;
+  pricePerPull: number;
+  bundleCount: number;
+  bundlePrice: number;
+  totalTickets: number;
+  remainingTickets: number;
+  prizes: OripaPrize[];
+}
+
+export interface OripaTicket {
+  index: number;
+  drawn: boolean;
+  grade?: OripaGrade;
+  prizeName?: string;
+  prizeEmoji?: string;
+  drawnBy?: string;
+  drawnAt?: string;
+}
+
 export interface OripaResult {
   id: number;
   user: string;

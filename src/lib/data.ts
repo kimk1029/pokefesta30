@@ -2,7 +2,9 @@ import type {
   FeedItem,
   MyProfile,
   OripaBox,
+  OripaMachine,
   OripaResult,
+  OripaTicket,
   Place,
   ShopItem,
   Trade,
@@ -96,3 +98,74 @@ export const ORIPA_RESULTS: OripaResult[] = [
   { id: 4, user: '🦆', box: '레어',     reward: '프리미엄 뱃지',       emoji: '🏅', tier: 'rare',   time: '7분 전'  },
   { id: 5, user: '🐢', box: '레전드',   reward: '레인보우 프레임',     emoji: '🌈', tier: 'legend', time: '12분 전' },
 ];
+
+/* ============================================================
+ * Oripa Machine — 쿠지 스타일 소개 + 티켓 현황판 mock
+ * ========================================================== */
+
+export const ORIPA_MACHINE: OripaMachine = {
+  id: 'karp-premium',
+  title: '잉어킹 프리미엄 박스',
+  subtitle: '레전드 프레임 · 한정 뱃지 · 라스원상 포함',
+  heroEmoji: '🐟',
+  pricePerPull: 500,
+  bundleCount: 10,
+  bundlePrice: 4500,
+  totalTickets: 100,
+  remainingTickets: 47,
+  prizes: [
+    { id: 'pr-s1', grade: 'S',    name: '잉어킹 홀로 프레임', emoji: '🖼', bg: '#6B3FA0', total: 1,  remaining: 1,  value: '10,000P 상당' },
+    { id: 'pr-a1', grade: 'A',    name: '레인보우 프레임',     emoji: '🌈', bg: '#3A5BD9', total: 3,  remaining: 2,  value: '3,000P 상당' },
+    { id: 'pr-a2', grade: 'A',    name: '프리미엄 뱃지',       emoji: '🏅', bg: '#0D7377', total: 3,  remaining: 2 },
+    { id: 'pr-b1', grade: 'B',    name: '몬스터볼 스킨',       emoji: '⚪', bg: '#E63946', total: 10, remaining: 6 },
+    { id: 'pr-b2', grade: 'B',    name: '황금 배지',           emoji: '🥇', bg: '#FFD23F', total: 10, remaining: 7 },
+    { id: 'pr-c1', grade: 'C',    name: '푸시 알림권 ×3',      emoji: '📣', bg: '#FB923C', total: 30, remaining: 13 },
+    { id: 'pr-c2', grade: 'C',    name: '스티커 팩',           emoji: '🌟', bg: '#4ADE80', total: 42, remaining: 16 },
+    { id: 'pr-last', grade: 'last', name: '잉어킹 금장 특별상', emoji: '🏆', bg: '#FFD23F', total: 1, remaining: 1, value: '라스원 한정 · 마지막 티켓 당첨자에게 보장' },
+  ],
+};
+
+/**
+ * 100칸 티켓 배열 mock — remaining=47 이므로 drawn=53.
+ * 고정 시드(아이덱스)로 생성해서 SSR/CSR 렌더 일치.
+ */
+function buildTickets(): OripaTicket[] {
+  const drawnIdx = new Set<number>();
+  // 고정 난수: 53개의 drawn 인덱스 (시드 기반)
+  let seed = 13579;
+  while (drawnIdx.size < 53) {
+    seed = (seed * 9301 + 49297) % 233280;
+    drawnIdx.add(seed % 100);
+  }
+  const grades: Array<{ g: 'S' | 'A' | 'B' | 'C'; name: string; emoji: string; weight: number }> = [
+    { g: 'C', name: '스티커 팩',       emoji: '🌟', weight: 60 },
+    { g: 'B', name: '몬스터볼 스킨',   emoji: '⚪', weight: 25 },
+    { g: 'A', name: '프리미엄 뱃지',   emoji: '🏅', weight: 12 },
+    { g: 'S', name: '잉어킹 홀로 프레임', emoji: '🖼', weight: 3 },
+  ];
+  function pickGrade(i: number) {
+    let r = (i * 31 + 17) % 100;
+    for (const g of grades) {
+      if (r < g.weight) return g;
+      r -= g.weight;
+    }
+    return grades[0];
+  }
+  const names = ['🦊', '🐻', '🐤', '🦆', '🐢', '🐿️', '🐺', '🐧', '🐳', '🦁'];
+  return Array.from({ length: 100 }, (_, i) => {
+    const drawn = drawnIdx.has(i);
+    if (!drawn) return { index: i, drawn: false };
+    const g = pickGrade(i);
+    return {
+      index: i,
+      drawn: true,
+      grade: g.g,
+      prizeName: g.name,
+      prizeEmoji: g.emoji,
+      drawnBy: names[i % names.length],
+      drawnAt: `${(i % 30) + 1}분 전`,
+    };
+  });
+}
+
+export const ORIPA_TICKETS: OripaTicket[] = buildTickets();
