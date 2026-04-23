@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { pool } from '@/lib/db';
 import type { CongestionLevel } from '@/lib/types';
 
 const LEVELS: readonly CongestionLevel[] = ['empty', 'normal', 'busy', 'full'] as const;
@@ -18,16 +18,30 @@ export async function submitReport(formData: FormData): Promise<void> {
   }
   const level = rawLevel as CongestionLevel;
 
-  if (supabase) {
-    const { error } = await supabase.from('reports').insert({
-      place_id: placeId,
-      level,
-      note: note || null,
-    });
-    if (error) throw new Error(`reports insert failed: ${error.message}`);
+  if (pool) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO reports (place_id, level, note) VALUES ($1, $2, $3)`,
+        [placeId, level, note],
+      );
+      await client.query(
+        `UPDATE places
+         SET level = $2, last_report_at = NOW(), count = count + 1
+         WHERE id = $1`,
+        [placeId, level],
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
-  // Supabase가 꺼져있어도 캐시 무효화 + 리다이렉트는 그대로 — UX 일관성 유지
+  // DB 미설정 상태에서도 UX 는 일관되게 — 캐시 무효화 + 리다이렉트
   revalidatePath('/live');
   revalidatePath('/');
   redirect('/live');
