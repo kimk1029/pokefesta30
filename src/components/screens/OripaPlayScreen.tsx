@@ -132,10 +132,9 @@ export function OripaPlayScreen() {
               type="button"
               className={cls}
               onClick={() => draw(t.index)}
-              aria-label={`티켓 ${t.index + 1}`}
+              aria-label={t.drawn ? `${t.grade}상 티켓` : '미오픈 티켓'}
             >
-              <span className="tk-num">#{t.index + 1}</span>
-              {t.drawn && <span className="tk-x">✕</span>}
+              {t.drawn && <span className="tk-grade">{t.grade}</span>}
             </button>
           );
         })}
