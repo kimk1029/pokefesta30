@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Places (upsert)
   const places = [
     { id: 'seongsu',  name: '성수역 부근',     emoji: '🚇', bg: '#E63946', level: 'full',   count: 12 },
     { id: 'seoulsup', name: '서울숲역 부근',   emoji: '🌳', bg: '#4ADE80', level: 'empty',  count: 8  },
@@ -13,32 +12,34 @@ async function main() {
     { id: 'rainbow',  name: '무지개어린이공원', emoji: '🌈', bg: '#FAE8FF', level: 'empty',  count: 2  },
   ];
   for (const p of places) {
-    await prisma.place.upsert({
-      where: { id: p.id },
-      update: p,
-      create: p,
-    });
+    await prisma.place.upsert({ where: { id: p.id }, update: p, create: p });
   }
 
-  // Reports — 시드 제보 (최근순)
   const now = Date.now();
   const mins = (n: number) => new Date(now - n * 60_000);
 
-  await prisma.report.createMany({
+  // 통합 피드 시드 — general + report 섞어서 타임라인 생성
+  await prisma.feed.createMany({
     data: [
-      { placeId: 'seongsu',  level: 'full',  note: '지금 줄이 역까지! 40분 각오',   authorEmoji: '🐢', createdAt: mins(1) },
-      { placeId: 'seoulsup', level: 'empty', note: '지금 바로 받을 수 있어요',       authorEmoji: '🦆', createdAt: mins(3) },
-      { placeId: 'metamong', level: 'busy',  note: '10명 정도 대기. 회전은 빠름',    authorEmoji: '🐿️', createdAt: mins(7) },
+      // 제보 (kind='report', level 필수)
+      { kind: 'report', level: 'full',   placeId: 'seongsu',  text: '지금 줄이 역까지! 40분 각오',    authorEmoji: '🐢', createdAt: mins(1)  },
+      { kind: 'report', level: 'empty',  placeId: 'seoulsup', text: '지금 바로 받을 수 있어요',        authorEmoji: '🦆', createdAt: mins(3)  },
+      { kind: 'report', level: 'busy',   placeId: 'metamong', text: '10명 정도 대기. 회전은 빠름',     authorEmoji: '🐿️', createdAt: mins(7)  },
+      // 일반 (kind='general')
+      { kind: 'general', placeId: 'seongsu',  text: '오늘 날씨 진짜 너무 덥다 아이스크림 먹으면서 대기 중 ㅎㅎ', authorEmoji: '🌟', createdAt: mins(2)  },
+      { kind: 'general', placeId: 'seoulsup', text: '서울숲 입구에 굿즈 파는 분 계셨는데 다 나가셨나요?',       authorEmoji: '🎈', createdAt: mins(5)  },
+      { kind: 'general', placeId: 'secret',   text: '여기 포토존 너무 예쁘다 줄 서도 인증샷 가능!',              authorEmoji: '📸', createdAt: mins(11) },
+      { kind: 'general', placeId: null as unknown as string, text: '오늘도 화이팅입니다!', authorEmoji: '⭐', createdAt: mins(15) },
     ],
   });
 
-  // 최신 제보로 places 동기화
+  // 최신 report 로 places 동기화
   for (const placeId of ['seongsu', 'seoulsup', 'metamong']) {
-    const latest = await prisma.report.findFirst({
-      where: { placeId },
+    const latest = await prisma.feed.findFirst({
+      where: { placeId, kind: 'report' },
       orderBy: { createdAt: 'desc' },
     });
-    if (latest) {
+    if (latest?.level) {
       await prisma.place.update({
         where: { id: placeId },
         data: { level: latest.level, lastReportAt: latest.createdAt },
@@ -46,7 +47,6 @@ async function main() {
     }
   }
 
-  // Trades
   await prisma.trade.createMany({
     data: [
       { placeId: 'seongsu',  type: 'sell', title: '잉어킹 프로모 코드 1장 판매',      price: '1.5만', authorEmoji: '🐻', createdAt: mins(1)  },
@@ -56,22 +56,13 @@ async function main() {
     ],
   });
 
-  // Feeds — 잡담 스트림 (reports 와 분리)
-  await prisma.feed.createMany({
-    data: [
-      { placeId: 'seongsu',  text: '오늘 날씨 진짜 너무 덥다 아이스크림 먹으면서 대기 중 ㅎㅎ', authorEmoji: '🌟', createdAt: mins(1)  },
-      { placeId: 'seoulsup', text: '서울숲 입구에 굿즈 파는 분 계셨는데 다 나가셨나요?',       authorEmoji: '🎈', createdAt: mins(5)  },
-      { placeId: 'secret',   text: '여기 포토존 너무 예쁘다 줄 서도 인증샷 가능!',             authorEmoji: '📸', createdAt: mins(11) },
-    ],
-  });
-
-  const counts = await Promise.all([
+  const [places$, feeds$, feedsReport$, trades$] = await Promise.all([
     prisma.place.count(),
-    prisma.report.count(),
-    prisma.trade.count(),
     prisma.feed.count(),
+    prisma.feed.count({ where: { kind: 'report' } }),
+    prisma.trade.count(),
   ]);
-  console.log(`seeded → places:${counts[0]} reports:${counts[1]} trades:${counts[2]} feeds:${counts[3]}`);
+  console.log(`seeded → places:${places$} feeds(all):${feeds$} feeds(report):${feedsReport$} trades:${trades$}`);
 }
 
 main()
@@ -79,6 +70,4 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => prisma.$disconnect());

@@ -23,6 +23,8 @@ export interface Trade {
   bumpCount?: number;
 }
 
+export type FeedKind = 'general' | 'report';
+
 export interface FeedItem {
   id: number;
   place: string;
@@ -43,9 +45,13 @@ export interface TradeDetail extends Trade {
 
 export interface FeedPost {
   id: number;
+  kind: FeedKind;
+  level?: CongestionLevel | null;
   place: string | null;
+  placeId?: string | null;
   text: string;
   time: string;
+  createdAt: string;
   user: string;
 }
 

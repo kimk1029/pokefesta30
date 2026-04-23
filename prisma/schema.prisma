@@ -19,7 +19,6 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  reports   Report[]
   trades    Trade[]
   feeds     Feed[]
   bookmarks Bookmark[]
@@ -38,27 +37,10 @@ model Place {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  reports Report[]
-  trades  Trade[]
-  feeds   Feed[]
+  trades Trade[]
+  feeds  Feed[]
 
   @@map("places")
-}
-
-model Report {
-  id          Int      @id @default(autoincrement())
-  placeId     String
-  place       Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
-  level       String
-  note        String   @default("")
-  authorId    String?
-  author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  authorEmoji String   @default("익명")
-  createdAt   DateTime @default(now())
-
-  @@index([createdAt(sort: Desc)])
-  @@index([placeId])
-  @@map("reports")
 }
 
 model Trade {
@@ -87,8 +69,12 @@ model Trade {
   @@map("trades")
 }
 
+/// 통합 피드 — 일반 잡담("general") + 혼잡도 제보("report") 를 한 테이블에서 관리.
+/// kind='report' 인 경우 level 필수, 저장 시 places.level/count/lastReportAt 갱신.
 model Feed {
   id          Int      @id @default(autoincrement())
+  kind        String   @default("general") // 'general' | 'report'
+  level       String?                      // kind='report' 일 때만 의미 ('empty'|'normal'|'busy'|'full')
   placeId     String?
   place       Place?   @relation(fields: [placeId], references: [id], onDelete: SetNull)
   text        String
@@ -101,6 +87,7 @@ model Feed {
   bookmarks   Bookmark[]
 
   @@index([createdAt(sort: Desc)])
+  @@index([kind, createdAt(sort: Desc)])
   @@map("feeds")
 }
 

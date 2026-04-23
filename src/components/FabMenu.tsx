@@ -20,7 +20,7 @@ export function FabMenu({ onClose }: Props) {
         <button
           type="button"
           className="fab-menu-btn fmb-report"
-          onClick={() => go('/report')}
+          onClick={() => go('/write/feed?kind=report')}
         >
           <div className="fmb-icon">📢</div>
           <div className="fmb-txt">
