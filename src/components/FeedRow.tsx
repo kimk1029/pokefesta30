@@ -1,20 +1,26 @@
 import { BookmarkButton } from './BookmarkButton';
 import { ComposedAvatar } from './ComposedAvatar';
 import { CongBadge } from './ui/CongBadge';
+import { isAvatarId } from '@/lib/avatars';
 import type { FeedPost } from '@/lib/types';
 
 export function FeedRow({ post }: { post: FeedPost }) {
   const isReport = post.kind === 'report';
+  const hasPixelAvatar = isAvatarId(post.user);
+
   return (
     <div className="feed-item">
       <div className="fi-avatar">
-        <ComposedAvatar
-          avatar={post.user}
-          bg={post.authorBgId}
-          frame={post.authorFrameId}
-          size={52}
-          fallback={post.user}
-        />
+        {hasPixelAvatar ? (
+          <ComposedAvatar
+            avatar={post.user}
+            bg={post.authorBgId}
+            frame={post.authorFrameId}
+            size={56}
+          />
+        ) : (
+          <span style={{ fontSize: 30, lineHeight: 1 }}>{post.user}</span>
+        )}
       </div>
       <div className="fi-body">
         <div className="fi-top">

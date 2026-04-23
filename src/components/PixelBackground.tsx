@@ -31,7 +31,14 @@ export function PixelBackground({ id }: Props) {
 }
 
 const RENDERERS: Record<BackgroundId, () => React.ReactNode> = {
-  default: () => <rect x="0" y="0" width="32" height="20" fill="#FFD23F" />,
+  default: () => (
+    <>
+      <rect x="0" y="0" width="32" height="20" fill="#9BC5E5" />
+      <circle cx="24" cy="5" r="2" fill="#FFF3A0" />
+      <circle cx="7" cy="4" r="2" fill="#FFFFFF" />
+      <circle cx="12" cy="5" r="1" fill="#FFFFFF" />
+    </>
+  ),
 
   grass: () => (
     <>
