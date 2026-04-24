@@ -35,10 +35,11 @@ export const CARDS_CATALOG: CardCatalogEntry[] = [
 
 /**
  * SNKRDUNK 검색 딥링크.
- * query 는 보통 일본어. 카드 엔트리 기준으로 조립할 땐 `snkrdunkQueryFor(entry)` 사용.
+ * query 는 보통 일본어. 엔트리 기준 조립은 `snkrdunkQueryFor(entry)` 사용.
+ * ⚠ 파라미터명은 `keyword` 가 아니라 `keywords` (복수형) 임 — 단수로 보내면 메인으로 리다이렉트됨.
  */
 export function snkrdunkUrl(query: string): string {
-  return `https://snkrdunk.com/search?keyword=${encodeURIComponent(query)}`;
+  return `https://snkrdunk.com/search?keywords=${encodeURIComponent(query)}`;
 }
 
 export function snkrdunkQueryFor(entry: CardCatalogEntry): string {
