@@ -1,8 +1,9 @@
 name: Migrate & Deploy Admin
 
 # Vercel 이 main 앱을 자동 배포하므로 이 워크플로우는:
-#  (1) Supabase 스키마 동기화 (prisma db push)
-#  (2) Synology 의 admin 재빌드/재시작
+#  (1) Supabase 에 pre-migrate SQL 실행 (backfill · dedupe — prisma db push 가 거부하는 케이스 해결)
+#  (2) prisma db push 로 스키마 동기화
+#  (3) Synology 의 admin 재빌드/재시작
 # admin/**, prisma/schema.prisma 변경 시만 실행.
 
 on:
@@ -28,15 +29,60 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-      - name: Install prisma
+
+      - name: Install deps (for prisma CLI)
         run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Pre-migrate SQL — backfill 필수 컬럼 & dedupe (idempotent)
+        env:
+          # psql 은 PGPASSWORD/URL 인자 그대로 수용. DIRECT_URL 은 :5432 직접 연결이라 DDL OK
+          PG_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          # Ubuntu runner 는 psql 기본 포함.
+          # page_views.day (DATE, NOT NULL) 를 기존 createdAt 으로 백필하고,
+          # (ip, day) 유니크 충돌 가능한 중복을 미리 제거한다.
+          psql "$PG_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF EXISTS (
+              SELECT 1 FROM information_schema.tables
+              WHERE table_schema='public' AND table_name='page_views'
+            ) THEN
+              -- 1) day 컬럼이 없으면 nullable 로 추가
+              IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='page_views' AND column_name='day'
+              ) THEN
+                ALTER TABLE public.page_views ADD COLUMN "day" DATE;
+              END IF;
+
+              -- 2) 기존 행 backfill: createdAt 날짜로 채움
+              UPDATE public.page_views
+                 SET "day" = ("createdAt" AT TIME ZONE 'UTC')::date
+               WHERE "day" IS NULL;
+
+              -- 3) (ip, day) 유니크 인덱스 생기기 전에 중복 정리 — 가장 이른 id 만 보존
+              DELETE FROM public.page_views
+               WHERE id IN (
+                 SELECT id FROM (
+                   SELECT id, ROW_NUMBER() OVER (PARTITION BY ip, "day" ORDER BY id ASC) AS rn
+                     FROM public.page_views
+                    WHERE ip IS NOT NULL
+                      AND "day" IS NOT NULL
+                 ) t WHERE t.rn > 1
+               );
+
+              -- 4) day 를 NOT NULL 로 승격 (prisma schema 와 일치)
+              ALTER TABLE public.page_views ALTER COLUMN "day" SET NOT NULL;
+            END IF;
+          END $$;
+          SQL
+
       - name: Prisma db push (스키마 → Supabase)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
         run: npx prisma db push --accept-data-loss --skip-generate
-      # --accept-data-loss: 컬럼 타입 변경 등 파괴적 변경 허용.
-      # 운영 DB 에 컬럼 드랍 위험이 있으니 prisma migrate dev/deploy 로 옮기려면 별도 작업 필요.
 
   deploy-admin:
     name: Deploy admin to Synology
