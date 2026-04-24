@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { isAvatarId } from '@/lib/avatars';
+import { defaultNameFor } from '@/lib/defaultName';
 import { prisma } from '@/lib/prisma';
 import { REWARDS } from '@/lib/rewards';
 import type { CongestionLevel, FeedKind, TradeType } from '@/lib/types';
@@ -32,16 +33,15 @@ async function ensureUser(
 ): Promise<string | null> {
   const id = session.user.id;
   if (!id) return null;
-  const name = session.user.name ?? '트레이너';
   try {
     await prisma.user.upsert({
       where: { id },
-      update: { name },
-      create: { id, name, avatar: '🐣' },
+      update: {}, // name 은 /api/me/name 으로만 변경. 자동 upsert 가 커스텀 이름 덮지 않도록.
+      create: { id, name: defaultNameFor(id), avatar: '🐣' },
     });
     return id;
   } catch (err) {
-    console.error('[ensureUser] upsert 실패 (DB 스키마 불일치 가능성):', err);
+    console.error('[ensureUser] upsert 실패:', err);
     return null;
   }
 }

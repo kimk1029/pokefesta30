@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
+import { defaultNameFor } from '@/lib/defaultName';
 import { pullOripaTickets } from '@/lib/oripa';
 import { prisma } from '@/lib/prisma';
 
@@ -33,14 +34,14 @@ export async function POST(req: Request, { params }: { params: { packId: string 
   // 사용자 row 확보 (FK 안전)
   await prisma.user.upsert({
     where: { id: session.user.id },
-    update: { name: session.user.name ?? '트레이너' },
-    create: { id: session.user.id, name: session.user.name ?? '트레이너' },
+    update: {},
+    create: { id: session.user.id, name: defaultNameFor(session.user.id) },
   });
 
   try {
     const outcome = await pullOripaTickets(packId, indices, {
       id: session.user.id,
-      name: session.user.name ?? '트레이너',
+      name: session.user.name ?? defaultNameFor(session.user.id),
     });
     return NextResponse.json(outcome);
   } catch (err) {

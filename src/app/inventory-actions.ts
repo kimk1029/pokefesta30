@@ -3,6 +3,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { AVATARS, isAvatarId, type AvatarId } from '@/lib/avatars';
+import { defaultNameFor } from '@/lib/defaultName';
 import { prisma } from '@/lib/prisma';
 import { getMyInventory, type InventorySnapshot } from '@/lib/queries';
 import {
@@ -22,11 +23,11 @@ async function sessionUserId(): Promise<string | null> {
   const s = await getServerSession(authOptions);
   const id = s?.user?.id;
   if (!id) return null;
-  // ensure row exists (same as actions.ts ensureUser)
+  // ensure row exists — 커스텀 이름 보존을 위해 update 는 비움
   await prisma.user.upsert({
     where: { id },
-    update: { name: s.user.name ?? '트레이너' },
-    create: { id, name: s.user.name ?? '트레이너' },
+    update: {},
+    create: { id, name: defaultNameFor(id) },
   });
   return id;
 }

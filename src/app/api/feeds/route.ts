@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { NextResponse, type NextRequest } from 'next/server';
 import { authOptions } from '@/lib/auth';
+import { defaultNameFor } from '@/lib/defaultName';
 import { prisma } from '@/lib/prisma';
 import { getFeedPage } from '@/lib/queries';
 import { REWARDS } from '@/lib/rewards';
@@ -70,8 +71,8 @@ export async function POST(req: NextRequest) {
   if (session.user.id) {
     await prisma.user.upsert({
       where: { id: session.user.id },
-      update: { name: session.user.name ?? '트레이너' },
-      create: { id: session.user.id, name: session.user.name ?? '트레이너' },
+      update: {}, // 커스텀 닉네임 보존
+      create: { id: session.user.id, name: defaultNameFor(session.user.id) },
     });
     authorId = session.user.id;
   }
