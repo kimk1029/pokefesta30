@@ -153,6 +153,41 @@ model OripaTicket {
   @@map("oripa_tickets")
 }
 
+/// 오리파 팩 정의 — 박스 종류별 가격/상품 풀. 기존 data.ts ORIPA_BOXES 대체.
+/// prizes 는 [{grade, name, emoji, weight, bg?}] 배열 JSON.
+model OripaPack {
+  id           String   @id
+  tier         String   // 'normal' | 'rare' | 'premium' | 기타 자유
+  emoji        String
+  name         String
+  desc         String
+  price        Int      // 1회 뽑기당 포인트
+  ticketsCount Int      @default(100)
+  prizes       Json
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("oripa_packs")
+}
+
+/// 페이지뷰 로그 — 관리자 대시보드 방문 통계(일방문/고유 IP/상위 경로) 용.
+model PageView {
+  id        Int      @id @default(autoincrement())
+  path      String
+  ip        String?
+  ua        String?
+  userId    String?
+  referer   String?
+  country   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path, createdAt])
+  @@index([ip, createdAt])
+  @@map("page_views")
+}
+
 /// 카드 시세 스냅샷 — eBay Browse API 결과 캐시 + 히스토리 차트용.
 /// 10분 이내 스냅샷이면 재사용, 그 이상이면 새로 fetch 후 한 줄 추가.
 model CardPriceSnapshot {

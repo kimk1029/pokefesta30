@@ -9,7 +9,8 @@ const NAV = [
   { href: '/feeds', label: '피드 관리', icon: '📝' },
   { href: '/messages', label: '쪽지 목록', icon: '✉️' },
   { href: '/trades', label: '거래 관리', icon: '🤝' },
-  { href: '/oripa', label: '오리파 관리', icon: '🎟️' },
+  { href: '/oripa/packs', label: '오리파 팩', icon: '🎁' },
+  { href: '/oripa', label: '오리파 티켓', icon: '🎟️' },
 ];
 
 export function SideNav() {
@@ -22,7 +23,13 @@ export function SideNav() {
       </div>
       <nav className="admin-nav">
         {NAV.map((n) => {
-          const on = n.href === '/' ? pathname === '/' : pathname.startsWith(n.href);
+          // 더 긴 prefix 가 있으면 짧은 prefix 는 무시 (/oripa 가 /oripa/packs 일 때 highlight 안 되게)
+          const longerMatches = NAV.some(
+            (m) => m.href !== n.href && m.href.startsWith(n.href + '/') && (pathname === m.href || pathname.startsWith(m.href + '/')),
+          );
+          const on = n.href === '/'
+            ? pathname === '/'
+            : !longerMatches && (pathname === n.href || pathname.startsWith(n.href + '/'));
           return (
             <Link key={n.href} href={n.href} className={on ? 'on' : ''}>
               <span>{n.icon}</span>

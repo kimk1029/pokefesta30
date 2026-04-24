@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { getServerSession } from 'next-auth';
 import type { ReactNode } from 'react';
 import { InventoryProvider } from '@/components/InventoryProvider';
+import { PageviewBeacon } from '@/components/PageviewBeacon';
 import { PhoneShell } from '@/components/PhoneShell';
 import { Providers } from '@/components/Providers';
 import { RouteProgress } from '@/components/RouteProgress';
@@ -50,6 +51,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <InventoryProvider initial={inventory} isLoggedIn={!!userId}>
               <UnreadProvider initialCount={unreadCount}>
                 <RouteProgress />
+                <PageviewBeacon />
                 <PhoneShell>{children}</PhoneShell>
               </UnreadProvider>
             </InventoryProvider>

@@ -32,7 +32,17 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         avatarId: true,
         points: true,
         createdAt: true,
-        _count: { select: { feeds: true, trades: true } },
+        updatedAt: true,
+        _count: {
+          select: {
+            feeds: true,
+            trades: true,
+            bookmarks: true,
+            sentMessages: true,
+            receivedMessages: true,
+            oripaTickets: true,
+          },
+        },
       },
     }),
     prisma.user.count({ where }),
@@ -58,27 +68,37 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         <table className="tbl">
           <thead>
             <tr>
-              <th>ID</th>
               <th>이름</th>
               <th>아바타</th>
-              <th>포인트</th>
-              <th>피드</th>
-              <th>거래</th>
-              <th>가입일</th>
+              <th style={{ textAlign: 'right' }}>포인트</th>
+              <th style={{ textAlign: 'right' }}>피드</th>
+              <th style={{ textAlign: 'right' }}>거래</th>
+              <th style={{ textAlign: 'right' }}>찜</th>
+              <th style={{ textAlign: 'right' }}>쪽지</th>
+              <th style={{ textAlign: 'right' }}>오리파</th>
+              <th>가입</th>
+              <th>마지막 활동</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td className="mono" style={{ fontSize: 11, color: '#64748B' }}>
-                  {u.id.slice(0, 12)}
-                </td>
                 <td>{u.name}</td>
                 <td className="mono">{u.avatarId}</td>
-                <td className="mono">{u.points.toLocaleString()}</td>
-                <td className="mono">{u._count.feeds}</td>
-                <td className="mono">{u._count.trades}</td>
+                <td className="mono" style={{ textAlign: 'right' }}>{u.points.toLocaleString()}</td>
+                <td className="mono" style={{ textAlign: 'right' }}>{u._count.feeds}</td>
+                <td className="mono" style={{ textAlign: 'right' }}>{u._count.trades}</td>
+                <td className="mono" style={{ textAlign: 'right' }}>{u._count.bookmarks}</td>
+                <td className="mono" style={{ textAlign: 'right' }}>
+                  {u._count.sentMessages + u._count.receivedMessages}
+                </td>
+                <td className="mono" style={{ textAlign: 'right' }}>{u._count.oripaTickets}</td>
                 <td className="mono muted">{fmtDate(u.createdAt)}</td>
+                <td className="mono muted">{fmtDate(u.updatedAt)}</td>
+                <td>
+                  <Link href={`/users/${u.id}`} className="btn">상세</Link>
+                </td>
               </tr>
             ))}
           </tbody>
