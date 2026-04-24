@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ComposedAvatar } from '@/components/ComposedAvatar';
 import { useInventory } from '@/components/InventoryProvider';
 import { useToast } from '@/components/ToastProvider';
@@ -49,14 +49,37 @@ export function MessagesThreadScreen({ peerId, peer, myId }: Props) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const loadingRef = useRef(false);
+
+  const loadMessages = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setRefreshing(true);
+    try {
+      const r = await fetch(`/api/messages/${peerId}`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const data: { data: Msg[] } = await r.json();
+      const incoming = data.data ?? [];
+      setMsgs((prev) => {
+        if (prev.length === 0) return incoming;
+        const seen = new Set(prev.map((m) => m.id));
+        const toAdd = incoming.filter((m) => !seen.has(m.id));
+        if (toAdd.length === 0) return prev;
+        return [...prev, ...toAdd];
+      });
+    } catch {
+      // ignore
+    } finally {
+      loadingRef.current = false;
+      setRefreshing(false);
+    }
+  }, [peerId]);
 
   useEffect(() => {
-    fetch(`/api/messages/${peerId}`, { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((data: { data: Msg[] }) => setMsgs(data.data ?? []))
-      .catch(() => setMsgs([]));
-  }, [peerId]);
+    loadMessages();
+  }, [loadMessages]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
@@ -100,83 +123,87 @@ export function MessagesThreadScreen({ peerId, peer, myId }: Props) {
   };
 
   return (
-    <>
+    <div className="thread-wrap">
       <StatusBar />
       <AppBar
         title={peer?.name ?? '쪽지'}
         showBack
         backHref="/my/messages"
         right={
-          tradeId ? (
-            <button
-              type="button"
-              onClick={() => router.push(`/trade/${tradeId}`)}
-              className="appbar-right"
-              aria-label="거래글 보기"
-              style={{ background: 'var(--yel)' }}
-            >
-              🔗
-            </button>
-          ) : undefined
+          <button
+            type="button"
+            onClick={loadMessages}
+            className="appbar-right"
+            aria-label="새로고침"
+            disabled={refreshing}
+            style={{ fontSize: 18, opacity: refreshing ? 0.5 : 1 }}
+          >
+            ↻
+          </button>
         }
       />
 
-      {tradeId && (
-        <div
-          style={{
-            margin: '14px var(--gap) 0',
-            padding: '8px 12px',
-            background: 'var(--pap2)',
-            fontFamily: 'var(--f1)',
-            fontSize: 9,
-            color: 'var(--ink2)',
-            letterSpacing: 0.3,
-            textAlign: 'center',
-            boxShadow:
-              '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-          }}
-        >
-          🔗 거래글 #{tradeId} 에 대한 쪽지
-        </div>
-      )}
-
-      <div ref={listRef} className="chat-list">
-        {msgs.length === 0 ? (
-          <div className="chat-sys">— 주고받은 쪽지가 없어요 —</div>
-        ) : (
-          msgs.map((m) => {
-            const mine = m.senderId === myId;
-            return (
-              <div key={m.id} className={`chat-row ${mine ? 'mine' : 'peer'}`}>
-                {!mine && peer && (
-                  <div className="chat-avatar">
-                    <ComposedAvatar
-                      avatar={peer.avatarId}
-                      bg={peer.backgroundId}
-                      frame={peer.frameId}
-                      size={32}
-                      fallback={peer.name}
-                    />
-                  </div>
-                )}
-                <div className="chat-bubble-wrap">
-                  <div className={`chat-bubble ${mine ? 'mine' : 'peer'}`}>{m.text}</div>
-                  <span className="chat-time">{fmtTime(m.createdAt)}</span>
-                </div>
-                {mine && (
-                  <div className="chat-avatar">
-                    <ComposedAvatar
-                      avatar={inv.avatar}
-                      bg={inv.bg}
-                      frame={inv.frame}
-                      size={32}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })
+      <div className="thread-body">
+        {tradeId && (
+          <button
+            type="button"
+            onClick={() => router.push(`/trade/${tradeId}`)}
+            style={{
+              margin: '14px var(--gap) 0',
+              padding: '8px 12px',
+              background: 'var(--pap2)',
+              fontFamily: 'var(--f1)',
+              fontSize: 9,
+              color: 'var(--ink2)',
+              letterSpacing: 0.3,
+              textAlign: 'center',
+              cursor: 'pointer',
+              boxShadow:
+                '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+            }}
+          >
+            🔗 거래글 #{tradeId} 에 대한 쪽지
+          </button>
         )}
+
+        <div ref={listRef} className="chat-list">
+          {msgs.length === 0 ? (
+            <div className="chat-sys">— 주고받은 쪽지가 없어요 —</div>
+          ) : (
+            msgs.map((m) => {
+              const mine = m.senderId === myId;
+              return (
+                <div key={m.id} className={`chat-row ${mine ? 'mine' : 'peer'}`}>
+                  {!mine && peer && (
+                    <div className="chat-avatar">
+                      <ComposedAvatar
+                        avatar={peer.avatarId}
+                        bg={peer.backgroundId}
+                        frame={peer.frameId}
+                        size={32}
+                        fallback={peer.name}
+                      />
+                    </div>
+                  )}
+                  <div className="chat-bubble-wrap">
+                    <div className={`chat-bubble ${mine ? 'mine' : 'peer'}`}>{m.text}</div>
+                    <span className="chat-time">{fmtTime(m.createdAt)}</span>
+                  </div>
+                  {mine && (
+                    <div className="chat-avatar">
+                      <ComposedAvatar
+                        avatar={inv.avatar}
+                        bg={inv.bg}
+                        frame={inv.frame}
+                        size={32}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       <div className="chat-input-wrap">
@@ -204,6 +231,6 @@ export function MessagesThreadScreen({ peerId, peer, myId }: Props) {
           ▶
         </button>
       </div>
-    </>
+    </div>
   );
 }
