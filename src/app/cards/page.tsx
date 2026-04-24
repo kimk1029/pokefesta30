@@ -4,7 +4,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { getCardHistory, getOrRefreshCardPrice, type PriceCurrent, type HistoryPoint } from '@/lib/cardPrices';
-import { CARDS_CATALOG, snkrdunkUrl, type CardGrade } from '@/lib/cardsCatalog';
+import { CARDS_CATALOG, snkrdunkQueryFor, snkrdunkUrl, type CardGrade } from '@/lib/cardsCatalog';
 import { isEbayConfigured } from '@/lib/ebay';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +27,7 @@ interface CardRow {
   emoji: string;
   grade: CardGrade;
   ebayQuery: string;
-  snkrdunkQuery: string;
+  snkrdunkQuery?: string;
   price: PriceCurrent | null;
   history: HistoryPoint[];
 }
@@ -152,7 +152,7 @@ export default async function Page() {
                 </div>
                 <div style={{ marginTop: 6 }}>
                   <Link
-                    href={snkrdunkUrl(c.snkrdunkQuery)}
+                    href={snkrdunkUrl(snkrdunkQueryFor(c))}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
