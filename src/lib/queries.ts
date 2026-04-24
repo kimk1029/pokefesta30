@@ -4,11 +4,6 @@ import {
   isAvatarId,
   type AvatarId,
 } from './avatars';
-import {
-  FEED as MOCK_FEED,
-  PLACES as MOCK_PLACES,
-  TRADES as MOCK_TRADES,
-} from './data';
 import { prisma } from './prisma';
 import {
   DEFAULT_BG,
@@ -111,8 +106,8 @@ export async function getPlaces(): Promise<Place[]> {
       count: r.count,
     }));
   } catch (err) {
-    console.error('[getPlaces] fallback to mock:', err);
-    return MOCK_PLACES;
+    console.error('[getPlaces]', err);
+    return [];
   }
 }
 
@@ -206,8 +201,8 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
       bumpCount: r.bumpCount,
     }));
   } catch (err) {
-    console.error('[getTrades] fallback to mock:', err);
-    return filter === 'all' ? MOCK_TRADES : MOCK_TRADES.filter((t) => t.type === filter);
+    console.error('[getTrades]', err);
+    return [];
   }
 }
 
@@ -369,7 +364,7 @@ export async function getTodayReportCount(): Promise<number> {
       where: { kind: 'report', createdAt: { gte: start } },
     });
   } catch (err) {
-    console.error('[getTodayReportCount] fallback:', err);
-    return MOCK_FEED.length;
+    console.error('[getTodayReportCount]', err);
+    return 0;
   }
 }

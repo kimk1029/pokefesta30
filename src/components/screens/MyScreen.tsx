@@ -7,17 +7,15 @@ import { ProfileAvatarClient } from '@/components/ProfileAvatarClient';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { MY_PROFILE } from '@/lib/data';
+import type { LevelInfo } from '@/lib/level';
 
 interface Props {
   session: Session;
+  level: LevelInfo;
+  reportCount: number;
+  tradeCount: number;
+  savedCount: number;
 }
-
-const STATS: Array<[string, string]> = [
-  [String(MY_PROFILE.reportCount), '내 제보'],
-  [String(MY_PROFILE.tradeCount), '내 거래'],
-  [String(MY_PROFILE.savedCount), '찜한 글'],
-];
 
 const ACTIVITY: Array<{ em: string; bg: string; lb: string; href: string }> = [
   { em: '📝', bg: '#FFD23F', lb: '내가 쓴 거래글', href: '/my/trades' },
@@ -37,10 +35,15 @@ const SETTINGS: Array<{ em: string; bg: string; lb: string }> = [
 ];
 
 
-export function MyScreen({ session }: Props) {
-  const p = MY_PROFILE;
+export function MyScreen({ session, level, reportCount, tradeCount, savedCount }: Props) {
+  const p = level;
   const xpPct = Math.max(0, Math.min(100, Math.round((p.xp / p.xpNeeded) * 100)));
-  const name = session.user?.name ?? p.name;
+  const name = session.user?.name ?? '트레이너';
+  const STATS: Array<[string, string]> = [
+    [String(reportCount), '내 제보'],
+    [String(tradeCount), '내 거래'],
+    [String(savedCount), '찜한 글'],
+  ];
 
   return (
     <>
