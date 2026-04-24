@@ -42,8 +42,20 @@ export function EditableName({ initialName }: Props) {
 
   if (editing) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        width: '100%',
+        minWidth: 0,
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          width: '100%',
+          minWidth: 0,
+        }}>
           <input
             value={input}
             autoFocus
@@ -55,16 +67,19 @@ export function EditableName({ initialName }: Props) {
             }}
             maxLength={20}
             style={{
-              flex: 1,
+              flex: '1 1 0',
+              minWidth: 0,
+              width: '100%',
               padding: '4px 8px',
               fontFamily: 'var(--f1)',
-              fontSize: 16,
+              fontSize: 14,
               letterSpacing: 1,
               color: 'var(--ink)',
               background: 'var(--white)',
               border: 'none',
               outline: 'none',
               boxShadow: 'inset 2px 2px 0 rgba(0,0,0,.1)',
+              boxSizing: 'border-box',
             }}
           />
           <button
@@ -91,19 +106,35 @@ export function EditableName({ initialName }: Props) {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span>{name}</span>
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      minWidth: 0,
+      maxWidth: '100%',
+    }}>
+      <span style={{
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        minWidth: 0,
+      }}>{name}</span>
       <button
         type="button"
         onClick={() => { setInput(name); setEditing(true); }}
         aria-label="닉네임 수정"
         style={{
+          flexShrink: 0,
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
-          fontSize: 12,
+          fontSize: 13,
           padding: 2,
-          opacity: 0.7,
+          opacity: 0.85,
+          // 연필이 기본 가로로 놓여있는 글꼴에서도 45° 기울여 편집 포즈로
+          display: 'inline-block',
+          transform: 'rotate(-45deg)',
+          lineHeight: 1,
         }}
       >
         ✏
