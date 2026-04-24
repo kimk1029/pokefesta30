@@ -1,7 +1,9 @@
-name: Deploy Admin
+name: Migrate & Deploy Admin
 
-# main 앱은 Vercel 이 자동 배포, 이 워크플로우는 Synology 의 admin 만 담당.
-# admin/ 또는 공유 스키마가 바뀔 때만 돌게 path 필터링.
+# Vercel 이 main 앱을 자동 배포하므로 이 워크플로우는:
+#  (1) Supabase 스키마 동기화 (prisma db push)
+#  (2) Synology 의 admin 재빌드/재시작
+# admin/**, prisma/schema.prisma 변경 시만 실행.
 
 on:
   push:
@@ -17,8 +19,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  migrate:
+    name: Sync Supabase schema
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - name: Install prisma
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Prisma db push (스키마 → Supabase)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: npx prisma db push --accept-data-loss --skip-generate
+      # --accept-data-loss: 컬럼 타입 변경 등 파괴적 변경 허용.
+      # 운영 DB 에 컬럼 드랍 위험이 있으니 prisma migrate dev/deploy 로 옮기려면 별도 작업 필요.
+
+  deploy-admin:
+    name: Deploy admin to Synology
+    runs-on: ubuntu-latest
+    needs: migrate
     steps:
       - name: SSH & deploy admin
         uses: appleboy/ssh-action@v1.2.0
@@ -43,7 +66,6 @@ jobs:
             npx prisma generate
             npm run build
 
-            # 빌드 결과 검증
             test -f .next/BUILD_ID || { echo "::error::admin build did not produce .next/BUILD_ID"; exit 1; }
 
             pm2 restart pokefesta30-admin --update-env \

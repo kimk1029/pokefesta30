@@ -3,53 +3,70 @@ import { fmtDate } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-async function loadStats() {
-  try {
-    const startToday = new Date();
-    startToday.setHours(0, 0, 0, 0);
-    const start7d = new Date();
-    start7d.setDate(start7d.getDate() - 6);
-    start7d.setHours(0, 0, 0, 0);
+async function one<T>(p: Promise<T>, fb: T): Promise<T> {
+  try { return await p; } catch (e) { console.error('[admin.dashboard]', e); return fb; }
+}
 
-    const [
-      users, feedsAll, feedsToday, reportsAll, trades, messagesAll, unread,
-      viewsToday,
-      uniqueIpsToday,
-      uniqueUsersToday,
-      topPaths,
-      recentVisits,
-      dailySeries,
-    ] = await Promise.all([
-      prisma.user.count(),
-      prisma.feed.count(),
-      prisma.feed.count({ where: { createdAt: { gte: startToday } } }),
-      prisma.feed.count({ where: { kind: 'report' } }),
-      prisma.trade.count(),
-      prisma.message.count(),
-      prisma.message.count({ where: { readAt: null } }),
-      prisma.pageView.count({ where: { createdAt: { gte: startToday } } }),
+async function loadStats() {
+  const startToday = new Date();
+  startToday.setHours(0, 0, 0, 0);
+  const start7d = new Date();
+  start7d.setDate(start7d.getDate() - 6);
+  start7d.setHours(0, 0, 0, 0);
+
+  // 각 쿼리를 개별 try/catch — 하나 실패해도 나머지는 보여줌 (page_views/oripa_packs 테이블 미생성 시 graceful)
+  const [
+    users, feedsAll, feedsToday, reportsAll, trades, messagesAll, unread,
+    viewsToday, uniqueIpsToday, uniqueUsersToday,
+    topPaths, recentVisits, dailySeries,
+    recentFeeds, recentUsers,
+  ] = await Promise.all([
+    one(prisma.user.count(), 0),
+    one(prisma.feed.count(), 0),
+    one(prisma.feed.count({ where: { createdAt: { gte: startToday } } }), 0),
+    one(prisma.feed.count({ where: { kind: 'report' } }), 0),
+    one(prisma.trade.count(), 0),
+    one(prisma.message.count(), 0),
+    one(prisma.message.count({ where: { readAt: null } }), 0),
+    one(prisma.pageView.count({ where: { createdAt: { gte: startToday } } }), 0),
+    one(
       prisma.pageView.findMany({
         where: { createdAt: { gte: startToday }, ip: { not: null } },
         distinct: ['ip'],
         select: { ip: true },
       }).then((r) => r.length),
+      0,
+    ),
+    one(
       prisma.pageView.findMany({
         where: { createdAt: { gte: startToday }, userId: { not: null } },
         distinct: ['userId'],
         select: { userId: true },
       }).then((r) => r.length),
-      prisma.pageView.groupBy({
-        by: ['path'],
-        where: { createdAt: { gte: startToday } },
-        _count: { _all: true },
-        orderBy: { _count: { path: 'desc' } },
-        take: 10,
-      }),
+      0,
+    ),
+    one(
+      (async () => {
+        const rows = await prisma.pageView.groupBy({
+          by: ['path'],
+          where: { createdAt: { gte: startToday } },
+          _count: { _all: true },
+          orderBy: { _count: { path: 'desc' } },
+          take: 10,
+        });
+        return rows as Array<{ path: string; _count: { _all: number } }>;
+      })(),
+      [] as Array<{ path: string; _count: { _all: number } }>,
+    ),
+    one(
       prisma.pageView.findMany({
         orderBy: { createdAt: 'desc' },
         take: 20,
         select: { id: true, path: true, ip: true, country: true, userId: true, createdAt: true },
       }),
+      [] as Array<{ id: number; path: string; ip: string | null; country: string | null; userId: string | null; createdAt: Date }>,
+    ),
+    one(
       prisma.$queryRaw<Array<{ day: Date; views: bigint; uniq: bigint }>>`
         SELECT date_trunc('day', "createdAt") AS day,
                count(*) AS views,
@@ -57,48 +74,37 @@ async function loadStats() {
           FROM page_views
          WHERE "createdAt" >= ${start7d}
          GROUP BY 1 ORDER BY 1 ASC
-      `.catch(() => []),
-    ]);
+      `,
+      [] as Array<{ day: Date; views: bigint; uniq: bigint }>,
+    ),
+    one(
+      prisma.feed.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, kind: true, text: true, createdAt: true },
+      }),
+      [] as Array<{ id: number; kind: string; text: string; createdAt: Date }>,
+    ),
+    one(
+      prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, name: true, createdAt: true, points: true },
+      }),
+      [] as Array<{ id: string; name: string; createdAt: Date; points: number }>,
+    ),
+  ]);
 
-    const recentFeeds = await prisma.feed.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: { id: true, kind: true, text: true, createdAt: true },
-    });
-    const recentUsers = await prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: { id: true, name: true, createdAt: true, points: true },
-    });
-
-    return {
-      ok: true as const,
-      stats: { users, feedsAll, feedsToday, reportsAll, trades, messagesAll, unread,
-        viewsToday, uniqueIpsToday, uniqueUsersToday },
-      topPaths, recentVisits, dailySeries, recentFeeds, recentUsers,
-    };
-  } catch (err) {
-    console.error('[admin.dashboard]', err);
-    return { ok: false as const, error: err instanceof Error ? err.message : String(err) };
-  }
+  return {
+    ok: true as const,
+    stats: { users, feedsAll, feedsToday, reportsAll, trades, messagesAll, unread,
+      viewsToday, uniqueIpsToday, uniqueUsersToday },
+    topPaths, recentVisits, dailySeries, recentFeeds, recentUsers,
+  };
 }
 
 export default async function Page() {
   const data = await loadStats();
-
-  if (!data.ok) {
-    return (
-      <>
-        <h1 className="admin-h1">대시보드</h1>
-        <p className="admin-sub">DB 연결 실패 — 환경변수(<code>DATABASE_URL</code>) 확인 필요.</p>
-        <div className="card">
-          <h2>오류</h2>
-          <pre style={{ fontSize: 12, color: '#B91C1C', whiteSpace: 'pre-wrap' }}>{data.error}</pre>
-        </div>
-      </>
-    );
-  }
-
   const { stats, topPaths, recentVisits, dailySeries, recentFeeds, recentUsers } = data;
 
   return (

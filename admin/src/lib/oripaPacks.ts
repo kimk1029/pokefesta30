@@ -48,13 +48,19 @@ const DEFAULT_PACKS = [
   },
 ];
 
-export async function ensureSeeded() {
-  const count = await prisma.oripaPack.count();
-  if (count > 0) return;
-  await prisma.oripaPack.createMany({
-    data: DEFAULT_PACKS.map((p) => ({ ...p, prizes: p.prizes as unknown as object })),
-    skipDuplicates: true,
-  });
+export async function ensureSeeded(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const count = await prisma.oripaPack.count();
+    if (count > 0) return { ok: true };
+    await prisma.oripaPack.createMany({
+      data: DEFAULT_PACKS.map((p) => ({ ...p, prizes: p.prizes as unknown as object })),
+      skipDuplicates: true,
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error('[ensureSeeded]', err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 export function validatePrizes(raw: unknown): PackPrize[] {

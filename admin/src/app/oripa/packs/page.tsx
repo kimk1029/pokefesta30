@@ -6,8 +6,10 @@ import { ensureSeeded, type PackPrize } from '@/lib/oripaPacks';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  await ensureSeeded();
-  const packs = await prisma.oripaPack.findMany({ orderBy: { price: 'asc' } });
+  const seed = await ensureSeeded();
+  const packs = seed.ok
+    ? await prisma.oripaPack.findMany({ orderBy: { price: 'asc' } }).catch(() => [])
+    : [];
 
   return (
     <>
@@ -18,6 +20,13 @@ export default async function Page() {
         </Link>
       </div>
       <p className="admin-sub">박스별 가격 · 상품 풀 · 활성 여부 관리</p>
+
+      {!seed.ok && (
+        <div style={{ background: '#FEF2F2', color: '#B91C1C', padding: '12px 14px', borderRadius: 6, fontSize: 12, marginBottom: 14 }}>
+          ⚠ <code>oripa_packs</code> 테이블을 찾지 못했습니다. 로컬에서{' '}
+          <code>npx prisma db push</code> 또는 <code>npx prisma migrate deploy</code> 를 먼저 실행하세요.
+        </div>
+      )}
 
       {packs.length === 0 ? (
         <div className="empty">팩이 없습니다.</div>
