@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { getServerSession } from 'next-auth';
 import type { ReactNode } from 'react';
+import { InAppBrowserNotice } from '@/components/InAppBrowserNotice';
 import { InventoryProvider } from '@/components/InventoryProvider';
 import { PageviewBeacon } from '@/components/PageviewBeacon';
 import { PhoneShell } from '@/components/PhoneShell';
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <UnreadProvider initialCount={unreadCount}>
                 <RouteProgress />
                 <PageviewBeacon />
+                <InAppBrowserNotice />
                 <PhoneShell>{children}</PhoneShell>
               </UnreadProvider>
             </InventoryProvider>
