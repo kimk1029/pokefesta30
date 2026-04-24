@@ -18,9 +18,11 @@ const TABS: Array<{ id: Tab; label: string }> = [
 interface Props {
   places: Place[];
   todayCount: number;
+  hourlyCounts: number[];
+  nowHour: number;
 }
 
-export function HomeInfoTabs({ places, todayCount }: Props) {
+export function HomeInfoTabs({ places, todayCount, hourlyCounts, nowHour }: Props) {
   const [tab, setTab] = useState<Tab>('cong');
 
   return (
@@ -38,7 +40,7 @@ export function HomeInfoTabs({ places, todayCount }: Props) {
             title="시간대별 제보량"
             right={<span className="more">오늘 {todayCount}건</span>}
           />
-          <FeedChart />
+          <FeedChart counts={hourlyCounts} nowHour={nowHour} />
         </div>
       )}
     </>

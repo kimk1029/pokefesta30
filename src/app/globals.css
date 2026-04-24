@@ -274,6 +274,19 @@ a{color:inherit;text-decoration:none;}
 @keyframes pf-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 @keyframes pf-ball-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 
+/* 라우트 전환 진행바 — 클릭 즉시 상단에 빨간 애니메이션 바 */
+.route-progress{
+  position:fixed;top:0;left:0;right:0;height:3px;z-index:9999;
+  background:linear-gradient(90deg,transparent 0%,var(--red) 30%,var(--yel) 60%,var(--red) 100%);
+  background-size:200% 100%;
+  animation:pf-route-slide 1.1s linear infinite;
+  pointer-events:none;
+}
+@keyframes pf-route-slide{
+  from{background-position:100% 0;}
+  to{background-position:-100% 0;}
+}
+
 /* ── FEED CHART ── */
 .feed-chart{display:flex;gap:4px;height:90px;align-items:flex-end;
   padding:6px 2px 4px;background:rgba(255,255,255,.2);position:relative;

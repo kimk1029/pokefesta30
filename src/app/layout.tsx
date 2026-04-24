@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { InventoryProvider } from '@/components/InventoryProvider';
 import { PhoneShell } from '@/components/PhoneShell';
 import { Providers } from '@/components/Providers';
+import { RouteProgress } from '@/components/RouteProgress';
 import { ToastProvider } from '@/components/ToastProvider';
 import { UnreadProvider } from '@/components/UnreadProvider';
 import { authOptions } from '@/lib/auth';
@@ -48,6 +49,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <ToastProvider>
             <InventoryProvider initial={inventory} isLoggedIn={!!userId}>
               <UnreadProvider initialCount={unreadCount}>
+                <RouteProgress />
                 <PhoneShell>{children}</PhoneShell>
               </UnreadProvider>
             </InventoryProvider>

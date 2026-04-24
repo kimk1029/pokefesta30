@@ -13,9 +13,11 @@ interface Props {
   places: Place[];
   feeds: FeedPost[];
   todayCount: number;
+  hourlyCounts: number[];
+  nowHour: number;
 }
 
-export function HomeScreen({ places, feeds, todayCount }: Props) {
+export function HomeScreen({ places, feeds, todayCount, hourlyCounts, nowHour }: Props) {
   const recentFeeds = feeds.slice(0, 5);
 
   return (
@@ -25,7 +27,7 @@ export function HomeScreen({ places, feeds, todayCount }: Props) {
       <HeroSlider />
       <QuickGrid />
 
-      <HomeInfoTabs places={places} todayCount={todayCount} />
+      <HomeInfoTabs places={places} todayCount={todayCount} hourlyCounts={hourlyCounts} nowHour={nowHour} />
 
       <div className="sect">
         <SectionTitle

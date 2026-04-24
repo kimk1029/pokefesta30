@@ -24,9 +24,11 @@ interface Props {
   initialFeeds: FeedPost[];
   initialCursor: string | null;
   todayCount: number;
+  hourlyCounts: number[];
+  nowHour: number;
 }
 
-export function LiveScreen({ places, initialFeeds, initialCursor, todayCount }: Props) {
+export function LiveScreen({ places, initialFeeds, initialCursor, todayCount, hourlyCounts, nowHour }: Props) {
   const [tab, setTab] = useState<Tab>('cong');
 
   const [posts, setPosts] = useState<FeedPost[]>(initialFeeds);
@@ -84,7 +86,7 @@ export function LiveScreen({ places, initialFeeds, initialCursor, todayCount }: 
             title="시간대별 제보량"
             right={<span className="more">오늘 {todayCount}건</span>}
           />
-          <FeedChart />
+          <FeedChart counts={hourlyCounts} nowHour={nowHour} />
         </div>
       )}
 

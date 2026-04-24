@@ -93,9 +93,24 @@ function toFeedPost(r: FeedRow): FeedPost {
 /* reads                                                               */
 /* ------------------------------------------------------------------ */
 
+/** 첫 배포 / 빈 Supabase 를 위한 장소 기본 시드. */
+const DEFAULT_PLACES = [
+  { id: 'seongsu',  name: '성수역 부근',       emoji: '🚇', bg: '#E63946' },
+  { id: 'seoulsup', name: '서울숲역 부근',     emoji: '🌳', bg: '#4ADE80' },
+  { id: 'secret',   name: '시크릿 포레스트',   emoji: '🌲', bg: '#3A5BD9' },
+  { id: 'metamong', name: '메타몽 놀이터',     emoji: '🎪', bg: '#FFD23F' },
+  { id: 'shoe',     name: '구두테마공원',       emoji: '👟', bg: '#FB923C' },
+  { id: 'rainbow',  name: '무지개어린이공원',   emoji: '🌈', bg: '#FAE8FF' },
+];
+
 export async function getPlaces(): Promise<Place[]> {
   try {
-    const rows = await prisma.place.findMany({ orderBy: { id: 'asc' } });
+    let rows = await prisma.place.findMany({ orderBy: { id: 'asc' } });
+    // 빈 DB 자동 시드 — 초기 배포/새 Supabase 환경에서 UI 비지 않도록
+    if (rows.length === 0) {
+      await prisma.place.createMany({ data: DEFAULT_PLACES, skipDuplicates: true });
+      rows = await prisma.place.findMany({ orderBy: { id: 'asc' } });
+    }
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
@@ -108,6 +123,32 @@ export async function getPlaces(): Promise<Place[]> {
   } catch (err) {
     console.error('[getPlaces]', err);
     return [];
+  }
+}
+
+/**
+ * 오늘(로컬 기준 00:00~) 시간대별 report 건수 24개 + 현재 시(hour).
+ * FeedChart 의 "시간대별 제보량" 에 사용. 데이터 없으면 전부 0.
+ */
+export async function getHourlyReportCounts(): Promise<{ counts: number[]; nowHour: number }> {
+  const now = new Date();
+  const nowHour = now.getHours();
+  try {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    const rows = await prisma.feed.findMany({
+      where: { kind: 'report', createdAt: { gte: start } },
+      select: { createdAt: true },
+    });
+    const counts = new Array<number>(24).fill(0);
+    for (const r of rows) {
+      const h = r.createdAt.getHours();
+      if (h >= 0 && h < 24) counts[h]++;
+    }
+    return { counts, nowHour };
+  } catch (err) {
+    console.error('[getHourlyReportCounts]', err);
+    return { counts: new Array<number>(24).fill(0), nowHour };
   }
 }
 

@@ -1,13 +1,19 @@
 import { LiveScreen } from '@/components/screens/LiveScreen';
-import { getFeedPage, getPlaces, getTodayReportCount } from '@/lib/queries';
+import {
+  getFeedPage,
+  getHourlyReportCounts,
+  getPlaces,
+  getTodayReportCount,
+} from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const [places, feedPage, todayCount] = await Promise.all([
+  const [places, feedPage, todayCount, hourly] = await Promise.all([
     getPlaces(),
     getFeedPage({ limit: 15 }),
     getTodayReportCount(),
+    getHourlyReportCounts(),
   ]);
   return (
     <LiveScreen
@@ -15,6 +21,8 @@ export default async function Page() {
       initialFeeds={feedPage.items}
       initialCursor={feedPage.nextCursor}
       todayCount={todayCount}
+      hourlyCounts={hourly.counts}
+      nowHour={hourly.nowHour}
     />
   );
 }
