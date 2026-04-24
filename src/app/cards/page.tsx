@@ -53,6 +53,53 @@ export default async function Page() {
 
       <div style={{ height: 14 }} />
 
+      {/* 검색 폼 — 임의 카드명/코드 → /cards/search */}
+      <form
+        action="/cards/search"
+        method="get"
+        style={{
+          margin: '0 var(--gap) var(--cg)',
+          padding: '12px 14px',
+          background: 'var(--ink)',
+          display: 'flex',
+          gap: 8,
+          boxShadow:
+            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--yel-dk)',
+        }}
+      >
+        <input
+          name="q"
+          placeholder="카드명 또는 코드로 검색 (예: 잉어킹 홀로, SV1-045)"
+          style={{
+            flex: 1,
+            padding: '10px 12px',
+            background: 'var(--white)',
+            border: 'none',
+            outline: 'none',
+            fontFamily: 'var(--f1)',
+            fontSize: 10,
+            color: 'var(--ink)',
+            letterSpacing: 0.3,
+            boxShadow: 'inset 2px 2px 0 rgba(0,0,0,.1),inset -2px -2px 0 rgba(255,255,255,.8)',
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            padding: '0 16px',
+            background: 'var(--red)',
+            color: 'var(--white)',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'var(--f1)',
+            fontSize: 11,
+            letterSpacing: 1,
+          }}
+        >
+          🔍
+        </button>
+      </form>
+
       {!configured && (
         <div
           style={{

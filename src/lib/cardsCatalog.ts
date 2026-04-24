@@ -7,7 +7,7 @@
  * 앱 내 가상 아이템(예: '푸시 알림권') 은 실시세가 없으므로 카탈로그에서 제외하고
  * 실제 시장에 존재하는 포켓몬 카드/굿즈 쿼리로만 구성.
  */
-import { translateKoToJa } from './koJaTranslate';
+import { translate } from './cardTranslate';
 
 export type CardGrade = 'S' | 'A' | 'B' | 'C';
 
@@ -42,7 +42,7 @@ export function snkrdunkUrl(query: string): string {
 }
 
 export function snkrdunkQueryFor(entry: CardCatalogEntry): string {
-  return entry.snkrdunkQuery ?? translateKoToJa(entry.name);
+  return entry.snkrdunkQuery ?? translate(entry.name, 'ja');
 }
 
 export function findCardEntry(id: string): CardCatalogEntry | undefined {
