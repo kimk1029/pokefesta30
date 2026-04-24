@@ -18,7 +18,13 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   const skip = (page - 1) * PAGE_SIZE;
 
   const where = q
-    ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { id: q }] }
+    ? {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' as const } },
+          { email: { contains: q, mode: 'insensitive' as const } },
+          { id: q },
+        ],
+      }
     : {};
 
   const [users, total] = await Promise.all([
@@ -28,7 +34,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       skip,
       take: PAGE_SIZE,
       select: {
-        id: true, name: true, avatarId: true, points: true,
+        id: true, name: true, email: true, avatarId: true, points: true,
         createdAt: true, updatedAt: true,
         _count: { select: {
           feeds: true, trades: true, bookmarks: true,
@@ -44,6 +50,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   const rows = users.map((u) => ({
     id: u.id,
     name: u.name,
+    email: u.email,
     avatarId: u.avatarId,
     points: u.points,
     createdAt: u.createdAt.toISOString(),
@@ -59,7 +66,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       </p>
 
       <form className="search" method="get">
-        <input name="q" placeholder="이름 또는 ID 검색" defaultValue={q} />
+        <input name="q" placeholder="이름 / 이메일 / UID 로 검색" defaultValue={q} />
         <button type="submit">검색</button>
       </form>
 

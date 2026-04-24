@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 interface UserDetail {
   user: {
-    id: string; name: string; avatar: string; avatarId: string;
+    id: string; name: string; email: string | null; avatar: string; avatarId: string;
     backgroundId: string; frameId: string; rating: number; points: number;
     ownedAvatars: string[]; ownedBackgrounds: string[]; ownedFrames: string[];
     createdAt: string; updatedAt: string;
@@ -107,6 +107,8 @@ export function UserDetailModal({ userId, onClose }: Props) {
                   <table className="tbl">
                     <tbody>
                       <Row k="이름" v={data.user.name} />
+                      <Row k="이메일" v={data.user.email ?? '-'} />
+                      <Row k="UID" v={data.user.id} />
                       <Row k="아바타" v={`${data.user.avatar} / ${data.user.avatarId}`} />
                       <Row k="배경" v={data.user.backgroundId} />
                       <Row k="프레임" v={data.user.frameId} />

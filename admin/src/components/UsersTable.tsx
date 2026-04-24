@@ -6,6 +6,7 @@ import { UserDetailModal } from './UserDetailModal';
 interface Row {
   id: string;
   name: string;
+  email: string | null;
   avatarId: string;
   points: number;
   createdAt: string;
@@ -32,7 +33,9 @@ export function UsersTable({ rows }: { rows: Row[] }) {
       <table className="tbl">
         <thead>
           <tr>
+            <th>UID</th>
             <th>이름</th>
+            <th>이메일</th>
             <th>아바타</th>
             <th style={{ textAlign: 'right' }}>포인트</th>
             <th style={{ textAlign: 'right' }}>피드</th>
@@ -48,7 +51,11 @@ export function UsersTable({ rows }: { rows: Row[] }) {
         <tbody>
           {rows.map((u) => (
             <tr key={u.id}>
+              <td className="mono" style={{ fontSize: 10, color: '#64748B', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis' }} title={u.id}>
+                {u.id.slice(0, 12)}
+              </td>
               <td>{u.name}</td>
+              <td className="mono" style={{ fontSize: 11 }}>{u.email ?? <span className="muted">-</span>}</td>
               <td className="mono">{u.avatarId}</td>
               <td className="mono" style={{ textAlign: 'right' }}>{u.points.toLocaleString()}</td>
               <td className="mono" style={{ textAlign: 'right' }}>{u.counts.feeds}</td>

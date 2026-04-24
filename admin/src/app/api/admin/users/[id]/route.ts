@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const user = await prisma.user.findUnique({
     where: { id },
     select: {
-      id: true, name: true, avatar: true, avatarId: true, backgroundId: true, frameId: true,
+      id: true, name: true, email: true, avatar: true, avatarId: true, backgroundId: true, frameId: true,
       rating: true, points: true,
       ownedAvatars: true, ownedBackgrounds: true, ownedFrames: true,
       createdAt: true, updatedAt: true,

@@ -202,9 +202,19 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
           <div className="form-sect">
             <div className="form-label">💰 가격</div>
             <TextInput
-              placeholder="예) 15,000원 / 정가 / 협의"
+              placeholder="예) 15,000 / 정가 / 협의"
               value={price}
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(e) => {
+                const raw = e.target.value;
+                // 숫자만 있으면 3자리 콤마 자동 포맷. 다른 문자 섞이면 그대로 둠.
+                const digitsOnly = raw.replace(/,/g, '');
+                if (/^\d+$/.test(digitsOnly)) {
+                  setPrice(Number(digitsOnly).toLocaleString('ko-KR'));
+                } else {
+                  setPrice(raw);
+                }
+              }}
+              inputMode="numeric"
             />
           </div>
           <div className="form-sect">
@@ -278,7 +288,44 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
       </div>
 
       <PrimaryButton onClick={submit} disabled={pending}>
-        {pending ? `▶ 등록 중 ▶` : `▶ ${submitLabel} ▶`}
+        {pending ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+            <span
+              aria-hidden
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                border: '2px solid var(--ink)',
+                background: `linear-gradient(to bottom,
+                  var(--red) 0,var(--red) 46%,
+                  var(--ink) 46%,var(--ink) 54%,
+                  var(--white) 54%,var(--white) 100%)`,
+                position: 'relative',
+                animation: 'pf-ball-spin 0.7s linear infinite',
+                display: 'inline-block',
+                verticalAlign: 'middle',
+              }}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: 'var(--white)',
+                  border: '1.5px solid var(--ink)',
+                  transform: 'translate(-50%,-50%)',
+                }}
+              />
+            </span>
+            등록 중...
+          </span>
+        ) : (
+          `▶ ${submitLabel} ▶`
+        )}
       </PrimaryButton>
     </>
   );

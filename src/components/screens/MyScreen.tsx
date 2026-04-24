@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Session } from 'next-auth';
+import { EditableName } from '@/components/EditableName';
 import { PointChipLive } from '@/components/LivePointsPill';
 import { LogoutButton } from '@/components/LogoutButton';
 import { MessagesInboxLink } from '@/components/MessagesInboxLink';
@@ -64,7 +65,7 @@ export function MyScreen({ session, level, reportCount, tradeCount, savedCount }
             <ProfileAvatarClient size={80} />
           </div>
           <div className="lv-info">
-            <div className="lv-name">{name}</div>
+            <div className="lv-name"><EditableName initialName={name} /></div>
             <div className="lv-badge">
               ⭐ LV.{p.level} {p.title}
             </div>

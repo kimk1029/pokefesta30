@@ -19,6 +19,7 @@ datasource db {
 model User {
   id          String   @id @default(cuid())
   name        String
+  email       String?
   avatar      String   @default("🐣")
   rating      Int      @default(4)
   createdAt   DateTime @default(now())

@@ -10,6 +10,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { Tag } from '@/components/ui/Tag';
 import { authOptions } from '@/lib/auth';
+import { formatPrice } from '@/lib/numberFormat';
 import { getTradeById } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
@@ -62,7 +63,7 @@ export default async function Page({ params }: Props) {
           />
           <span>{trade.time}</span>
           <span>·</span>
-          <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{trade.price}</span>
+          <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{formatPrice(trade.price)}</span>
           <div style={{ marginLeft: 'auto' }}>
             <BookmarkButton tradeId={trade.id} />
           </div>

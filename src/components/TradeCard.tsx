@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { BookmarkButton } from './BookmarkButton';
 import { Tag } from './ui/Tag';
+import { formatPrice } from '@/lib/numberFormat';
 import type { Trade } from '@/lib/types';
 
 interface Props {
@@ -23,7 +24,7 @@ export function TradeCard({ trade, showComments }: Props) {
           <div className="trade-meta">
             <span>{trade.time}</span>
             <span>·</span>
-            <span className="t-price">{trade.price}</span>
+            <span className="t-price">{formatPrice(trade.price)}</span>
             {showComments && (
               <>
                 <span>·</span>
