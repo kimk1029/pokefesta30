@@ -594,8 +594,8 @@ a{color:inherit;text-decoration:none;}
 .lv-info{flex:1;min-width:0;}
 .lv-name{font-family:var(--f1);font-size:17px;color:var(--white);letter-spacing:1px;}
 .lv-badge{display:inline-flex;align-items:center;gap:6px;margin-top:6px;
-  background:var(--yel);color:var(--ink);
-  font-family:var(--f1);font-size:14px;padding:4px 10px;letter-spacing:1px;
+  background:var(--yel);color:var(--ink);white-space:nowrap;
+  font-family:var(--f1);font-size:12px;padding:4px 10px;letter-spacing:.8px;
   box-shadow:
     -2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
     inset 0 2px 0 var(--yel-lt),inset 0 -2px 0 var(--yel-dk),
@@ -1086,6 +1086,15 @@ a{color:inherit;text-decoration:none;}
   color:var(--ink);stroke-width:3;}
 .fab-circle:active{transform:translate(3px,3px);
   box-shadow:2px 2px 0 var(--ink);}
+@keyframes pf-ball-click{
+  0%  {transform:rotate(0) scale(1);}
+  55% {transform:rotate(1080deg) scale(1);}
+  80% {transform:rotate(1080deg) scale(.18);}
+  100%{transform:rotate(1080deg) scale(1);}}
+.fab-circle.fab-click{animation:pf-ball-click .7s ease-out;}
+.fab-circle.fab-click:active{transform:none;box-shadow:
+  inset 0 4px 0 var(--red-lt),inset 0 -4px 0 rgba(0,0,0,.15),
+  5px 5px 0 var(--ink);}
 .fab-tab span{margin-top:34px;color:var(--yel);font-size:11px;}
 
 /* ── FAB MENU OVERLAY ── */

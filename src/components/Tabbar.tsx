@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { LineIcon, type LineIconName } from './Icons';
 
 type TabId = 'home' | 'live' | 'fab' | 'trade' | 'my';
@@ -42,6 +43,13 @@ interface Props {
 export function Tabbar({ onFab }: Props) {
   const pathname = usePathname();
   const active = activeId(pathname);
+  const [ballAnim, setBallAnim] = useState(false);
+
+  const handleFab = () => {
+    setBallAnim(false);
+    requestAnimationFrame(() => setBallAnim(true));
+    onFab();
+  };
 
   return (
     <div className="tabbar">
@@ -52,8 +60,11 @@ export function Tabbar({ onFab }: Props) {
 
         if (t.fab) {
           return (
-            <button key={t.id} type="button" className={cls} onClick={onFab} aria-label="작성">
-              <div className="fab-circle">
+            <button key={t.id} type="button" className={cls} onClick={handleFab} aria-label="작성">
+              <div
+                className={`fab-circle${ballAnim ? ' fab-click' : ''}`}
+                onAnimationEnd={() => setBallAnim(false)}
+              >
                 <LineIcon name={t.icon} />
               </div>
             </button>
