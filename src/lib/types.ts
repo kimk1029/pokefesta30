@@ -15,6 +15,7 @@ export interface Place {
 export interface Trade {
   id: number;
   type: TradeType;
+  status?: TradeStatus;
   title: string;
   place: string;
   time: string;

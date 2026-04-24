@@ -214,6 +214,7 @@ export async function submitTrade(formData: FormData): Promise<void> {
         authorEmoji: authorTokenFromForm(formData, session),
         authorBgId: snapBg,
         authorFrameId: snapFrame,
+        bumpedAt: new Date(), // 최신 거래가 목록 최상단에 보이도록
       },
     });
     if (authorId) {

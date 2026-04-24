@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
         price: price?.trim() || '제안',
         authorId,
         authorEmoji: session.user.name?.slice(0, 2) ?? '익명',
+        bumpedAt: new Date(),
       },
     });
     if (authorId) {

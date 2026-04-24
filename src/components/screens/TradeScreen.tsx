@@ -18,7 +18,15 @@ const FILTERS: ReadonlyArray<{ id: Filter; label: string }> = [
 
 export function TradeScreen({ trades }: { trades: Trade[] }) {
   const [filter, setFilter] = useState<Filter>('all');
-  const list = trades.filter((t) => filter === 'all' || t.type === filter);
+  const [showDone, setShowDone] = useState(false);
+
+  const doneCount = trades.filter((t) => t.status === 'done').length;
+
+  const list = trades.filter((t) => {
+    if (filter !== 'all' && t.type !== filter) return false;
+    if (!showDone && t.status === 'done') return false;
+    return true;
+  });
 
   return (
     <>
@@ -34,6 +42,30 @@ export function TradeScreen({ trades }: { trades: Trade[] }) {
 
       <div style={{ height: 14 }} />
       <Segmented items={FILTERS} value={filter} onChange={setFilter} />
+
+      {/* 완료 보이기 토글 — 작게 */}
+      <label
+        style={{
+          margin: '8px var(--gap) 0',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          fontFamily: 'var(--f1)',
+          fontSize: 9,
+          letterSpacing: 0.3,
+          color: 'var(--ink3)',
+          cursor: 'pointer',
+          userSelect: 'none',
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={showDone}
+          onChange={(e) => setShowDone(e.target.checked)}
+          style={{ margin: 0, cursor: 'pointer' }}
+        />
+        완료된 글 보이기{doneCount > 0 ? ` (${doneCount})` : ''}
+      </label>
 
       <div className="sect">
         {list.length === 0 ? (

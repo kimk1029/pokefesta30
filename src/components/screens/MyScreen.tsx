@@ -30,9 +30,10 @@ const SHOP_SHORTCUTS = [
   { em: '🎲', bg: '#1B2E89', lb: '오리파 · 뽑기', href: '/my/oripa' },
 ];
 
-const SETTINGS: Array<{ em: string; bg: string; lb: string }> = [
-  { em: '🔔', bg: '#E8DFB8', lb: '알림 설정' },
-  { em: 'ℹ', bg: '#E8DFB8', lb: '공지사항 · FAQ' },
+const SETTINGS: Array<{ em: string; bg: string; lb: string; href?: string }> = [
+  { em: '📢', bg: '#FFD23F', lb: '공지사항',   href: '/my/notices' },
+  { em: '❓', bg: '#3A5BD9', lb: 'FAQ · 자주 묻는 질문', href: '/my/faq' },
+  { em: '🔔', bg: '#E8DFB8', lb: '알림 설정 (준비중)' },
 ];
 
 
@@ -139,15 +140,25 @@ export function MyScreen({ session, level, reportCount, tradeCount, savedCount }
       {/* 설정 */}
       <div className="sect">
         <SectionTitle title="설정" />
-        {SETTINGS.map((it) => (
-          <div key={it.lb} className="my-item">
-            <div className="mi-icon" style={{ background: it.bg }}>
-              {it.em}
+        {SETTINGS.map((it) =>
+          it.href ? (
+            <Link key={it.lb} href={it.href} className="my-item">
+              <div className="mi-icon" style={{ background: it.bg }}>
+                {it.em}
+              </div>
+              <div className="mi-main">{it.lb}</div>
+              <span className="mi-arr">▶</span>
+            </Link>
+          ) : (
+            <div key={it.lb} className="my-item" style={{ opacity: 0.5 }}>
+              <div className="mi-icon" style={{ background: it.bg }}>
+                {it.em}
+              </div>
+              <div className="mi-main">{it.lb}</div>
+              <span className="mi-arr">▶</span>
             </div>
-            <div className="mi-main">{it.lb}</div>
-            <span className="mi-arr">▶</span>
-          </div>
-        ))}
+          ),
+        )}
       </div>
 
       <div style={{ margin: '0 var(--gap) var(--cg)' }}>

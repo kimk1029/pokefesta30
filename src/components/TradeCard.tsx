@@ -10,8 +10,18 @@ interface Props {
 }
 
 export function TradeCard({ trade, showComments }: Props) {
+  const done = trade.status === 'done';
   return (
-    <Link href={`/trade/${trade.id}`} className="trade-card" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+    <Link
+      href={`/trade/${trade.id}`}
+      className="trade-card"
+      style={{
+        display: 'block',
+        textDecoration: 'none',
+        color: 'inherit',
+        opacity: done ? 0.6 : 1,
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="trade-tags">
@@ -19,8 +29,11 @@ export function TradeCard({ trade, showComments }: Props) {
               {trade.type === 'buy' ? '삽니다' : '팝니다'}
             </Tag>
             <Tag variant="place">📍 {trade.place}</Tag>
+            {done && <Tag variant="place">✅ 완료</Tag>}
           </div>
-          <div className="trade-title">{trade.title}</div>
+          <div className="trade-title" style={done ? { textDecoration: 'line-through' } : {}}>
+            {trade.title}
+          </div>
           <div className="trade-meta">
             <span>{trade.time}</span>
             <span>·</span>

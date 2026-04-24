@@ -128,28 +128,54 @@ export async function getPlaces(): Promise<Place[]> {
 }
 
 /**
- * 오늘(로컬 기준 00:00~) 시간대별 report 건수 24개 + 현재 시(hour).
- * FeedChart 의 "시간대별 제보량" 에 사용. 데이터 없으면 전부 0.
+ * 오늘(KST 기준 00:00~) 시간대별 피드 건수 24개 + 현재 KST 시(hour).
+ * report + general 전체 피드 집계 (현황 + 피드양 합산).
+ * 서버 TZ 와 무관하게 Asia/Seoul 기준으로 버킷팅.
  */
+const KST_HOUR_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Seoul',
+  hour: '2-digit',
+  hour12: false,
+});
+const KST_DATE_FMT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Seoul',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+function kstHour(d: Date): number {
+  const s = KST_HOUR_FMT.format(d);
+  // en-US 의 '24' (자정 이후)을 0 으로 정규화
+  const n = Number(s);
+  return n >= 24 ? 0 : n;
+}
+
+function kstStartOfDayUtc(now: Date = new Date()): Date {
+  const ymd = KST_DATE_FMT.format(now); // 'YYYY-MM-DD' (KST 날짜)
+  // KST 00:00 → UTC 로는 해당 날 전날 15:00
+  return new Date(`${ymd}T00:00:00+09:00`);
+}
+
 export async function getHourlyReportCounts(): Promise<{ counts: number[]; nowHour: number }> {
   const now = new Date();
-  const nowHour = now.getHours();
+  const nowHour = kstHour(now);
   try {
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
+    const start = kstStartOfDayUtc(now);
+    // kind 필터 제거 — report + general 모두 집계 (현황 + 피드양)
     const rows = await prisma.feed.findMany({
-      where: { kind: 'report', createdAt: { gte: start } },
+      where: { createdAt: { gte: start } },
       select: { createdAt: true },
     });
     const counts = new Array<number>(24).fill(0);
     for (const r of rows) {
-      const h = r.createdAt.getHours();
+      const h = kstHour(r.createdAt);
       if (h >= 0 && h < 24) counts[h]++;
     }
     return { counts, nowHour };
   } catch (err) {
     console.error('[getHourlyReportCounts]', err);
-    return { counts: new Array<number>(24).fill(0), nowHour };
+    return { counts: new Array<number>(24).fill(0), nowHour: kstHour(new Date()) };
   }
 }
 
@@ -235,6 +261,7 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
     return rows.map((r) => ({
       id: r.id,
       type: r.type as TradeType,
+      status: asTradeStatus(r.status),
       title: r.title,
       place: r.place?.name ?? '',
       time: relTime(r.bumpedAt ?? r.createdAt),
