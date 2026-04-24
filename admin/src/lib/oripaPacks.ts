@@ -6,6 +6,8 @@ export interface PackPrize {
   emoji: string;
   weight: number;
   bg?: string;
+  /** 상품 사진 URL (선택) — Imgur/Supabase Storage 등 외부 URL */
+  imageUrl?: string;
 }
 
 const DEFAULT_PRIZES: PackPrize[] = [
@@ -76,9 +78,11 @@ export function validatePrizes(raw: unknown): PackPrize[] {
     const emoji = typeof q.emoji === 'string' ? q.emoji : '';
     const weight = typeof q.weight === 'number' ? q.weight : Number(q.weight);
     if (!name) throw new Error(`prizes[${i}].name 필수`);
-    if (!emoji) throw new Error(`prizes[${i}].emoji 필수`);
     if (!Number.isFinite(weight) || weight < 0) throw new Error(`prizes[${i}].weight 는 0 이상 숫자`);
     const bg = typeof q.bg === 'string' ? q.bg : undefined;
-    return { grade, name, emoji, weight, bg };
+    const imageUrl = typeof q.imageUrl === 'string' ? q.imageUrl : undefined;
+    return { grade, name, emoji: emoji || '🎁', weight, bg, imageUrl };
   });
 }
+
+export const DEFAULT_PACK_DEFS = DEFAULT_PACKS;

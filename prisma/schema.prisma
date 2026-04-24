@@ -171,7 +171,9 @@ model OripaPack {
   @@map("oripa_packs")
 }
 
-/// 페이지뷰 로그 — 관리자 대시보드 방문 통계(일방문/고유 IP/상위 경로) 용.
+/// 페이지뷰 로그 — path 분석용.
+/// (ip, day) 쌍마다 별도 row 로 dedupe 되어 하루 1 IP = 1 방문자 로 집계 (전통적 UV).
+/// day 는 서버 UTC 기준 자정 (YYYY-MM-DD 00:00:00). 삽입 시 onConflict 로 중복 무시.
 model PageView {
   id        Int      @id @default(autoincrement())
   path      String
@@ -180,11 +182,13 @@ model PageView {
   userId    String?
   referer   String?
   country   String?
+  day       DateTime @db.Date
   createdAt DateTime @default(now())
 
+  @@unique([ip, day])
   @@index([createdAt])
   @@index([path, createdAt])
-  @@index([ip, createdAt])
+  @@index([day])
   @@map("page_views")
 }
 

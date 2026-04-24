@@ -1,7 +1,6 @@
-import Link from 'next/link';
+import { OripaPackCard } from '@/components/OripaPackCard';
 import { prisma } from '@/lib/prisma';
-import { fmtDate } from '@/lib/format';
-import { ensureSeeded, type PackPrize } from '@/lib/oripaPacks';
+import { DEFAULT_PACK_DEFS, ensureSeeded, type PackPrize } from '@/lib/oripaPacks';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,70 +10,41 @@ export default async function Page() {
     ? await prisma.oripaPack.findMany({ orderBy: { price: 'asc' } }).catch(() => [])
     : [];
 
+  const defaultIds = new Set(DEFAULT_PACK_DEFS.map((p) => p.id));
+
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <h1 className="admin-h1" style={{ margin: 0 }}>오리파 팩 관리</h1>
-        <Link href="/oripa/packs/new" className="btn" style={{ background: '#3B82F6', color: '#fff', borderColor: '#3B82F6' }}>
-          + 신규 오리파
-        </Link>
-      </div>
-      <p className="admin-sub">박스별 가격 · 상품 풀 · 활성 여부 관리</p>
+      <h1 className="admin-h1">오리파 관리</h1>
+      <p className="admin-sub">기본 3팩은 항상 존재 · 각 팩에서 가격/상품/이미지 관리 + 초기화</p>
 
       {!seed.ok && (
         <div style={{ background: '#FEF2F2', color: '#B91C1C', padding: '12px 14px', borderRadius: 6, fontSize: 12, marginBottom: 14 }}>
-          ⚠ <code>oripa_packs</code> 테이블을 찾지 못했습니다. 로컬에서{' '}
-          <code>npx prisma db push</code> 또는 <code>npx prisma migrate deploy</code> 를 먼저 실행하세요.
+          ⚠ <code>oripa_packs</code> 테이블이 없습니다. <code>npx prisma db push</code> 먼저 실행.
         </div>
       )}
 
-      {packs.length === 0 ? (
-        <div className="empty">팩이 없습니다.</div>
-      ) : (
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th style={{ width: 60 }}></th>
-              <th>ID</th>
-              <th>티어</th>
-              <th>이름</th>
-              <th>설명</th>
-              <th style={{ textAlign: 'right' }}>가격(P)</th>
-              <th style={{ textAlign: 'right' }}>상품 수</th>
-              <th>활성</th>
-              <th>수정</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {packs.map((p) => {
-              const prizes = Array.isArray(p.prizes) ? (p.prizes as unknown as PackPrize[]) : [];
-              return (
-                <tr key={p.id}>
-                  <td style={{ fontSize: 24 }}>{p.emoji}</td>
-                  <td className="mono">{p.id}</td>
-                  <td><span className="tag">{p.tier}</span></td>
-                  <td>{p.name}</td>
-                  <td className="muted" style={{ maxWidth: 260 }}>{p.desc}</td>
-                  <td className="mono" style={{ textAlign: 'right' }}>{p.price.toLocaleString()}</td>
-                  <td className="mono" style={{ textAlign: 'right' }}>{prizes.length}</td>
-                  <td>
-                    {p.active ? (
-                      <span className="tag tag-done">활성</span>
-                    ) : (
-                      <span className="tag">비활성</span>
-                    )}
-                  </td>
-                  <td className="mono muted">{fmtDate(p.updatedAt)}</td>
-                  <td>
-                    <Link href={`/oripa/packs/${p.id}`} className="btn">편집</Link>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+      <div style={{ display: 'grid', gap: 16 }}>
+        {packs.map((p) => {
+          const prizes = (Array.isArray(p.prizes) ? p.prizes : []) as unknown as PackPrize[];
+          return (
+            <OripaPackCard
+              key={p.id}
+              isDefault={defaultIds.has(p.id)}
+              initial={{
+                id: p.id,
+                tier: p.tier,
+                emoji: p.emoji,
+                name: p.name,
+                desc: p.desc,
+                price: p.price,
+                ticketsCount: p.ticketsCount,
+                prizes,
+                active: p.active,
+              }}
+            />
+          );
+        })}
+      </div>
     </>
   );
 }

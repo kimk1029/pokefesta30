@@ -36,9 +36,14 @@ export async function POST(req: NextRequest) {
     // ignore
   }
 
-  // 저장 (실패해도 204)
-  prisma.pageView.create({
-    data: { path, ip, ua, userId, country, referer },
+  // 오늘 00:00:00 UTC — (ip, day) 유니크 키 매칭용
+  const day = new Date();
+  day.setUTCHours(0, 0, 0, 0);
+
+  // createMany skipDuplicates 로 유니크 충돌 무시 → 같은 IP 가 하루 여러 번 와도 1 row
+  prisma.pageView.createMany({
+    data: [{ path, ip, ua, userId, country, referer, day }],
+    skipDuplicates: true,
   }).catch((err) => {
     console.error('[pageview]', err);
   });

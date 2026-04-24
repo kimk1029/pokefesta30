@@ -1,0 +1,231 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+
+interface UserDetail {
+  user: {
+    id: string; name: string; avatar: string; avatarId: string;
+    backgroundId: string; frameId: string; rating: number; points: number;
+    ownedAvatars: string[]; ownedBackgrounds: string[]; ownedFrames: string[];
+    createdAt: string; updatedAt: string;
+    _count: { feeds: number; trades: number; bookmarks: number; sentMessages: number; receivedMessages: number; oripaTickets: number };
+  };
+  feeds: Array<{ id: number; kind: string; text: string; createdAt: string }>;
+  trades: Array<{ id: number; type: string; status: string; title: string; price: string | null; createdAt: string }>;
+  pulls: Array<{ id: number; packId: string; index: number; grade: string | null; prizeName: string | null; drawnAt: string | null }>;
+  lastViews: Array<{ id: number; path: string; ip: string | null; country: string | null; createdAt: string }>;
+}
+
+function fmt(d: string | null | undefined): string {
+  if (!d) return '-';
+  const dt = new Date(d);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  const hh = String(dt.getHours()).padStart(2, '0');
+  const mm = String(dt.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day} ${hh}:${mm}`;
+}
+
+function trunc(s: string, n: number): string {
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+interface Props {
+  userId: string;
+  onClose: () => void;
+}
+
+export function UserDetailModal({ userId, onClose }: Props) {
+  const [data, setData] = useState<UserDetail | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/users/${encodeURIComponent(userId)}`, { cache: 'no-store' })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((d) => { if (!cancelled) setData(d as UserDetail); })
+      .catch((e) => { if (!cancelled) setErr(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,23,42,.6)', zIndex: 999,
+        display: 'grid', placeItems: 'center', padding: 20, overflow: 'auto',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff', borderRadius: 10, width: 'min(1100px,100%)', maxHeight: '90vh',
+          overflow: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,.25)',
+        }}
+      >
+        <header style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #E2E8F0' }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{data?.user.name ?? '로딩 중…'}</div>
+            <div style={{ fontSize: 11, color: '#64748B', fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace' }}>
+              {data?.user.id ?? userId}
+            </div>
+          </div>
+          <button onClick={onClose} className="btn" aria-label="닫기">✕</button>
+        </header>
+
+        <div style={{ padding: 20 }}>
+          {err && <div style={{ color: '#B91C1C', fontSize: 12 }}>⚠ {err}</div>}
+          {!data ? (
+            <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>불러오는 중…</div>
+          ) : (
+            <>
+              <div className="grid-stats">
+                <Stat label="포인트" value={data.user.points} />
+                <Stat label="피드" value={data.user._count.feeds} />
+                <Stat label="거래" value={data.user._count.trades} />
+                <Stat label="찜" value={data.user._count.bookmarks} />
+                <Stat label="쪽지" value={data.user._count.sentMessages + data.user._count.receivedMessages} />
+                <Stat label="오리파" value={data.user._count.oripaTickets} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 14, marginTop: 16 }}>
+                <Card title="프로필">
+                  <table className="tbl">
+                    <tbody>
+                      <Row k="이름" v={data.user.name} />
+                      <Row k="아바타" v={`${data.user.avatar} / ${data.user.avatarId}`} />
+                      <Row k="배경" v={data.user.backgroundId} />
+                      <Row k="프레임" v={data.user.frameId} />
+                      <Row k="평점" v={`${data.user.rating} / 5`} />
+                      <Row k="가입" v={fmt(data.user.createdAt)} />
+                      <Row k="업데이트" v={fmt(data.user.updatedAt)} />
+                      <Row k="보유 아바타" v={data.user.ownedAvatars.join(', ') || '-'} />
+                      <Row k="보유 배경" v={data.user.ownedBackgrounds.join(', ') || '-'} />
+                      <Row k="보유 프레임" v={data.user.ownedFrames.join(', ') || '-'} />
+                    </tbody>
+                  </table>
+                </Card>
+
+                <Card title="최근 피드 (10)">
+                  {data.feeds.length === 0 ? <div className="muted">없음</div> : (
+                    <table className="tbl">
+                      <thead><tr><th>#</th><th>종류</th><th>본문</th><th>시각</th></tr></thead>
+                      <tbody>
+                        {data.feeds.map((f) => (
+                          <tr key={f.id}>
+                            <td className="mono">{f.id}</td>
+                            <td><span className={`tag ${f.kind === 'report' ? 'tag-report' : 'tag-general'}`}>{f.kind}</span></td>
+                            <td>{trunc(f.text, 40)}</td>
+                            <td className="mono muted">{fmt(f.createdAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </Card>
+
+                <Card title="최근 거래 (10)">
+                  {data.trades.length === 0 ? <div className="muted">없음</div> : (
+                    <table className="tbl">
+                      <thead><tr><th>#</th><th>유형</th><th>상태</th><th>제목</th><th>가격</th><th>시각</th></tr></thead>
+                      <tbody>
+                        {data.trades.map((t) => (
+                          <tr key={t.id}>
+                            <td className="mono">{t.id}</td>
+                            <td><span className="tag">{t.type}</span></td>
+                            <td><span className={`tag ${t.status === 'done' ? 'tag-done' : 'tag-open'}`}>{t.status}</span></td>
+                            <td>{trunc(t.title, 40)}</td>
+                            <td className="mono">{t.price ?? '-'}</td>
+                            <td className="mono muted">{fmt(t.createdAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </Card>
+
+                <Card title="오리파 뽑기 (10)">
+                  {data.pulls.length === 0 ? <div className="muted">없음</div> : (
+                    <table className="tbl">
+                      <thead><tr><th>팩</th><th>#</th><th>등급</th><th>상품</th><th>시각</th></tr></thead>
+                      <tbody>
+                        {data.pulls.map((p) => (
+                          <tr key={p.id}>
+                            <td className="mono">{p.packId}</td>
+                            <td className="mono">{p.index}</td>
+                            <td className="mono">{p.grade ?? '-'}</td>
+                            <td>{p.prizeName ?? '-'}</td>
+                            <td className="mono muted">{fmt(p.drawnAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </Card>
+
+                <Card title="최근 방문 (10)">
+                  {data.lastViews.length === 0 ? <div className="muted">없음</div> : (
+                    <table className="tbl">
+                      <thead><tr><th>경로</th><th>IP</th><th>국가</th><th>시각</th></tr></thead>
+                      <tbody>
+                        {data.lastViews.map((v) => (
+                          <tr key={v.id}>
+                            <td className="mono">{v.path}</td>
+                            <td className="mono">{v.ip ?? '-'}</td>
+                            <td className="mono">{v.country ?? '-'}</td>
+                            <td className="mono muted">{fmt(v.createdAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </Card>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="card">
+      <h2>{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <tr>
+      <td style={{ width: 120, color: '#64748B' }}>{k}</td>
+      <td className="mono">{v}</td>
+    </tr>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="stat-card">
+      <div className="lbl">{label}</div>
+      <div className="val">{value.toLocaleString()}</div>
+    </div>
+  );
+}

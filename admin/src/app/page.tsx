@@ -1,3 +1,4 @@
+import { VisitorChart } from '@/components/VisitorChart';
 import { prisma } from '@/lib/prisma';
 import { fmtDate } from '@/lib/format';
 
@@ -13,6 +14,9 @@ async function loadStats() {
   const start7d = new Date();
   start7d.setDate(start7d.getDate() - 6);
   start7d.setHours(0, 0, 0, 0);
+  const start14d = new Date();
+  start14d.setDate(start14d.getDate() - 13);
+  start14d.setHours(0, 0, 0, 0);
 
   // 각 쿼리를 개별 try/catch — 하나 실패해도 나머지는 보여줌 (page_views/oripa_packs 테이블 미생성 시 graceful)
   const [
@@ -67,15 +71,16 @@ async function loadStats() {
       [] as Array<{ id: number; path: string; ip: string | null; country: string | null; userId: string | null; createdAt: Date }>,
     ),
     one(
-      prisma.$queryRaw<Array<{ day: Date; views: bigint; uniq: bigint }>>`
-        SELECT date_trunc('day', "createdAt") AS day,
-               count(*) AS views,
-               count(DISTINCT "ip") AS uniq
+      // (ip, day) 유니크 테이블이므로 count(*) = 일별 고유 방문자
+      prisma.$queryRaw<Array<{ day: Date; visitors: bigint; logins: bigint }>>`
+        SELECT "day" AS day,
+               count(*) AS visitors,
+               count(DISTINCT "userId") FILTER (WHERE "userId" IS NOT NULL) AS logins
           FROM page_views
-         WHERE "createdAt" >= ${start7d}
+         WHERE "day" >= ${start14d}
          GROUP BY 1 ORDER BY 1 ASC
       `,
-      [] as Array<{ day: Date; views: bigint; uniq: bigint }>,
+      [] as Array<{ day: Date; visitors: bigint; logins: bigint }>,
     ),
     one(
       prisma.feed.findMany({
@@ -107,6 +112,9 @@ export default async function Page() {
   const data = await loadStats();
   const { stats, topPaths, recentVisits, dailySeries, recentFeeds, recentUsers } = data;
 
+  // 14일 시리즈: DB 에 없는 날은 0 으로 채워 차트에 빈 칸 안 생기게
+  const series14 = build14Days(dailySeries);
+
   return (
     <>
       <h1 className="admin-h1">대시보드</h1>
@@ -114,10 +122,15 @@ export default async function Page() {
 
       <h2 style={{ fontSize: 14, color: '#475569', margin: '4px 0 10px', letterSpacing: 0.3 }}>🌐 오늘 방문</h2>
       <div className="grid-stats">
-        <Stat label="오늘 페이지뷰" value={stats.viewsToday} />
-        <Stat label="오늘 고유 IP" value={stats.uniqueIpsToday} />
-        <Stat label="오늘 로그인 방문" value={stats.uniqueUsersToday} sub="고유 유저" />
+        <Stat label="오늘 방문자" value={stats.uniqueIpsToday} sub="하루 1 IP = 1" />
+        <Stat label="오늘 로그인" value={stats.uniqueUsersToday} sub="고유 유저" />
+        <Stat label="오늘 페이지뷰" value={stats.viewsToday} sub="참고용" />
       </div>
+
+      <section className="card" style={{ marginTop: 14 }}>
+        <h2>📈 최근 14일 방문자 · 로그인</h2>
+        <VisitorChart points={series14} />
+      </section>
 
       <h2 style={{ fontSize: 14, color: '#475569', margin: '20px 0 10px', letterSpacing: 0.3 }}>📊 서비스</h2>
       <div className="grid-stats">
@@ -129,26 +142,6 @@ export default async function Page() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(360px,1fr))', gap: 16, marginTop: 20 }}>
-        <section className="card">
-          <h2>최근 7일 방문 추이</h2>
-          {dailySeries.length === 0 ? (
-            <div className="muted">데이터 없음</div>
-          ) : (
-            <table className="tbl">
-              <thead><tr><th>일자</th><th>PV</th><th>고유 IP</th></tr></thead>
-              <tbody>
-                {dailySeries.map((d) => (
-                  <tr key={d.day.toISOString()}>
-                    <td className="mono">{d.day.toISOString().slice(0, 10)}</td>
-                    <td className="mono">{Number(d.views).toLocaleString()}</td>
-                    <td className="mono">{Number(d.uniq).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-
         <section className="card">
           <h2>오늘 상위 경로 (Top 10)</h2>
           {topPaths.length === 0 ? (
@@ -247,4 +240,24 @@ function Stat({ label, value, sub }: { label: string; value: number; sub?: strin
       {sub && <div className="sub">{sub}</div>}
     </div>
   );
+}
+
+function build14Days(rows: Array<{ day: Date; visitors: bigint; logins: bigint }>) {
+  const map = new Map<string, { visitors: number; logins: number }>();
+  for (const r of rows) {
+    const key = r.day.toISOString().slice(0, 10);
+    map.set(key, { visitors: Number(r.visitors), logins: Number(r.logins) });
+  }
+  const out: Array<{ day: string; visitors: number; logins: number }> = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    const key = d.toISOString().slice(0, 10);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const v = map.get(key) ?? { visitors: 0, logins: 0 };
+    out.push({ day: `${mm}-${dd}`, visitors: v.visitors, logins: v.logins });
+  }
+  return out;
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import { UsersTable } from '@/components/UsersTable';
 import { prisma } from '@/lib/prisma';
-import { fmtDate, parseIntParam } from '@/lib/format';
+import { parseIntParam } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,28 +28,28 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       skip,
       take: PAGE_SIZE,
       select: {
-        id: true,
-        name: true,
-        avatarId: true,
-        points: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            feeds: true,
-            trades: true,
-            bookmarks: true,
-            sentMessages: true,
-            receivedMessages: true,
-            oripaTickets: true,
-          },
-        },
+        id: true, name: true, avatarId: true, points: true,
+        createdAt: true, updatedAt: true,
+        _count: { select: {
+          feeds: true, trades: true, bookmarks: true,
+          sentMessages: true, receivedMessages: true, oripaTickets: true,
+        }},
       },
     }),
     prisma.user.count({ where }),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const rows = users.map((u) => ({
+    id: u.id,
+    name: u.name,
+    avatarId: u.avatarId,
+    points: u.points,
+    createdAt: u.createdAt.toISOString(),
+    updatedAt: u.updatedAt.toISOString(),
+    counts: u._count,
+  }));
 
   return (
     <>
@@ -62,48 +63,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         <button type="submit">검색</button>
       </form>
 
-      {users.length === 0 ? (
-        <div className="empty">검색 결과가 없습니다.</div>
-      ) : (
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>이름</th>
-              <th>아바타</th>
-              <th style={{ textAlign: 'right' }}>포인트</th>
-              <th style={{ textAlign: 'right' }}>피드</th>
-              <th style={{ textAlign: 'right' }}>거래</th>
-              <th style={{ textAlign: 'right' }}>찜</th>
-              <th style={{ textAlign: 'right' }}>쪽지</th>
-              <th style={{ textAlign: 'right' }}>오리파</th>
-              <th>가입</th>
-              <th>마지막 활동</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td>{u.name}</td>
-                <td className="mono">{u.avatarId}</td>
-                <td className="mono" style={{ textAlign: 'right' }}>{u.points.toLocaleString()}</td>
-                <td className="mono" style={{ textAlign: 'right' }}>{u._count.feeds}</td>
-                <td className="mono" style={{ textAlign: 'right' }}>{u._count.trades}</td>
-                <td className="mono" style={{ textAlign: 'right' }}>{u._count.bookmarks}</td>
-                <td className="mono" style={{ textAlign: 'right' }}>
-                  {u._count.sentMessages + u._count.receivedMessages}
-                </td>
-                <td className="mono" style={{ textAlign: 'right' }}>{u._count.oripaTickets}</td>
-                <td className="mono muted">{fmtDate(u.createdAt)}</td>
-                <td className="mono muted">{fmtDate(u.updatedAt)}</td>
-                <td>
-                  <Link href={`/users/${u.id}`} className="btn">상세</Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <UsersTable rows={rows} />
 
       <Pager base="/users" q={q} page={page} totalPages={totalPages} />
     </>
