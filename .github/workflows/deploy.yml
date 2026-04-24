@@ -33,49 +33,100 @@ jobs:
       - name: Install deps (for prisma CLI)
         run: npm ci --prefer-offline --no-audit --no-fund
 
+      - name: Verify required secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          set -e
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::GitHub secret DATABASE_URL 이 설정되지 않았습니다."
+            exit 1
+          fi
+          if [ -z "$DIRECT_URL" ]; then
+            echo "::error::GitHub secret DIRECT_URL 이 설정되지 않았습니다 (prisma db push 용, :5432)."
+            exit 1
+          fi
+          echo "✓ secrets ok"
+
       - name: Pre-migrate SQL — backfill 필수 컬럼 & dedupe (idempotent)
         env:
-          # psql 은 PGPASSWORD/URL 인자 그대로 수용. DIRECT_URL 은 :5432 직접 연결이라 DDL OK
           PG_URL: ${{ secrets.DIRECT_URL }}
         run: |
-          # Ubuntu runner 는 psql 기본 포함.
-          # page_views.day (DATE, NOT NULL) 를 기존 createdAt 으로 백필하고,
-          # (ip, day) 유니크 충돌 가능한 중복을 미리 제거한다.
+          set -e
+          # psql 은 Ubuntu runner 기본 포함. 연결 먼저 확인:
+          psql "$PG_URL" -At -c "SELECT 'connected: ' || current_database() || '@' || inet_server_addr();"
+
+          # page_views.day (DATE, NOT NULL) 를 기존 createdAt 으로 백필 + 중복 제거.
           psql "$PG_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          \echo '>>> starting pre-migrate'
+
           DO $$
+          DECLARE
+            tbl_exists boolean;
+            col_exists boolean;
+            null_count int;
+            dup_count int;
           BEGIN
-            IF EXISTS (
+            SELECT EXISTS (
               SELECT 1 FROM information_schema.tables
               WHERE table_schema='public' AND table_name='page_views'
-            ) THEN
-              -- 1) day 컬럼이 없으면 nullable 로 추가
-              IF NOT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name='page_views' AND column_name='day'
-              ) THEN
-                ALTER TABLE public.page_views ADD COLUMN "day" DATE;
-              END IF;
+            ) INTO tbl_exists;
+            RAISE NOTICE 'page_views table exists: %', tbl_exists;
 
-              -- 2) 기존 행 backfill: createdAt 날짜로 채움
-              UPDATE public.page_views
-                 SET "day" = ("createdAt" AT TIME ZONE 'UTC')::date
-               WHERE "day" IS NULL;
-
-              -- 3) (ip, day) 유니크 인덱스 생기기 전에 중복 정리 — 가장 이른 id 만 보존
-              DELETE FROM public.page_views
-               WHERE id IN (
-                 SELECT id FROM (
-                   SELECT id, ROW_NUMBER() OVER (PARTITION BY ip, "day" ORDER BY id ASC) AS rn
-                     FROM public.page_views
-                    WHERE ip IS NOT NULL
-                      AND "day" IS NOT NULL
-                 ) t WHERE t.rn > 1
-               );
-
-              -- 4) day 를 NOT NULL 로 승격 (prisma schema 와 일치)
-              ALTER TABLE public.page_views ALTER COLUMN "day" SET NOT NULL;
+            IF NOT tbl_exists THEN
+              RAISE NOTICE 'skipping — table will be created by db push';
+              RETURN;
             END IF;
+
+            SELECT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema='public' AND table_name='page_views' AND column_name='day'
+            ) INTO col_exists;
+            RAISE NOTICE 'day column exists: %', col_exists;
+
+            IF NOT col_exists THEN
+              ALTER TABLE public.page_views ADD COLUMN "day" DATE;
+              RAISE NOTICE 'ADDED day column (nullable)';
+            END IF;
+
+            UPDATE public.page_views
+               SET "day" = ("createdAt" AT TIME ZONE 'UTC')::date
+             WHERE "day" IS NULL;
+            GET DIAGNOSTICS null_count = ROW_COUNT;
+            RAISE NOTICE 'backfilled % rows', null_count;
+
+            DELETE FROM public.page_views
+             WHERE id IN (
+               SELECT id FROM (
+                 SELECT id, ROW_NUMBER() OVER (PARTITION BY ip, "day" ORDER BY id ASC) AS rn
+                   FROM public.page_views
+                  WHERE ip IS NOT NULL AND "day" IS NOT NULL
+               ) t WHERE t.rn > 1
+             );
+            GET DIAGNOSTICS dup_count = ROW_COUNT;
+            RAISE NOTICE 'deleted % duplicate rows', dup_count;
+
+            -- 혹시 ip 가 NULL 인 행이 있으면 unique constraint 랑 무관하게 그대로 둠.
+            -- day 를 NOT NULL 로 승격 전에 실패 방지 — 혹시 아직 NULL 인 행 있는지 확인.
+            IF EXISTS (SELECT 1 FROM public.page_views WHERE "day" IS NULL) THEN
+              DELETE FROM public.page_views WHERE "day" IS NULL;
+              RAISE NOTICE 'deleted remaining NULL-day rows';
+            END IF;
+
+            -- NOT NULL 승격 (이미 NOT NULL 이면 no-op)
+            BEGIN
+              ALTER TABLE public.page_views ALTER COLUMN "day" SET NOT NULL;
+              RAISE NOTICE 'day → NOT NULL';
+            EXCEPTION WHEN others THEN
+              RAISE NOTICE 'NOT NULL already set or other error: %', SQLERRM;
+            END;
           END $$;
+
+          \echo '>>> verify'
+          SELECT
+            (SELECT count(*) FROM public.page_views) AS total_rows,
+            (SELECT count(*) FROM public.page_views WHERE "day" IS NULL) AS null_days;
           SQL
 
       - name: Prisma db push (스키마 → Supabase)
