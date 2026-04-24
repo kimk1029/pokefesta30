@@ -121,6 +121,18 @@ jobs:
             EXCEPTION WHEN others THEN
               RAISE NOTICE 'NOT NULL already set or other error: %', SQLERRM;
             END;
+
+            -- trades.images JSONB 컬럼 추가 (nullable, 디폴트 없음 — 사진 선택 첨부)
+            IF EXISTS (
+              SELECT 1 FROM information_schema.tables
+              WHERE table_schema='public' AND table_name='trades'
+            ) AND NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema='public' AND table_name='trades' AND column_name='images'
+            ) THEN
+              ALTER TABLE public.trades ADD COLUMN "images" JSONB;
+              RAISE NOTICE 'ADDED trades.images column';
+            END IF;
           END $$;
 
           \echo '>>> verify'

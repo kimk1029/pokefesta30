@@ -251,12 +251,20 @@ export async function getReports(limit = 20): Promise<FeedItem[]> {
 /** 구 호환 alias */
 export const getFeed = getReports;
 
+function asImages(v: unknown): string[] {
+  if (Array.isArray(v)) return v.filter((u): u is string => typeof u === 'string' && u.length > 0);
+  return [];
+}
+
 export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trade[]> {
   try {
     const rows = await prisma.trade.findMany({
       where: filter === 'all' ? {} : { type: filter },
       orderBy: { bumpedAt: 'desc' },
-      include: { place: { select: { name: true } } },
+      include: {
+        place: { select: { name: true } },
+        author: { select: { name: true } },
+      },
     });
     return rows.map((r) => ({
       id: r.id,
@@ -268,6 +276,11 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
       price: r.price ?? '제안',
       kakaoId: r.kakaoId ?? null,
       bumpCount: r.bumpCount,
+      authorName: r.author?.name ?? '탈퇴',
+      authorEmoji: r.authorEmoji,
+      authorBgId: r.authorBgId,
+      authorFrameId: r.authorFrameId,
+      images: asImages((r as { images?: unknown }).images),
     }));
   } catch (err) {
     console.error('[getTrades]', err);
@@ -279,7 +292,10 @@ export async function getTradeById(id: number): Promise<TradeDetail | null> {
   try {
     const r = await prisma.trade.findUnique({
       where: { id },
-      include: { place: { select: { name: true } } },
+      include: {
+        place: { select: { name: true } },
+        author: { select: { name: true } },
+      },
     });
     if (!r) return null;
     return {
@@ -291,12 +307,14 @@ export async function getTradeById(id: number): Promise<TradeDetail | null> {
       place: r.place?.name ?? '',
       time: relTime(r.bumpedAt ?? r.createdAt),
       status: asTradeStatus(r.status),
+      authorName: r.author?.name ?? '탈퇴',
       authorEmoji: r.authorEmoji,
       authorBgId: r.authorBgId,
       authorFrameId: r.authorFrameId,
       authorId: r.authorId ?? null,
       kakaoId: r.kakaoId ?? null,
       bumpCount: r.bumpCount,
+      images: asImages((r as { images?: unknown }).images),
     };
   } catch (err) {
     console.error('[getTradeById]', err);

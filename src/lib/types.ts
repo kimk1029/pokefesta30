@@ -22,6 +22,12 @@ export interface Trade {
   price: string;
   kakaoId?: string | null;
   bumpCount?: number;
+  // 작성자 정보 — 카드/상세 렌더용
+  authorName?: string;
+  authorEmoji?: string;   // 아바타 id (snapshot)
+  authorBgId?: string;    // 배경 id (snapshot)
+  authorFrameId?: string; // 프레임 id (snapshot)
+  images?: string[];      // 첨부 사진 URL 배열
 }
 
 export type FeedKind = 'general' | 'report';

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { submitFeed, submitTrade } from '@/app/actions';
 import { useInventory } from '@/components/InventoryProvider';
+import { TradeImagePicker } from '@/components/TradeImagePicker';
 import { REWARDS } from '@/lib/rewards';
 import { AppBar } from '@/components/ui/AppBar';
 import { Chip } from '@/components/ui/Chip';
@@ -50,6 +51,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
   const [price, setPrice] = useState('');
   const [kakaoId, setKakaoId] = useState('');
   const [note, setNote] = useState('');
+  const [images, setImages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -77,6 +79,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
       fd.set('price', price);
       fd.set('avatar_id', avatarId);
       if (kakaoId) fd.set('kakao_id', kakaoId);
+      if (images.length > 0) fd.set('images', JSON.stringify(images));
       startTransition(async () => {
         try {
           await submitTrade(fd);
@@ -227,6 +230,12 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
               value={kakaoId}
               onChange={(e) => setKakaoId(e.target.value)}
             />
+          </div>
+          <div className="form-sect">
+            <div className="form-label">
+              📷 상품 사진 <span style={{ fontSize: 11, opacity: 0.6 }}>(선택)</span>
+            </div>
+            <TradeImagePicker value={images} onChange={setImages} max={5} />
           </div>
         </>
       )}

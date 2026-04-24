@@ -53,7 +53,7 @@ export default async function Page({ params }: Props) {
 
         <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.4 }}>{trade.title}</div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--muted)' }}>
           <ComposedAvatar
             avatar={trade.authorEmoji}
             bg={trade.authorBgId}
@@ -61,13 +61,48 @@ export default async function Page({ params }: Props) {
             size={48}
             fallback={trade.authorEmoji}
           />
-          <span>{trade.time}</span>
-          <span>·</span>
-          <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{formatPrice(trade.price)}</span>
-          <div style={{ marginLeft: 'auto' }}>
-            <BookmarkButton tradeId={trade.id} />
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>
+              {trade.authorName ?? '-'}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--ink3)', marginTop: 2 }}>{trade.time}</span>
           </div>
+          <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontWeight: 700, fontSize: 16 }}>
+            {formatPrice(trade.price)}
+          </span>
+          <BookmarkButton tradeId={trade.id} />
         </div>
+
+        {/* 사진 갤러리 */}
+        {trade.images && trade.images.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 6, paddingTop: 4 }}>
+            {trade.images.map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <a
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'block', aspectRatio: '1/1', overflow: 'hidden' }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`상품 사진 ${i + 1}`}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    background: 'var(--pap2)',
+                    boxShadow:
+                      '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+                  }}
+                />
+              </a>
+            ))}
+          </div>
+        )}
 
         {trade.body && (
           <div style={{ fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap', paddingTop: 8, borderTop: '1px solid var(--border)' }}>

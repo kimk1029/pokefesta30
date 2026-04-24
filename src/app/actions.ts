@@ -176,6 +176,20 @@ export async function submitTrade(formData: FormData): Promise<void> {
   const price = String(formData.get('price') ?? '').trim() || '제안';
   const kakaoId = String(formData.get('kakao_id') ?? '').trim() || null;
 
+  // 이미지 URL 배열 — WriteScreen 에서 미리 업로드 후 JSON 으로 전달
+  let images: string[] = [];
+  const imagesRaw = formData.get('images');
+  if (typeof imagesRaw === 'string' && imagesRaw) {
+    try {
+      const parsed = JSON.parse(imagesRaw) as unknown;
+      if (Array.isArray(parsed)) {
+        images = parsed.filter((u): u is string => typeof u === 'string' && u.length > 0).slice(0, 5);
+      }
+    } catch {
+      // ignore — 빈 배열로 처리
+    }
+  }
+
   if (!placeId) throw new Error('place_id required');
   if (!TRADE_TYPES.includes(rawType as TradeType)) {
     throw new Error(`invalid type: ${rawType}`);
@@ -214,7 +228,8 @@ export async function submitTrade(formData: FormData): Promise<void> {
         authorEmoji: authorTokenFromForm(formData, session),
         authorBgId: snapBg,
         authorFrameId: snapFrame,
-        bumpedAt: new Date(), // 최신 거래가 목록 최상단에 보이도록
+        bumpedAt: new Date(),
+        images: images.length > 0 ? (images as unknown as object) : undefined,
       },
     });
     if (authorId) {
