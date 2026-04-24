@@ -1,0 +1,25 @@
+{
+  "name": "pokefesta30-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p ${PORT:-3010}",
+    "build": "prisma generate && next build",
+    "start": "next start -p ${PORT:-3010}",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "next": "14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.16.5",
+    "@types/react": "18.3.5",
+    "@types/react-dom": "18.3.0",
+    "prisma": "^6.19.3",
+    "typescript": "5.5.4"
+  }
+}
