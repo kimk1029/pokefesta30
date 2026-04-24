@@ -1,50 +1,50 @@
 import Link from 'next/link';
+import { CardPriceChart } from '@/components/CardPriceChart';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { getCardHistory, getOrRefreshCardPrice, type PriceCurrent, type HistoryPoint } from '@/lib/cardPrices';
+import { CARDS_CATALOG, type CardGrade } from '@/lib/cardsCatalog';
+import { isEbayConfigured } from '@/lib/ebay';
 
 export const dynamic = 'force-dynamic';
 
-type Trend = 'up' | 'down' | 'flat';
+const GRADE_BG: Record<CardGrade, string> = {
+  S: 'var(--pur)', A: 'var(--blu)', B: 'var(--tel)', C: 'var(--grn-dk)',
+};
 
-interface CardPrice {
+function fmtMoney(n: number, currency: string): string {
+  const rounded = n >= 100 ? Math.round(n) : Math.round(n * 100) / 100;
+  const num = rounded.toLocaleString('en-US');
+  if (currency === 'USD') return `$${num}`;
+  if (currency === 'KRW') return `${num}₩`;
+  return `${num} ${currency}`;
+}
+
+interface CardRow {
   id: string;
   name: string;
   emoji: string;
-  grade: 'S' | 'A' | 'B' | 'C';
-  low: number;
-  avg: number;
-  high: number;
-  trend: Trend;
-  delta: number; // percent
-  volume: number;
+  grade: CardGrade;
+  ebayQuery: string;
+  price: PriceCurrent | null;
+  history: HistoryPoint[];
 }
 
-const CARDS: CardPrice[] = [
-  { id: 'karp-holo', name: '잉어킹 홀로 프레임',  emoji: '🖼', grade: 'S', low: 35000, avg: 55000, high: 80000, trend: 'up',   delta: 12.4, volume: 28 },
-  { id: 'rainbow',   name: '레인보우 프레임',       emoji: '🌈', grade: 'A', low: 12000, avg: 18000, high: 25000, trend: 'up',   delta: 4.7,  volume: 41 },
-  { id: 'prem-badge',name: '프리미엄 뱃지',         emoji: '🏅', grade: 'A', low: 7000,  avg: 11000, high: 15000, trend: 'flat', delta: 0.3,  volume: 63 },
-  { id: 'gold-badge',name: '황금 배지',             emoji: '🥇', grade: 'B', low: 3500,  avg: 5200,  high: 7000,  trend: 'up',   delta: 2.1,  volume: 102 },
-  { id: 'ball-skin', name: '몬스터볼 스킨',         emoji: '⚪', grade: 'B', low: 2500,  avg: 3800,  high: 5500,  trend: 'down', delta: -5.2, volume: 138 },
-  { id: 'push-x3',   name: '푸시 알림권 x3',         emoji: '📣', grade: 'C', low: 500,   avg: 700,   high: 950,   trend: 'flat', delta: -0.1, volume: 211 },
-  { id: 'sticker',   name: '스티커 팩',             emoji: '🌟', grade: 'C', low: 150,   avg: 280,   high: 400,   trend: 'down', delta: -8.4, volume: 340 },
-  { id: 'karp-promo',name: '잉어킹 프로모 코드',    emoji: '🎫', grade: 'S', low: 13000, avg: 16500, high: 22000, trend: 'up',   delta: 6.9,  volume: 79 },
-];
+export default async function Page() {
+  const rows: CardRow[] = await Promise.all(
+    CARDS_CATALOG.map(async (c) => {
+      const [price, history] = await Promise.all([
+        getOrRefreshCardPrice(c.id, c.ebayQuery),
+        getCardHistory(c.id, 30),
+      ]);
+      return { ...c, price, history };
+    }),
+  );
 
-const GRADE_BG: Record<CardPrice['grade'], string> = {
-  S: 'var(--pur)', A: 'var(--blu)', B: 'var(--tel)', C: 'var(--grn-dk)',
-};
-const TREND_COLOR: Record<Trend, string> = {
-  up: 'var(--red)', down: 'var(--blu)', flat: 'var(--ink3)',
-};
-const TREND_ICON: Record<Trend, string> = { up: '▲', down: '▼', flat: '―' };
+  const configured = isEbayConfigured();
+  const totalSamples = rows.reduce((s, r) => s + (r.price?.sampleN ?? 0), 0);
 
-function fmt(n: number): string {
-  return n.toLocaleString('ko-KR');
-}
-
-export default function Page() {
-  const totalVolume = CARDS.reduce((s, c) => s + c.volume, 0);
   return (
     <>
       <StatusBar />
@@ -52,7 +52,28 @@ export default function Page() {
 
       <div style={{ height: 14 }} />
 
-      {/* 요약 헤더 */}
+      {!configured && (
+        <div
+          style={{
+            margin: '0 var(--gap) var(--cg)',
+            padding: '10px 12px',
+            background: 'var(--yel)',
+            fontFamily: 'var(--f1)',
+            fontSize: 9,
+            color: 'var(--ink)',
+            letterSpacing: 0.3,
+            lineHeight: 1.7,
+            boxShadow:
+              '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+          }}
+        >
+          ⚠ eBay API 키가 설정되지 않았습니다.<br />
+          <code style={{ fontSize: 8 }}>EBAY_CLIENT_ID / EBAY_CLIENT_SECRET</code> 를 .env 에 추가하고 재배포하세요.
+          <br />
+          설정 방법: <code style={{ fontSize: 8 }}>docs/ebay-setup.md</code>
+        </div>
+      )}
+
       <div
         style={{
           margin: '0 var(--gap) var(--cg)',
@@ -69,69 +90,86 @@ export default function Page() {
         <div style={{ fontSize: 32 }}>📊</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: 1, color: 'var(--yel)' }}>
-            실시간 시세
+            eBay 실시간 시세
           </div>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.3, color: 'rgba(255,255,255,.7)', marginTop: 6, lineHeight: 1.6 }}>
-            오늘 거래량 {fmt(totalVolume)}건 · 최근 24시간 체결 기준<br />
-            가격은 포인트(P) 단위 · 참고용 데이터입니다
+          <div
+            style={{
+              fontFamily: 'var(--f1)',
+              fontSize: 9,
+              letterSpacing: 0.3,
+              color: 'rgba(255,255,255,.7)',
+              marginTop: 6,
+              lineHeight: 1.6,
+            }}
+          >
+            호가 샘플 총 {totalSamples.toLocaleString()}건 · 10분 캐시<br />
+            Browse API 기준 · 체결가(sold) 아님
           </div>
         </div>
       </div>
 
-      {/* 시세 리스트 */}
       <div className="sect">
-        <SectionTitle title="카드별 시세" right={<span className="more">{CARDS.length}종</span>} />
-        {CARDS.map((c) => (
-          <div
-            key={c.id}
-            className="shop-card"
-            style={{ cursor: 'default' }}
-          >
-            <div className="sh-icon" style={{ background: GRADE_BG[c.grade], color: 'var(--white)' }}>
-              {c.emoji}
-            </div>
-            <div className="sh-main">
-              <div
-                className="sh-title"
-                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-              >
-                <span
-                  style={{
-                    fontFamily: 'var(--f1)',
-                    fontSize: 9,
-                    padding: '2px 5px',
-                    background: GRADE_BG[c.grade],
-                    color: 'var(--white)',
-                    letterSpacing: 0.5,
-                    boxShadow:
-                      '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-                  }}
+        <SectionTitle title="카드별 시세" right={<span className="more">{rows.length}종</span>} />
+        {rows.map((c) => {
+          const price = c.price;
+          const avgText = price ? fmtMoney(price.avg, price.currency) : '—';
+          const rangeText = price
+            ? `${fmtMoney(price.low, price.currency)} ~ ${fmtMoney(price.high, price.currency)} · ${price.sampleN}건`
+            : (configured ? '데이터 없음' : '미설정');
+          const trendUp = c.history.length >= 2 && c.history[c.history.length - 1].avg >= c.history[0].avg;
+          return (
+            <div key={c.id} className="shop-card" style={{ cursor: 'default' }}>
+              <div className="sh-icon" style={{ background: GRADE_BG[c.grade], color: 'var(--white)' }}>
+                {c.emoji}
+              </div>
+              <div className="sh-main">
+                <div className="sh-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--f1)',
+                      fontSize: 9,
+                      padding: '2px 5px',
+                      background: GRADE_BG[c.grade],
+                      color: 'var(--white)',
+                      letterSpacing: 0.5,
+                      boxShadow:
+                        '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                    }}
+                  >
+                    {c.grade}
+                  </span>
+                  {c.name}
+                </div>
+                <div
+                  className="sh-desc"
+                  style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 6 }}
                 >
-                  {c.grade}
+                  {rangeText}
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <CardPriceChart history={c.history} width={140} height={36} />
+                </div>
+              </div>
+              <div className="sh-right">
+                <span className="sh-price" style={{ color: trendUp ? 'var(--red)' : 'var(--blu)' }}>
+                  {avgText}
                 </span>
-                {c.name}
-              </div>
-              <div className="sh-desc" style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 6 }}>
-                {fmt(c.low)} ~ {fmt(c.high)} · 오늘 {c.volume}건
+                {price && (
+                  <span
+                    style={{
+                      fontFamily: 'var(--f1)',
+                      fontSize: 8,
+                      color: 'var(--ink3)',
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    med {fmtMoney(price.median, price.currency)}
+                  </span>
+                )}
               </div>
             </div>
-            <div className="sh-right">
-              <span className="sh-price" style={{ color: TREND_COLOR[c.trend] }}>
-                🪙 {fmt(c.avg)}
-              </span>
-              <span
-                style={{
-                  fontFamily: 'var(--f1)',
-                  fontSize: 9,
-                  color: TREND_COLOR[c.trend],
-                  letterSpacing: 0.3,
-                }}
-              >
-                {TREND_ICON[c.trend]} {c.delta >= 0 ? '+' : ''}{c.delta.toFixed(1)}%
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div
@@ -149,7 +187,7 @@ export default function Page() {
             '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
         }}
       >
-        💡 구매 희망가를 참고하려면{' '}
+        💡 차트는 10분 단위 스냅샷 누적으로 채워집니다.{' '}
         <Link href="/trade" style={{ color: 'var(--red)', textDecoration: 'underline' }}>
           거래 게시판 ▶
         </Link>

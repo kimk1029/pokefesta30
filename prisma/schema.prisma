@@ -124,6 +124,23 @@ model Message {
   @@map("messages")
 }
 
+/// 카드 시세 스냅샷 — eBay Browse API 결과 캐시 + 히스토리 차트용.
+/// 10분 이내 스냅샷이면 재사용, 그 이상이면 새로 fetch 후 한 줄 추가.
+model CardPriceSnapshot {
+  id        Int      @id @default(autoincrement())
+  cardId    String
+  currency  String   @default("USD")
+  low       Float
+  avg       Float
+  high      Float
+  median    Float
+  sampleN   Int
+  fetchedAt DateTime @default(now())
+
+  @@index([cardId, fetchedAt(sort: Desc)])
+  @@map("card_price_snapshots")
+}
+
 model Bookmark {
   id        Int      @id @default(autoincrement())
   userId    String
