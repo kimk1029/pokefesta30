@@ -93,14 +93,15 @@ function toFeedPost(r: FeedRow): FeedPost {
 /* reads                                                               */
 /* ------------------------------------------------------------------ */
 
-/** 첫 배포 / 빈 Supabase 를 위한 장소 기본 시드. */
+/** 첫 배포 / 빈 Supabase 를 위한 장소 기본 시드. 스탬프 6곳 + 참고 장소. */
 const DEFAULT_PLACES = [
-  { id: 'seongsu',  name: '성수역 부근',       emoji: '🚇', bg: '#E63946' },
-  { id: 'seoulsup', name: '서울숲역 부근',     emoji: '🌳', bg: '#4ADE80' },
-  { id: 'secret',   name: '시크릿 포레스트',   emoji: '🌲', bg: '#3A5BD9' },
-  { id: 'metamong', name: '메타몽 놀이터',     emoji: '🎪', bg: '#FFD23F' },
-  { id: 'shoe',     name: '구두테마공원',       emoji: '👟', bg: '#FB923C' },
-  { id: 'rainbow',  name: '무지개어린이공원',   emoji: '🌈', bg: '#FAE8FF' },
+  { id: 'shoe',     name: '성수 구두 테마공원',      emoji: '👟', bg: '#FB923C' },
+  { id: 'trend',    name: '포켓몬 30주년 파티 팝업', emoji: '🎊', bg: '#FFD23F' },
+  { id: 'metamong', name: '메타몽 놀이터',          emoji: '🎪', bg: '#4ADE80' },
+  { id: 'rainbow',  name: '어린이 무지개 공원',     emoji: '🌈', bg: '#6FC0E5' },
+  { id: 'secret',   name: '포켓몬 시크릿 포레스트',  emoji: '🌲', bg: '#6B3FA0' },
+  { id: 'seongsu',  name: '성수역 부근',            emoji: '🚇', bg: '#E63946' },
+  { id: 'seoulsup', name: '서울숲역 부근',          emoji: '🌳', bg: '#4ADE80' },
 ];
 
 export async function getPlaces(): Promise<Place[]> {

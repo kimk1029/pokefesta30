@@ -193,6 +193,19 @@ export function MapView({ places, trades }: Props) {
                 {spot.subtitle}
               </div>
             )}
+            {spot.address && (
+              <div
+                style={{
+                  fontFamily: 'var(--f1)',
+                  fontSize: 7,
+                  color: 'var(--ink3)',
+                  marginTop: 4,
+                  letterSpacing: 0.3,
+                }}
+              >
+                📍 {spot.address}
+              </div>
+            )}
             {matchedPlace && (
               <div
                 style={{
