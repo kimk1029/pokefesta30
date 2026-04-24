@@ -6,6 +6,7 @@ import { useToast } from '@/components/ToastProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { ORIPA_MACHINE, ORIPA_TICKETS } from '@/lib/data';
+import { loadOripaTickets, saveOripaTickets } from '@/lib/oripaStorage';
 import type { OripaGrade, OripaTicket } from '@/lib/types';
 
 interface Result {
@@ -42,6 +43,7 @@ export function OripaPlayScreen() {
   const toast = useToast();
 
   const qty = Math.max(1, Math.min(10, Number(sp.get('qty') ?? '1') || 1));
+  const packId = sp.get('pack') ?? 'default';
 
   const [tickets, setTickets] = useState<OripaTicket[]>(() => ORIPA_TICKETS);
   const [selected, setSelected] = useState<number[]>([]);
@@ -58,6 +60,14 @@ export function OripaPlayScreen() {
     },
     [],
   );
+
+  // 저장된 뽑기 이력 복원 — 초기 SSR 렌더(ORIPA_TICKETS) 뒤 한 번 덮어쓰기
+  useEffect(() => {
+    const stored = loadOripaTickets(packId);
+    if (stored && stored.length === ORIPA_TICKETS.length) {
+      setTickets(stored);
+    }
+  }, [packId]);
 
   const remaining = useMemo(() => tickets.filter((t) => !t.drawn).length, [tickets]);
   const selectionDone = selected.length === qty;
@@ -99,7 +109,9 @@ export function OripaPlayScreen() {
         drawnBy: '나',
         drawnAt: '방금 전',
       };
-      setTickets([...nextTickets]);
+      const snapshot = [...nextTickets];
+      setTickets(snapshot);
+      saveOripaTickets(packId, snapshot);
       await delay(900);
       if (unmountedRef.current) return;
       setActiveReveal(null);
