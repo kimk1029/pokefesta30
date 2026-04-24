@@ -1,12 +1,11 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useToast } from '@/components/ToastProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { ORIPA_MACHINE, ORIPA_TICKETS } from '@/lib/data';
-import { loadOripaTickets, saveOripaTickets } from '@/lib/oripaStorage';
+import { ORIPA_MACHINE } from '@/lib/data';
 import type { OripaGrade, OripaTicket } from '@/lib/types';
 
 interface Result {
@@ -16,43 +15,34 @@ interface Result {
   emoji: string;
 }
 
-const GRADES: Array<{
-  g: 'S' | 'A' | 'B' | 'C';
-  weight: number;
-  name: string;
-  emoji: string;
-}> = [
-  { g: 'S', weight: 3,  name: '잉어킹 홀로 프레임', emoji: '🖼' },
-  { g: 'A', weight: 12, name: '프리미엄 뱃지',       emoji: '🏅' },
-  { g: 'B', weight: 25, name: '몬스터볼 스킨',       emoji: '⚪' },
-  { g: 'C', weight: 60, name: '스티커 팩',           emoji: '🌟' },
-];
-
-function pickGrade(seed: number) {
-  let r = Math.floor((seed * 101) % 100);
-  for (const g of GRADES) {
-    if (r < g.weight) return g;
-    r -= g.weight;
-  }
-  return GRADES[GRADES.length - 1];
+interface PullResponse {
+  results: Array<{ index: number; grade: OripaGrade; prizeName: string; prizeEmoji: string }>;
+  alreadyDrawn: number[];
 }
 
-export function OripaPlayScreen() {
+const POLL_MS = 8_000;
+
+interface Props {
+  packId: string;
+  qty: number;
+  initialTickets: OripaTicket[];
+}
+
+export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
   const router = useRouter();
-  const sp = useSearchParams();
   const toast = useToast();
 
-  const qty = Math.max(1, Math.min(10, Number(sp.get('qty') ?? '1') || 1));
-  const packId = sp.get('pack') ?? 'default';
-
-  const [tickets, setTickets] = useState<OripaTicket[]>(() => ORIPA_TICKETS);
+  const [tickets, setTickets] = useState<OripaTicket[]>(initialTickets);
   const [selected, setSelected] = useState<number[]>([]);
-  const [revealing, setRevealing] = useState<number[]>([]); // 현재 오픈 애니메이션 중인 index
+  const [revealing, setRevealing] = useState<number[]>([]);
   const [revealStage, setRevealStage] = useState<'idle' | 'running' | 'done'>('idle');
   const [results, setResults] = useState<Result[]>([]);
   const [activeReveal, setActiveReveal] = useState<Result | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const unmountedRef = useRef(false);
+  const stageRef = useRef(revealStage);
+
+  stageRef.current = revealStage;
 
   useEffect(
     () => () => {
@@ -61,20 +51,39 @@ export function OripaPlayScreen() {
     [],
   );
 
-  // 저장된 뽑기 이력 복원 — 초기 SSR 렌더(ORIPA_TICKETS) 뒤 한 번 덮어쓰기
-  useEffect(() => {
-    const stored = loadOripaTickets(packId);
-    if (stored && stored.length === ORIPA_TICKETS.length) {
-      setTickets(stored);
+  // 서버 티켓 fetch — 폴링으로 다른 유저 뽑기 반영
+  const refresh = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/oripa/${packId}/tickets`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const data = (await r.json()) as { data: OripaTicket[] };
+      if (!unmountedRef.current && Array.isArray(data.data)) {
+        setTickets((prev) => {
+          // 길이 보존 + 현재 reveal 중인 index 는 서버가 아직 덮어쓰기 전일 수 있으니 보존
+          const revealingSet = new Set(stageRef.current === 'running' ? [] : []);
+          if (prev.length !== data.data.length) return data.data;
+          return data.data;
+        });
+      }
+    } catch {
+      // ignore
     }
   }, [packId]);
+
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (stageRef.current === 'running') return;
+      void refresh();
+    }, POLL_MS);
+    return () => clearInterval(iv);
+  }, [refresh]);
 
   const remaining = useMemo(() => tickets.filter((t) => !t.drawn).length, [tickets]);
   const selectionDone = selected.length === qty;
 
   const toggleSelect = (idx: number) => {
     if (revealStage !== 'idle') return;
-    if (tickets[idx].drawn) return;
+    if (tickets[idx]?.drawn) return;
     setSelected((prev) => {
       if (prev.includes(idx)) return prev.filter((x) => x !== idx);
       if (prev.length >= qty) {
@@ -88,38 +97,84 @@ export function OripaPlayScreen() {
   const runReveals = async () => {
     if (selected.length !== qty || revealStage !== 'idle') return;
     setRevealStage('running');
-    const nextTickets = [...tickets];
+
+    // 서버에 실제 pull 요청 — 원자적 업데이트
+    let payload: PullResponse;
+    try {
+      const res = await fetch(`/api/oripa/${packId}/pull`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ indices: selected }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const msg =
+          res.status === 401
+            ? '로그인 후 이용 가능합니다'
+            : (err as { error?: string }).error ?? '뽑기 실패';
+        toast.error(msg);
+        setRevealStage('idle');
+        void refresh();
+        return;
+      }
+      payload = (await res.json()) as PullResponse;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '네트워크 오류');
+      setRevealStage('idle');
+      void refresh();
+      return;
+    }
+
+    const { results: serverResults, alreadyDrawn } = payload;
+
+    if (serverResults.length === 0) {
+      toast.error('다른 유저가 먼저 뽑았어요');
+      setSelected([]);
+      setRevealStage('idle');
+      void refresh();
+      return;
+    }
+
+    // 성공한 티켓 하나씩 애니메이션
     const acc: Result[] = [];
-    for (let i = 0; i < selected.length; i++) {
-      const idx = selected[i];
-      const g = pickGrade(idx + Date.now() + i);
-      // 긴장감: 뽑기 전 500ms, 공개 후 900ms
-      setRevealing((r) => [...r, idx]);
+    const nextTickets = [...tickets];
+    for (let i = 0; i < serverResults.length; i++) {
+      const pr = serverResults[i];
+      setRevealing((r) => [...r, pr.index]);
       await delay(500);
       if (unmountedRef.current) return;
-      const r: Result = { index: idx, grade: g.g, name: g.name, emoji: g.emoji };
+      const r: Result = {
+        index: pr.index,
+        grade: pr.grade,
+        name: pr.prizeName,
+        emoji: pr.prizeEmoji,
+      };
       acc.push(r);
       setActiveReveal(r);
-      nextTickets[idx] = {
-        ...nextTickets[idx],
+      nextTickets[pr.index] = {
+        ...nextTickets[pr.index],
         drawn: true,
-        grade: g.g,
-        prizeName: g.name,
-        prizeEmoji: g.emoji,
+        grade: pr.grade,
+        prizeName: pr.prizeName,
+        prizeEmoji: pr.prizeEmoji,
         drawnBy: '나',
         drawnAt: '방금 전',
       };
-      const snapshot = [...nextTickets];
-      setTickets(snapshot);
-      saveOripaTickets(packId, snapshot);
+      setTickets([...nextTickets]);
       await delay(900);
       if (unmountedRef.current) return;
       setActiveReveal(null);
-      setRevealing((rv) => rv.filter((x) => x !== idx));
+      setRevealing((rv) => rv.filter((x) => x !== pr.index));
     }
+
     setResults(acc);
     setRevealStage('done');
     setShowSummary(true);
+    if (alreadyDrawn.length > 0) {
+      toast.info(`${alreadyDrawn.length}장은 이미 다른 유저가 뽑았어요`);
+    }
+    // 서버 상태 재동기화
+    void refresh();
   };
 
   const closeSummary = () => {
@@ -127,7 +182,7 @@ export function OripaPlayScreen() {
     setSelected([]);
     setResults([]);
     setRevealStage('idle');
-    toast.success(`${qty}장 뽑기 완료`);
+    toast.success(`${results.length}장 뽑기 완료`);
   };
 
   return (
@@ -193,7 +248,6 @@ export function OripaPlayScreen() {
         })}
       </div>
 
-      {/* 가이드 / CTA */}
       <div
         style={{
           margin: '0 var(--gap) var(--cg)',
@@ -228,13 +282,9 @@ export function OripaPlayScreen() {
 
       <div className="bggap" />
 
-      {/* 개별 공개 애니메이션 — 풀스크린 오버레이 (1장씩 긴장감) */}
       {activeReveal && (
         <div className="pull-overlay" style={{ animation: 'pf-fade-in 200ms steps(4) backwards' }}>
-          <div
-            className="pull-card"
-            style={{ animation: 'pf-reveal-pop 500ms steps(6) backwards' }}
-          >
+          <div className="pull-card" style={{ animation: 'pf-reveal-pop 500ms steps(6) backwards' }}>
             <div className={`pull-tier g-${activeReveal.grade}`}>{activeReveal.grade}상 당첨</div>
             <div className="pull-emoji" style={{ fontSize: 72 }}>
               {activeReveal.emoji}
@@ -245,12 +295,11 @@ export function OripaPlayScreen() {
         </div>
       )}
 
-      {/* 최종 결과 요약 모달 */}
       {showSummary && (
         <div className="pull-overlay" onClick={closeSummary}>
           <div className="pull-card" onClick={(e) => e.stopPropagation()}>
             <div className="pull-tier" style={{ background: 'var(--ink)', color: 'var(--yel)' }}>
-              {qty}장 뽑기 결과
+              {results.length}장 뽑기 결과
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8, width: '100%' }}>
               {results.map((r, i) => (

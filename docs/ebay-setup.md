@@ -23,7 +23,7 @@ EBAY_ENV=production   # 또는 sandbox (sandbox 는 별도 sandbox 키셋 필요
 
 ## 3. DB 마이그레이션
 
-`CardPriceSnapshot` 모델이 새로 추가되었습니다. 스냅샷 테이블 생성 필요:
+`CardPriceSnapshot` + `OripaTicket` 모델이 새로 추가되었습니다. 테이블 생성 필요:
 
 ```bash
 # 개발 환경

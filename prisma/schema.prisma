@@ -33,6 +33,7 @@ model User {
   bookmarks Bookmark[]
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
+  oripaTickets     OripaTicket[]
 
   @@map("users")
 }
@@ -122,6 +123,29 @@ model Message {
   @@index([senderId, receiverId, createdAt])
   @@index([tradeId])
   @@map("messages")
+}
+
+/// 오리파 티켓 100칸 — 모든 사용자가 공유하는 서버 상태.
+/// packId 별로 (index 0..99) 쌍은 유일. 첫 GET 시 없으면 자동 시드.
+/// pull 은 updateMany(where drawn:false) 로 원자적 처리 → 경쟁 시 한 명만 성공.
+model OripaTicket {
+  id         Int      @id @default(autoincrement())
+  packId     String
+  index      Int
+  drawn      Boolean  @default(false)
+  grade      String?  // 'S' | 'A' | 'B' | 'C'
+  prizeName  String?
+  prizeEmoji String?
+  drawnById  String?
+  drawnBy    User?    @relation(fields: [drawnById], references: [id], onDelete: SetNull)
+  drawnByName String?
+  drawnAt    DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([packId, index])
+  @@index([packId, drawn])
+  @@map("oripa_tickets")
 }
 
 /// 카드 시세 스냅샷 — eBay Browse API 결과 캐시 + 히스토리 차트용.
