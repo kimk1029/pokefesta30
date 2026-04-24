@@ -29,14 +29,20 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    const user = await prisma.user.update({
+    // 유저 row 가 아직 없을 수 있음 (OAuth 첫 로그인 직후) — upsert 로 안전 처리
+    const user = await prisma.user.upsert({
       where: { id: session.user.id },
-      data: { name },
+      update: { name },
+      create: { id: session.user.id, name },
       select: { id: true, name: true },
     });
     return NextResponse.json({ data: user });
   } catch (err) {
-    console.error('[api.me.name]', err);
-    return NextResponse.json({ error: 'internal' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[api.me.name]', msg);
+    if (msg.includes('Unique constraint')) {
+      return NextResponse.json({ error: '이미 사용 중인 닉네임입니다.' }, { status: 409 });
+    }
+    return NextResponse.json({ error: '서버 오류: ' + msg }, { status: 500 });
   }
 }
