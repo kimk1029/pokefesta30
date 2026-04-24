@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { KakaoMapView } from './KakaoMapView';
 import { NaverMapView } from './NaverMapView';
 import { CongBadge } from './ui/CongBadge';
 import { MapButton } from './ui/MapButton';
@@ -9,11 +8,10 @@ import { Segmented } from './ui/Segmented';
 import { STAMP_SPOTS } from '@/lib/stamps';
 import type { Place, Trade } from '@/lib/types';
 
-type MapMode = 'summary' | 'kakao' | 'naver';
+type MapMode = 'summary' | 'naver';
 const MAP_TABS = [
-  { id: 'summary' as const, label: '요약' },
-  { id: 'kakao' as const,   label: '카카오' },
-  { id: 'naver' as const,   label: '네이버' },
+  { id: 'summary' as const, label: '요약 지도' },
+  { id: 'naver' as const,   label: '실제 지도' },
 ];
 
 /**
@@ -50,9 +48,7 @@ export function MapView({ places, trades }: Props) {
         <Segmented items={MAP_TABS} value={mode} onChange={setMode} />
       </div>
 
-      {mode === 'kakao' ? (
-        <KakaoMapView selNo={selNo} onSelect={setSelNo} />
-      ) : mode === 'naver' ? (
+      {mode === 'naver' ? (
         <NaverMapView selNo={selNo} onSelect={setSelNo} />
       ) : (
       <div className="map-wrap">

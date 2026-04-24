@@ -4,15 +4,22 @@ import { useEffect, useRef, useState } from 'react';
 import { STAMP_SPOTS } from '@/lib/stamps';
 
 /**
- * 네이버 지도 (NCP Maps) — 실제 지도에 6개 스탬프 핀 표시.
+ * 네이버 지도 (NCP Web Dynamic Map v3) — 6개 스탬프 핀 표시.
  *
  * 환경변수:
- *   NEXT_PUBLIC_NCP_MAP_CLIENT_ID  (필수)
+ *   NEXT_PUBLIC_NCP_MAP_CLIENT_ID  = NCP 콘솔에서 발급받은 "Client ID"
+ *   (※ NCP 콘솔에서는 "Client ID" 로 표시되지만, 실제 SDK URL 파라미터명은 ncpKeyId 임)
  *
- * NCP 콘솔에서 "Maps (Web)" 상품 신청 후, Application 등록 → Client ID 발급.
- * "서비스 URL" 에 배포 도메인 (예: https://poke-30.com) 을 등록해야 요청이 차단 안 됨.
+ * NCP 설정 체크리스트:
+ *   1) console.ncloud.com → Services → AI·Application Service → Maps → 이용신청
+ *   2) Application 등록 (신규 등록):
+ *        - 서비스 종류: Web Dynamic Map 체크
+ *        - 서비스 환경: Web → "URL" 에 https://poke-30.com / https://www.poke-30.com /
+ *          http://localhost:3000 세 줄 모두 등록 (도메인 불일치면 401)
+ *   3) 등록 후 "인증 정보" 에서 Client ID 복사 → Vercel env 에 붙이기
  *
- * 문서: https://api.ncloud-docs.com/docs/ko/application-maps-overview
+ * 공식 예제:
+ *   https://github.com/navermaps/maps.js.ncp/blob/master/index.html
  */
 
 interface Props {
@@ -43,23 +50,34 @@ interface NaverMarker {
 }
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID ?? '';
-const SDK_SRC = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${CLIENT_ID}`;
+// ⚠ 파라미터 이름: ncpKeyId (공식 SDK 파라미터명). NCP 콘솔 라벨은 "Client ID" 인데 파라미터는 keyId 다.
+const SDK_BASE = 'https://oapi.map.naver.com/openapi/v3/maps.js';
+const SDK_SRC = `${SDK_BASE}?ncpKeyId=${CLIENT_ID}`;
 
 function loadSdk(): Promise<void> {
   if (typeof window === 'undefined') return Promise.reject(new Error('ssr'));
   if (window.naver?.maps) return Promise.resolve();
   return new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[src^="${SDK_SRC.split('?')[0]}"]`);
+    // 같은 도메인으로 이미 <script> 가 있는지 확인 — 재주입 방지
+    const existing = document.querySelector<HTMLScriptElement>(`script[src^="${SDK_BASE}"]`);
     if (existing) {
+      if (window.naver?.maps) { resolve(); return; }
       existing.addEventListener('load', () => resolve());
-      existing.addEventListener('error', () => reject(new Error('sdk load failed')));
+      existing.addEventListener('error', () => reject(new Error('sdk load failed (existing tag)')));
       return;
     }
     const s = document.createElement('script');
     s.src = SDK_SRC;
     s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('sdk load failed'));
+    s.onload = () => {
+      // 로드 후 window.naver.maps 가 실제로 있는지 확인 — 인증 실패면 없음
+      if (window.naver?.maps) {
+        resolve();
+      } else {
+        reject(new Error('SDK loaded but window.naver.maps is undefined — 인증/도메인 오류 가능성'));
+      }
+    };
+    s.onerror = () => reject(new Error('script 401/403 or network error'));
     document.head.appendChild(s);
   });
 }
@@ -69,6 +87,7 @@ export function NaverMapView({ selNo, onSelect }: Props) {
   const mapRef = useRef<NaverMap | null>(null);
   const markersRef = useRef<NaverMarker[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'nokey'>('loading');
+  const [errDetail, setErrDetail] = useState<string>('');
 
   useEffect(() => {
     if (!CLIENT_ID) {
@@ -76,6 +95,7 @@ export function NaverMapView({ selNo, onSelect }: Props) {
       return;
     }
     let cancelled = false;
+    console.debug('[NaverMap] SDK src =', SDK_SRC);
     loadSdk()
       .then(() => {
         if (cancelled || !containerRef.current || !window.naver?.maps) return;
@@ -92,7 +112,12 @@ export function NaverMapView({ selNo, onSelect }: Props) {
 
         setStatus('ready');
       })
-      .catch(() => { if (!cancelled) setStatus('error'); });
+      .catch((e: Error) => {
+        if (cancelled) return;
+        console.error('[NaverMap] load failed:', e.message);
+        setErrDetail(e.message);
+        setStatus('error');
+      });
 
     return () => {
       cancelled = true;
@@ -121,10 +146,20 @@ export function NaverMapView({ selNo, onSelect }: Props) {
           }}
         >
           {status === 'loading' && '🗺 네이버 지도 불러오는 중...'}
-          {status === 'error' && '지도를 불러오지 못했어요. 네트워크/Client ID 확인.'}
+          {status === 'error' && (
+            <div>
+              지도 로드 실패
+              <br />
+              <span style={{ fontSize: 8, color: 'var(--ink3)' }}>{errDetail}</span>
+              <br />
+              <span style={{ fontSize: 8, color: 'var(--ink3)' }}>
+                NCP 콘솔 → Web 서비스 URL 등록 확인
+              </span>
+            </div>
+          )}
           {status === 'nokey' && (
             <>
-              네이버 지도 키가 설정되지 않았습니다.
+              네이버 지도 Client ID 가 설정되지 않았습니다.
               <br />
               <span style={{ fontSize: 8, color: 'var(--ink3)' }}>NEXT_PUBLIC_NCP_MAP_CLIENT_ID</span>
             </>
