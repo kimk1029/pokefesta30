@@ -1,10 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+import { KakaoMapView } from './KakaoMapView';
 import { CongBadge } from './ui/CongBadge';
 import { MapButton } from './ui/MapButton';
+import { Segmented } from './ui/Segmented';
 import { STAMP_SPOTS } from '@/lib/stamps';
 import type { Place, Trade } from '@/lib/types';
+
+type MapMode = 'summary' | 'real';
+const MAP_TABS = [
+  { id: 'summary' as const, label: '요약 지도' },
+  { id: 'real' as const,    label: '실제 지도' },
+];
 
 /**
  * 스탬프 랠리 6개 지점 좌표 (지도 내 %).
@@ -30,11 +38,19 @@ interface Props {
 
 export function MapView({ places, trades }: Props) {
   const [selNo, setSelNo] = useState<number>(1);
+  const [mode, setMode] = useState<MapMode>('summary');
   const spot = STAMP_SPOTS.find((s) => s.no === selNo) ?? STAMP_SPOTS[0];
   const matchedPlace: Place | undefined = places.find((p) => p.id === spot.placeId);
 
   return (
     <>
+      <div style={{ margin: '0 var(--gap) 10px' }}>
+        <Segmented items={MAP_TABS} value={mode} onChange={setMode} />
+      </div>
+
+      {mode === 'real' ? (
+        <KakaoMapView selNo={selNo} onSelect={setSelNo} />
+      ) : (
       <div className="map-wrap">
         <svg
           className="map-svg"
@@ -125,6 +141,7 @@ export function MapView({ places, trades }: Props) {
           </span>
         </div>
       </div>
+      )}
 
       <div className="map-info">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>

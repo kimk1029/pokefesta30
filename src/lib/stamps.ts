@@ -8,15 +8,17 @@ export interface StampSpot {
   subtitle?: string;
   emoji: string;
   bg: string;
+  /** 카카오 지도 마커용 — 성수 일대 근사 좌표 */
+  coord: { lat: number; lng: number };
 }
 
 export const STAMP_SPOTS: StampSpot[] = [
-  { no: 1, placeId: 'rainbow',  name: '메타몽 놀이터',     subtitle: '무지개 어린이공원',          emoji: '🎪', bg: '#FFD23F' },
-  { no: 2, placeId: 'trend',    name: '트렌드 팟',         subtitle: '올리브영 성수',               emoji: '💄', bg: '#FB923C' },
-  { no: 3, placeId: 'shoe',     name: '성수 어린이 테마공원',                                       emoji: '🎠', bg: '#4ADE80' },
-  { no: 4, placeId: 'ddukseom', name: '뚝섬역 주변',       subtitle: '한강공원 인접',               emoji: '🚇', bg: '#6FC0E5' },
-  { no: 5, placeId: 'seongsu',  name: '성수역 주변',       subtitle: '성수동 중심부',               emoji: '🌆', bg: '#E63946' },
-  { no: 6, placeId: 'secret',   name: '서울숲 은행나무길', subtitle: '포켓몬 시크릿 포레스트',      emoji: '🌲', bg: '#6B3FA0' },
+  { no: 1, placeId: 'rainbow',  name: '메타몽 놀이터',     subtitle: '무지개 어린이공원',          emoji: '🎪', bg: '#FFD23F', coord: { lat: 37.5412, lng: 127.0538 } },
+  { no: 2, placeId: 'trend',    name: '트렌드 팟',         subtitle: '올리브영 성수',               emoji: '💄', bg: '#FB923C', coord: { lat: 37.5440, lng: 127.0561 } },
+  { no: 3, placeId: 'shoe',     name: '성수 어린이 테마공원',                                       emoji: '🎠', bg: '#4ADE80', coord: { lat: 37.5412, lng: 127.0623 } },
+  { no: 4, placeId: 'ddukseom', name: '뚝섬역 주변',       subtitle: '한강공원 인접',               emoji: '🚇', bg: '#6FC0E5', coord: { lat: 37.5472, lng: 127.0472 } },
+  { no: 5, placeId: 'seongsu',  name: '성수역 주변',       subtitle: '성수동 중심부',               emoji: '🌆', bg: '#E63946', coord: { lat: 37.5447, lng: 127.0557 } },
+  { no: 6, placeId: 'secret',   name: '서울숲 은행나무길', subtitle: '포켓몬 시크릿 포레스트',      emoji: '🌲', bg: '#6B3FA0', coord: { lat: 37.5444, lng: 127.0378 } },
 ];
 
 export interface StampReward {
