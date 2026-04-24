@@ -1,14 +1,19 @@
 // Prisma 스키마 — 포케페스타30
 // 런타임 URL 은 src/lib/prisma.ts 에서 APP_ENV 에 따라 주입됨.
-// CLI(migrate/generate) 는 env("DATABASE_URL") 사용.
+// CLI(migrate/generate) 는 env("DATABASE_URL") + env("DIRECT_URL") 사용.
+//
+// Supabase(pgBouncer) 구성:
+//   - DATABASE_URL → pooler :6543 + ?pgbouncer=true (런타임 쿼리용)
+//   - DIRECT_URL   → 직접 연결 :5432            (prisma migrate 용)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
