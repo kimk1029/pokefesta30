@@ -14,19 +14,27 @@ export interface CardCatalogEntry {
   name: string;
   emoji: string;
   grade: CardGrade;
+  /** eBay Browse API 검색어 (영문 권장) */
   ebayQuery: string;
+  /** SNKRDUNK 검색 딥링크에 사용할 키워드 (일본어 권장). 공식 API 없으므로 외부 링크 전용. */
+  snkrdunkQuery: string;
 }
 
 export const CARDS_CATALOG: CardCatalogEntry[] = [
-  { id: 'magikarp-holo',  name: '잉어킹 홀로',          emoji: '🖼', grade: 'S', ebayQuery: 'magikarp holo pokemon card' },
-  { id: 'charizard-base', name: '리자몽 베이스셋',      emoji: '🔥', grade: 'S', ebayQuery: 'charizard base set holo' },
-  { id: 'pikachu-promo',  name: '피카츄 프로모',        emoji: '⚡', grade: 'A', ebayQuery: 'pikachu promo pokemon card' },
-  { id: 'rainbow-rare',   name: '레인보우 레어',        emoji: '🌈', grade: 'A', ebayQuery: 'pokemon rainbow rare' },
-  { id: 'eevee-dev',      name: '이브이 진화형',        emoji: '🦊', grade: 'B', ebayQuery: 'eevee evolutions pokemon card' },
-  { id: 'gold-secret',    name: '골드 시크릿',          emoji: '🥇', grade: 'B', ebayQuery: 'pokemon gold secret rare' },
-  { id: 'mewtwo-v',       name: '뮤츠 V',               emoji: '🧬', grade: 'A', ebayQuery: 'mewtwo v pokemon card' },
-  { id: 'sticker-pack',   name: '포켓몬 스티커',        emoji: '🌟', grade: 'C', ebayQuery: 'pokemon sticker pack sealed' },
+  { id: 'magikarp-holo',  name: '잉어킹 홀로',          emoji: '🖼', grade: 'S', ebayQuery: 'magikarp holo pokemon card',     snkrdunkQuery: 'コイキング ホロ' },
+  { id: 'charizard-base', name: '리자몽 베이스셋',      emoji: '🔥', grade: 'S', ebayQuery: 'charizard base set holo',         snkrdunkQuery: 'リザードン 旧裏' },
+  { id: 'pikachu-promo',  name: '피카츄 프로모',        emoji: '⚡', grade: 'A', ebayQuery: 'pikachu promo pokemon card',       snkrdunkQuery: 'ピカチュウ プロモ' },
+  { id: 'rainbow-rare',   name: '레인보우 레어',        emoji: '🌈', grade: 'A', ebayQuery: 'pokemon rainbow rare',             snkrdunkQuery: 'レインボーレア ポケモン' },
+  { id: 'eevee-dev',      name: '이브이 진화형',        emoji: '🦊', grade: 'B', ebayQuery: 'eevee evolutions pokemon card',    snkrdunkQuery: 'イーブイ 進化' },
+  { id: 'gold-secret',    name: '골드 시크릿',          emoji: '🥇', grade: 'B', ebayQuery: 'pokemon gold secret rare',         snkrdunkQuery: 'ポケモン ゴールド シークレット' },
+  { id: 'mewtwo-v',       name: '뮤츠 V',               emoji: '🧬', grade: 'A', ebayQuery: 'mewtwo v pokemon card',            snkrdunkQuery: 'ミュウツー V' },
+  { id: 'sticker-pack',   name: '포켓몬 스티커',        emoji: '🌟', grade: 'C', ebayQuery: 'pokemon sticker pack sealed',      snkrdunkQuery: 'ポケモン ステッカー' },
 ];
+
+/** SNKRDUNK(스니덩) 검색 결과 딥링크 URL */
+export function snkrdunkUrl(query: string): string {
+  return `https://snkrdunk.com/search?keyword=${encodeURIComponent(query)}`;
+}
 
 export function findCardEntry(id: string): CardCatalogEntry | undefined {
   return CARDS_CATALOG.find((c) => c.id === id);

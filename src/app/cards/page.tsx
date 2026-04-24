@@ -4,7 +4,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { getCardHistory, getOrRefreshCardPrice, type PriceCurrent, type HistoryPoint } from '@/lib/cardPrices';
-import { CARDS_CATALOG, type CardGrade } from '@/lib/cardsCatalog';
+import { CARDS_CATALOG, snkrdunkUrl, type CardGrade } from '@/lib/cardsCatalog';
 import { isEbayConfigured } from '@/lib/ebay';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +27,7 @@ interface CardRow {
   emoji: string;
   grade: CardGrade;
   ebayQuery: string;
+  snkrdunkQuery: string;
   price: PriceCurrent | null;
   history: HistoryPoint[];
 }
@@ -148,6 +149,29 @@ export default async function Page() {
                 </div>
                 <div style={{ marginTop: 8 }}>
                   <CardPriceChart history={c.history} width={140} height={36} />
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  <Link
+                    href={snkrdunkUrl(c.snkrdunkQuery)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontFamily: 'var(--f1)',
+                      fontSize: 8,
+                      padding: '3px 8px',
+                      background: 'var(--white)',
+                      color: 'var(--ink2)',
+                      letterSpacing: 0.3,
+                      textDecoration: 'none',
+                      boxShadow:
+                        '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
+                    }}
+                  >
+                    🇯🇵 スニダン で見る →
+                  </Link>
                 </div>
               </div>
               <div className="sh-right">
