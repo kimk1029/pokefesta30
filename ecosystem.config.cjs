@@ -38,7 +38,7 @@ module.exports = {
       max_memory_restart: '256M',
       env: {
         NODE_ENV: 'production',
-        PORT: process.env.ADMIN_PORT || '3010',
+        PORT: process.env.ADMIN_PORT || '3000',
       },
     },
   ],

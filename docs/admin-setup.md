@@ -62,10 +62,10 @@ npm run dev              # :3000
 
 # 터미널 2 — admin
 cd admin
-npm run dev              # :3010 (PORT env 로 변경 가능)
+npm run dev              # :3000 (PORT env 로 변경 가능)
 ```
 
-접속: <http://localhost:3010> → 브라우저가 Basic Auth 프롬프트를 띄움.
+접속: <http://localhost:3000> → 브라우저가 Basic Auth 프롬프트를 띄움.
 
 ## 4. 프로덕션 빌드 & pm2 기동
 
@@ -80,7 +80,7 @@ pm2 start ecosystem.config.cjs
 pm2 status
 # ┌──┬──────────────────────┬─────────┬─────┬────────┬──────────┐
 # │0 │ pokefesta30-app      │ online  │ ... │ 3000   │ ...      │
-# │1 │ pokefesta30-admin    │ online  │ ... │ 3010   │ ...      │
+# │1 │ pokefesta30-admin    │ online  │ ... │ 3000   │ ...      │
 # └──┴──────────────────────┴─────────┴─────┴────────┴──────────┘
 
 pm2 logs pokefesta30-admin
