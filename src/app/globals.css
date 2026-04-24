@@ -513,6 +513,11 @@ a{color:inherit;text-decoration:none;}
 .map-pin.stamp-pin .stamp-pin-emoji{font-size:20px;}
 @keyframes pf-pb{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes pf-mk-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes pf-loc-pulse{
+  0%{transform:scale(.6);opacity:.8;}
+  70%{transform:scale(2.2);opacity:0;}
+  100%{transform:scale(2.2);opacity:0;}
+}
 .map-legend{position:absolute;top:9px;left:9px;background:var(--white);padding:6px 8px;
   display:flex;gap:7px;font-family:var(--f1);font-size:10px;
   box-shadow:
