@@ -271,6 +271,29 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
         author: { select: { name: true } },
       },
     });
+
+    // 거래글별 1:1 채팅 시도자(unique senderId 중 작성자 본인 제외) 수
+    const ids = rows.map((r) => r.id);
+    let chatCounts: Record<number, number> = {};
+    if (ids.length > 0) {
+      const msgs = await prisma.message.findMany({
+        where: { tradeId: { in: ids } },
+        select: { tradeId: true, senderId: true },
+      });
+      const setMap = new Map<number, Set<string>>();
+      for (const m of msgs) {
+        if (m.tradeId == null) continue;
+        const owner = rows.find((r) => r.id === m.tradeId)?.authorId ?? null;
+        if (owner && m.senderId === owner) continue; // 본인 제외
+        const s = setMap.get(m.tradeId) ?? new Set<string>();
+        s.add(m.senderId);
+        setMap.set(m.tradeId, s);
+      }
+      chatCounts = Object.fromEntries(
+        Array.from(setMap.entries()).map(([tid, s]) => [tid, s.size]),
+      );
+    }
+
     return rows.map((r) => ({
       id: r.id,
       type: r.type as TradeType,
@@ -281,6 +304,7 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
       price: r.price ?? '제안',
       kakaoId: r.kakaoId ?? null,
       bumpCount: r.bumpCount,
+      chatCount: chatCounts[r.id] ?? 0,
       authorName: r.author?.name ?? '탈퇴',
       authorEmoji: r.authorEmoji,
       authorBgId: r.authorBgId,

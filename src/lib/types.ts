@@ -22,6 +22,8 @@ export interface Trade {
   price: string;
   kakaoId?: string | null;
   bumpCount?: number;
+  /** 거래글에 1:1 쪽지를 보낸 unique 사용자 수 (작성자 제외) */
+  chatCount?: number;
   // 작성자 정보 — 카드/상세 렌더용
   authorName?: string;
   authorEmoji?: string;   // 아바타 id (snapshot)

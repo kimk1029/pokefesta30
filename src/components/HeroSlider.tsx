@@ -1,17 +1,19 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { PixelKarp } from './PixelKarp';
 import { StampRallyModal } from './StampRallyModal';
 
 interface Slide {
-  cls: 'slide-a' | 'slide-b' | 'slide-c';
+  cls: 'slide-a' | 'slide-b' | 'slide-c' | 'slide-d';
   badge: string;
   title: string;
   sub: string;
   visual: ReactNode;
-  onClick?: 'stamp-rally' | null;
+  onClick?: 'stamp-rally' | 'oripa' | null;
   ctaHint?: string;
 }
 
@@ -41,11 +43,22 @@ const SLIDES: Slide[] = [
     visual: <div style={{ fontSize: 69, lineHeight: 1 }}>📢</div>,
     onClick: null,
   },
+  {
+    cls: 'slide-d',
+    badge: '🎴 오리파 뽑기',
+    title: '한정 카드\n뽑기!',
+    sub: 'S급 카드를 뽑을 기회\n탭해서 지금 도전',
+    visual: <div style={{ fontSize: 69, lineHeight: 1 }}>🎴</div>,
+    onClick: 'oripa',
+    ctaHint: '👉 TAP',
+  },
 ];
 
 const AUTOPLAY_MS = 3500;
 
 export function HeroSlider() {
+  const router = useRouter();
+  const { status } = useSession();
   const [cur, setCur] = useState(0);
   const [showRally, setShowRally] = useState(false);
   const startX = useRef(0);
@@ -75,6 +88,17 @@ export function HeroSlider() {
     if (slide.onClick === 'stamp-rally') {
       setShowRally(true);
       if (tmr.current) clearInterval(tmr.current);
+      return;
+    }
+    if (slide.onClick === 'oripa') {
+      if (status === 'authenticated') {
+        router.push('/my/oripa');
+      } else {
+        const ok = window.confirm(
+          '오리파 뽑기는 로그인이 필요합니다.\n로그인하러 가시겠어요?',
+        );
+        if (ok) router.push('/login?callbackUrl=/my/oripa');
+      }
     }
   };
 

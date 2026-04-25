@@ -5,6 +5,7 @@ import { PointChipLive } from '@/components/LivePointsPill';
 import { LogoutButton } from '@/components/LogoutButton';
 import { MessagesInboxLink } from '@/components/MessagesInboxLink';
 import { ProfileAvatarClient } from '@/components/ProfileAvatarClient';
+import { UnofficialBanner } from '@/components/UnofficialBanner';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -165,6 +166,9 @@ export function MyScreen({ session, level, reportCount, tradeCount, savedCount }
 
       <div style={{ margin: '0 var(--gap) var(--cg)' }}>
         <LogoutButton />
+      </div>
+      <div style={{ margin: '0 var(--gap) var(--cg)' }}>
+        <UnofficialBanner />
       </div>
       <div className="bggap" />
     </>

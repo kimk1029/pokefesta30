@@ -49,16 +49,17 @@ a{color:inherit;text-decoration:none;}
 .screen{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;}
 .screen::-webkit-scrollbar{width:0;}
 
-/* ── STATUS BAR ── */
-.status{height:30px;padding:0 14px;flex-shrink:0;
+/* ── STATUS BAR (얇은 헤더) ── */
+.status{height:16px;padding:0 10px;flex-shrink:0;
   display:flex;align-items:center;justify-content:space-between;
-  font-family:var(--f1);font-size:11px;letter-spacing:1px;
-  background:var(--yel);border-bottom:3px solid var(--ink);
-  box-shadow:inset 0 2px 0 var(--yel-lt),inset 0 -2px 0 var(--yel-dk);}
+  font-family:var(--f1);font-size:7px;letter-spacing:.8px;
+  background:var(--yel);border-bottom:1px solid var(--ink);
+  box-shadow:inset 0 1px 0 var(--yel-lt),inset 0 -1px 0 var(--yel-dk);}
 
 /* ── SINGLE APP BAR ── */
 .appbar{height:52px;padding:0 14px;flex-shrink:0;
   display:flex;align-items:center;gap:10px;
+  position:sticky;top:0;z-index:30;
   background:var(--paper);border-bottom:4px solid var(--ink);
   box-shadow:inset 0 -4px 0 var(--pap3),0 2px 0 var(--ink);}
 .appbar-back{width:34px;height:34px;background:var(--white);flex-shrink:0;
@@ -140,6 +141,8 @@ a{color:inherit;text-decoration:none;}
   box-shadow:inset 0 4px 0 rgba(255,255,255,.25),inset 0 -4px 0 var(--tel-dk);}
 .slide-c{background:linear-gradient(135deg,var(--pur) 0%,var(--pur-lt) 100%);
   box-shadow:inset 0 4px 0 rgba(255,255,255,.25),inset 0 -4px 0 var(--pur-dk);}
+.slide-d{background:linear-gradient(135deg,var(--red) 0%,var(--orn) 100%);
+  box-shadow:inset 0 4px 0 rgba(255,255,255,.25),inset 0 -4px 0 var(--red-dk);}
 .hero-badge{display:inline-block;background:var(--yel);color:var(--ink);
   font-family:var(--f1);font-size:11px;padding:4px 8px;letter-spacing:1px;margin-bottom:8px;
   box-shadow:
