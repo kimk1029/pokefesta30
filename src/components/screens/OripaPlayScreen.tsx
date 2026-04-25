@@ -39,6 +39,8 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
   const [results, setResults] = useState<Result[]>([]);
   const [activeReveal, setActiveReveal] = useState<Result | null>(null);
   const [showSummary, setShowSummary] = useState(false);
+  /** 수량 채운 직후 노출되는 "오픈/다시고르기" 확인 모달 */
+  const [showConfirm, setShowConfirm] = useState(false);
   const unmountedRef = useRef(false);
   const stageRef = useRef(revealStage);
 
@@ -90,12 +92,44 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
         toast.info(`${qty}장만 선택할 수 있어요`);
         return prev;
       }
-      return [...prev, idx];
+      const next = [...prev, idx];
+      // 수량 채우면 자동으로 확인 모달
+      if (next.length === qty) {
+        setTimeout(() => {
+          if (!unmountedRef.current) setShowConfirm(true);
+        }, 250);
+      }
+      return next;
     });
+  };
+
+  /** 미오픈 티켓 중 랜덤으로 qty 장 자동 선택 → 바로 확인 모달 */
+  const randomPick = () => {
+    if (revealStage !== 'idle') return;
+    const available = tickets.filter((t) => !t.drawn).map((t) => t.index);
+    if (available.length < qty) {
+      toast.error(`남은 티켓이 ${qty}장 미만이에요`);
+      return;
+    }
+    // Fisher-Yates 부분 셔플
+    const arr = [...available];
+    for (let i = arr.length - 1; i > arr.length - 1 - qty; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    const picked = arr.slice(arr.length - qty);
+    setSelected(picked);
+    setShowConfirm(true);
+  };
+
+  const clearSelection = () => {
+    setSelected([]);
+    setShowConfirm(false);
   };
 
   const runReveals = async () => {
     if (selected.length !== qty || revealStage !== 'idle') return;
+    setShowConfirm(false);
     setRevealStage('running');
 
     // 서버에 실제 pull 요청 — 원자적 업데이트
@@ -135,13 +169,13 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
       return;
     }
 
-    // 성공한 티켓 하나씩 애니메이션
+    // 성공한 티켓 하나씩 애니메이션 — 봉투가 들썩 → 뜯김 + 폭죽 → 등급 공개
     const acc: Result[] = [];
     const nextTickets = [...tickets];
     for (let i = 0; i < serverResults.length; i++) {
       const pr = serverResults[i];
       setRevealing((r) => [...r, pr.index]);
-      await delay(500);
+      await delay(400); // 카드 들썩 시간
       if (unmountedRef.current) return;
       const r: Result = {
         index: pr.index,
@@ -150,7 +184,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
         emoji: pr.prizeEmoji,
       };
       acc.push(r);
-      setActiveReveal(r);
+      setActiveReveal(r); // 뜯기 + 폭죽 애니메이션 시작
       nextTickets[pr.index] = {
         ...nextTickets[pr.index],
         drawn: true,
@@ -161,10 +195,11 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
         drawnAt: '방금 전',
       };
       setTickets([...nextTickets]);
-      await delay(900);
+      await delay(1700); // 봉투 뜯기(700) + 등급 등장(950)
       if (unmountedRef.current) return;
       setActiveReveal(null);
       setRevealing((rv) => rv.filter((x) => x !== pr.index));
+      await delay(150);
     }
 
     setResults(acc);
@@ -205,6 +240,32 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
             {remaining} / {ORIPA_MACHINE.totalTickets}
           </span>
         </div>
+      </div>
+
+      {/* 랜덤 오픈 — 직접 고르기 귀찮을 때 */}
+      <div style={{ margin: '0 var(--gap) var(--cg)' }}>
+        <button
+          type="button"
+          onClick={randomPick}
+          disabled={revealStage !== 'idle' || remaining < qty}
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            background: revealStage === 'idle' ? 'var(--pur)' : 'var(--ink3)',
+            color: 'var(--white)',
+            fontFamily: 'var(--f1)',
+            fontSize: 11,
+            letterSpacing: 1,
+            cursor: revealStage === 'idle' ? 'pointer' : 'not-allowed',
+            opacity: revealStage === 'idle' && remaining >= qty ? 1 : 0.55,
+            boxShadow:
+              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 var(--pur-lt),inset 0 -3px 0 var(--pur-dk),4px 4px 0 var(--ink)',
+            transition: 'transform .05s steps(1),box-shadow .05s steps(1)',
+          }}
+          aria-label={`랜덤으로 ${qty}장 자동 선택`}
+        >
+          🎲 랜덤으로 {qty}장 자동 선택
+        </button>
       </div>
 
       <div className="tgrid-legend">
@@ -273,24 +334,130 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
       <button
         type="button"
         className="pri-btn"
-        onClick={runReveals}
+        onClick={() => {
+          if (selectionDone) setShowConfirm(true);
+        }}
         disabled={!selectionDone || revealStage !== 'idle'}
         style={{ opacity: selectionDone && revealStage === 'idle' ? 1 : 0.55 }}
       >
-        {revealStage === 'running' ? '▶ 오픈 중 ▶' : `▶ ${qty}장 오픈 ▶`}
+        {revealStage === 'running' ? '▶ 오픈 중 ▶' : `▶ ${qty}장 오픈 확인 ▶`}
       </button>
 
       <div className="bggap" />
 
       {activeReveal && (
-        <div className="pull-overlay" style={{ animation: 'pf-fade-in 200ms steps(4) backwards' }}>
-          <div className="pull-card" style={{ animation: 'pf-reveal-pop 500ms steps(6) backwards' }}>
-            <div className={`pull-tier g-${activeReveal.grade}`}>{activeReveal.grade}상 당첨</div>
-            <div className="pull-emoji" style={{ fontSize: 71 }}>
-              {activeReveal.emoji}
+        <div
+          className="pull-overlay"
+          style={{ animation: 'pf-fade-in 200ms steps(4) backwards' }}
+        >
+          <div
+            className="pull-card"
+            style={{ animation: 'pf-reveal-pop 500ms steps(6) backwards' }}
+          >
+            {/* 봉투가 좌우로 뜯어지는 무대 */}
+            <div className="tear-stage">
+              <div className="confetti" aria-hidden>
+                <span /><span /><span /><span /><span /><span />
+                <span /><span /><span /><span /><span /><span />
+              </div>
+              <div className="tear-half l" aria-hidden />
+              <div className="tear-half r" aria-hidden />
+              <div className="tear-prize">
+                <div
+                  className={`pull-tier g-${activeReveal.grade}`}
+                  style={{ marginBottom: 6 }}
+                >
+                  {activeReveal.grade}상
+                </div>
+                <div style={{ fontSize: 60, lineHeight: 1 }}>{activeReveal.emoji}</div>
+              </div>
             </div>
-            <div className="pull-name">{activeReveal.name}</div>
+            <div className="pull-name" style={{ marginTop: 10 }}>{activeReveal.name}</div>
             <div className="pull-sub">티켓 #{activeReveal.index + 1}</div>
+          </div>
+        </div>
+      )}
+
+      {/* 수량 채우면 뜨는 확인 모달 — *장 오픈 / 다시 고르기 */}
+      {showConfirm && revealStage === 'idle' && (
+        <div className="pull-overlay" onClick={() => setShowConfirm(false)}>
+          <div
+            className="pull-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 320 }}
+          >
+            <div
+              className="pull-tier"
+              style={{ background: 'var(--ink)', color: 'var(--yel)' }}
+            >
+              {qty}장 선택 완료
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--f1)',
+                fontSize: 9,
+                color: 'var(--ink2)',
+                lineHeight: 1.8,
+                textAlign: 'center',
+                padding: '0 8px',
+              }}
+            >
+              선택한 {qty}장의 티켓을 한 번에 오픈합니다
+              <br />
+              한 번 오픈하면 되돌릴 수 없어요
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(28px, 1fr))',
+                gap: 4,
+                width: '100%',
+                marginBottom: 6,
+              }}
+            >
+              {selected.slice().sort((a, b) => a - b).map((idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    aspectRatio: '1/1',
+                    background: 'var(--grn)',
+                    color: 'var(--white)',
+                    fontFamily: 'var(--f1)',
+                    fontSize: 8,
+                    display: 'grid',
+                    placeItems: 'center',
+                    boxShadow:
+                      '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                  }}
+                >
+                  #{idx + 1}
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="pull-btn"
+              onClick={runReveals}
+              style={{ width: '100%' }}
+            >
+              ▶ {qty}장 오픈 ▶
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              style={{
+                background: 'transparent',
+                color: 'var(--ink3)',
+                fontFamily: 'var(--f1)',
+                fontSize: 8,
+                padding: 6,
+                cursor: 'pointer',
+                border: 'none',
+                textDecoration: 'underline',
+              }}
+            >
+              ← 다시 고르기
+            </button>
           </div>
         </div>
       )}

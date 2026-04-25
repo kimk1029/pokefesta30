@@ -173,6 +173,22 @@ model OripaPack {
   @@map("oripa_packs")
 }
 
+/// 오리파 팩 변경 이력 — admin 에서 가격/상품 수정 또는 티켓 초기화 기록.
+/// action: 'update' | 'reset_tickets' | 'auto_reset'
+/// snapshot: 변경 전/후 핵심 필드 JSON
+model OripaPackHistory {
+  id        Int      @id @default(autoincrement())
+  packId    String
+  action    String
+  note      String?
+  snapshot  Json?
+  createdAt DateTime @default(now())
+
+  @@index([packId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("oripa_pack_history")
+}
+
 /// 페이지뷰 로그 — path 분석용.
 /// (ip, day) 쌍마다 별도 row 로 dedupe 되어 하루 1 IP = 1 방문자 로 집계 (전통적 UV).
 /// day 는 서버 UTC 기준 자정 (YYYY-MM-DD 00:00:00). 삽입 시 onConflict 로 중복 무시.

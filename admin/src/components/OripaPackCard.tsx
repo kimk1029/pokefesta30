@@ -47,7 +47,8 @@ export function OripaPackCard({ initial, isDefault }: { initial: Pack; isDefault
   }));
   const removePrize = (i: number) => setPack((cur) => ({ ...cur, prizes: cur.prizes.filter((_, x) => x !== i) }));
 
-  const save = async () => {
+  const save = async (resetTickets: boolean) => {
+    if (resetTickets && !confirm(`${pack.name} 의 티켓 100칸을 모두 초기화하고 새 판으로 시작합니다. 진행하시겠어요?`)) return;
     setBusy('save'); setMsg(null);
     try {
       const res = await fetch(`/api/oripa/packs/${encodeURIComponent(pack.id)}`, {
@@ -57,10 +58,28 @@ export function OripaPackCard({ initial, isDefault }: { initial: Pack; isDefault
           tier: pack.tier, emoji: pack.emoji, name: pack.name, desc: pack.desc,
           price: pack.price, ticketsCount: pack.ticketsCount,
           prizes: pack.prizes, active: pack.active,
+          resetTickets,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      setMsg({ type: 'ok', text: '저장 완료' });
+      setMsg({ type: 'ok', text: resetTickets ? '저장 + 새 판으로 초기화됨' : '저장 완료' });
+      router.refresh();
+    } catch (e) {
+      setMsg({ type: 'err', text: e instanceof Error ? e.message : String(e) });
+    } finally { setBusy(null); }
+  };
+
+  const resetTicketsOnly = async () => {
+    if (!confirm(`${pack.name} 의 티켓을 모두 삭제하고 새 판으로 시작할까요?\n진행 중인 사용자 결과는 그대로 유지됩니다.`)) return;
+    setBusy('reset-tickets'); setMsg(null);
+    try {
+      const res = await fetch(
+        `/api/oripa/packs/${encodeURIComponent(pack.id)}/reset-tickets`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' },
+      );
+      if (!res.ok) throw new Error(await res.text());
+      const j = await res.json();
+      setMsg({ type: 'ok', text: `새 판 — 기존 ${j.deleted}장 삭제 완료` });
       router.refresh();
     } catch (e) {
       setMsg({ type: 'err', text: e instanceof Error ? e.message : String(e) });
@@ -202,15 +221,40 @@ export function OripaPackCard({ initial, isDefault }: { initial: Pack; isDefault
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" className="btn" onClick={save} disabled={!!busy}
-            style={{ background: '#3B82F6', color: '#fff', borderColor: '#3B82F6' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => save(false)}
+            disabled={!!busy}
+            style={{ background: '#3B82F6', color: '#fff', borderColor: '#3B82F6' }}
+          >
             {busy === 'save' ? '저장중…' : '저장'}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => save(true)}
+            disabled={!!busy}
+            title="저장하면서 티켓 100칸을 새 판으로 초기화합니다"
+            style={{ background: '#10B981', color: '#fff', borderColor: '#10B981' }}
+          >
+            {busy === 'save' ? '…' : '저장 + 새 판'}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={resetTicketsOnly}
+            disabled={!!busy}
+            title="설정은 그대로 두고 티켓만 새 판으로"
+            style={{ background: '#F59E0B', color: '#fff', borderColor: '#F59E0B' }}
+          >
+            {busy === 'reset-tickets' ? '…' : '🎟️ 티켓 새 판'}
           </button>
           {isDefault && (
             <button type="button" className="btn" onClick={reset} disabled={!!busy}>
-              {busy === 'reset' ? '초기화중…' : '초기화 (기본값 복원)'}
+              {busy === 'reset' ? '초기화중…' : '기본값 복원'}
             </button>
           )}
         </div>
