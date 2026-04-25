@@ -18,7 +18,7 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     cls: 'slide-a',
-    badge: '★ 포케페스타30 공식',
+    badge: '★ 팬 프로젝트',
     title: '잉어킹\n프로모!',
     sub: '성수 6곳 스탬프 랠리\n탭해서 이벤트 상세 보기',
     visual: <PixelKarp size={82} />,
@@ -134,7 +134,7 @@ export function HeroSlider() {
                 {sl.visual}
               </div>
               <div className="hero-vis">
-                <div className="hero-vis-lbl">[ 메가페스타 공식 비주얼 ]</div>
+                <div className="hero-vis-lbl">[ 비공식 팬아트 비주얼 ]</div>
               </div>
             </div>
           ))}

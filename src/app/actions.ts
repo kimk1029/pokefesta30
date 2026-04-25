@@ -25,6 +25,35 @@ function authorEmojiFrom(session: Awaited<ReturnType<typeof requireSession>>): s
 }
 
 /**
+ * 거래글 카카오ID 필드 검증.
+ * 허용:
+ *   - 일반 카카오 ID (영문/숫자/_/-, 4~30자)
+ *   - https://open.kakao.com/o/<코드> 오픈채팅 링크
+ * 차단: 그 외 모든 외부 URL (피싱 차단 — Google Safe Browsing 정책 대응)
+ */
+function sanitizeKakaoId(raw: string): string | null {
+  const v = raw.trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) {
+    try {
+      const u = new URL(v);
+      if (
+        u.hostname === 'open.kakao.com' &&
+        /^\/o\/[A-Za-z0-9_-]+$/.test(u.pathname)
+      ) {
+        return `https://open.kakao.com${u.pathname}`;
+      }
+    } catch {
+      /* invalid URL → reject */
+    }
+    return null;
+  }
+  // 일반 ID: 영문/숫자/_/-/. 만 허용, 4~30자
+  if (!/^[A-Za-z0-9._-]{4,30}$/.test(v)) return null;
+  return v;
+}
+
+/**
  * NextAuth 세션 user 를 users 테이블에 upsert 해서 FK 안전하게 만듬.
  * JWT 세션이라 token.sub(provider-scoped id)를 PK 로 사용.
  */
@@ -176,7 +205,9 @@ export async function submitTrade(formData: FormData): Promise<void> {
   const title = String(formData.get('title') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();
   const price = String(formData.get('price') ?? '').trim() || '제안';
-  const kakaoId = String(formData.get('kakao_id') ?? '').trim() || null;
+  const kakaoId = sanitizeKakaoId(
+    String(formData.get('kakao_id') ?? '').trim(),
+  );
 
   // 이미지 URL 배열 — WriteScreen 에서 미리 업로드 후 JSON 으로 전달
   let images: string[] = [];

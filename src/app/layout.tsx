@@ -22,32 +22,32 @@ const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://poke-30.com';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: '포케페스타30 · 잉어킹 프로모 실시간 혼잡도',
-    template: '%s · 포케페스타30',
+    default: '포케페스타30 — 비공식 팬 커뮤니티',
+    template: '%s · 포케페스타30 (팬 프로젝트)',
   },
   description:
-    '포켓몬 30주년 메가페스타 잉어킹 프로모 실시간 현황 · 사용자 제보 기반 매장별 혼잡도 · 카드 시세 · 거래 허브',
+    '포켓몬 팬이 만든 비공식 커뮤니티 — 사용자 제보 기반 매장 혼잡도 정보, 카드 거래, 오리파. The Pokémon Company 와 무관합니다.',
   keywords: [
-    '포켓몬', '포케페스타', '포케페스타30', '잉어킹 프로모',
-    '포켓몬 30주년', '메가페스타', '포켓몬 카드', '카드 거래', '오리파',
+    '포켓몬 팬커뮤니티', '포켓몬 카드 거래', '포켓몬 카드',
+    '카드 시세', '오리파', '팬 프로젝트',
   ],
-  applicationName: '포케페스타30',
-  authors: [{ name: 'pokefesta30' }],
+  applicationName: '포케페스타30 (팬 프로젝트)',
+  authors: [{ name: 'pokefesta30 fans' }],
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
     url: SITE_URL,
-    siteName: '포케페스타30',
-    title: '포케페스타30 · 잉어킹 프로모 실시간 혼잡도',
+    siteName: '포케페스타30 (비공식 팬 프로젝트)',
+    title: '포케페스타30 — 비공식 팬 커뮤니티',
     description:
-      '잉어킹 프로모 매장별 혼잡도 · 사용자 실시간 제보 · 카드 시세 · 거래',
+      '비공식 팬 프로젝트 · 매장 혼잡도 사용자 제보 · 카드 거래 · 오리파',
     images: [{ url: '/icon.svg', width: 512, height: 512 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '포케페스타30',
-    description: '잉어킹 프로모 실시간 혼잡도 허브',
+    title: '포케페스타30 (팬 프로젝트)',
+    description: '비공식 팬 커뮤니티 · 매장 혼잡도 사용자 제보',
     images: ['/icon.svg'],
   },
   robots: {
