@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useInventory } from './InventoryProvider';
 import type { OripaBox } from '@/lib/types';
 
@@ -26,7 +26,10 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
   const router = useRouter();
   const inv = useInventory();
   const [selected, setSelected] = useState(0);
-  const [pending, setPending] = useState(false);
+  /** 결제(server action) 진행 중 */
+  const [paying, setPaying] = useState(false);
+  /** router.push 후 destination 마운트 대기 — useTransition 으로 자동 토글 */
+  const [navigating, startNav] = useTransition();
   const [err, setErr] = useState<string | null>(null);
 
   const pack = PACKS[selected];
@@ -35,14 +38,20 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
   const discount = Math.floor(subtotal * pack.discount);
   const total = subtotal - discount;
   const insufficient = inv.points < total;
+  const busy = paying || navigating;
+
+  // play 페이지를 백그라운드에서 미리 prefetch — 결제 후 이동 빠르게
+  useEffect(() => {
+    router.prefetch(`/my/oripa/play?pack=${box.id}&qty=${pack.count}`);
+  }, [router, box.id, pack.count]);
 
   const buy = async () => {
-    if (pending) return;
+    if (busy) return;
     setErr(null);
-    setPending(true);
+    setPaying(true);
     const r = await inv.spend(total);
-    setPending(false);
     if (!r.ok) {
+      setPaying(false);
       setErr(r.msg ?? '구매 실패');
       return;
     }
@@ -55,15 +64,32 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
     } catch {
       /* localStorage 막혀도 진행 — play 페이지 가드는 fail-open 으로 동작 */
     }
-    router.push(`/my/oripa/play?pack=${box.id}&qty=${pack.count}`);
+    // 라우팅을 transition 으로 wrap → destination 마운트 끝날 때까지 navigating=true 유지.
+    // paying 은 그대로 true 유지 → 모달 unmount 까지 버튼 활성화 윈도우 0.
+    startNav(() => {
+      router.push(`/my/oripa/play?pack=${box.id}&qty=${pack.count}`);
+    });
+  };
+
+  // busy 중엔 overlay/X 클릭으로도 닫히지 않게 — 결제 직후 모달이 사라지면 spinner 도 같이 사라져 어색함
+  const safeClose = () => {
+    if (busy) return;
+    onClose();
   };
 
   return (
-    <div className="avatar-overlay" onClick={onClose}>
+    <div className="avatar-overlay" onClick={safeClose}>
       <div className="avatar-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 320 }}>
         <div className="avatar-modal-head">
           <span>뽑기 구매</span>
-          <button type="button" onClick={onClose} aria-label="닫기" className="avatar-close">
+          <button
+            type="button"
+            onClick={safeClose}
+            aria-label="닫기"
+            className="avatar-close"
+            disabled={busy}
+            style={{ opacity: busy ? 0.4 : 1 }}
+          >
             ✕
           </button>
         </div>
@@ -100,8 +126,9 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                 key={p.count}
                 type="button"
                 onClick={() => setSelected(i)}
+                disabled={busy}
                 className={`avatar-tile${active ? ' active' : ''}`}
-                style={{ aspectRatio: 'auto', padding: '10px 6px', minHeight: 72 }}
+                style={{ aspectRatio: 'auto', padding: '10px 6px', minHeight: 72, opacity: busy ? 0.5 : 1 }}
               >
                 <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: 0.5 }}>
                   {p.label}
@@ -201,11 +228,16 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
         <button
           type="button"
           onClick={buy}
-          disabled={pending || insufficient}
+          disabled={busy || insufficient}
           className="pri-btn"
-          style={{ width: 'auto', margin: '12px 0 0', opacity: insufficient ? 0.55 : 1 }}
+          style={{
+            width: 'auto',
+            margin: '12px 0 0',
+            opacity: insufficient && !busy ? 0.55 : 1,
+            cursor: busy ? 'wait' : insufficient ? 'not-allowed' : 'pointer',
+          }}
         >
-          {pending ? (
+          {busy ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
               <span
                 aria-hidden
@@ -238,7 +270,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                   }}
                 />
               </span>
-              구매 중...
+              {paying ? '결제 중...' : '뽑기판 여는 중...'}
             </span>
           ) : insufficient ? (
             '포인트 부족'
