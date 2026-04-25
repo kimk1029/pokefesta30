@@ -27,7 +27,7 @@ export function TradeCard({ trade, showChatCount }: Props) {
         opacity: done ? 0.6 : 1,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, height: '100%' }}>
         {/* 좌: 작성자 아바타 + 닉네임 (세로 정렬) */}
         <div
           style={{
