@@ -1044,41 +1044,60 @@ a{color:inherit;text-decoration:none;}
   100%{transform:scale(1) rotate(0);}}
 
 /* ─────────── 이치방쿠지 스타일 뜯어지는 봉투 ─────────── */
-.tear-stage{position:relative;width:160px;height:160px;margin:0 auto;
-  perspective:600px;}
-.tear-envelope{position:absolute;inset:0;display:grid;place-items:center;
-  background:var(--red);color:var(--white);
-  font-family:var(--f1);font-size:30px;
-  box-shadow:
-    -3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
-    inset 0 4px 0 var(--red-lt),inset 0 -4px 0 var(--red-dk),
-    5px 5px 0 var(--ink);}
-.tear-envelope::before{content:'';position:absolute;left:50%;top:50%;width:50%;height:4px;
-  background:var(--ink);transform:translate(-50%,-50%);}
-.tear-envelope::after{content:'';position:absolute;left:50%;top:50%;width:42%;height:42%;
-  background:var(--white);border-radius:50%;border:3px solid var(--ink);
-  transform:translate(-50%,-50%);}
-/* 봉투 좌/우 반쪽 — 분리 효과 */
-.tear-half{position:absolute;top:0;width:50%;height:100%;
-  background:var(--red);
-  box-shadow:inset 0 4px 0 var(--red-lt),inset 0 -4px 0 var(--red-dk);
-  transform-origin:center;}
-.tear-half.l{left:0;border-right:2px dashed rgba(0,0,0,.35);
-  animation:pf-tear-l 700ms cubic-bezier(.6,-.4,.7,1.3) forwards;}
-.tear-half.r{right:0;border-left:2px dashed rgba(0,0,0,.35);
-  animation:pf-tear-r 700ms cubic-bezier(.6,-.4,.7,1.3) forwards;}
-@keyframes pf-tear-l{
-  0%  {transform:translateX(0) rotate(0);opacity:1;}
-  60% {transform:translateX(-30px) rotate(-12deg);opacity:1;}
-  100%{transform:translateX(-160px) rotate(-30deg);opacity:0;}}
-@keyframes pf-tear-r{
-  0%  {transform:translateX(0) rotate(0);opacity:1;}
-  60% {transform:translateX(30px) rotate(12deg);opacity:1;}
-  100%{transform:translateX(160px) rotate(30deg);opacity:0;}}
+/* 타임라인:
+ *   0    ~ 400ms  봉투 등장 (작게→1.0)
+ *   400  ~ 1500ms 봉투 흔들림 (점점 강하게 — anticipation)
+ *   1500 ~ 2200ms 좌·우 반쪽이 좍 분리됨
+ *   1500 ~ 2400ms 폭죽 흩어짐
+ *   1900 ~ 2500ms 등급 부풀어 등장
+ *   총 ≈ 2.7s
+ */
+.tear-stage{position:relative;width:160px;height:160px;margin:0 auto;}
 
-/* 등급 콘텐츠 — 봉투 안쪽에서 부풀어 등장 */
+.tear-half{position:absolute;top:0;width:50%;height:100%;
+  background:var(--red);transform-origin:center;
+  /* 등장(0~400) → 흔들림(400~1500) → 뜯어짐(1500~2200) */
+  animation:
+    pf-envelope-in 400ms steps(4) backwards,
+    pf-envelope-shake 1100ms 400ms ease-in,
+    pf-tear-half 700ms 1500ms cubic-bezier(.6,-.4,.7,1.3) forwards;}
+.tear-half.l{left:0;border-right:2px dashed rgba(0,0,0,.35);
+  box-shadow:
+    -3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 4px 0 var(--red-lt),inset 0 -4px 0 var(--red-dk),
+    inset 4px 0 0 var(--red-lt);
+  --tear-x:-180px;--tear-rot:-30deg;}
+.tear-half.r{right:0;border-left:2px dashed rgba(0,0,0,.35);
+  box-shadow:
+    3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 4px 0 var(--red-lt),inset 0 -4px 0 var(--red-dk),
+    inset -4px 0 0 var(--red-dk);
+  --tear-x:180px;--tear-rot:30deg;}
+
+@keyframes pf-envelope-in{
+  0%  {opacity:0;transform:scale(.7);}
+  100%{opacity:1;transform:scale(1);}}
+/* 점점 강해지는 흔들림 — anticipation */
+@keyframes pf-envelope-shake{
+  0%   {transform:translate(0,0) rotate(0);}
+  10%  {transform:translate(-1px,0) rotate(-1deg);}
+  20%  {transform:translate(1px,-1px) rotate(1deg);}
+  35%  {transform:translate(-2px,1px) rotate(-2deg);}
+  50%  {transform:translate(2px,-2px) rotate(2deg);}
+  65%  {transform:translate(-3px,2px) rotate(-3deg);}
+  78%  {transform:translate(3px,-3px) rotate(3deg);}
+  90%  {transform:translate(-4px,3px) rotate(-4deg);}
+  100% {transform:translate(0,0) rotate(0);}}
+@keyframes pf-tear-half{
+  0%  {transform:translateX(0) rotate(0);opacity:1;}
+  15% {transform:translateX(calc(var(--tear-x) * .03)) rotate(calc(var(--tear-rot) * .1));opacity:1;}
+  60% {transform:translateX(calc(var(--tear-x) * .25)) rotate(calc(var(--tear-rot) * .4));opacity:1;}
+  100%{transform:translateX(var(--tear-x)) rotate(var(--tear-rot));opacity:0;}}
+
+/* 등급 콘텐츠 — 뜯어지는 시점부터 부풀어 등장 (1.9s) */
 .tear-prize{position:absolute;inset:0;display:grid;place-items:center;
-  opacity:0;animation:pf-tear-pop 600ms 350ms steps(6) forwards;}
+  opacity:0;z-index:3;
+  animation:pf-tear-pop 600ms 1900ms steps(6) forwards;}
 @keyframes pf-tear-pop{
   0%  {opacity:0;transform:scale(.3);}
   60% {opacity:1;transform:scale(1.25);}
@@ -1087,20 +1106,21 @@ a{color:inherit;text-decoration:none;}
 /* ─────────── 폭죽 (confetti) ─────────── */
 .confetti{position:absolute;inset:-40px;pointer-events:none;overflow:hidden;}
 .confetti span{position:absolute;left:50%;top:50%;width:8px;height:14px;
-  transform-origin:center;
+  transform-origin:center;opacity:0;
   animation:pf-confetti 900ms ease-out forwards;}
-.confetti span:nth-child(1){background:#FFD23F;--cx:-110px;--cy:-90px;--rot:240deg;animation-delay:50ms;}
-.confetti span:nth-child(2){background:#E63946;--cx:90px;--cy:-110px;--rot:-200deg;animation-delay:60ms;}
-.confetti span:nth-child(3){background:#3A5BD9;--cx:-70px;--cy:-130px;--rot:160deg;animation-delay:70ms;}
-.confetti span:nth-child(4){background:#4ADE80;--cx:120px;--cy:-70px;--rot:-280deg;animation-delay:80ms;}
-.confetti span:nth-child(5){background:#FB923C;--cx:-130px;--cy:30px;--rot:90deg;animation-delay:90ms;}
-.confetti span:nth-child(6){background:#9B6FD0;--cx:140px;--cy:60px;--rot:-120deg;animation-delay:100ms;}
-.confetti span:nth-child(7){background:#FFD23F;--cx:30px;--cy:-150px;--rot:300deg;animation-delay:120ms;}
-.confetti span:nth-child(8){background:#E63946;--cx:-50px;--cy:120px;--rot:-260deg;animation-delay:130ms;}
-.confetti span:nth-child(9){background:#3A5BD9;--cx:80px;--cy:130px;--rot:200deg;animation-delay:140ms;}
-.confetti span:nth-child(10){background:#4ADE80;--cx:-160px;--cy:-30px;--rot:-300deg;animation-delay:150ms;}
-.confetti span:nth-child(11){background:#FB923C;--cx:0;--cy:-180px;--rot:360deg;animation-delay:160ms;}
-.confetti span:nth-child(12){background:#9B6FD0;--cx:160px;--cy:-10px;--rot:-180deg;animation-delay:170ms;}
+/* 폭죽은 봉투가 뜯기는 시점(1500ms) 부터 살짝 시차로 터짐 */
+.confetti span:nth-child(1){background:#FFD23F;--cx:-110px;--cy:-90px;--rot:240deg;animation-delay:1500ms;}
+.confetti span:nth-child(2){background:#E63946;--cx:90px;--cy:-110px;--rot:-200deg;animation-delay:1520ms;}
+.confetti span:nth-child(3){background:#3A5BD9;--cx:-70px;--cy:-130px;--rot:160deg;animation-delay:1540ms;}
+.confetti span:nth-child(4){background:#4ADE80;--cx:120px;--cy:-70px;--rot:-280deg;animation-delay:1560ms;}
+.confetti span:nth-child(5){background:#FB923C;--cx:-130px;--cy:30px;--rot:90deg;animation-delay:1580ms;}
+.confetti span:nth-child(6){background:#9B6FD0;--cx:140px;--cy:60px;--rot:-120deg;animation-delay:1600ms;}
+.confetti span:nth-child(7){background:#FFD23F;--cx:30px;--cy:-150px;--rot:300deg;animation-delay:1620ms;}
+.confetti span:nth-child(8){background:#E63946;--cx:-50px;--cy:120px;--rot:-260deg;animation-delay:1640ms;}
+.confetti span:nth-child(9){background:#3A5BD9;--cx:80px;--cy:130px;--rot:200deg;animation-delay:1660ms;}
+.confetti span:nth-child(10){background:#4ADE80;--cx:-160px;--cy:-30px;--rot:-300deg;animation-delay:1680ms;}
+.confetti span:nth-child(11){background:#FB923C;--cx:0;--cy:-180px;--rot:360deg;animation-delay:1700ms;}
+.confetti span:nth-child(12){background:#9B6FD0;--cx:160px;--cy:-10px;--rot:-180deg;animation-delay:1720ms;}
 @keyframes pf-confetti{
   0%  {opacity:1;transform:translate(-50%,-50%) rotate(0);}
   100%{opacity:0;transform:translate(calc(-50% + var(--cx)),calc(-50% + var(--cy))) rotate(var(--rot));}}

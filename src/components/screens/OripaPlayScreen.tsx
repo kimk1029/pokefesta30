@@ -169,13 +169,16 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
       return;
     }
 
-    // 성공한 티켓 하나씩 애니메이션 — 봉투가 들썩 → 뜯김 + 폭죽 → 등급 공개
+    // 성공한 티켓 하나씩 애니메이션
+    // 시퀀스: 그리드 카드 들썩(700ms) → 모달 등장 → 봉투 흔들림 1100ms →
+    //        봉투 좌·우 뜯어짐 700ms + 폭죽 → 등급 부풀어 등장 600ms → 잠시 감상.
+    // 모달 안 CSS 타임라인 ~2700ms + 감상 800ms = 3500ms.
     const acc: Result[] = [];
     const nextTickets = [...tickets];
     for (let i = 0; i < serverResults.length; i++) {
       const pr = serverResults[i];
       setRevealing((r) => [...r, pr.index]);
-      await delay(400); // 카드 들썩 시간
+      await delay(700); // 카드 들썩 / 긴장감
       if (unmountedRef.current) return;
       const r: Result = {
         index: pr.index,
@@ -184,7 +187,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
         emoji: pr.prizeEmoji,
       };
       acc.push(r);
-      setActiveReveal(r); // 뜯기 + 폭죽 애니메이션 시작
+      setActiveReveal(r); // 모달 마운트 → CSS 시퀀스 자동 진행
       nextTickets[pr.index] = {
         ...nextTickets[pr.index],
         drawn: true,
@@ -195,11 +198,12 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
         drawnAt: '방금 전',
       };
       setTickets([...nextTickets]);
-      await delay(1700); // 봉투 뜯기(700) + 등급 등장(950)
+      // 등장(400) + 흔들림(1100) + 뜯기(700) + 등급 등장(600) + 감상(700)
+      await delay(3500);
       if (unmountedRef.current) return;
       setActiveReveal(null);
       setRevealing((rv) => rv.filter((x) => x !== pr.index));
-      await delay(150);
+      await delay(200);
     }
 
     setResults(acc);
