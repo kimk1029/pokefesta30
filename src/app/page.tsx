@@ -6,7 +6,7 @@ import {
   getTodayReportCount,
 } from '@/lib/queries';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 30;
 
 export default async function Page() {
   const [places, feeds, todayCount, hourly] = await Promise.all([
