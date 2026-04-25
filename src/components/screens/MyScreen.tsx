@@ -33,6 +33,8 @@ const SHOP_SHORTCUTS = [
 const SETTINGS: Array<{ em: string; bg: string; lb: string; href?: string }> = [
   { em: '📢', bg: '#FFD23F', lb: '공지사항',   href: '/my/notices' },
   { em: '❓', bg: '#3A5BD9', lb: 'FAQ · 자주 묻는 질문', href: '/my/faq' },
+  { em: '📜', bg: '#E8DFB8', lb: '이용약관',   href: '/terms' },
+  { em: '🔒', bg: '#0D7377', lb: '개인정보처리방침', href: '/privacy' },
   { em: '🔔', bg: '#E8DFB8', lb: '알림 설정 (준비중)' },
 ];
 

@@ -135,6 +135,35 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
         style={{
           position: 'relative',
           marginTop: 14,
+          padding: '0 12px',
+          fontFamily: 'var(--f1)',
+          fontSize: 7,
+          lineHeight: 1.8,
+          color: 'rgba(255,255,255,.55)',
+          textAlign: 'center',
+          letterSpacing: 0.3,
+        }}
+      >
+        로그인 시{' '}
+        <a
+          href="/terms"
+          style={{ color: 'var(--yel)', textDecoration: 'underline' }}
+        >
+          이용약관
+        </a>
+        {' · '}
+        <a
+          href="/privacy"
+          style={{ color: 'var(--yel)', textDecoration: 'underline' }}
+        >
+          개인정보처리방침
+        </a>
+        에 동의한 것으로 간주됩니다
+      </div>
+      <div
+        style={{
+          position: 'relative',
+          marginTop: 10,
           padding: '0 6px',
           fontFamily: 'var(--f1)',
           fontSize: 7,
