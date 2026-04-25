@@ -53,6 +53,42 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
     [],
   );
 
+  /**
+   * 입장 가드 — 구매 모달이 발급한 일회용 oripa_pass 토큰이 있어야만 진입.
+   * URL 직접 입력으로 들어와 무료 뽑기를 시도하는 케이스 차단.
+   * 토큰: { packId, qty, ts } · 5분 TTL · packId/qty 일치 필수.
+   * 통과 즉시 토큰 소진 → 새로고침해도 다시 통과 가능 (페이지 떠나기 전엔
+   *   유지하고 싶지만 새로고침 우회 방지를 위해 즉시 소진).
+   */
+  useEffect(() => {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem('oripa_pass');
+    } catch {
+      // localStorage 차단 환경 — fail-open (정상 사용자 보호)
+      return;
+    }
+    if (!raw) {
+      router.replace('/my/oripa');
+      return;
+    }
+    try {
+      const p = JSON.parse(raw) as { packId?: string; qty?: number; ts?: number };
+      const fresh = typeof p.ts === 'number' && Date.now() - p.ts < 5 * 60_000;
+      const matches = p.packId === packId && p.qty === qty;
+      if (!fresh || !matches) {
+        localStorage.removeItem('oripa_pass');
+        router.replace('/my/oripa');
+        return;
+      }
+      // 통과 → 즉시 소진해 같은 토큰으로 재진입 못 하게.
+      // (단, closeSummary 가 다시 remove 시도해도 무해)
+      localStorage.removeItem('oripa_pass');
+    } catch {
+      router.replace('/my/oripa');
+    }
+  }, [packId, qty, router]);
+
   // 서버 티켓 fetch — 폴링으로 다른 유저 뽑기 반영
   const refresh = useCallback(async () => {
     try {
@@ -198,8 +234,8 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
         drawnAt: '방금 전',
       };
       setTickets([...nextTickets]);
-      // 등장(400) + 흔들림(1100) + 뜯기(700) + 등급 등장(600) + 감상(700)
-      await delay(3500);
+      // 등장(400) + 흔들림(1100) + 뜯기(700) + 등급 등장(600) + 감상(1500)
+      await delay(4300);
       if (unmountedRef.current) return;
       setActiveReveal(null);
       setRevealing((rv) => rv.filter((x) => x !== pr.index));
@@ -221,7 +257,13 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
     setSelected([]);
     setResults([]);
     setRevealStage('idle');
-    toast.success(`${results.length}장 뽑기 완료`);
+    // 결과 확인 후엔 무조건 박스 목록으로 — 추가 구매는 거기서.
+    try {
+      localStorage.removeItem('oripa_pass');
+    } catch {
+      /* noop */
+    }
+    router.replace('/my/oripa');
   };
 
   return (
@@ -503,26 +545,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
               })}
             </div>
             <button type="button" className="pull-btn" onClick={closeSummary}>
-              확인
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                closeSummary();
-                router.push('/my/oripa');
-              }}
-              style={{
-                background: 'transparent',
-                color: 'var(--ink3)',
-                fontFamily: 'var(--f1)',
-                fontSize: 8,
-                padding: 6,
-                cursor: 'pointer',
-                border: 'none',
-                textDecoration: 'underline',
-              }}
-            >
-              다른 박스 뽑으러 가기 →
+              ▶ 확인 · 박스 목록으로 ▶
             </button>
           </div>
         </div>

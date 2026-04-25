@@ -46,6 +46,15 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
       setErr(r.msg ?? '구매 실패');
       return;
     }
+    // 결제 → 일회용 입장 토큰 발급. play 페이지가 이걸 검증해야 진입 가능.
+    try {
+      localStorage.setItem(
+        'oripa_pass',
+        JSON.stringify({ packId: box.id, qty: pack.count, ts: Date.now() }),
+      );
+    } catch {
+      /* localStorage 막혀도 진행 — play 페이지 가드는 fail-open 으로 동작 */
+    }
     router.push(`/my/oripa/play?pack=${box.id}&qty=${pack.count}`);
   };
 
@@ -68,6 +77,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
               <div className="ob-desc" style={{ fontSize: 8 }}>{box.desc}</div>
             </div>
           </div>
+          {box.stats && <ModalStatsRow stats={box.stats} />}
         </div>
 
         {/* 상품 미리보기 (DB 팩 prizes 가 있을 때만) */}
@@ -237,6 +247,59 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
           )}
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ───────── 박스 잔여/등급별 현황 ───────── */
+
+const STATS_GRADE_COLOR: Record<'S' | 'A' | 'B' | 'C', string> = {
+  S: '#6B3FA0',
+  A: '#3A5BD9',
+  B: '#0D7377',
+  C: '#8C5A00',
+};
+
+function ModalStatsRow({
+  stats,
+}: {
+  stats: NonNullable<OripaBox['stats']>;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 5,
+        marginTop: 8,
+        padding: '5px 7px',
+        background: 'rgba(0,0,0,.18)',
+        fontFamily: 'var(--f1)',
+        fontSize: 8,
+        letterSpacing: 0.3,
+      }}
+    >
+      <span style={{ color: 'var(--white)' }}>
+        잔여 {stats.remaining}/{stats.total}
+      </span>
+      <span style={{ color: 'rgba(255,255,255,.4)' }}>·</span>
+      {(['S', 'A', 'B', 'C'] as const).map((g) => (
+        <span
+          key={g}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 3,
+            padding: '1px 5px',
+            background: STATS_GRADE_COLOR[g],
+            color: 'var(--white)',
+            boxShadow: '0 0 0 1px rgba(0,0,0,.3)',
+          }}
+        >
+          {g} {stats.drawn[g]}
+        </span>
+      ))}
     </div>
   );
 }

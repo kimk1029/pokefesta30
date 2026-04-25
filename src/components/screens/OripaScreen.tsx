@@ -70,6 +70,7 @@ export function OripaScreen({ boxes }: Props) {
               </div>
             </div>
             <div className="ob-odds">{b.odds}</div>
+            {b.stats && <BoxStatsRow stats={b.stats} />}
             <div className="ob-bottom">
               <span className="ob-price">🪙 {b.price.toLocaleString()}P / 회</span>
               <button type="button" className="ob-draw" onClick={() => setPicked(b)}>
@@ -100,5 +101,58 @@ export function OripaScreen({ boxes }: Props) {
         <OripaPurchaseModal box={picked} onClose={() => setPicked(null)} />
       )}
     </>
+  );
+}
+
+/* ─────────── 박스 카드 안에 표시되는 등급별 현황 ─────────── */
+
+const STATS_GRADE_COLOR: Record<'S' | 'A' | 'B' | 'C', string> = {
+  S: '#6B3FA0',
+  A: '#3A5BD9',
+  B: '#0D7377',
+  C: '#8C5A00',
+};
+
+function BoxStatsRow({
+  stats,
+}: {
+  stats: NonNullable<OripaBox['stats']>;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 6,
+        margin: '6px 0 0',
+        padding: '6px 8px',
+        background: 'rgba(0,0,0,.18)',
+        fontFamily: 'var(--f1)',
+        fontSize: 8,
+        letterSpacing: 0.3,
+      }}
+    >
+      <span style={{ color: 'var(--white)' }}>
+        잔여 {stats.remaining}/{stats.total}
+      </span>
+      <span style={{ color: 'rgba(255,255,255,.4)' }}>·</span>
+      {(['S', 'A', 'B', 'C'] as const).map((g) => (
+        <span
+          key={g}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 3,
+            padding: '1px 5px',
+            background: STATS_GRADE_COLOR[g],
+            color: 'var(--white)',
+            boxShadow: '0 0 0 1px rgba(0,0,0,.3)',
+          }}
+        >
+          {g} {stats.drawn[g]}
+        </span>
+      ))}
+    </div>
   );
 }

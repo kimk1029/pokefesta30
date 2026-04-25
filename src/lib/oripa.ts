@@ -20,6 +20,33 @@ export async function getActiveOripaBoxes(): Promise<OripaBox[]> {
       where: { active: true },
       orderBy: { price: 'asc' },
     });
+    if (rows.length === 0) return [];
+
+    // 등급별 뽑힘 카운트 — packId×grade groupBy
+    const ids = rows.map((r) => r.id);
+    const drawnRows = await prisma.oripaTicket.findMany({
+      where: { packId: { in: ids }, drawn: true },
+      select: { packId: true, grade: true },
+    });
+    const statsByPack = new Map<
+      string,
+      { total: number; remaining: number; drawn: { S: number; A: number; B: number; C: number } }
+    >();
+    for (const r of rows) {
+      statsByPack.set(r.id, {
+        total: r.ticketsCount,
+        remaining: r.ticketsCount, // 아래에서 차감
+        drawn: { S: 0, A: 0, B: 0, C: 0 },
+      });
+    }
+    for (const t of drawnRows) {
+      const s = statsByPack.get(t.packId);
+      if (!s) continue;
+      s.remaining = Math.max(0, s.remaining - 1);
+      const g = t.grade as 'S' | 'A' | 'B' | 'C' | null;
+      if (g === 'S' || g === 'A' || g === 'B' || g === 'C') s.drawn[g] += 1;
+    }
+
     return rows.map((r): OripaBox => {
       const prizes = Array.isArray(r.prizes)
         ? (r.prizes as unknown as OripaBoxPrize[])
@@ -42,6 +69,7 @@ export async function getActiveOripaBoxes(): Promise<OripaBox[]> {
         price: r.price,
         odds,
         prizes,
+        stats: statsByPack.get(r.id),
       };
     });
   } catch (err) {

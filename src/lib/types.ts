@@ -93,6 +93,14 @@ export interface OripaBox {
   odds: string;
   /** 미리보기용 상품 리스트 (가중치 → % 변환은 UI 측). DB 팩이면 채워짐. */
   prizes?: OripaBoxPrize[];
+  /** 현재 100칸 중 등급별 뽑힘 현황 + 잔여. DB 팩에서만 계산됨. */
+  stats?: OripaBoxStats;
+}
+
+export interface OripaBoxStats {
+  total: number;
+  remaining: number;
+  drawn: { S: number; A: number; B: number; C: number };
 }
 
 export interface OripaBoxPrize {
