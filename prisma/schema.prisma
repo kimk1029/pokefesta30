@@ -194,6 +194,31 @@ model PageView {
   @@map("page_views")
 }
 
+/// 광고 이벤트 로그 — 노출(impression) / 무료충전 시청(reward).
+/// AdSense/AdFit 클릭·수익은 광고사 iframe 내부에서 발생해 직접 측정 불가 →
+/// 자체로는 노출과 reward 흐름만 기록하고, 클릭/수익은 광고사 콘솔(딥링크) 참조.
+/// AdEvent.kind:
+///   'impression' — 광고 슬롯 마운트 (network 별)
+///   'reward'     — 무료충전소 광고 시청 보상 지급
+model AdEvent {
+  id        Int      @id @default(autoincrement())
+  kind      String   // 'impression' | 'reward'
+  network   String   // 'adsense' | 'adfit' | 'house' | 'offerwall'
+  slotId    String   // FeedAdRow index 또는 free-charge slot id
+  userId    String?  // 로그인 사용자만
+  reward    Int      @default(0) // reward 시 지급된 포인트
+  ip        String?
+  ua        String?
+  day       DateTime @db.Date     // 일별 집계용
+  createdAt DateTime @default(now())
+
+  @@index([kind, day])
+  @@index([network, day])
+  @@index([userId, kind, day])
+  @@index([createdAt])
+  @@map("ad_events")
+}
+
 /// 카드 시세 스냅샷 — eBay Browse API 결과 캐시 + 히스토리 차트용.
 /// 10분 이내 스냅샷이면 재사용, 그 이상이면 새로 fetch 후 한 줄 추가.
 model CardPriceSnapshot {

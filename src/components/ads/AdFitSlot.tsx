@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { fireAdBeacon } from './fireAdBeacon';
 
 const ADFIT_SRC = 'https://t1.kakaocdn.net/kas/static/ba.min.js';
 
@@ -49,6 +50,9 @@ export function AdFitSlot({ adUnit, width = 320, height = 100 }: Props) {
     script.src = ADFIT_SRC;
     script.async = true;
     ins.parentNode?.insertBefore(script, ins.nextSibling);
+
+    // 자체 노출 카운트
+    fireAdBeacon('adfit', adUnit);
 
     return () => {
       script.remove();

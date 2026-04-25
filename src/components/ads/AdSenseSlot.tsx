@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { fireAdBeacon } from './fireAdBeacon';
 
 const CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 
@@ -26,7 +27,9 @@ export function AdSenseSlot({ slotId }: { slotId: string }) {
     } catch {
       /* SDK 미로드 시 무시 — 다음 마운트에서 재시도 */
     }
-  }, []);
+    // 자체 노출 카운트 (광고사 콘솔과 별개로 우리 admin 에서 추이 보기용)
+    fireAdBeacon('adsense', slotId);
+  }, [slotId]);
 
   if (!CLIENT) {
     return <AdPlaceholder label="AdSense" />;
