@@ -21,7 +21,7 @@ export function MessagesInboxLink() {
               background: 'var(--red)',
               color: 'var(--white)',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 8,
               letterSpacing: 0.3,
               boxShadow:
                 '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',

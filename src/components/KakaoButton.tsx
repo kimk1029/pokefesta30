@@ -43,14 +43,14 @@ export function KakaoButton({ kakaoId }: Props) {
       }}
     >
       <div style={{ textAlign: 'left' }}>
-        <div style={{ fontSize: 11, color: '#3C1E1E', opacity: 0.6, marginBottom: 2 }}>
+        <div style={{ fontSize: 10, color: '#3C1E1E', opacity: 0.6, marginBottom: 2 }}>
           카카오톡 연락처
         </div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#3C1E1E' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#3C1E1E' }}>
           {isOpenChat ? '오픈채팅 열기' : kakaoId}
         </div>
         {!isOpenChat && (
-          <div style={{ fontSize: 10, color: '#3C1E1E', opacity: 0.55, marginTop: 4 }}>
+          <div style={{ fontSize: 9, color: '#3C1E1E', opacity: 0.55, marginTop: 4 }}>
             카카오톡 앱에서 ID로 검색해주세요
           </div>
         )}
@@ -61,7 +61,7 @@ export function KakaoButton({ kakaoId }: Props) {
           color: '#FEE500',
           borderRadius: 8,
           padding: '8px 14px',
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 600,
           whiteSpace: 'nowrap',
           flexShrink: 0,

@@ -42,7 +42,7 @@ export function MessagesInboxScreen() {
             margin: '30px auto',
             textAlign: 'center',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 9,
             color: 'var(--ink3)',
           }}
         >
@@ -56,7 +56,7 @@ export function MessagesInboxScreen() {
             background: 'var(--white)',
             textAlign: 'center',
             fontFamily: 'var(--f1)',
-            fontSize: 11,
+            fontSize: 10,
             color: 'var(--ink2)',
             lineHeight: 1.8,
             letterSpacing: 0.3,
@@ -66,7 +66,7 @@ export function MessagesInboxScreen() {
         >
           📭 주고받은 쪽지가 없어요
           <br />
-          <span style={{ fontSize: 9, color: 'var(--ink3)' }}>
+          <span style={{ fontSize: 8, color: 'var(--ink3)' }}>
             거래글에서 "1:1 쪽지 보내기" 로 시작해보세요
           </span>
         </div>

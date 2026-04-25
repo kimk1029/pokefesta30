@@ -12,7 +12,7 @@ export function UnofficialBanner() {
         color: 'var(--yel)',
         padding: '7px 12px',
         fontFamily: 'var(--f1)',
-        fontSize: 9,
+        fontSize: 8,
         lineHeight: 1.6,
         letterSpacing: 0.3,
         textAlign: 'center',

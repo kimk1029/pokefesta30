@@ -72,7 +72,7 @@ export function EditableName({ initialName }: Props) {
               width: '100%',
               padding: '4px 8px',
               fontFamily: 'var(--f1)',
-              fontSize: 14,
+              fontSize: 13,
               letterSpacing: 1,
               color: 'var(--ink)',
               background: 'var(--white)',
@@ -100,7 +100,7 @@ export function EditableName({ initialName }: Props) {
             ✕
           </button>
         </div>
-        {err && <div style={{ fontSize: 9, color: 'var(--red)' }}>⚠ {err}</div>}
+        {err && <div style={{ fontSize: 8, color: 'var(--red)' }}>⚠ {err}</div>}
       </div>
     );
   }
@@ -128,7 +128,7 @@ export function EditableName({ initialName }: Props) {
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
-          fontSize: 13,
+          fontSize: 12,
           padding: 2,
           opacity: 0.85,
           // 연필이 기본 가로로 놓여있는 글꼴에서도 45° 기울여 편집 포즈로
@@ -151,7 +151,7 @@ function btnStyle(bg: string): React.CSSProperties {
     color: 'var(--ink)',
     border: 'none',
     cursor: 'pointer',
-    fontSize: 11,
+    fontSize: 10,
     display: 'inline-grid',
     placeItems: 'center',
   };

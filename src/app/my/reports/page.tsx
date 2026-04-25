@@ -44,13 +44,13 @@ export default async function Page() {
               <div className="fi-avatar">{r.user}</div>
               <div className="fi-body">
                 <div className="fi-top">
-                  <span className="tag tag-place" style={{ fontSize: 10, padding: '2px 6px' }}>
+                  <span className="tag tag-place" style={{ fontSize: 9, padding: '2px 6px' }}>
                     📍 {r.place}
                   </span>
                   <span
                     className="tag"
                     style={{
-                      fontSize: 10,
+                      fontSize: 9,
                       padding: '2px 6px',
                       background: LEVEL_COLOR[r.level] ?? '#aaa',
                       color: '#fff',

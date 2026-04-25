@@ -19,19 +19,19 @@ export function FeedRow({ post }: { post: FeedPost }) {
             size={56}
           />
         ) : (
-          <span style={{ fontSize: 30, lineHeight: 1 }}>{post.user}</span>
+          <span style={{ fontSize: 29, lineHeight: 1 }}>{post.user}</span>
         )}
       </div>
       <div className="fi-body">
         <div className="fi-top">
           <span
             className={`tag ${isReport ? 'tag-report' : 'tag-feed'}`}
-            style={{ fontSize: 10, padding: '2px 7px' }}
+            style={{ fontSize: 9, padding: '2px 7px' }}
           >
             {isReport ? '📢 제보' : '🗣 일반'}
           </span>
           {post.place && (
-            <span className="tag tag-place" style={{ fontSize: 10, padding: '2px 6px' }}>
+            <span className="tag tag-place" style={{ fontSize: 9, padding: '2px 6px' }}>
               📍 {post.place}
             </span>
           )}

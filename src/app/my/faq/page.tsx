@@ -119,7 +119,7 @@ export default function Page() {
               <summary
                 style={{
                   fontFamily: 'var(--f1)',
-                  fontSize: 10,
+                  fontSize: 9,
                   letterSpacing: 0.3,
                   cursor: 'pointer',
                   listStyle: 'none',
@@ -141,7 +141,7 @@ export default function Page() {
                   paddingTop: 10,
                   borderTop: '1px dashed rgba(0,0,0,.15)',
                   fontFamily: 'var(--f1)',
-                  fontSize: 9,
+                  fontSize: 8,
                   lineHeight: 1.8,
                   color: 'var(--ink2)',
                   letterSpacing: 0.3,

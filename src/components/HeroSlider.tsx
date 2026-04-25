@@ -32,7 +32,7 @@ const SLIDES: Slide[] = [
     badge: '⚡ 실시간 거래 활성',
     title: '삽니다\n팝니다',
     sub: '성수 현장 직거래\n장소 태그로 빠르게 연결',
-    visual: <div style={{ fontSize: 69, lineHeight: 1 }}>💬</div>,
+    visual: <div style={{ fontSize: 68, lineHeight: 1 }}>💬</div>,
     onClick: null,
   },
   {
@@ -40,7 +40,7 @@ const SLIDES: Slide[] = [
     badge: '📢 30초 제보',
     title: '지금\n제보하기',
     sub: '방금 본 현장 상황을\n다른 트레이너에게 알려주세요',
-    visual: <div style={{ fontSize: 69, lineHeight: 1 }}>📢</div>,
+    visual: <div style={{ fontSize: 68, lineHeight: 1 }}>📢</div>,
     onClick: null,
   },
   {
@@ -48,7 +48,7 @@ const SLIDES: Slide[] = [
     badge: '🎴 오리파 뽑기',
     title: '한정 카드\n뽑기!',
     sub: 'S급 카드를 뽑을 기회\n탭해서 지금 도전',
-    visual: <div style={{ fontSize: 69, lineHeight: 1 }}>🎴</div>,
+    visual: <div style={{ fontSize: 68, lineHeight: 1 }}>🎴</div>,
     onClick: 'oripa',
     ctaHint: '👉 TAP',
   },

@@ -57,7 +57,7 @@ export function TradeStatusActions({ tradeId, status, isAuthor }: Props) {
   const btnBase: React.CSSProperties = {
     padding: '10px 14px',
     fontFamily: 'var(--f1)',
-    fontSize: 10,
+    fontSize: 9,
     letterSpacing: 1,
     cursor: 'pointer',
     border: 'none',
@@ -77,7 +77,7 @@ export function TradeStatusActions({ tradeId, status, isAuthor }: Props) {
             background: 'var(--ink)',
             color: 'var(--yel)',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 9,
             letterSpacing: 0.5,
             textAlign: 'center',
           }}

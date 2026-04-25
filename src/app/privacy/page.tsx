@@ -220,7 +220,7 @@ export default function PrivacyPage() {
             보안기술의 변경에 따라 내용 추가·삭제·수정이 있을 시 변경되는
             방침의 시행 7일 전부터 공지사항을 통해 고지합니다.
           </P>
-          <P style={{ marginTop: 12, fontSize: 9, color: 'var(--ink3)' }}>
+          <P style={{ marginTop: 12, fontSize: 8, color: 'var(--ink3)' }}>
             본 방침 시행일: {UPDATED_AT}
           </P>
         </Doc>
@@ -254,7 +254,7 @@ function H({ children }: { children: React.ReactNode }) {
       style={{
         margin: '18px 0 8px',
         fontFamily: 'var(--f1)',
-        fontSize: 12,
+        fontSize: 11,
         letterSpacing: 0.5,
         color: 'var(--ink)',
       }}
@@ -270,7 +270,7 @@ function Sub({ children }: { children: React.ReactNode }) {
       style={{
         margin: '10px 0 6px',
         fontFamily: 'var(--f1)',
-        fontSize: 10,
+        fontSize: 9,
         letterSpacing: 0.3,
         color: 'var(--ink2)',
       }}
@@ -292,7 +292,7 @@ function P({
       style={{
         margin: '0 0 8px',
         fontFamily: 'var(--f1)',
-        fontSize: 9,
+        fontSize: 8,
         lineHeight: 1.9,
         letterSpacing: 0.2,
         color: 'var(--ink2)',
@@ -311,7 +311,7 @@ function Ul({ children }: { children: React.ReactNode }) {
         margin: '0 0 8px',
         padding: '0 0 0 14px',
         fontFamily: 'var(--f1)',
-        fontSize: 9,
+        fontSize: 8,
         lineHeight: 1.9,
         letterSpacing: 0.2,
         color: 'var(--ink2)',

@@ -77,7 +77,7 @@ export default async function Page() {
             border: 'none',
             outline: 'none',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 9,
             color: 'var(--ink)',
             letterSpacing: 0.3,
             boxShadow: 'inset 2px 2px 0 rgba(0,0,0,.1),inset -2px -2px 0 rgba(255,255,255,.8)',
@@ -92,7 +92,7 @@ export default async function Page() {
             border: 'none',
             cursor: 'pointer',
             fontFamily: 'var(--f1)',
-            fontSize: 11,
+            fontSize: 10,
             letterSpacing: 1,
           }}
         >
@@ -107,7 +107,7 @@ export default async function Page() {
             padding: '10px 12px',
             background: 'var(--yel)',
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 8,
             color: 'var(--ink)',
             letterSpacing: 0.3,
             lineHeight: 1.7,
@@ -135,15 +135,15 @@ export default async function Page() {
             '-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),inset 0 3px 0 var(--ink2),8px 8px 0 var(--yel-dk)',
         }}
       >
-        <div style={{ fontSize: 32 }}>📊</div>
+        <div style={{ fontSize: 31 }}>📊</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: 1, color: 'var(--yel)' }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 1, color: 'var(--yel)' }}>
             eBay 실시간 시세
           </div>
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 8,
               letterSpacing: 0.3,
               color: 'rgba(255,255,255,.7)',
               marginTop: 6,
@@ -175,7 +175,7 @@ export default async function Page() {
                   <span
                     style={{
                       fontFamily: 'var(--f1)',
-                      fontSize: 9,
+                      fontSize: 8,
                       padding: '2px 5px',
                       background: GRADE_BG[c.grade],
                       color: 'var(--white)',
@@ -249,7 +249,7 @@ export default async function Page() {
           padding: '10px 12px',
           background: 'var(--pap2)',
           fontFamily: 'var(--f1)',
-          fontSize: 9,
+          fontSize: 8,
           color: 'var(--ink2)',
           lineHeight: 1.8,
           letterSpacing: 0.3,

@@ -16,7 +16,7 @@ export function PageLoading() {
           alignItems: 'center',
           gap: 14,
           fontFamily: 'var(--f1)',
-          fontSize: 10,
+          fontSize: 9,
           color: 'var(--ink3)',
           letterSpacing: 2,
         }}

@@ -138,7 +138,7 @@ export function TradeImagePicker({ value, onChange, max = MAX_DEFAULT }: Props) 
                 border: 'none',
                 cursor: 'pointer',
                 fontFamily: 'var(--f1)',
-                fontSize: 11,
+                fontSize: 10,
                 lineHeight: 1,
                 boxShadow:
                   '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
@@ -163,7 +163,7 @@ export function TradeImagePicker({ value, onChange, max = MAX_DEFAULT }: Props) 
               display: 'grid',
               placeItems: 'center',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 8,
               color: 'var(--ink2)',
               letterSpacing: 0.3,
               textAlign: 'center',
@@ -187,7 +187,7 @@ export function TradeImagePicker({ value, onChange, max = MAX_DEFAULT }: Props) 
       />
 
       {err && (
-        <div style={{ marginTop: 8, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--red)', letterSpacing: 0.3 }}>
+        <div style={{ marginTop: 8, fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--red)', letterSpacing: 0.3 }}>
           ⚠ {err}
         </div>
       )}

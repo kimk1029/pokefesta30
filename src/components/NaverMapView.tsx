@@ -272,7 +272,7 @@ export function NaverMapView({ selNo, onSelect }: Props) {
         <div
           style={{
             position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 20,
-            background: 'var(--pap2)', fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink2)',
+            background: 'var(--pap2)', fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink2)',
             textAlign: 'center', lineHeight: 1.7, letterSpacing: 0.3,
           }}
         >
@@ -298,7 +298,7 @@ export function NaverMapView({ selNo, onSelect }: Props) {
         </div>
       )}
       <div className="map-legend">
-        <span className="mi" style={{ fontFamily: 'var(--f1)', fontSize: 10 }}>실제 지도</span>
+        <span className="mi" style={{ fontFamily: 'var(--f1)', fontSize: 9 }}>실제 지도</span>
       </div>
     </div>
   );

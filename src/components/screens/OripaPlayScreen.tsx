@@ -255,7 +255,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
           background: selectionDone ? 'var(--red)' : 'var(--pap2)',
           color: selectionDone ? 'var(--white)' : 'var(--ink2)',
           fontFamily: 'var(--f1)',
-          fontSize: 10,
+          fontSize: 9,
           letterSpacing: 0.5,
           lineHeight: 1.7,
           textAlign: 'center',
@@ -286,7 +286,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
         <div className="pull-overlay" style={{ animation: 'pf-fade-in 200ms steps(4) backwards' }}>
           <div className="pull-card" style={{ animation: 'pf-reveal-pop 500ms steps(6) backwards' }}>
             <div className={`pull-tier g-${activeReveal.grade}`}>{activeReveal.grade}상 당첨</div>
-            <div className="pull-emoji" style={{ fontSize: 72 }}>
+            <div className="pull-emoji" style={{ fontSize: 71 }}>
               {activeReveal.emoji}
             </div>
             <div className="pull-name">{activeReveal.name}</div>
@@ -319,7 +319,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
                 gap: 8,
                 width: '100%',
                 fontFamily: 'var(--f1)',
-                fontSize: 9,
+                fontSize: 8,
               }}
             >
               {(['S', 'A', 'B', 'C'] as const).map((g) => {
@@ -344,7 +344,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
                 background: 'transparent',
                 color: 'var(--ink3)',
                 fontFamily: 'var(--f1)',
-                fontSize: 9,
+                fontSize: 8,
                 padding: 6,
                 cursor: 'pointer',
                 border: 'none',

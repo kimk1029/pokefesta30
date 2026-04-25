@@ -115,7 +115,7 @@ export function LiveScreen({ places, initialFeeds, initialCursor, todayCount, ho
               padding: '18px 0',
               textAlign: 'center',
               fontFamily: 'var(--f1)',
-              fontSize: 10,
+              fontSize: 9,
               color: 'var(--ink3)',
               letterSpacing: 1,
             }}

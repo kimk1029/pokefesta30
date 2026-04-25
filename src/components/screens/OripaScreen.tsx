@@ -31,8 +31,8 @@ export function OripaScreen() {
             '-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),inset 0 4px 0 var(--pur-lt),inset 0 -4px 0 var(--pur-dk),7px 7px 0 var(--ink)',
         }}
       >
-        <div style={{ fontSize: 13, letterSpacing: 1 }}>🎲 포인트 뽑기</div>
-        <div style={{ fontSize: 9, letterSpacing: 0.4, marginTop: 8, lineHeight: 1.8, opacity: 0.9 }}>
+        <div style={{ fontSize: 12, letterSpacing: 1 }}>🎲 포인트 뽑기</div>
+        <div style={{ fontSize: 8, letterSpacing: 0.4, marginTop: 8, lineHeight: 1.8, opacity: 0.9 }}>
           박스 선택 → 수량 고른 뒤 구매하면 바로 뽑기 페이지로 이동합니다
           <br />
           이미 뽑힌 티켓은 등급이 공개되고, 남은 티켓은 포켓몬볼 뒷면으로 숨겨져 있어요

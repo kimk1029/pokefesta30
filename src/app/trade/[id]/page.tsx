@@ -46,14 +46,14 @@ export default async function Page({ params }: Props) {
             {trade.type === 'buy' ? '삽니다' : '팝니다'}
           </Tag>
           <Tag variant="place">📍 {trade.place}</Tag>
-          <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>
+          <span style={{ fontSize: 10, color: 'var(--muted)', marginLeft: 'auto' }}>
             {STATUS_LABEL[trade.status] ?? trade.status}
           </span>
         </div>
 
-        <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.4 }}>{trade.title}</div>
+        <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{trade.title}</div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--muted)' }}>
           <ComposedAvatar
             avatar={trade.authorEmoji}
             bg={trade.authorBgId}
@@ -62,12 +62,12 @@ export default async function Page({ params }: Props) {
             fallback={trade.authorEmoji}
           />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>
+            <span style={{ fontSize: 12, color: 'var(--ink)', fontWeight: 600 }}>
               {trade.authorName ?? '-'}
             </span>
-            <span style={{ fontSize: 11, color: 'var(--ink3)', marginTop: 2 }}>{trade.time}</span>
+            <span style={{ fontSize: 10, color: 'var(--ink3)', marginTop: 2 }}>{trade.time}</span>
           </div>
-          <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontWeight: 700, fontSize: 16 }}>
+          <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontWeight: 700, fontSize: 15 }}>
             {formatPrice(trade.price)}
           </span>
           <BookmarkButton tradeId={trade.id} />
@@ -105,7 +105,7 @@ export default async function Page({ params }: Props) {
         )}
 
         {trade.body && (
-          <div style={{ fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
             {trade.body}
           </div>
         )}

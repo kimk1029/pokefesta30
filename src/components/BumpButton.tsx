@@ -38,7 +38,7 @@ export function BumpButton({ tradeId, initialCount }: Props) {
         border: 'none',
         borderRadius: 10,
         padding: '10px 16px',
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: 600,
         cursor: remaining > 0 ? 'pointer' : 'not-allowed',
         opacity: pending ? 0.6 : 1,
@@ -47,7 +47,7 @@ export function BumpButton({ tradeId, initialCount }: Props) {
       }}
     >
       ⬆ 최신화하기
-      <span style={{ fontSize: 12, opacity: 0.8 }}>
+      <span style={{ fontSize: 11, opacity: 0.8 }}>
         ({remaining > 0 ? `${remaining}회 남음` : '횟수 소진'})
       </span>
     </button>

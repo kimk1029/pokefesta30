@@ -78,14 +78,14 @@ export function InAppBrowserNotice() {
         alignItems: 'center',
         boxShadow: '0 3px 0 rgba(0,0,0,.2)',
         fontFamily: 'var(--f1)',
-        fontSize: 10,
+        fontSize: 9,
         letterSpacing: 0.3,
         lineHeight: 1.6,
       }}
     >
       <div style={{ flex: 1 }}>
-        <div style={{ color: 'var(--yel)', fontSize: 11 }}>⚠ 내장 브라우저 감지</div>
-        <div style={{ color: 'var(--white)', fontSize: 9, marginTop: 4 }}>
+        <div style={{ color: 'var(--yel)', fontSize: 10 }}>⚠ 내장 브라우저 감지</div>
+        <div style={{ color: 'var(--white)', fontSize: 8, marginTop: 4 }}>
           네이버·구글 로그인은 내장 브라우저에서 차단됩니다.<br />
           크롬/사파리 등 외부 브라우저로 열어주세요.
         </div>
@@ -99,7 +99,7 @@ export function InAppBrowserNotice() {
           color: 'var(--ink)',
           border: 'none',
           fontFamily: 'var(--f1)',
-          fontSize: 9,
+          fontSize: 8,
           letterSpacing: 0.5,
           cursor: 'pointer',
           boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
@@ -116,7 +116,7 @@ export function InAppBrowserNotice() {
           color: 'var(--white)',
           border: 'none',
           cursor: 'pointer',
-          fontSize: 14,
+          fontSize: 13,
           padding: '0 4px',
           opacity: 0.7,
         }}

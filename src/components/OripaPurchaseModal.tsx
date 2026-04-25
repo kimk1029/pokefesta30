@@ -64,7 +64,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
           <div className="ob-top">
             <div className="ob-icon">{box.emoji}</div>
             <div className="ob-meta">
-              <div className="ob-name" style={{ fontSize: 13 }}>{box.name}</div>
+              <div className="ob-name" style={{ fontSize: 12 }}>{box.name}</div>
               <div className="ob-desc" style={{ fontSize: 8 }}>{box.desc}</div>
             </div>
           </div>
@@ -90,13 +90,13 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                 className={`avatar-tile${active ? ' active' : ''}`}
                 style={{ aspectRatio: 'auto', padding: '10px 6px', minHeight: 72 }}
               >
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 13, letterSpacing: 0.5 }}>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: 0.5 }}>
                   {p.label}
                 </div>
                 <div
                   style={{
                     fontFamily: 'var(--f1)',
-                    fontSize: 10,
+                    fontSize: 9,
                     color: active ? 'var(--ink)' : 'var(--red)',
                     marginTop: 4,
                   }}
@@ -126,7 +126,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
             padding: '10px 12px',
             background: 'var(--pap2)',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 9,
             lineHeight: 1.9,
             boxShadow:
               '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)',
@@ -149,7 +149,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
               marginTop: 6,
               paddingTop: 6,
               borderTop: '2px dashed var(--ink3)',
-              fontSize: 12,
+              fontSize: 11,
               color: 'var(--red)',
             }}
           >
@@ -161,7 +161,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
               display: 'flex',
               justifyContent: 'space-between',
               marginTop: 6,
-              fontSize: 9,
+              fontSize: 8,
               color: 'var(--ink3)',
             }}
           >
@@ -177,7 +177,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
               padding: '6px 10px',
               color: 'var(--red)',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 8,
               textAlign: 'center',
             }}
           >

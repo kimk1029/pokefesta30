@@ -65,7 +65,7 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
                 }}
               />
             </div>
-            <div style={{ color: 'var(--yel)', fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 1 }}>
+            <div style={{ color: 'var(--yel)', fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 1 }}>
               {pending === 'kakao' && '카카오 로그인 창 여는 중...'}
               {pending === 'naver' && '네이버 로그인 창 여는 중...'}
               {pending === 'google' && '구글 로그인 창 여는 중...'}

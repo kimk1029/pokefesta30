@@ -35,7 +35,7 @@ export function LoginRequired({
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 14,
+              fontSize: 13,
               letterSpacing: 1,
               lineHeight: 1.8,
             }}
@@ -45,7 +45,7 @@ export function LoginRequired({
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 10,
+              fontSize: 9,
               color: 'var(--ink3)',
               lineHeight: 1.8,
             }}

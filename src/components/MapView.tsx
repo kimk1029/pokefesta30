@@ -136,7 +136,7 @@ export function MapView({ places, trades }: Props) {
         })}
 
         <div className="map-legend">
-          <span className="mi" style={{ fontFamily: 'var(--f1)', fontSize: 10 }}>
+          <span className="mi" style={{ fontFamily: 'var(--f1)', fontSize: 9 }}>
             스탬프 1~6
           </span>
         </div>
@@ -151,7 +151,7 @@ export function MapView({ places, trades }: Props) {
               background: spot.bg,
               width: 44,
               height: 44,
-              fontSize: 20,
+              fontSize: 19,
               position: 'relative',
             }}
           >
@@ -168,7 +168,7 @@ export function MapView({ places, trades }: Props) {
                 background: 'var(--red)',
                 color: 'var(--white)',
                 fontFamily: 'var(--f1)',
-                fontSize: 10,
+                fontSize: 9,
                 boxShadow:
                   '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
               }}
@@ -177,7 +177,7 @@ export function MapView({ places, trades }: Props) {
             </div>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.5 }}>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.5 }}>
               {spot.name}
             </div>
             {spot.subtitle && (

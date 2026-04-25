@@ -47,7 +47,7 @@ export default function Page() {
       <div className="sect">
         <SectionTitle title="공지사항" right={<span className="more">{NOTICES.length}건</span>} />
         {NOTICES.length === 0 ? (
-          <div style={{ padding: 30, textAlign: 'center', fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)' }}>
+          <div style={{ padding: 30, textAlign: 'center', fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>
             등록된 공지가 없어요
           </div>
         ) : (
@@ -90,13 +90,13 @@ export default function Page() {
                   {n.date}
                 </span>
               </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: 0.5, marginBottom: 6 }}>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.5, marginBottom: 6 }}>
                 {n.title}
               </div>
               <div
                 style={{
                   fontFamily: 'var(--f1)',
-                  fontSize: 9,
+                  fontSize: 8,
                   color: 'var(--ink2)',
                   lineHeight: 1.8,
                   letterSpacing: 0.3,
