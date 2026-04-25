@@ -165,7 +165,9 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
 
   const runReveals = async () => {
     if (selected.length !== qty || revealStage !== 'idle') return;
-    setShowConfirm(false);
+    // 모달은 그대로 두고 stage 만 'running' — 버튼이 스피너로 바뀜.
+    // 첫 카드 애니메이션 직전에 모달 닫음 (서버 fetch + 첫 reveal 준비 시간 동안
+    // 사용자가 "처리 중" 임을 명확히 보도록).
     setRevealStage('running');
 
     // 서버에 실제 pull 요청 — 원자적 업데이트
@@ -184,6 +186,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
             : (err as { error?: string }).error ?? '뽑기 실패';
         toast.error(msg);
         setRevealStage('idle');
+        setShowConfirm(false);
         void refresh();
         return;
       }
@@ -191,6 +194,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '네트워크 오류');
       setRevealStage('idle');
+      setShowConfirm(false);
       void refresh();
       return;
     }
@@ -201,9 +205,13 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
       toast.error('다른 유저가 먼저 뽑았어요');
       setSelected([]);
       setRevealStage('idle');
+      setShowConfirm(false);
       void refresh();
       return;
     }
+
+    // 서버 fetch 끝났고 첫 카드 애니메이션 시작 — 이제 confirm 모달 닫음.
+    setShowConfirm(false);
 
     // 성공한 티켓 하나씩 애니메이션
     // 시퀀스: 그리드 카드 들썩(700ms) → 모달 등장 → 봉투 흔들림 1100ms →
@@ -424,9 +432,17 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
         </div>
       )}
 
-      {/* 수량 채우면 뜨는 확인 모달 — *장 오픈 / 다시 고르기 */}
-      {showConfirm && revealStage === 'idle' && (
-        <div className="pull-overlay" onClick={() => setShowConfirm(false)}>
+      {/* 수량 채우면 뜨는 확인 모달 — *장 오픈 / 다시 고르기.
+          revealStage === 'running' 동안엔 버튼이 스피너로 바뀌며 모달 유지
+          (서버 fetch + 첫 reveal 준비 중 dead time 제거). 첫 카드 애니메이션
+          시작 직전에 setShowConfirm(false) 로 닫힘. */}
+      {showConfirm && (
+        <div
+          className="pull-overlay"
+          onClick={() => {
+            if (revealStage === 'idle') setShowConfirm(false);
+          }}
+        >
           <div
             className="pull-card"
             onClick={(e) => e.stopPropagation()}
@@ -484,22 +500,36 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
               type="button"
               className="pull-btn"
               onClick={runReveals}
-              style={{ width: '100%' }}
+              disabled={revealStage !== 'idle'}
+              style={{
+                width: '100%',
+                cursor: revealStage === 'idle' ? 'pointer' : 'wait',
+                opacity: 1,
+              }}
             >
-              ▶ {qty}장 오픈 ▶
+              {revealStage === 'running' ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                  <PullSpinner />
+                  뽑는 중...
+                </span>
+              ) : (
+                `▶ ${qty}장 오픈 ▶`
+              )}
             </button>
             <button
               type="button"
               onClick={clearSelection}
+              disabled={revealStage !== 'idle'}
               style={{
                 background: 'transparent',
                 color: 'var(--ink3)',
                 fontFamily: 'var(--f1)',
                 fontSize: 8,
                 padding: 6,
-                cursor: 'pointer',
+                cursor: revealStage === 'idle' ? 'pointer' : 'not-allowed',
                 border: 'none',
                 textDecoration: 'underline',
+                opacity: revealStage === 'idle' ? 1 : 0.4,
               }}
             >
               ← 다시 고르기
@@ -556,4 +586,41 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
 
 function delay(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
+}
+
+/** 포켓몬볼 모양 작은 스피너 — 오픈 버튼이 처리중일 때 노출 */
+function PullSpinner() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: 'inline-block',
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        border: '2px solid var(--ink)',
+        background: `linear-gradient(to bottom,
+          var(--red) 0,var(--red) 46%,
+          var(--ink) 46%,var(--ink) 54%,
+          var(--white) 54%,var(--white) 100%)`,
+        position: 'relative',
+        animation: 'pf-ball-spin 0.7s linear infinite',
+        verticalAlign: 'middle',
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: 'var(--white)',
+          border: '1.5px solid var(--ink)',
+          transform: 'translate(-50%,-50%)',
+        }}
+      />
+    </span>
+  );
 }
