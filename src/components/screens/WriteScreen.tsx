@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { isRedirectError } from 'next/dist/client/components/redirect';
 import { submitFeed, submitTrade } from '@/app/actions';
 import { useInventory } from '@/components/InventoryProvider';
 import { TradeImagePicker } from '@/components/TradeImagePicker';
@@ -84,6 +85,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
         try {
           await submitTrade(fd);
         } catch (e) {
+          if (isRedirectError(e)) throw e;
           setError(e instanceof Error ? e.message : '거래글 등록 실패');
         }
       });
@@ -100,6 +102,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
       try {
         await submitFeed(fd);
       } catch (e) {
+        if (isRedirectError(e)) throw e;
         setError(e instanceof Error ? e.message : '등록 실패');
       }
     });

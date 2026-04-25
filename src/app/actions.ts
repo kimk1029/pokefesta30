@@ -1,7 +1,7 @@
 'use server';
 
 import { getServerSession } from 'next-auth';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { isAvatarId } from '@/lib/avatars';
@@ -147,6 +147,8 @@ export async function submitFeed(formData: FormData): Promise<void> {
   revalidatePath('/feed');
   revalidatePath('/live');
   revalidatePath('/');
+  revalidateTag('feeds');
+  if (kind === 'report') revalidateTag('places');
   redirect('/feed');
 }
 

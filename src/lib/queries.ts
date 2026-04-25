@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import {
   DEFAULT_AVATAR,
   DEFAULT_OWNED,
@@ -104,10 +105,9 @@ const DEFAULT_PLACES = [
   { id: 'seoulsup', name: '서울숲역 부근',          emoji: '🌳', bg: '#4ADE80' },
 ];
 
-export async function getPlaces(): Promise<Place[]> {
+async function _getPlaces(): Promise<Place[]> {
   try {
     let rows = await prisma.place.findMany({ orderBy: { id: 'asc' } });
-    // 빈 DB 자동 시드 — 초기 배포/새 Supabase 환경에서 UI 비지 않도록
     if (rows.length === 0) {
       await prisma.place.createMany({ data: DEFAULT_PLACES, skipDuplicates: true });
       rows = await prisma.place.findMany({ orderBy: { id: 'asc' } });
@@ -126,6 +126,8 @@ export async function getPlaces(): Promise<Place[]> {
     return [];
   }
 }
+
+export const getPlaces = unstable_cache(_getPlaces, ['places'], { revalidate: 60, tags: ['places'] });
 
 /**
  * 오늘(KST 기준 00:00~) 시간대별 피드 건수 24개 + 현재 KST 시(hour).
@@ -162,15 +164,18 @@ export async function getHourlyReportCounts(): Promise<{ counts: number[]; nowHo
   const nowHour = kstHour(now);
   try {
     const start = kstStartOfDayUtc(now);
-    // kind 필터 제거 — report + general 모두 집계 (현황 + 피드양)
-    const rows = await prisma.feed.findMany({
-      where: { createdAt: { gte: start } },
-      select: { createdAt: true },
-    });
+    // SQL GROUP BY로 집계 — 행 전체 fetch 대신 DB에서 바로 시간대별 카운트
+    const rows = await prisma.$queryRaw<Array<{ h: number; cnt: bigint }>>`
+      SELECT EXTRACT(HOUR FROM "createdAt" AT TIME ZONE 'Asia/Seoul')::int AS h,
+             COUNT(*)::bigint AS cnt
+      FROM "Feed"
+      WHERE "createdAt" >= ${start}
+      GROUP BY h
+    `;
     const counts = new Array<number>(24).fill(0);
     for (const r of rows) {
-      const h = kstHour(r.createdAt);
-      if (h >= 0 && h < 24) counts[h]++;
+      const h = Number(r.h);
+      if (h >= 0 && h < 24) counts[h] = Number(r.cnt);
     }
     return { counts, nowHour };
   } catch (err) {
@@ -443,15 +448,18 @@ export async function getMyInventory(userId: string): Promise<InventorySnapshot>
   }
 }
 
-export async function getTodayReportCount(): Promise<number> {
-  try {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    return await prisma.feed.count({
-      where: { kind: 'report', createdAt: { gte: start } },
-    });
-  } catch (err) {
-    console.error('[getTodayReportCount]', err);
-    return 0;
-  }
-}
+export const getTodayReportCount = unstable_cache(
+  async (): Promise<number> => {
+    try {
+      const start = kstStartOfDayUtc();
+      return await prisma.feed.count({
+        where: { kind: 'report', createdAt: { gte: start } },
+      });
+    } catch (err) {
+      console.error('[getTodayReportCount]', err);
+      return 0;
+    }
+  },
+  ['today-report-count'],
+  { revalidate: 60, tags: ['feeds'] },
+);
