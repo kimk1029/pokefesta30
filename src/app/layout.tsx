@@ -17,7 +17,7 @@ import { getMyInventory } from '@/lib/queries';
 import 'galmuri/dist/galmuri.css';
 import './globals.css';
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://poke-30.com';
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.poke-30.com';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -1,7 +1,10 @@
 import type { MetadataRoute } from 'next';
 import { prisma } from '@/lib/prisma';
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://poke-30.com';
+// Vercel 배포는 www.poke-30.com 으로 308 리다이렉트되므로 사이트맵 내부 URL 도
+// 처음부터 canonical(www) 호스트를 사용해야 한다. 그렇지 않으면 Google 이 모든
+// <loc> 을 redirect URL 로 인지해 "사이트맵 가져올 수 없음" 으로 처리한다.
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.poke-30.com';
 
 /**
  * 정적 + 동적 (열린 거래글) 라우트.
