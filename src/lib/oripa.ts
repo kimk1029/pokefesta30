@@ -89,38 +89,24 @@ function pickGrade(seed: number): (typeof GRADES)[number] {
   return GRADES[0];
 }
 
-/** 결정적 시드로 packId 별 53칸 mock drawn 채움 — 첫 진입 시 UI 비어보이지 않도록. */
-function buildSeed(packId: string) {
-  const drawnIdx = new Set<number>();
-  let seed = hash(packId);
-  while (drawnIdx.size < 53) {
-    seed = (seed * 9301 + 49297) % 233280;
-    drawnIdx.add(seed % 100);
-  }
-  const mockNames = ['🦊', '🐻', '🐤', '🦆', '🐢', '🐿️', '🐺', '🐧', '🐳', '🦁'];
-  return Array.from({ length: 100 }, (_, i) => {
-    if (!drawnIdx.has(i)) {
-      return { packId, index: i, drawn: false };
-    }
-    const g = pickGrade(i * 31 + 17);
-    return {
-      packId,
-      index: i,
-      drawn: true,
-      grade: g.g,
-      prizeName: g.name,
-      prizeEmoji: g.emoji,
-      drawnById: null as string | null,
-      drawnByName: mockNames[i % mockNames.length],
-      drawnAt: new Date(Date.now() - ((i % 30) + 1) * 60_000),
-    };
-  });
-}
-
 function hash(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return Math.abs(h) || 13579;
+}
+
+/**
+ * 패키지의 100칸을 "전부 미오픈" 상태로 시드.
+ * (이전엔 첫 진입 UI 가 비어보이지 않게 53칸을 mock-drawn 으로 채웠지만,
+ *  어드민 reset 후에도 가짜 뽑힌 티켓이 다시 나타나 reset 의미가 사라졌음 →
+ *  진짜 새 판으로 시작하도록 변경.)
+ */
+function buildSeed(packId: string) {
+  return Array.from({ length: 100 }, (_, i) => ({
+    packId,
+    index: i,
+    drawn: false,
+  }));
 }
 
 type DbRow = Awaited<ReturnType<typeof prisma.oripaTicket.findMany>>[number];
