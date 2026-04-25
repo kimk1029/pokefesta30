@@ -272,10 +272,13 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
       },
     });
 
-    // 거래글별 1:1 채팅 시도자(unique senderId 중 작성자 본인 제외) 수
+    // 거래글별 "1:1 채팅 중인 사용자 수" 집계 (메시지 개수 아님).
+    // 작성자에게 메시지를 한 번이라도 보낸 unique senderId 의 개수.
+    // 작성자 본인이 답장으로 보낸 메시지는 제외 → 순수하게 "관심을 보인 사람 수".
     const ids = rows.map((r) => r.id);
     let chatCounts: Record<number, number> = {};
     if (ids.length > 0) {
+      const ownerById = new Map(rows.map((r) => [r.id, r.authorId]));
       const msgs = await prisma.message.findMany({
         where: { tradeId: { in: ids } },
         select: { tradeId: true, senderId: true },
@@ -283,8 +286,8 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
       const setMap = new Map<number, Set<string>>();
       for (const m of msgs) {
         if (m.tradeId == null) continue;
-        const owner = rows.find((r) => r.id === m.tradeId)?.authorId ?? null;
-        if (owner && m.senderId === owner) continue; // 본인 제외
+        const owner = ownerById.get(m.tradeId) ?? null;
+        if (owner && m.senderId === owner) continue; // 작성자 본인 제외
         const s = setMap.get(m.tradeId) ?? new Set<string>();
         s.add(m.senderId);
         setMap.set(m.tradeId, s);

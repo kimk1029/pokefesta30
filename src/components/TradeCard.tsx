@@ -95,7 +95,12 @@ export function TradeCard({ trade, showChatCount }: Props) {
           >
             <span className="t-price">{formatPrice(trade.price)}</span>
             {showChatCount && chatCount > 0 && (
-              <span title="1:1 채팅 시도한 사람 수">💬 {chatCount}명</span>
+              <span
+                title="이 거래글로 작성자와 1:1 채팅 중인 사용자 수"
+                style={{ color: 'var(--blu)' }}
+              >
+                👥 {chatCount}명 문의중
+              </span>
             )}
           </div>
         </div>
