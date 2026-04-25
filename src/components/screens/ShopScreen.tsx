@@ -32,27 +32,40 @@ export function ShopScreen() {
   const inv = useInventory();
   const toast = useToast();
   const [tab, setTab] = useState<Tab>('avatar');
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
   const buyAvatar = async (id: AvatarId, price: number) => {
+    if (pendingId) return;
+    setPendingId(id);
     if (inv.avatarOwned.includes(id)) {
       const r = await inv.pickAvatar(id);
       r.ok ? toast.success(`${id} 선택`) : toast.error(r.msg ?? '실패');
-      return;
+    } else {
+      const r = await inv.buyAvatar(id, price);
+      r.ok ? toast.success('획득!') : toast.error(r.msg ?? '실패');
     }
-    const r = await inv.buyAvatar(id, price);
-    r.ok ? toast.success('획득!') : toast.error(r.msg ?? '실패');
+    setPendingId(null);
   };
   const buyBg = async (id: BackgroundId, price: number) => {
+    if (pendingId) return;
+    setPendingId(id);
     const r = await inv.buyBg(id, price);
     r.ok ? toast.success('적용!') : toast.error(r.msg ?? '실패');
+    setPendingId(null);
   };
   const buyFrame = async (id: FrameId, price: number) => {
+    if (pendingId) return;
+    setPendingId(id);
     const r = await inv.buyFrame(id, price);
     r.ok ? toast.success('적용!') : toast.error(r.msg ?? '실패');
+    setPendingId(null);
   };
   const charge = async (label: string, points: number) => {
+    if (pendingId) return;
+    setPendingId(label);
     const r = await inv.charge(points);
     r.ok ? toast.success(`${label} 충전 완료 · +${points.toLocaleString()}P`) : toast.error(r.msg ?? '실패');
+    setPendingId(null);
   };
 
   return (
@@ -83,16 +96,18 @@ export function ShopScreen() {
                   <button
                     type="button"
                     className={`sac-btn ${owned ? 'owned' : ''} ${levelLocked ? 'locked' : ''}`}
-                    disabled={levelLocked}
+                    disabled={levelLocked || pendingId === a.id}
                     onClick={() => buyAvatar(a.id, a.price ?? 0)}
                   >
-                    {owned
-                      ? current ? '선택됨' : '선택'
-                      : levelLocked
-                        ? `🔒 LV.${a.level}`
-                        : a.mode === 'shop'
-                          ? `🪙 ${(a.price ?? 0).toLocaleString()}`
-                          : '획득'}
+                    {pendingId === a.id
+                      ? '...'
+                      : owned
+                        ? current ? '선택됨' : '선택'
+                        : levelLocked
+                          ? `🔒 LV.${a.level}`
+                          : a.mode === 'shop'
+                            ? `🪙 ${(a.price ?? 0).toLocaleString()}`
+                            : '획득'}
                   </button>
                 </div>
               );
@@ -118,9 +133,10 @@ export function ShopScreen() {
                   <button
                     type="button"
                     className={`sac-btn ${owned ? 'owned' : ''}`}
+                    disabled={pendingId === b.id}
                     onClick={() => buyBg(b.id, b.price)}
                   >
-                    {owned ? (current ? '선택됨' : '선택') : `🪙 ${b.price.toLocaleString()}`}
+                    {pendingId === b.id ? '...' : owned ? (current ? '선택됨' : '선택') : `🪙 ${b.price.toLocaleString()}`}
                   </button>
                 </div>
               );
@@ -146,9 +162,10 @@ export function ShopScreen() {
                   <button
                     type="button"
                     className={`sac-btn ${owned ? 'owned' : ''}`}
+                    disabled={pendingId === f.id}
                     onClick={() => buyFrame(f.id, f.price)}
                   >
-                    {owned ? (current ? '선택됨' : '선택') : `🪙 ${f.price.toLocaleString()}`}
+                    {pendingId === f.id ? '...' : owned ? (current ? '선택됨' : '선택') : `🪙 ${f.price.toLocaleString()}`}
                   </button>
                 </div>
               );
@@ -169,8 +186,8 @@ export function ShopScreen() {
               </div>
               <div className="sh-right">
                 <span className="sh-price">{p.price}</span>
-                <button type="button" className="sh-buy" onClick={() => charge(p.label, p.points)}>
-                  결제
+                <button type="button" className="sh-buy" disabled={pendingId === p.label} onClick={() => charge(p.label, p.points)}>
+                  {pendingId === p.label ? '...' : '결제'}
                 </button>
               </div>
             </div>
