@@ -6,6 +6,7 @@ import { AVATARS, isAvatarId, type AvatarId } from '@/lib/avatars';
 import { defaultNameFor } from '@/lib/defaultName';
 import { prisma } from '@/lib/prisma';
 import { getMyInventory, type InventorySnapshot } from '@/lib/queries';
+import { getSlot } from '@/lib/freeCharge';
 import {
   BACKGROUNDS,
   FRAMES,
@@ -166,6 +167,57 @@ export async function spendPoints(amount: number): Promise<Result> {
     where: { id: userId },
     data: { points: { decrement: amount } },
   });
+  return { ok: true, inv: await getMyInventory(userId) };
+}
+
+/**
+ * 무료충전소 — 광고 시청 보상.
+ * 서버 메모리 기반 cooldown/daily 제한. (재시작 시 초기화 — mock 단계 허용)
+ * 실제 SDK 연동 시 콜백 서명검증으로 교체.
+ */
+type AdViewState = { lastAt: number; dayKey: string; count: number };
+const adViewStore = new Map<string, AdViewState>();
+
+function todayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export async function rewardAdView(
+  slotId: string,
+): Promise<Result | { ok: false; error: string; retryInSec?: number }> {
+  const slot = getSlot(slotId);
+  if (!slot) return { ok: false, error: 'invalid slot' };
+
+  const userId = await sessionUserId();
+  if (!userId) return { ok: false, error: 'unauthorized' };
+
+  const key = `${userId}:${slotId}`;
+  const now = Date.now();
+  const day = todayKey();
+  const prev = adViewStore.get(key);
+
+  if (prev && prev.dayKey === day) {
+    const elapsed = (now - prev.lastAt) / 1000;
+    if (elapsed < slot.cooldownSec) {
+      return {
+        ok: false,
+        error: '쿨다운 중',
+        retryInSec: Math.ceil(slot.cooldownSec - elapsed),
+      };
+    }
+    if (prev.count >= slot.dailyLimit) {
+      return { ok: false, error: '오늘 한도 초과' };
+    }
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { points: { increment: slot.reward } },
+  });
+
+  const nextCount = prev && prev.dayKey === day ? prev.count + 1 : 1;
+  adViewStore.set(key, { lastAt: now, dayKey: day, count: nextCount });
+
   return { ok: true, inv: await getMyInventory(userId) };
 }
 

@@ -9,6 +9,7 @@ import {
   pickAvatar as pickAvatarAction,
   pickBackground as pickBgAction,
   pickFrame as pickFrameAction,
+  rewardAdView as rewardAdViewAction,
   spendPoints as spendPointsAction,
 } from '@/app/inventory-actions';
 import { DEFAULT_AVATAR, DEFAULT_OWNED, type AvatarId } from '@/lib/avatars';
@@ -25,7 +26,7 @@ const ANON_SNAPSHOT: InventorySnapshot = {
   points: 0,
 };
 
-type MutResult = { ok: boolean; msg?: string };
+type MutResult = { ok: boolean; msg?: string; retryInSec?: number };
 
 export interface InventoryCtxValue extends InventorySnapshot {
   isLoggedIn: boolean;
@@ -39,6 +40,8 @@ export interface InventoryCtxValue extends InventorySnapshot {
   spend: (amount: number) => Promise<MutResult>;
   /** 결제 mock — 사업자 등록 전까지 가상 충전. */
   charge: (amount: number) => Promise<MutResult>;
+  /** 무료충전소 — 광고 시청 보상 청구. */
+  rewardAd: (slotId: string) => Promise<MutResult>;
 }
 
 const Ctx = createContext<InventoryCtxValue | null>(null);
@@ -60,7 +63,12 @@ export function InventoryProvider({
 
   const wrap =
     <A extends unknown[]>(
-      fn: (...args: A) => Promise<{ ok: true; inv: InventorySnapshot } | { ok: false; error: string }>,
+      fn: (
+        ...args: A
+      ) => Promise<
+        | { ok: true; inv: InventorySnapshot }
+        | { ok: false; error: string; retryInSec?: number }
+      >,
     ) =>
     async (...args: A): Promise<MutResult> => {
       if (!isLoggedIn) return notLogged();
@@ -69,7 +77,7 @@ export function InventoryProvider({
         setSnap(r.inv);
         return { ok: true };
       }
-      return { ok: false, msg: r.error };
+      return { ok: false, msg: r.error, retryInSec: r.retryInSec };
     };
 
   const value = useMemo<InventoryCtxValue>(
@@ -84,6 +92,7 @@ export function InventoryProvider({
       buyFrame: wrap(buyFrameAction),
       spend: wrap(spendPointsAction),
       charge: wrap(mockChargeAction),
+      rewardAd: wrap(rewardAdViewAction),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [snap, isLoggedIn],

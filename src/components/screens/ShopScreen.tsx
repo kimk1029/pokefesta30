@@ -11,14 +11,16 @@ import { SectionTitle } from '@/components/ui/SectionTitle';
 import { Segmented } from '@/components/ui/Segmented';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { AVATARS, type AvatarId } from '@/lib/avatars';
+import { FREE_CHARGE_SLOTS } from '@/lib/freeCharge';
 import { BACKGROUNDS, FRAMES, type BackgroundId, type FrameId } from '@/lib/shop';
 
-type Tab = 'avatar' | 'bg' | 'frame' | 'charge';
+type Tab = 'avatar' | 'bg' | 'frame' | 'charge' | 'free';
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'avatar', label: '포켓몬' },
   { id: 'bg',     label: '배경' },
   { id: 'frame',  label: '테두리' },
-  { id: 'charge', label: '포인트' },
+  { id: 'charge', label: '충전' },
+  { id: 'free',   label: '무료' },
 ];
 
 const CHARGE_PACKS: Array<{ id: string; label: string; price: string; bonus: string; points: number }> = [
@@ -65,6 +67,23 @@ export function ShopScreen() {
     setPendingId(label);
     const r = await inv.charge(points);
     r.ok ? toast.success(`${label} 충전 완료 · +${points.toLocaleString()}P`) : toast.error(r.msg ?? '실패');
+    setPendingId(null);
+  };
+
+  /** 광고 시청 시뮬레이션 — 실제 SDK 붙기 전까지 setTimeout 으로 영상 재생 흉내. */
+  const watchAd = async (slotId: string, durationMs: number, reward: number) => {
+    if (pendingId) return;
+    setPendingId(slotId);
+    toast.success('광고 시청 중...');
+    await new Promise((res) => setTimeout(res, durationMs));
+    const r = await inv.rewardAd(slotId);
+    if (r.ok) {
+      toast.success(`+${reward.toLocaleString()}P 적립!`);
+    } else if (r.retryInSec) {
+      toast.error(`${r.retryInSec}초 후 다시`);
+    } else {
+      toast.error(r.msg ?? '실패');
+    }
     setPendingId(null);
   };
 
@@ -208,6 +227,66 @@ export function ShopScreen() {
             }}
           >
             🚧 실제 결제는 아직 붙지 않았어요. 버튼 누르면 테스트 포인트 지급.
+          </div>
+        </div>
+      )}
+
+      {tab === 'free' && (
+        <div className="sect">
+          <SectionTitle
+            title="무료 충전소"
+            right={<span className="more">광고 시청 · 무료</span>}
+          />
+          {FREE_CHARGE_SLOTS.map((s) => (
+            <div key={s.id} className="shop-card">
+              <div className="sh-icon" style={{ background: 'var(--grn)', color: 'var(--ink)' }}>
+                {s.emoji}
+              </div>
+              <div className="sh-main">
+                <div className="sh-title">{s.title}</div>
+                <div className="sh-desc">
+                  {s.desc} · 일일 {s.dailyLimit}회
+                </div>
+              </div>
+              <div className="sh-right">
+                <span className="sh-price" style={{ color: 'var(--grn-dk)' }}>
+                  +{s.reward.toLocaleString()}P
+                </span>
+                <button
+                  type="button"
+                  className="sh-buy"
+                  style={{ background: 'var(--grn)', color: 'var(--ink)' }}
+                  disabled={pendingId === s.id}
+                  onClick={() =>
+                    watchAd(
+                      s.id,
+                      // 미리보기를 위해 실제 cooldown 대신 1.5초 시뮬레이션
+                      1500,
+                      s.reward,
+                    )
+                  }
+                >
+                  {pendingId === s.id ? '시청중...' : '시청'}
+                </button>
+              </div>
+            </div>
+          ))}
+          <div
+            style={{
+              margin: '4px 0 0',
+              padding: '10px 12px',
+              background: 'var(--pap2)',
+              fontFamily: 'var(--f1)',
+              fontSize: 9,
+              color: 'var(--ink2)',
+              lineHeight: 1.8,
+              letterSpacing: 0.3,
+              textAlign: 'center',
+              boxShadow:
+                '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+            }}
+          >
+            🎬 광고 SDK 연동 전 — 시청 시뮬레이션 후 즉시 지급됩니다.
           </div>
         </div>
       )}
