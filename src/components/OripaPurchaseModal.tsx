@@ -70,6 +70,9 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
           </div>
         </div>
 
+        {/* 상품 미리보기 (DB 팩 prizes 가 있을 때만) */}
+        <PrizePreview prizes={box.prizes} />
+
         {/* 수량 선택 */}
         <div
           style={{
@@ -233,6 +236,112 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
             '▶ 구매하고 뽑으러 가기 ▶'
           )}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* ───────────────────── 상품 미리보기 ───────────────────── */
+
+const GRADE_COLOR: Record<string, string> = {
+  S: 'var(--red)',
+  A: 'var(--blu)',
+  B: 'var(--orn)',
+  C: 'var(--grn-dk)',
+};
+
+function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
+  if (!prizes || prizes.length === 0) return null;
+  const total = prizes.reduce((s, p) => s + (p.weight > 0 ? p.weight : 0), 0);
+  if (total <= 0) return null;
+
+  // 등급 우선(S→C) → 가중치 큰 순
+  const order = ['S', 'A', 'B', 'C'] as const;
+  const sorted = [...prizes].sort((a, b) => {
+    const oa = order.indexOf(a.grade);
+    const ob = order.indexOf(b.grade);
+    if (oa !== ob) return oa - ob;
+    return b.weight - a.weight;
+  });
+
+  return (
+    <div
+      style={{
+        marginBottom: 10,
+        padding: '8px 10px',
+        background: 'var(--white)',
+        boxShadow:
+          '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+      }}
+    >
+      <div
+        style={{
+          fontFamily: 'var(--f1)',
+          fontSize: 9,
+          letterSpacing: 0.4,
+          color: 'var(--ink)',
+          marginBottom: 6,
+        }}
+      >
+        🎁 들어있는 상품
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {sorted.map((p, i) => {
+          const pct = Math.round((p.weight / total) * 100);
+          return (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontFamily: 'var(--f1)',
+                fontSize: 8,
+                lineHeight: 1.7,
+              }}
+            >
+              <span
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-grid',
+                  placeItems: 'center',
+                  width: 16,
+                  height: 16,
+                  background: GRADE_COLOR[p.grade] ?? 'var(--ink3)',
+                  color: 'var(--white)',
+                  fontSize: 7,
+                  fontWeight: 'bold',
+                }}
+              >
+                {p.grade}
+              </span>
+              <span style={{ flexShrink: 0, fontSize: 12 }}>{p.emoji}</span>
+              <span
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  color: 'var(--ink2)',
+                }}
+                title={p.name}
+              >
+                {p.name}
+              </span>
+              <span
+                style={{
+                  flexShrink: 0,
+                  color: 'var(--ink3)',
+                  fontSize: 8,
+                  letterSpacing: 0.3,
+                }}
+              >
+                {pct >= 1 ? `${pct}%` : '<1%'}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

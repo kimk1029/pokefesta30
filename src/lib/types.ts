@@ -91,6 +91,17 @@ export interface OripaBox {
   desc: string;
   price: number;
   odds: string;
+  /** 미리보기용 상품 리스트 (가중치 → % 변환은 UI 측). DB 팩이면 채워짐. */
+  prizes?: OripaBoxPrize[];
+}
+
+export interface OripaBoxPrize {
+  grade: 'S' | 'A' | 'B' | 'C';
+  name: string;
+  emoji: string;
+  weight: number;
+  bg?: string;
+  imageUrl?: string;
 }
 
 /** 쿠지 등급 — S(잭팟) / A(상위) / B(중간) / C(기본) / last(라스원) */

@@ -10,7 +10,13 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import { ORIPA_BOXES, ORIPA_RESULTS } from '@/lib/data';
 import type { OripaBox } from '@/lib/types';
 
-export function OripaScreen() {
+interface Props {
+  /** 서버에서 prisma.oripaPack(active=true) 로드. 없으면 정적 fallback. */
+  boxes?: OripaBox[];
+}
+
+export function OripaScreen({ boxes }: Props) {
+  const list = boxes && boxes.length > 0 ? boxes : ORIPA_BOXES;
   const [picked, setPicked] = useState<OripaBox | null>(null);
 
   return (
@@ -40,8 +46,21 @@ export function OripaScreen() {
       </div>
 
       <div className="sect">
-        <SectionTitle title="뽑기 박스" right={<span className="more">{ORIPA_BOXES.length}종</span>} />
-        {ORIPA_BOXES.map((b) => (
+        <SectionTitle title="뽑기 박스" right={<span className="more">{list.length}종</span>} />
+        {list.length === 0 && (
+          <div
+            style={{
+              padding: 30,
+              textAlign: 'center',
+              fontFamily: 'var(--f1)',
+              fontSize: 9,
+              color: 'var(--ink3)',
+            }}
+          >
+            현재 활성 박스가 없어요
+          </div>
+        )}
+        {list.map((b) => (
           <div key={b.id} className={`oripa-box ${b.tier}`}>
             <div className="ob-top">
               <div className="ob-icon">{b.emoji}</div>

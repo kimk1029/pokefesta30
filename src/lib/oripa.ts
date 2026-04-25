@@ -7,7 +7,64 @@
  *   - 클라이언트는 8초 폴링으로 타 유저 pull 반영.
  */
 import { prisma } from './prisma';
-import type { OripaGrade, OripaTicket } from './types';
+import type { OripaBox, OripaBoxPrize, OripaGrade, OripaTier, OripaTicket } from './types';
+
+/**
+ * 어드민이 관리하는 OripaPack 테이블에서 active=true 인 박스만 가져옴.
+ * 사용자 화면 (OripaScreen) + 구매 모달 미리보기에 사용.
+ * tier 'premium' 은 CSS 호환 위해 'legend' 로 매핑.
+ */
+export async function getActiveOripaBoxes(): Promise<OripaBox[]> {
+  try {
+    const rows = await prisma.oripaPack.findMany({
+      where: { active: true },
+      orderBy: { price: 'asc' },
+    });
+    return rows.map((r): OripaBox => {
+      const prizes = Array.isArray(r.prizes)
+        ? (r.prizes as unknown as OripaBoxPrize[])
+        : [];
+      const odds = computeOdds(prizes);
+      const tier: OripaTier =
+        r.tier === 'premium'
+          ? 'legend'
+          : r.tier === 'rare'
+            ? 'rare'
+            : r.tier === 'legend'
+              ? 'legend'
+              : 'normal';
+      return {
+        id: r.id,
+        tier,
+        emoji: r.emoji,
+        name: r.name,
+        desc: r.desc,
+        price: r.price,
+        odds,
+        prizes,
+      };
+    });
+  } catch (err) {
+    console.error('[getActiveOripaBoxes]', err);
+    return [];
+  }
+}
+
+/** prizes 의 가중치 → "S 3% · A 12% · B 25% · C 60%" 같은 odds 문자열 */
+function computeOdds(prizes: OripaBoxPrize[]): string {
+  if (prizes.length === 0) return '';
+  const total = prizes.reduce((s, p) => s + (p.weight > 0 ? p.weight : 0), 0);
+  if (total <= 0) return '';
+  const byGrade = new Map<string, number>();
+  for (const p of prizes) {
+    byGrade.set(p.grade, (byGrade.get(p.grade) ?? 0) + p.weight);
+  }
+  const order: Array<'S' | 'A' | 'B' | 'C'> = ['S', 'A', 'B', 'C'];
+  return order
+    .filter((g) => byGrade.has(g))
+    .map((g) => `${g} ${Math.round(((byGrade.get(g) ?? 0) / total) * 100)}%`)
+    .join(' · ');
+}
 
 export interface PullResult {
   index: number;
