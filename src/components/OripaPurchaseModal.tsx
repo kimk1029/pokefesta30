@@ -79,7 +79,11 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
 
   return (
     <div className="avatar-overlay" onClick={safeClose}>
-      <div className="avatar-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 320 }}>
+      <div
+        className="avatar-modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 320, maxHeight: '88vh', gap: 8, padding: 12 }}
+      >
         <div className="avatar-modal-head">
           <span>뽑기 구매</span>
           <button
@@ -94,30 +98,48 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
           </button>
         </div>
 
-        {/* Box 요약 */}
-        <div className={`oripa-box ${box.tier}`} style={{ marginBottom: 10 }}>
-          <div className="ob-top">
-            <div className="ob-icon">{box.emoji}</div>
-            <div className="ob-meta">
-              <div className="ob-name" style={{ fontSize: 12 }}>{box.name}</div>
-              <div className="ob-desc" style={{ fontSize: 8 }}>{box.desc}</div>
-            </div>
-          </div>
-          {box.stats && <ModalStatsRow stats={box.stats} />}
-        </div>
-
-        {/* 상품 미리보기 (DB 팩 prizes 가 있을 때만) */}
-        <PrizePreview prizes={box.prizes} />
-
-        {/* 수량 선택 */}
+        {/* 스크롤 본문 — CTA 는 항상 모달 하단에 고정 */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3,1fr)',
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
             gap: 8,
-            margin: '0 0 10px',
+            paddingRight: 4,
+            marginRight: -4,
           }}
         >
+          {/* Box 요약 */}
+          <div
+            className={`oripa-box ${box.tier}`}
+            style={{ marginBottom: 0, padding: '10px 12px 8px' }}
+          >
+            <div className="ob-top" style={{ gap: 9 }}>
+              <div className="ob-icon" style={{ width: 44, height: 44, fontSize: 24 }}>
+                {box.emoji}
+              </div>
+              <div className="ob-meta">
+                <div className="ob-name" style={{ fontSize: 11, marginTop: 0 }}>{box.name}</div>
+                <div className="ob-desc" style={{ fontSize: 8, marginTop: 4 }}>{box.desc}</div>
+              </div>
+            </div>
+            {box.stats && <ModalStatsRow stats={box.stats} />}
+          </div>
+
+          {/* 상품 미리보기 (DB 팩 prizes 가 있을 때만) */}
+          <PrizePreview prizes={box.prizes} />
+
+          {/* 수량 선택 */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3,1fr)',
+              gap: 6,
+              margin: 0,
+            }}
+          >
           {PACKS.map((p, i) => {
             const active = i === selected;
             const t = unit * p.count - Math.floor(unit * p.count * p.discount);
@@ -128,9 +150,9 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                 onClick={() => setSelected(i)}
                 disabled={busy}
                 className={`avatar-tile${active ? ' active' : ''}`}
-                style={{ aspectRatio: 'auto', padding: '10px 6px', minHeight: 72, opacity: busy ? 0.5 : 1 }}
+                style={{ aspectRatio: 'auto', padding: '7px 6px', minHeight: 54, opacity: busy ? 0.5 : 1 }}
               >
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: 0.5 }}>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.5 }}>
                   {p.label}
                 </div>
                 <div
@@ -138,7 +160,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                     fontFamily: 'var(--f1)',
                     fontSize: 9,
                     color: active ? 'var(--ink)' : 'var(--red)',
-                    marginTop: 4,
+                    marginTop: 2,
                   }}
                 >
                   🪙 {t.toLocaleString()}
@@ -149,7 +171,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                       fontFamily: 'var(--f1)',
                       fontSize: 8,
                       color: 'var(--grn-dk)',
-                      marginTop: 4,
+                      marginTop: 2,
                     }}
                   >
                     -{Math.round(p.discount * 100)}%
@@ -160,70 +182,71 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
           })}
         </div>
 
-        {/* 요약 영역 */}
-        <div
-          style={{
-            padding: '10px 12px',
-            background: 'var(--pap2)',
-            fontFamily: 'var(--f1)',
-            fontSize: 9,
-            lineHeight: 1.9,
-            boxShadow:
-              '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>단가 × {pack.count}</span>
-            <span>🪙 {subtotal.toLocaleString()}</span>
+          {/* 요약 영역 */}
+          <div
+            style={{
+              padding: '8px 10px',
+              background: 'var(--pap2)',
+              fontFamily: 'var(--f1)',
+              fontSize: 9,
+              lineHeight: 1.55,
+              boxShadow:
+                '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>단가 × {pack.count}</span>
+              <span>🪙 {subtotal.toLocaleString()}</span>
+            </div>
+            {discount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--grn-dk)' }}>
+                <span>세트 할인</span>
+                <span>-🪙 {discount.toLocaleString()}</span>
+              </div>
+            )}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: 4,
+                paddingTop: 4,
+                borderTop: '2px dashed var(--ink3)',
+                fontSize: 11,
+                color: 'var(--red)',
+              }}
+            >
+              <span>총 결제</span>
+              <span>🪙 {total.toLocaleString()}</span>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: 3,
+                fontSize: 8,
+                color: 'var(--ink3)',
+              }}
+            >
+              <span>보유</span>
+              <span>🪙 {inv.points.toLocaleString()}</span>
+            </div>
           </div>
-          {discount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--grn-dk)' }}>
-              <span>세트 할인</span>
-              <span>-🪙 {discount.toLocaleString()}</span>
+
+          {err && (
+            <div
+              style={{
+                padding: '4px 10px',
+                color: 'var(--red)',
+                fontFamily: 'var(--f1)',
+                fontSize: 8,
+                textAlign: 'center',
+              }}
+            >
+              ⚠ {err}
             </div>
           )}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginTop: 6,
-              paddingTop: 6,
-              borderTop: '2px dashed var(--ink3)',
-              fontSize: 11,
-              color: 'var(--red)',
-            }}
-          >
-            <span>총 결제</span>
-            <span>🪙 {total.toLocaleString()}</span>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginTop: 6,
-              fontSize: 8,
-              color: 'var(--ink3)',
-            }}
-          >
-            <span>보유</span>
-            <span>🪙 {inv.points.toLocaleString()}</span>
-          </div>
         </div>
-
-        {err && (
-          <div
-            style={{
-              marginTop: 8,
-              padding: '6px 10px',
-              color: 'var(--red)',
-              fontFamily: 'var(--f1)',
-              fontSize: 8,
-              textAlign: 'center',
-            }}
-          >
-            ⚠ {err}
-          </div>
-        )}
+        {/* /스크롤 본문 */}
 
         <button
           type="button"
@@ -232,7 +255,8 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
           className="pri-btn"
           style={{
             width: 'auto',
-            margin: '12px 0 0',
+            margin: 0,
+            flexShrink: 0,
             opacity: insufficient && !busy ? 0.55 : 1,
             cursor: busy ? 'wait' : insufficient ? 'not-allowed' : 'pointer',
           }}
@@ -362,8 +386,8 @@ function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
   return (
     <div
       style={{
-        marginBottom: 10,
-        padding: '8px 10px',
+        marginBottom: 0,
+        padding: '6px 9px 7px',
         background: 'var(--white)',
         boxShadow:
           '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
@@ -375,12 +399,12 @@ function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
           fontSize: 9,
           letterSpacing: 0.4,
           color: 'var(--ink)',
-          marginBottom: 6,
+          marginBottom: 4,
         }}
       >
         🎁 들어있는 상품
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {sorted.map((p, i) => {
           const pct = Math.round((p.weight / total) * 100);
           return (
@@ -392,7 +416,7 @@ function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
                 gap: 6,
                 fontFamily: 'var(--f1)',
                 fontSize: 8,
-                lineHeight: 1.7,
+                lineHeight: 1.4,
               }}
             >
               <span
@@ -400,8 +424,8 @@ function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
                   flexShrink: 0,
                   display: 'inline-grid',
                   placeItems: 'center',
-                  width: 16,
-                  height: 16,
+                  width: 15,
+                  height: 15,
                   background: GRADE_COLOR[p.grade] ?? 'var(--ink3)',
                   color: 'var(--white)',
                   fontSize: 7,
@@ -410,7 +434,7 @@ function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
               >
                 {p.grade}
               </span>
-              <span style={{ flexShrink: 0, fontSize: 12 }}>{p.emoji}</span>
+              <span style={{ flexShrink: 0, fontSize: 11 }}>{p.emoji}</span>
               <span
                 style={{
                   flex: 1,
