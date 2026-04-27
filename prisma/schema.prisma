@@ -144,6 +144,7 @@ model OripaTicket {
   grade      String?  // 'S' | 'A' | 'B' | 'C'
   prizeName  String?
   prizeEmoji String?
+  prizeImageUrl String?
   drawnById  String?
   drawnBy    User?    @relation(fields: [drawnById], references: [id], onDelete: SetNull)
   drawnByName String?

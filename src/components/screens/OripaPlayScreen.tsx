@@ -13,10 +13,17 @@ interface Result {
   grade: OripaGrade;
   name: string;
   emoji: string;
+  imageUrl?: string;
 }
 
 interface PullResponse {
-  results: Array<{ index: number; grade: OripaGrade; prizeName: string; prizeEmoji: string }>;
+  results: Array<{
+    index: number;
+    grade: OripaGrade;
+    prizeName: string;
+    prizeEmoji: string;
+    prizeImageUrl?: string;
+  }>;
   alreadyDrawn: number[];
 }
 
@@ -214,21 +221,21 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
     setShowConfirm(false);
 
     // 성공한 티켓 하나씩 애니메이션
-    // 시퀀스: 그리드 카드 들썩(700ms) → 모달 등장 → 봉투 흔들림 1100ms →
-    //        봉투 좌·우 뜯어짐 700ms + 폭죽 → 등급 부풀어 등장 600ms → 잠시 감상.
-    // 모달 안 CSS 타임라인 ~2700ms + 감상 800ms = 3500ms.
+    // 시퀀스: 그리드 카드 들썩(900ms) → 모달 등장 → 티켓 흔들림/절취선 강조 →
+    //        좌·우 뜯김 + 폭죽 → 등급/상품이 조금 늦게 등장 → 잠시 감상.
     const acc: Result[] = [];
     const nextTickets = [...tickets];
     for (let i = 0; i < serverResults.length; i++) {
       const pr = serverResults[i];
       setRevealing((r) => [...r, pr.index]);
-      await delay(700); // 카드 들썩 / 긴장감
+      await delay(900); // 카드 들썩 / 긴장감
       if (unmountedRef.current) return;
       const r: Result = {
         index: pr.index,
         grade: pr.grade,
         name: pr.prizeName,
         emoji: pr.prizeEmoji,
+        imageUrl: pr.prizeImageUrl,
       };
       acc.push(r);
       setActiveReveal(r); // 모달 마운트 → CSS 시퀀스 자동 진행
@@ -238,12 +245,13 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
         grade: pr.grade,
         prizeName: pr.prizeName,
         prizeEmoji: pr.prizeEmoji,
+        prizeImageUrl: pr.prizeImageUrl,
         drawnBy: '나',
         drawnAt: '방금 전',
       };
       setTickets([...nextTickets]);
-      // 등장(400) + 흔들림(1100) + 뜯기(700) + 등급 등장(600) + 감상(1500)
-      await delay(4300);
+      // CSS 연출 약 3.8s + 결과 감상 1.5s
+      await delay(5300);
       if (unmountedRef.current) return;
       setActiveReveal(null);
       setRevealing((rv) => rv.filter((x) => x !== pr.index));
@@ -413,7 +421,9 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
               <div className="confetti" aria-hidden>
                 <span /><span /><span /><span /><span /><span />
                 <span /><span /><span /><span /><span /><span />
+                <span /><span /><span /><span /><span /><span />
               </div>
+              <div className="tear-line" aria-hidden />
               <div className="tear-half l" aria-hidden />
               <div className="tear-half r" aria-hidden />
               <div className="tear-prize">
@@ -423,7 +433,21 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
                 >
                   {activeReveal.grade}상
                 </div>
-                <div style={{ fontSize: 60, lineHeight: 1 }}>{activeReveal.emoji}</div>
+                {activeReveal.imageUrl ? (
+                  <img
+                    src={activeReveal.imageUrl}
+                    alt={activeReveal.name}
+                    style={{
+                      width: 82,
+                      height: 82,
+                      objectFit: 'contain',
+                      display: 'block',
+                      imageRendering: 'auto',
+                    }}
+                  />
+                ) : (
+                  <div style={{ fontSize: 60, lineHeight: 1 }}>{activeReveal.emoji}</div>
+                )}
               </div>
             </div>
             <div className="pull-name" style={{ marginTop: 10 }}>{activeReveal.name}</div>

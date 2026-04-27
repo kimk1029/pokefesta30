@@ -99,22 +99,45 @@ export interface PullResult {
   grade: OripaGrade;
   prizeName: string;
   prizeEmoji: string;
+  prizeImageUrl?: string;
 }
 
-const GRADES: Array<{ g: Exclude<OripaGrade, 'last'>; name: string; emoji: string; weight: number }> = [
-  { g: 'C', name: '스티커 팩',          emoji: '🌟', weight: 60 },
-  { g: 'B', name: '몬스터볼 스킨',      emoji: '⚪', weight: 25 },
-  { g: 'A', name: '프리미엄 뱃지',      emoji: '🏅', weight: 12 },
-  { g: 'S', name: '잉어킹 홀로 프레임', emoji: '🖼', weight: 3 },
+const FALLBACK_PRIZES: OripaBoxPrize[] = [
+  { grade: 'C', name: '스티커 팩',          emoji: '🌟', weight: 60 },
+  { grade: 'B', name: '몬스터볼 스킨',      emoji: '⚪', weight: 25 },
+  { grade: 'A', name: '프리미엄 뱃지',      emoji: '🏅', weight: 12 },
+  { grade: 'S', name: '잉어킹 홀로 프레임', emoji: '🖼', weight: 3 },
 ];
 
-function pickGrade(seed: number): (typeof GRADES)[number] {
-  let r = ((seed % 100) + 100) % 100;
-  for (const g of GRADES) {
-    if (r < g.weight) return g;
-    r -= g.weight;
+function normalizePrizes(raw: unknown): OripaBoxPrize[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((p) => {
+    if (!p || typeof p !== 'object') return [];
+    const q = p as Partial<OripaBoxPrize>;
+    if (q.grade !== 'S' && q.grade !== 'A' && q.grade !== 'B' && q.grade !== 'C') return [];
+    const weight = Number(q.weight);
+    if (!q.name || !Number.isFinite(weight) || weight <= 0) return [];
+    return [{
+      grade: q.grade,
+      name: q.name,
+      emoji: q.emoji || '🎁',
+      weight,
+      bg: q.bg,
+      imageUrl: q.imageUrl,
+    }];
+  });
+}
+
+function pickPrize(prizes: OripaBoxPrize[], seed: number): OripaBoxPrize {
+  const pool = prizes.length > 0 ? prizes : FALLBACK_PRIZES;
+  const total = pool.reduce((s, p) => s + (p.weight > 0 ? p.weight : 0), 0);
+  if (total <= 0) return FALLBACK_PRIZES[0];
+  let r = ((((seed % 1_000_000) + 1_000_000) % 1_000_000) / 1_000_000) * total;
+  for (const prize of pool) {
+    r -= Math.max(0, prize.weight);
+    if (r <= 0) return prize;
   }
-  return GRADES[0];
+  return pool[pool.length - 1] ?? FALLBACK_PRIZES[0];
 }
 
 function hash(s: string): number {
@@ -146,6 +169,7 @@ function toClient(r: DbRow): OripaTicket {
     grade: (r.grade ?? undefined) as OripaGrade | undefined,
     prizeName: r.prizeName ?? undefined,
     prizeEmoji: r.prizeEmoji ?? undefined,
+    prizeImageUrl: r.prizeImageUrl ?? undefined,
     drawnBy: r.drawnByName ?? undefined,
     drawnAt: r.drawnAt ? relTime(r.drawnAt) : undefined,
   };
@@ -201,17 +225,23 @@ export async function pullOripaTickets(
   const uniq = Array.from(new Set(indices)).filter(
     (n) => Number.isInteger(n) && n >= 0 && n < 100,
   );
+  const pack = await prisma.oripaPack.findUnique({
+    where: { id: packId },
+    select: { prizes: true },
+  });
+  const prizes = normalizePrizes(pack?.prizes);
 
   for (let i = 0; i < uniq.length; i++) {
     const idx = uniq[i];
-    const g = pickGrade(idx + Date.now() + i + hash(user.id));
+    const prize = pickPrize(prizes, idx + Date.now() + i + hash(user.id));
     const res = await prisma.oripaTicket.updateMany({
       where: { packId, index: idx, drawn: false },
       data: {
         drawn: true,
-        grade: g.g,
-        prizeName: g.name,
-        prizeEmoji: g.emoji,
+        grade: prize.grade,
+        prizeName: prize.name,
+        prizeEmoji: prize.emoji,
+        prizeImageUrl: prize.imageUrl ?? null,
         drawnById: user.id,
         drawnByName: user.name,
         drawnAt: new Date(),
@@ -220,7 +250,13 @@ export async function pullOripaTickets(
     if (res.count === 0) {
       alreadyDrawn.push(idx);
     } else {
-      results.push({ index: idx, grade: g.g, prizeName: g.name, prizeEmoji: g.emoji });
+      results.push({
+        index: idx,
+        grade: prize.grade,
+        prizeName: prize.name,
+        prizeEmoji: prize.emoji,
+        prizeImageUrl: prize.imageUrl,
+      });
     }
   }
 

@@ -78,11 +78,10 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
   };
 
   return (
-    <div className="avatar-overlay" onClick={safeClose}>
+    <div className="avatar-overlay oripa-purchase-overlay" onClick={safeClose}>
       <div
-        className="avatar-modal"
+        className="avatar-modal oripa-purchase-modal"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 320, maxHeight: '88vh', gap: 8, padding: 12 }}
       >
         <div className="avatar-modal-head">
           <span>뽑기 구매</span>
@@ -100,15 +99,11 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
 
         {/* 스크롤 본문 — CTA 는 항상 모달 하단에 고정 */}
         <div
+          className="oripa-purchase-body"
           style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
-            paddingRight: 4,
-            marginRight: -4,
           }}
         >
           {/* Box 요약 */}
@@ -252,11 +247,8 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
           type="button"
           onClick={buy}
           disabled={busy || insufficient}
-          className="pri-btn"
+          className="pri-btn oripa-purchase-cta"
           style={{
-            width: 'auto',
-            margin: 0,
-            flexShrink: 0,
             opacity: insufficient && !busy ? 0.55 : 1,
             cursor: busy ? 'wait' : insufficient ? 'not-allowed' : 'pointer',
           }}

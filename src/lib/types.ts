@@ -146,6 +146,7 @@ export interface OripaTicket {
   grade?: OripaGrade;
   prizeName?: string;
   prizeEmoji?: string;
+  prizeImageUrl?: string;
   drawnBy?: string;
   drawnAt?: string;
 }
