@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useInventory } from '@/components/InventoryProvider';
 import { PixelBackground } from '@/components/PixelBackground';
 import { PokemonAvatar } from '@/components/PokemonAvatar';
@@ -35,56 +35,79 @@ export function ShopScreen() {
   const toast = useToast();
   const [tab, setTab] = useState<Tab>('avatar');
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const pendingRef = useRef(false);
+
+  const beginPending = (id: string): boolean => {
+    if (pendingRef.current || pendingId) return false;
+    pendingRef.current = true;
+    setPendingId(id);
+    return true;
+  };
+
+  const endPending = () => {
+    pendingRef.current = false;
+    setPendingId(null);
+  };
 
   const buyAvatar = async (id: AvatarId, price: number) => {
-    if (pendingId) return;
-    setPendingId(id);
-    if (inv.avatarOwned.includes(id)) {
-      const r = await inv.pickAvatar(id);
-      r.ok ? toast.success(`${id} 선택`) : toast.error(r.msg ?? '실패');
-    } else {
-      const r = await inv.buyAvatar(id, price);
-      r.ok ? toast.success('획득!') : toast.error(r.msg ?? '실패');
+    if (!beginPending(id)) return;
+    try {
+      if (inv.avatarOwned.includes(id)) {
+        const r = await inv.pickAvatar(id);
+        r.ok ? toast.success(`${id} 선택`) : toast.error(r.msg ?? '실패');
+      } else {
+        const r = await inv.buyAvatar(id, price);
+        r.ok ? toast.success('획득!') : toast.error(r.msg ?? '실패');
+      }
+    } finally {
+      endPending();
     }
-    setPendingId(null);
   };
   const buyBg = async (id: BackgroundId, price: number) => {
-    if (pendingId) return;
-    setPendingId(id);
-    const r = await inv.buyBg(id, price);
-    r.ok ? toast.success('적용!') : toast.error(r.msg ?? '실패');
-    setPendingId(null);
+    if (!beginPending(id)) return;
+    try {
+      const r = await inv.buyBg(id, price);
+      r.ok ? toast.success('적용!') : toast.error(r.msg ?? '실패');
+    } finally {
+      endPending();
+    }
   };
   const buyFrame = async (id: FrameId, price: number) => {
-    if (pendingId) return;
-    setPendingId(id);
-    const r = await inv.buyFrame(id, price);
-    r.ok ? toast.success('적용!') : toast.error(r.msg ?? '실패');
-    setPendingId(null);
+    if (!beginPending(id)) return;
+    try {
+      const r = await inv.buyFrame(id, price);
+      r.ok ? toast.success('적용!') : toast.error(r.msg ?? '실패');
+    } finally {
+      endPending();
+    }
   };
   const charge = async (label: string, points: number) => {
-    if (pendingId) return;
-    setPendingId(label);
-    const r = await inv.charge(points);
-    r.ok ? toast.success(`${label} 충전 완료 · +${points.toLocaleString()}P`) : toast.error(r.msg ?? '실패');
-    setPendingId(null);
+    if (!beginPending(label)) return;
+    try {
+      const r = await inv.charge(points);
+      r.ok ? toast.success(`${label} 충전 완료 · +${points.toLocaleString()}P`) : toast.error(r.msg ?? '실패');
+    } finally {
+      endPending();
+    }
   };
 
   /** 광고 시청 시뮬레이션 — 실제 SDK 붙기 전까지 setTimeout 으로 영상 재생 흉내. */
   const watchAd = async (slotId: string, durationMs: number, reward: number) => {
-    if (pendingId) return;
-    setPendingId(slotId);
-    toast.success('광고 시청 중...');
-    await new Promise((res) => setTimeout(res, durationMs));
-    const r = await inv.rewardAd(slotId);
-    if (r.ok) {
-      toast.success(`+${reward.toLocaleString()}P 적립!`);
-    } else if (r.retryInSec) {
-      toast.error(`${r.retryInSec}초 후 다시`);
-    } else {
-      toast.error(r.msg ?? '실패');
+    if (!beginPending(slotId)) return;
+    try {
+      toast.success('광고 시청 중...');
+      await new Promise((res) => setTimeout(res, durationMs));
+      const r = await inv.rewardAd(slotId);
+      if (r.ok) {
+        toast.success(`+${reward.toLocaleString()}P 적립!`);
+      } else if (r.retryInSec) {
+        toast.error(`${r.retryInSec}초 후 다시`);
+      } else {
+        toast.error(r.msg ?? '실패');
+      }
+    } finally {
+      endPending();
     }
-    setPendingId(null);
   };
 
   return (
@@ -115,7 +138,7 @@ export function ShopScreen() {
                   <button
                     type="button"
                     className={`sac-btn ${owned ? 'owned' : ''} ${levelLocked ? 'locked' : ''}`}
-                    disabled={levelLocked || pendingId === a.id}
+                    disabled={!!pendingId || levelLocked}
                     onClick={() => buyAvatar(a.id, a.price ?? 0)}
                   >
                     {pendingId === a.id
@@ -152,7 +175,7 @@ export function ShopScreen() {
                   <button
                     type="button"
                     className={`sac-btn ${owned ? 'owned' : ''}`}
-                    disabled={pendingId === b.id}
+                    disabled={!!pendingId}
                     onClick={() => buyBg(b.id, b.price)}
                   >
                     {pendingId === b.id ? '...' : owned ? (current ? '선택됨' : '선택') : `🪙 ${b.price.toLocaleString()}`}
@@ -181,7 +204,7 @@ export function ShopScreen() {
                   <button
                     type="button"
                     className={`sac-btn ${owned ? 'owned' : ''}`}
-                    disabled={pendingId === f.id}
+                    disabled={!!pendingId}
                     onClick={() => buyFrame(f.id, f.price)}
                   >
                     {pendingId === f.id ? '...' : owned ? (current ? '선택됨' : '선택') : `🪙 ${f.price.toLocaleString()}`}
@@ -205,7 +228,7 @@ export function ShopScreen() {
               </div>
               <div className="sh-right">
                 <span className="sh-price">{p.price}</span>
-                <button type="button" className="sh-buy" disabled={pendingId === p.label} onClick={() => charge(p.label, p.points)}>
+                <button type="button" className="sh-buy" disabled={!!pendingId} onClick={() => charge(p.label, p.points)}>
                   {pendingId === p.label ? '...' : '결제'}
                 </button>
               </div>
@@ -256,7 +279,7 @@ export function ShopScreen() {
                   type="button"
                   className="sh-buy"
                   style={{ background: 'var(--grn)', color: 'var(--ink)' }}
-                  disabled={pendingId === s.id}
+                  disabled={!!pendingId}
                   onClick={() =>
                     watchAd(
                       s.id,

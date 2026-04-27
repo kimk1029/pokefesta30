@@ -50,6 +50,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
   const [showConfirm, setShowConfirm] = useState(false);
   const unmountedRef = useRef(false);
   const stageRef = useRef(revealStage);
+  const revealLockRef = useRef(false);
 
   stageRef.current = revealStage;
 
@@ -171,7 +172,8 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
   };
 
   const runReveals = async () => {
-    if (selected.length !== qty || revealStage !== 'idle') return;
+    if (selected.length !== qty || revealStage !== 'idle' || revealLockRef.current) return;
+    revealLockRef.current = true;
     // 모달은 그대로 두고 stage 만 'running' — 버튼이 스피너로 바뀜.
     // 첫 카드 애니메이션 직전에 모달 닫음 (서버 fetch + 첫 reveal 준비 시간 동안
     // 사용자가 "처리 중" 임을 명확히 보도록).
@@ -192,6 +194,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
             ? '로그인 후 이용 가능합니다'
             : (err as { error?: string }).error ?? '뽑기 실패';
         toast.error(msg);
+        revealLockRef.current = false;
         setRevealStage('idle');
         setShowConfirm(false);
         void refresh();
@@ -200,6 +203,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
       payload = (await res.json()) as PullResponse;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '네트워크 오류');
+      revealLockRef.current = false;
       setRevealStage('idle');
       setShowConfirm(false);
       void refresh();
@@ -210,6 +214,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
 
     if (serverResults.length === 0) {
       toast.error('다른 유저가 먼저 뽑았어요');
+      revealLockRef.current = false;
       setSelected([]);
       setRevealStage('idle');
       setShowConfirm(false);
@@ -261,6 +266,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
     setResults(acc);
     setRevealStage('done');
     setShowSummary(true);
+    revealLockRef.current = false;
     if (alreadyDrawn.length > 0) {
       toast.info(`${alreadyDrawn.length}장은 이미 다른 유저가 뽑았어요`);
     }

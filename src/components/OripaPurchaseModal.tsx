@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useInventory } from './InventoryProvider';
 import type { OripaBox } from '@/lib/types';
 
@@ -31,6 +31,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
   /** router.push 후 destination 마운트 대기 — useTransition 으로 자동 토글 */
   const [navigating, startNav] = useTransition();
   const [err, setErr] = useState<string | null>(null);
+  const buyLockRef = useRef(false);
 
   const pack = PACKS[selected];
   const unit = box.price;
@@ -46,11 +47,13 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
   }, [router, box.id, pack.count]);
 
   const buy = async () => {
-    if (busy) return;
+    if (busy || buyLockRef.current) return;
+    buyLockRef.current = true;
     setErr(null);
     setPaying(true);
     const r = await inv.spend(total);
     if (!r.ok) {
+      buyLockRef.current = false;
       setPaying(false);
       setErr(r.msg ?? '구매 실패');
       return;

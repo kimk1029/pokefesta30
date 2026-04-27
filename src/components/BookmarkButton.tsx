@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 
 interface Props {
   tradeId?: number;
@@ -11,10 +11,13 @@ interface Props {
 export function BookmarkButton({ tradeId, feedId, initial = false }: Props) {
   const [bookmarked, setBookmarked] = useState(initial);
   const [pending, startTransition] = useTransition();
+  const pendingRef = useRef(false);
 
   const toggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (pending || pendingRef.current) return;
+    pendingRef.current = true;
     startTransition(async () => {
       try {
         const res = await fetch('/api/bookmarks', {
@@ -28,6 +31,8 @@ export function BookmarkButton({ tradeId, feedId, initial = false }: Props) {
         }
       } catch {
         // ignore
+      } finally {
+        pendingRef.current = false;
       }
     });
   };

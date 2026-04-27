@@ -52,6 +52,7 @@ export function MessagesThreadScreen({ peerId, peer, myId }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
+  const sendingRef = useRef(false);
 
   const loadMessages = useCallback(async () => {
     if (loadingRef.current) return;
@@ -87,7 +88,8 @@ export function MessagesThreadScreen({ peerId, peer, myId }: Props) {
 
   const send = async () => {
     const text = input.trim();
-    if (!text || sending) return;
+    if (!text || sending || sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     try {
       const body: Record<string, unknown> = { receiverId: peerId, text };
@@ -118,6 +120,7 @@ export function MessagesThreadScreen({ peerId, peer, myId }: Props) {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '전송 실패');
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };

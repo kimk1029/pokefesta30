@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { isRedirectError } from 'next/dist/client/components/redirect';
 import { submitFeed, submitTrade } from '@/app/actions';
 import { useInventory } from '@/components/InventoryProvider';
@@ -55,11 +55,13 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
   const [images, setImages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const submitLockRef = useRef(false);
 
   const isFeed = mode === 'feed';
   const isReport = isFeed && kind === 'report';
 
   const submit = () => {
+    if (pending || submitLockRef.current) return;
     if (mode === 'trade') {
       if (!place) return setError('장소를 선택해주세요');
       if (!title.trim()) return setError('제목을 입력해주세요');
@@ -69,6 +71,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
       if (isReport && !place) return setError('제보는 장소가 필요해요');
     }
     setError(null);
+    submitLockRef.current = true;
 
     const fd = new FormData();
 
@@ -86,6 +89,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
           await submitTrade(fd);
         } catch (e) {
           if (isRedirectError(e)) throw e;
+          submitLockRef.current = false;
           setError(e instanceof Error ? e.message : '거래글 등록 실패');
         }
       });
@@ -103,6 +107,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
         await submitFeed(fd);
       } catch (e) {
         if (isRedirectError(e)) throw e;
+        submitLockRef.current = false;
         setError(e instanceof Error ? e.message : '등록 실패');
       }
     });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 
 interface Props {
   tradeId: number;
@@ -12,15 +12,21 @@ const MAX = 3;
 export function BumpButton({ tradeId, initialCount }: Props) {
   const [count, setCount] = useState(initialCount);
   const [pending, startTransition] = useTransition();
+  const pendingRef = useRef(false);
   const remaining = MAX - count;
 
   const bump = () => {
-    if (remaining <= 0) return;
+    if (pending || pendingRef.current || remaining <= 0) return;
+    pendingRef.current = true;
     startTransition(async () => {
-      const res = await fetch(`/api/trades/${tradeId}/bump`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json() as { bumpCount: number };
-        setCount(data.bumpCount);
+      try {
+        const res = await fetch(`/api/trades/${tradeId}/bump`, { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json() as { bumpCount: number };
+          setCount(data.bumpCount);
+        }
+      } finally {
+        pendingRef.current = false;
       }
     });
   };

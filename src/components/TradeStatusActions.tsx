@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { REWARDS } from '@/lib/rewards';
 
 interface Props {
@@ -21,10 +21,13 @@ export function TradeStatusActions({ tradeId, status, isAuthor }: Props) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const pendingRef = useRef(false);
 
   if (!isAuthor) return null;
 
   const patch = async (next: string) => {
+    if (pendingRef.current || pending !== null || next === status) return;
+    pendingRef.current = true;
     setPending(next);
     setMsg(null);
     try {
@@ -50,6 +53,7 @@ export function TradeStatusActions({ tradeId, status, isAuthor }: Props) {
       setMsg(e instanceof Error ? `⚠ ${e.message}` : '⚠ 실패');
       setTimeout(() => setMsg(null), 1600);
     } finally {
+      pendingRef.current = false;
       setPending(null);
     }
   };
