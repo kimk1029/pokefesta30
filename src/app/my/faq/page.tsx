@@ -1,4 +1,3 @@
-import { UnofficialBanner } from '@/components/UnofficialBanner';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -95,10 +94,6 @@ export default function Page() {
     <>
       <StatusBar />
       <AppBar title="FAQ · 자주 묻는 질문" showBack backHref="/my" />
-
-      <div style={{ padding: '14px var(--gap) 0' }}>
-        <UnofficialBanner />
-      </div>
 
       <div style={{ height: 14 }} />
 

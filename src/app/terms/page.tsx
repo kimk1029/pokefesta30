@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { UnofficialBanner } from '@/components/UnofficialBanner';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -19,10 +18,6 @@ export default function TermsPage() {
     <>
       <StatusBar />
       <AppBar title="이용약관" showBack backHref="/my" />
-
-      <div style={{ padding: '14px var(--gap) 0' }}>
-        <UnofficialBanner />
-      </div>
 
       <div style={{ height: 14 }} />
 
@@ -201,8 +196,8 @@ export default function TermsPage() {
             </Li>
             <Li>
               포켓몬 관련 명칭·캐릭터·이미지는 © Nintendo · Game Freak
-              · The Pokémon Company의 자산이며, 본 서비스는 비공식
-              팬 프로젝트로서 상업적 연관이 없습니다.
+              · The Pokémon Company의 자산이며, 본 서비스는 상업적
+              연관이 없습니다.
             </Li>
           </Ul>
 

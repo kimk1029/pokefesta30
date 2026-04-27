@@ -174,8 +174,6 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
         }}
       >
         Pokémon © Nintendo · Game Freak · The Pokémon Company
-        <br />
-        비공식 팬 프로젝트 — 상업적 연관 없음
       </div>
     </div>
   );

@@ -22,11 +22,11 @@ const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.poke-30.com';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: '포케페스타30 — 비공식 팬 커뮤니티',
+    default: '포케페스타30 — 팬 커뮤니티',
     template: '%s · 포케페스타30 (팬 프로젝트)',
   },
   description:
-    '포켓몬 팬이 만든 비공식 커뮤니티 — 사용자 제보 기반 매장 혼잡도 정보, 카드 거래, 오리파. The Pokémon Company 와 무관합니다.',
+    '포켓몬 팬이 만든 커뮤니티 — 사용자 제보 기반 매장 혼잡도 정보, 카드 거래, 오리파.',
   keywords: [
     '포켓몬 팬커뮤니티', '포켓몬 카드 거래', '포켓몬 카드',
     '카드 시세', '오리파', '팬 프로젝트',
@@ -38,16 +38,16 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'ko_KR',
     url: SITE_URL,
-    siteName: '포케페스타30 (비공식 팬 프로젝트)',
-    title: '포케페스타30 — 비공식 팬 커뮤니티',
+    siteName: '포케페스타30 (팬 프로젝트)',
+    title: '포케페스타30 — 팬 커뮤니티',
     description:
-      '비공식 팬 프로젝트 · 매장 혼잡도 사용자 제보 · 카드 거래 · 오리파',
+      '팬 프로젝트 · 매장 혼잡도 사용자 제보 · 카드 거래 · 오리파',
     images: [{ url: '/icon.svg', width: 512, height: 512 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: '포케페스타30 (팬 프로젝트)',
-    description: '비공식 팬 커뮤니티 · 매장 혼잡도 사용자 제보',
+    description: '팬 커뮤니티 · 매장 혼잡도 사용자 제보',
     images: ['/icon.svg'],
   },
   robots: {
