@@ -72,27 +72,7 @@ export const authOptions: NextAuthOptions = {
         session.user.provider = (token.provider as string | undefined) ?? undefined;
         session.user.id = (token.sub as string | undefined) ?? undefined;
         if (!session.user.email && token.email) session.user.email = token.email as string;
-      }
-      // DB 에 저장된 최신 이름/이메일을 session 에 반영 (유저가 닉네임 변경 후 바로 보이도록).
-      if (token.sub) {
-        try {
-          const dbUser = await prisma.user.findUnique({
-            where: { id: token.sub as string },
-            select: { name: true, email: true },
-          });
-          if (dbUser) {
-            if (dbUser.name) {
-              session.user!.name = dbUser.name;
-              token.name = dbUser.name;
-            }
-            if (dbUser.email && !session.user!.email) {
-              session.user!.email = dbUser.email;
-              token.email = dbUser.email;
-            }
-          }
-        } catch {
-          // row 없으면 token 기본값 사용
-        }
+        if (token.name) session.user.name = token.name as string;
       }
       return session;
     },

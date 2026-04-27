@@ -1,6 +1,15 @@
 'use client';
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   buyAvatar as buyAvatarAction,
   buyBackground as buyBgAction,
@@ -47,15 +56,30 @@ export interface InventoryCtxValue extends InventorySnapshot {
 const Ctx = createContext<InventoryCtxValue | null>(null);
 
 export function InventoryProvider({
-  initial,
-  isLoggedIn,
   children,
 }: {
-  initial: InventorySnapshot | null;
-  isLoggedIn: boolean;
   children: ReactNode;
 }) {
-  const [snap, setSnap] = useState<InventorySnapshot>(initial ?? ANON_SNAPSHOT);
+  const { status } = useSession();
+  const isLoggedIn = status === 'authenticated';
+  const [snap, setSnap] = useState<InventorySnapshot>(ANON_SNAPSHOT);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isLoggedIn) {
+      setSnap(ANON_SNAPSHOT);
+      return;
+    }
+    fetch('/api/me/inventory', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { inventory?: InventorySnapshot } | null) => {
+        if (!cancelled && data?.inventory) setSnap(data.inventory);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
 
   const notLogged = useCallback((): MutResult => {
     return { ok: false, msg: '로그인이 필요합니다' };

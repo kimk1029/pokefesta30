@@ -237,35 +237,17 @@ export async function getFeedPosts(limit = 30, kind?: FeedKind): Promise<FeedPos
   return items;
 }
 
-/**
- * 최근 제보 — LiveScreen "최근 제보" 섹션 용.
- * 통합 Feed 테이블에서 kind='report' 만 읽음.
- */
-export async function getReports(limit = 20): Promise<FeedItem[]> {
-  const { items } = await getFeedPage({ kind: 'report', limit });
-  return items.map((p) => ({
-    id: p.id,
-    place: p.place ?? '알 수 없음',
-    level: (p.level ?? 'normal') as CongestionLevel,
-    text: p.text,
-    time: p.time,
-    user: p.user,
-  }));
-}
-
-/** 구 호환 alias */
-export const getFeed = getReports;
-
 function asImages(v: unknown): string[] {
   if (Array.isArray(v)) return v.filter((u): u is string => typeof u === 'string' && u.length > 0);
   return [];
 }
 
-export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trade[]> {
+export async function getTrades(filter: 'all' | TradeType = 'all', limit = 60): Promise<Trade[]> {
   try {
     const rows = await prisma.trade.findMany({
       where: filter === 'all' ? {} : { type: filter },
-      orderBy: { bumpedAt: 'desc' },
+      orderBy: [{ bumpedAt: 'desc' }, { createdAt: 'desc' }],
+      take: Math.min(Math.max(limit, 1), 100),
       include: {
         place: { select: { name: true } },
         author: { select: { name: true } },
@@ -279,12 +261,12 @@ export async function getTrades(filter: 'all' | TradeType = 'all'): Promise<Trad
     let chatCounts: Record<number, number> = {};
     if (ids.length > 0) {
       const ownerById = new Map(rows.map((r) => [r.id, r.authorId]));
-      const msgs = await prisma.message.findMany({
+      const pairs = await prisma.message.groupBy({
+        by: ['tradeId', 'senderId'],
         where: { tradeId: { in: ids } },
-        select: { tradeId: true, senderId: true },
       });
       const setMap = new Map<number, Set<string>>();
-      for (const m of msgs) {
+      for (const m of pairs) {
         if (m.tradeId == null) continue;
         const owner = ownerById.get(m.tradeId) ?? null;
         if (owner && m.senderId === owner) continue; // 작성자 본인 제외

@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import { getServerSession } from 'next-auth';
 import type { ReactNode } from 'react';
 import { AdScripts } from '@/components/ads/AdScripts';
 import { GoogleAnalytics } from '@/components/GoogleAnalytics';
@@ -11,9 +10,6 @@ import { Providers } from '@/components/Providers';
 import { RouteProgress } from '@/components/RouteProgress';
 import { ToastProvider } from '@/components/ToastProvider';
 import { UnreadProvider } from '@/components/UnreadProvider';
-import { authOptions } from '@/lib/auth';
-import { getUnreadCount } from '@/lib/messages';
-import { getMyInventory } from '@/lib/queries';
 import 'galmuri/dist/galmuri.css';
 import './globals.css';
 
@@ -71,14 +67,7 @@ export const viewport: Viewport = {
   themeColor: '#E8DFB8',
 };
 
-export default async function RootLayout({ children }: { children: ReactNode }) {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id ?? null;
-  const [inventory, unreadCount] = await Promise.all([
-    userId ? getMyInventory(userId) : Promise.resolve(null),
-    userId ? getUnreadCount(userId).catch(() => 0) : Promise.resolve(0),
-  ]);
-
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko">
       <head>
@@ -94,8 +83,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <AdScripts />
         <Providers>
           <ToastProvider>
-            <InventoryProvider initial={inventory} isLoggedIn={!!userId}>
-              <UnreadProvider initialCount={unreadCount}>
+            <InventoryProvider>
+              <UnreadProvider>
                 <RouteProgress />
                 <PageviewBeacon />
                 <InAppBrowserNotice />

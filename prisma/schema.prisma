@@ -84,6 +84,7 @@ model Trade {
 
   bookmarks   Bookmark[]
 
+  @@index([bumpedAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@index([type])
   @@index([status])

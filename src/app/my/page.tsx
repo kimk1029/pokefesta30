@@ -23,8 +23,9 @@ export default async function Page() {
   const userId = session.user.id;
 
   // 실제 DB 집계
-  const [inv, reportCount, tradeCount, savedCount] = await Promise.all([
+  const [inv, profile, reportCount, tradeCount, savedCount] = await Promise.all([
     getMyInventory(userId),
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null),
     prisma.feed.count({ where: { authorId: userId, kind: 'report' } }).catch(() => 0),
     prisma.trade.count({ where: { authorId: userId } }).catch(() => 0),
     prisma.bookmark.count({ where: { userId } }).catch(() => 0),
@@ -34,7 +35,10 @@ export default async function Page() {
 
   return (
     <MyScreen
-      session={session}
+      session={{
+        ...session,
+        user: { ...session.user, name: profile?.name ?? session.user.name },
+      }}
       level={level}
       reportCount={reportCount}
       tradeCount={tradeCount}

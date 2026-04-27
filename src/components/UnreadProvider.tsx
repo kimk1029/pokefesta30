@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 const Ctx = createContext<{ count: number; refresh: () => Promise<void> } | null>(null);
@@ -8,16 +8,19 @@ const Ctx = createContext<{ count: number; refresh: () => Promise<void> } | null
 const POLL_MS = 60_000;
 
 export function UnreadProvider({
-  initialCount,
   children,
 }: {
-  initialCount: number;
   children: ReactNode;
 }) {
-  const [count, setCount] = useState<number>(initialCount);
-  const pathname = usePathname();
+  const { status } = useSession();
+  const isLoggedIn = status === 'authenticated';
+  const [count, setCount] = useState<number>(0);
 
   const refresh = useCallback(async () => {
+    if (!isLoggedIn) {
+      setCount(0);
+      return;
+    }
     try {
       const r = await fetch('/api/messages/unread', { cache: 'no-store' });
       if (!r.ok) return;
@@ -26,18 +29,17 @@ export function UnreadProvider({
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [isLoggedIn]);
 
-  // 라우트 변경 시마다 체크
   useEffect(() => {
     refresh();
-  }, [pathname, refresh]);
+  }, [refresh]);
 
-  // 60초 폴링
   useEffect(() => {
+    if (!isLoggedIn) return undefined;
     const id = setInterval(refresh, POLL_MS);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [isLoggedIn, refresh]);
 
   return <Ctx.Provider value={{ count, refresh }}>{children}</Ctx.Provider>;
 }

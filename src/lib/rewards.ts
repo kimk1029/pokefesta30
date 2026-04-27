@@ -12,16 +12,3 @@ export const REWARDS = {
   /** 오리파 뽑기 실패 위로금 (S/A 외) */
   oripa_consol: 0,
 } as const;
-
-export type RewardKey = keyof typeof REWARDS;
-
-export function rewardLabel(key: RewardKey): string {
-  const map: Record<RewardKey, string> = {
-    feed_general: '일반 피드 작성',
-    feed_report: '혼잡도 제보',
-    trade_post: '거래글 등록',
-    trade_done: '거래 완료',
-    oripa_consol: '오리파 위로금',
-  };
-  return map[key];
-}

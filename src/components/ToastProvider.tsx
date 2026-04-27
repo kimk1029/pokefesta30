@@ -78,10 +78,3 @@ export function useToast(): Ctx {
   }
   return v;
 }
-
-/** prevent hydration mismatch — hide until mounted */
-export function useToastMounted() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  return mounted;
-}

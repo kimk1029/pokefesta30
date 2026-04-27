@@ -199,7 +199,3 @@ export function translate(text: string, target: TranslateTarget): string {
     .map((tok) => map[tok.toLowerCase()] ?? tok)
     .join(' ');
 }
-
-/** backward-compat alias */
-export const translateKoToJa = (text: string) => translate(text, 'ja');
-export const translateKoToEn = (text: string) => translate(text, 'en');
