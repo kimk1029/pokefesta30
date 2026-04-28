@@ -47,9 +47,9 @@ export interface InventoryCtxValue extends InventorySnapshot {
   buyFrame: (id: FrameId, price: number) => Promise<MutResult>;
   /** 임의 차감 (오리파 등). */
   spend: (amount: number) => Promise<MutResult>;
-  /** 결제 mock — 사업자 등록 전까지 가상 충전. */
+  /** 포인트 충전. 현재 운영 중단 상태라 서버에서 차단된다. */
   charge: (amount: number) => Promise<MutResult>;
-  /** 무료충전소 — 광고 시청 보상 청구. */
+  /** 무료 광고 충전. 현재 운영 중단 상태라 서버에서 차단된다. */
   rewardAd: (slotId: string) => Promise<MutResult>;
 }
 

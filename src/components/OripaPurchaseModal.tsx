@@ -26,7 +26,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
   const router = useRouter();
   const inv = useInventory();
   const [selected, setSelected] = useState(0);
-  /** 결제(server action) 진행 중 */
+  /** 포인트 사용 처리 중 */
   const [paying, setPaying] = useState(false);
   /** router.push 후 destination 마운트 대기 — useTransition 으로 자동 토글 */
   const [navigating, startNav] = useTransition();
@@ -41,7 +41,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
   const insufficient = inv.points < total;
   const busy = paying || navigating;
 
-  // play 페이지를 백그라운드에서 미리 prefetch — 결제 후 이동 빠르게
+  // play 페이지를 백그라운드에서 미리 prefetch — 포인트 사용 후 이동 빠르게
   useEffect(() => {
     router.prefetch(`/my/oripa/play?pack=${box.id}&qty=${pack.count}`);
   }, [router, box.id, pack.count]);
@@ -58,7 +58,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
       setErr(r.msg ?? '구매 실패');
       return;
     }
-    // 결제 → 일회용 입장 토큰 발급. play 페이지가 이걸 검증해야 진입 가능.
+    // 포인트 사용 → 일회용 입장 토큰 발급. play 페이지가 이걸 검증해야 진입 가능.
     try {
       localStorage.setItem(
         'oripa_pass',
@@ -74,7 +74,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
     });
   };
 
-  // busy 중엔 overlay/X 클릭으로도 닫히지 않게 — 결제 직후 모달이 사라지면 spinner 도 같이 사라져 어색함
+  // busy 중엔 overlay/X 클릭으로도 닫히지 않게 — 처리 직후 모달이 사라지면 spinner 도 같이 사라져 어색함
   const safeClose = () => {
     if (busy) return;
     onClose();
@@ -213,7 +213,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                 color: 'var(--red)',
               }}
             >
-              <span>총 결제</span>
+              <span>사용 포인트</span>
               <span>🪙 {total.toLocaleString()}</span>
             </div>
             <div
@@ -289,7 +289,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                   }}
                 />
               </span>
-              {paying ? '결제 중...' : '뽑기판 여는 중...'}
+              {paying ? '처리 중...' : '뽑기판 여는 중...'}
             </span>
           ) : insufficient ? (
             '포인트 부족'

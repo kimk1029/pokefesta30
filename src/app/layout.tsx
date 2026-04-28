@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
-import { AdScripts } from '@/components/ads/AdScripts';
 import { GoogleAnalytics } from '@/components/GoogleAnalytics';
 import { InAppBrowserNotice } from '@/components/InAppBrowserNotice';
 import { InventoryProvider } from '@/components/InventoryProvider';
@@ -80,7 +79,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <GoogleAnalytics />
-        <AdScripts />
         <Providers>
           <ToastProvider>
             <InventoryProvider>

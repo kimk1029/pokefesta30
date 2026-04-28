@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FeedAdRow } from '@/components/FeedAdRow';
 import { FeedRow } from '@/components/FeedRow';
 import { AppBar } from '@/components/ui/AppBar';
 import { Segmented } from '@/components/ui/Segmented';
@@ -11,10 +10,6 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import type { FeedKind, FeedPost } from '@/lib/types';
 
 type Filter = 'all' | FeedKind;
-
-/** 광고 노출 정책 — 자연스러운 인벤토리 밀도 */
-const AD_FIRST_AT = 4;   // 처음 4개 글까지는 광고 없음 (이탈 방지)
-const AD_INTERVAL = 8;   // 이후 8개마다 1개
 
 const FILTERS: ReadonlyArray<{ id: Filter; label: string }> = [
   { id: 'all', label: '전체' },
@@ -123,21 +118,7 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
             </div>
           </div>
         ) : (
-          (() => {
-            let adIndex = 0;
-            return posts.flatMap((p, i) => {
-              const row = <FeedRow key={`${p.kind}-${p.id}`} post={p} />;
-              const pos = i + 1;
-              const isAdSlot =
-                pos >= AD_FIRST_AT &&
-                (pos - AD_FIRST_AT) % AD_INTERVAL === 0 &&
-                i !== posts.length - 1;
-              if (!isAdSlot) return [row];
-              const ad = <FeedAdRow key={`ad-${adIndex}`} index={adIndex} />;
-              adIndex++;
-              return [row, ad];
-            });
-          })()
+          posts.map((p) => <FeedRow key={`${p.kind}-${p.id}`} post={p} />)
         )}
 
         {error && (

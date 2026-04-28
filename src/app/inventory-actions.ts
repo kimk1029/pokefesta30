@@ -6,7 +6,6 @@ import { AVATARS, isAvatarId, type AvatarId } from '@/lib/avatars';
 import { defaultNameFor } from '@/lib/defaultName';
 import { prisma } from '@/lib/prisma';
 import { getMyInventory, type InventorySnapshot } from '@/lib/queries';
-import { getSlot } from '@/lib/freeCharge';
 import {
   BACKGROUNDS,
   FRAMES,
@@ -138,19 +137,9 @@ export async function buyBackground(id: string, expectedPrice: number): Promise<
   return genericBuy(userId, 'bg', id as BackgroundId, expectedPrice);
 }
 
-/**
- * 결제 mock — 사업자 등록 전까지 실제 결제 없이 포인트 가상 충전.
- * 실제 결제 붙일 때 이 액션 내부를 PG 검증으로 교체.
- */
 export async function mockCharge(amount: number): Promise<Result> {
   if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: 'invalid amount' };
-  const userId = await sessionUserId();
-  if (!userId) return { ok: false, error: 'unauthorized' };
-  await prisma.user.update({
-    where: { id: userId },
-    data: { points: { increment: amount } },
-  });
-  return { ok: true, inv: await getMyInventory(userId) };
+  return { ok: false, error: '포인트 충전은 현재 중단되었습니다' };
 }
 
 /**
@@ -170,69 +159,11 @@ export async function spendPoints(amount: number): Promise<Result> {
   return { ok: true, inv: await getMyInventory(userId) };
 }
 
-/**
- * 무료충전소 — 광고 시청 보상.
- * AdEvent 테이블 기반 cooldown/daily 제한 (재시작/스케일아웃 안전).
- */
-function startOfDayUTC(d: Date = new Date()): Date {
-  const day = new Date(d);
-  day.setUTCHours(0, 0, 0, 0);
-  return day;
-}
-
 export async function rewardAdView(
   slotId: string,
 ): Promise<Result | { ok: false; error: string; retryInSec?: number }> {
-  const slot = getSlot(slotId);
-  if (!slot) return { ok: false, error: 'invalid slot' };
-
-  const userId = await sessionUserId();
-  if (!userId) return { ok: false, error: 'unauthorized' };
-
-  const day = startOfDayUTC();
-
-  // 같은 슬롯, 같은 사용자, 오늘자 reward 이벤트 모두 조회 → cooldown/한도 검증
-  const todayEvents = await prisma.adEvent.findMany({
-    where: { kind: 'reward', userId, slotId, day },
-    orderBy: { createdAt: 'desc' },
-    take: slot.dailyLimit,
-    select: { createdAt: true },
-  });
-
-  if (todayEvents.length > 0) {
-    const lastAt = todayEvents[0].createdAt.getTime();
-    const elapsed = (Date.now() - lastAt) / 1000;
-    if (elapsed < slot.cooldownSec) {
-      return {
-        ok: false,
-        error: '쿨다운 중',
-        retryInSec: Math.ceil(slot.cooldownSec - elapsed),
-      };
-    }
-    if (todayEvents.length >= slot.dailyLimit) {
-      return { ok: false, error: '오늘 한도 초과' };
-    }
-  }
-
-  // 보상 지급 + 이벤트 기록을 트랜잭션으로
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: userId },
-      data: { points: { increment: slot.reward } },
-    }),
-    prisma.adEvent.create({
-      data: {
-        kind: 'reward',
-        network: slot.network,
-        slotId,
-        userId,
-        reward: slot.reward,
-        day,
-      },
-    }),
-  ]);
-
-  return { ok: true, inv: await getMyInventory(userId) };
+  if (!slotId) return { ok: false, error: 'invalid slot' };
+  return { ok: false, error: '무료 광고 충전은 현재 중단되었습니다' };
 }
 
 export async function buyFrame(id: string, expectedPrice: number): Promise<Result> {
