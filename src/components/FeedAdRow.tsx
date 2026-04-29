@@ -14,7 +14,7 @@ export function FeedAdRow() {
     <div
       className="feed-item"
       aria-label="광고"
-      style={{ position: 'relative', padding: '12px 14px', alignItems: 'center' }}
+      style={{ position: 'relative', padding: 0, alignItems: 'stretch', gap: 0 }}
     >
       <span
         style={{
