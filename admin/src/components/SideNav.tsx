@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const NAV = [
   { href: '/', label: '대시보드', icon: '📊' },
   { href: '/users', label: '회원 관리', icon: '👥' },
+  { href: '/ranking', label: '포인트 랭킹', icon: '🏆' },
   { href: '/logs', label: '활동 로그', icon: '🧾' },
   { href: '/feeds', label: '피드 관리', icon: '📝' },
   { href: '/messages', label: '쪽지 목록', icon: '✉️' },

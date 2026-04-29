@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from 'react';
 
+interface SpendItem {
+  kind: 'oripa' | 'avatar' | 'background' | 'frame';
+  label: string;
+  amount: number;
+  at: string | null;
+  ref?: string;
+}
+
 interface UserDetail {
   user: {
     id: string; name: string; email: string | null; avatar: string; avatarId: string;
@@ -14,7 +22,18 @@ interface UserDetail {
   trades: Array<{ id: number; type: string; status: string; title: string; price: string | null; createdAt: string }>;
   pulls: Array<{ id: number; packId: string; index: number; grade: string | null; prizeName: string | null; drawnAt: string | null }>;
   lastViews: Array<{ id: number; path: string; ip: string | null; country: string | null; createdAt: string }>;
+  spending: SpendItem[];
+  totalSpent: number;
+  oripaSpent: number;
+  inventorySpent: number;
 }
+
+const SPEND_KIND_LABEL: Record<SpendItem['kind'], string> = {
+  oripa: '오리파',
+  avatar: '아바타',
+  background: '배경',
+  frame: '테두리',
+};
 
 function fmt(d: string | null | undefined): string {
   if (!d) return '-';
@@ -94,12 +113,14 @@ export function UserDetailModal({ userId, onClose }: Props) {
           ) : (
             <>
               <div className="grid-stats">
-                <Stat label="포인트" value={data.user.points} />
+                <Stat label="포인트 잔액" value={data.user.points} />
+                <Stat label="총 사용(추정)" value={data.totalSpent} />
+                <Stat label="오리파 사용" value={data.oripaSpent} />
+                <Stat label="아이템 사용" value={data.inventorySpent} />
                 <Stat label="피드" value={data.user._count.feeds} />
                 <Stat label="거래" value={data.user._count.trades} />
                 <Stat label="찜" value={data.user._count.bookmarks} />
                 <Stat label="쪽지" value={data.user._count.sentMessages + data.user._count.receivedMessages} />
-                <Stat label="오리파" value={data.user._count.oripaTickets} />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 14, marginTop: 16 }}>
@@ -157,6 +178,44 @@ export function UserDetailModal({ userId, onClose }: Props) {
                         ))}
                       </tbody>
                     </table>
+                  )}
+                </Card>
+
+                <Card title={`포인트 사용 내역 (${data.spending.length})`}>
+                  {data.spending.length === 0 ? (
+                    <div className="muted">사용 내역 없음</div>
+                  ) : (
+                    <>
+                      <div className="muted" style={{ marginBottom: 8, fontSize: 11 }}>
+                        오리파 뽑기는 실제 시각, 보유 아이템은 가격 기준 추정 (시각 미기록).
+                      </div>
+                      <table className="tbl">
+                        <thead>
+                          <tr>
+                            <th>분류</th>
+                            <th>항목</th>
+                            <th style={{ textAlign: 'right' }}>포인트</th>
+                            <th>시각</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.spending.map((s, i) => (
+                            <tr key={`${s.kind}-${s.ref ?? i}-${i}`}>
+                              <td>
+                                <span className="tag">{SPEND_KIND_LABEL[s.kind]}</span>
+                              </td>
+                              <td>{trunc(s.label, 50)}</td>
+                              <td className="mono" style={{ textAlign: 'right' }}>
+                                -{s.amount.toLocaleString()}
+                              </td>
+                              <td className="mono muted">
+                                {s.at ? fmt(s.at) : <span className="muted">미기록</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
                   )}
                 </Card>
 
