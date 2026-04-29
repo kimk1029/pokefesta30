@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AppBarProfile } from '@/components/AppBarProfile';
+import { FeedAdRow } from '@/components/FeedAdRow';
 import { FeedRow } from '@/components/FeedRow';
 import { HeroSlider } from '@/components/HeroSlider';
 import { HomeInfoTabs } from '@/components/HomeInfoTabs';
@@ -45,7 +46,14 @@ export function HomeScreen({ places, feeds, todayCount, hourlyCounts, nowHour }:
             </div>
           </div>
         ) : (
-          recentFeeds.map((p) => <FeedRow key={p.id} post={p} />)
+          recentFeeds.flatMap((p, i) => {
+            const row = <FeedRow key={p.id} post={p} />;
+            // 3번째 피드 다음 한 칸 광고 (피드가 4개 이상일 때만)
+            if (i === 2 && recentFeeds.length >= 4) {
+              return [row, <FeedAdRow key="home-ad" />];
+            }
+            return [row];
+          })
         )}
       </div>
 
