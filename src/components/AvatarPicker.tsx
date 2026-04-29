@@ -17,14 +17,27 @@ const USER_LEVEL = MY_PROFILE.level;
 
 export function AvatarPicker({ inv, onClose }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<AvatarId | null>(null);
 
   const handleClick = async (id: AvatarId) => {
+    if (pendingId) return; // 이미 처리 중 — 중복 클릭 차단
     const meta = getAvatarMeta(id);
     const owned = inv.avatarOwned.includes(id);
 
     if (owned) {
-      await inv.pickAvatar(id);
-      onClose();
+      if (id === inv.avatar) {
+        onClose();
+        return;
+      }
+      setPendingId(id);
+      const r = await inv.pickAvatar(id);
+      setPendingId(null);
+      if (r.ok) {
+        onClose();
+      } else {
+        setMsg(r.msg ?? '변경 실패');
+        setTimeout(() => setMsg(null), 1400);
+      }
       return;
     }
 
@@ -34,13 +47,17 @@ export function AvatarPicker({ inv, onClose }: Props) {
         setTimeout(() => setMsg(null), 1400);
         return;
       }
+      setPendingId(id);
       const r = await inv.buyAvatar(id, 0);
+      setPendingId(null);
       if (r.ok) onClose();
       return;
     }
 
     if (meta.mode === 'shop' && meta.price !== undefined) {
+      setPendingId(id);
       const r = await inv.buyAvatar(id, meta.price);
+      setPendingId(null);
       if (!r.ok) {
         setMsg(r.msg ?? '구매 실패');
         setTimeout(() => setMsg(null), 1400);
@@ -93,6 +110,8 @@ export function AvatarPicker({ inv, onClose }: Props) {
             const isCurrent = a.id === inv.avatar;
             const isLevelLocked = a.mode === 'level' && !owned && USER_LEVEL < (a.level ?? 99);
             const isShop = a.mode === 'shop' && !owned;
+            const isPending = pendingId === a.id;
+            const isAnyPending = pendingId !== null;
             return (
               <button
                 key={a.id}
@@ -101,11 +120,13 @@ export function AvatarPicker({ inv, onClose }: Props) {
                   'avatar-tile',
                   isLevelLocked ? 'locked' : '',
                   isCurrent ? 'active' : '',
+                  isPending ? 'pending' : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
                 onClick={() => handleClick(a.id)}
-                disabled={isLevelLocked}
+                disabled={isLevelLocked || isAnyPending}
+                aria-busy={isPending}
                 aria-label={a.name}
               >
                 <div className="avatar-tile-img">
@@ -122,6 +143,11 @@ export function AvatarPicker({ inv, onClose }: Props) {
                   <div className="avatar-tile-lock">
                     <span className="lock-icon">🔒</span>
                     <span className="lock-hint">LV.{a.level} 필요</span>
+                  </div>
+                )}
+                {isPending && (
+                  <div className="avatar-tile-loading" aria-hidden>
+                    <span className="avatar-tile-spinner" />
                   </div>
                 )}
               </button>

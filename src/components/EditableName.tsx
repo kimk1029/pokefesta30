@@ -128,7 +128,7 @@ export function EditableName({ initialName }: Props) {
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
-          fontSize: 12,
+          fontSize: 14,
           padding: 2,
           opacity: 0.85,
           // 연필이 기본 가로로 놓여있는 글꼴에서도 45° 기울여 편집 포즈로

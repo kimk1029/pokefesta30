@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { PixelKarp } from './PixelKarp';
 import { StampRallyModal } from './StampRallyModal';
 
 interface Slide {
@@ -23,7 +22,14 @@ const SLIDES: Slide[] = [
     badge: '★ 팬 프로젝트',
     title: '잉어킹\n프로모!',
     sub: '성수 6곳 스탬프 랠리\n탭해서 이벤트 상세 보기',
-    visual: <PixelKarp size={82} />,
+    visual: (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src="/promo/magikarp-promo.png"
+        alt="잉어킹 프로모 카드"
+        className="hero-promo-card"
+      />
+    ),
     onClick: 'stamp-rally',
     ctaHint: '👉 TAP',
   },
