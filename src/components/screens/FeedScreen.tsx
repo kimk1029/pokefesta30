@@ -133,7 +133,7 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
                 (pos - AD_FIRST_AT) % AD_INTERVAL === 0 &&
                 i !== posts.length - 1;
               if (!isAdSlot) return [row];
-              const ad = <FeedAdRow key={`ad-${adIndex}`} index={adIndex} />;
+              const ad = <FeedAdRow key={`ad-${adIndex}`} />;
               adIndex++;
               return [row, ad];
             });

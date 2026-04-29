@@ -1,18 +1,14 @@
 'use client';
 
 import { AdFitSlot } from './ads/AdFitSlot';
-import { AdSenseSlot } from './ads/AdSenseSlot';
 
-const ADSENSE_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_FEED ?? '';
 const ADFIT_UNIT = process.env.NEXT_PUBLIC_ADFIT_UNIT_FEED ?? '';
 
 /**
- * 피드 인라인 광고 — AdSense / AdFit 50:50 교대.
- * index = 광고 등장 순번 (피드 인덱스 아님).
+ * 피드 인라인 광고 — Kakao AdFit 단독.
+ * (AdSense 미신청 상태라 AdFit 만 사용. 추후 AdSense 승인 시 교대 노출 복원 가능.)
  */
-export function FeedAdRow({ index }: { index: number }) {
-  const useAdSense = index % 2 === 0;
-
+export function FeedAdRow() {
   return (
     <div
       className="feed-item"
@@ -47,15 +43,11 @@ export function FeedAdRow({ index }: { index: number }) {
             letterSpacing: 0.5,
           }}
         >
-          {useAdSense ? 'AdSense' : 'AdFit'}
+          AdFit
         </span>
       </div>
       <div style={{ minHeight: 100, display: 'grid', placeItems: 'center' }}>
-        {useAdSense ? (
-          <AdSenseSlot slotId={ADSENSE_SLOT} />
-        ) : (
-          <AdFitSlot adUnit={ADFIT_UNIT} />
-        )}
+        <AdFitSlot adUnit={ADFIT_UNIT} />
       </div>
     </div>
   );

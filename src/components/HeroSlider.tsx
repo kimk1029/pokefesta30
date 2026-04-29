@@ -163,9 +163,6 @@ export function HeroSlider() {
                 </div>
                 {sl.visual}
               </div>
-              <div className="hero-vis">
-                <div className="hero-vis-lbl">[ 잉어킹 프로모 비주얼 ]</div>
-              </div>
             </div>
           ))}
         </div>
