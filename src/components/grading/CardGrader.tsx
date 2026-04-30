@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { recognizeCard, type CardOcrResult } from './cardOcr';
 import { isOpenCvReady, loadOpenCv } from './openCvLoader';
 
 /**
@@ -51,6 +52,12 @@ export function CardGrader() {
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // OCR (카드 정보 추출) 상태
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrPhase, setOcrPhase] = useState<string | null>(null);
+  const [ocrResult, setOcrResult] = useState<CardOcrResult | null>(null);
+  const [ocrErr, setOcrErr] = useState<string | null>(null);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -97,6 +104,8 @@ export function CardGrader() {
     setErr(null);
     setOuter(null);
     setInner(null);
+    setOcrResult(null);
+    setOcrErr(null);
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -130,6 +139,38 @@ export function CardGrader() {
       }
     }, 30);
   }, []);
+
+  /* 사용자가 OCR 클릭 → Tesseract.js lazy load + 카드 텍스트 추출 - */
+  const onClickRecognize = useCallback(async () => {
+    if (!imgEl || ocrLoading) return;
+    setOcrErr(null);
+    setOcrResult(null);
+    setOcrLoading(true);
+    setOcrPhase('스크립트 다운로드 준비…');
+    try {
+      const result = await recognizeCard(imgEl, outer, {
+        onProgress: (p) => {
+          if (p.phase === 'load-script') setOcrPhase('Tesseract 다운로드 중…');
+          else if (p.phase === 'load-lang') {
+            const pct = p.progress != null ? ` ${Math.round(p.progress * 100)}%` : '';
+            setOcrPhase(`언어 데이터 다운로드 중${pct} (kor+eng, ~25MB)`);
+          } else if (p.phase === 'recognize') {
+            const pct = p.progress != null ? ` ${Math.round(p.progress * 100)}%` : '';
+            setOcrPhase(`텍스트 인식 중${pct}`);
+          }
+        },
+      });
+      setOcrResult(result);
+    } catch (e) {
+      setOcrErr(
+        (e instanceof Error ? e.message : 'OCR 실패') +
+          ' — 사진이 흐릿하거나 빛 반사가 심하면 인식이 어려워요',
+      );
+    } finally {
+      setOcrLoading(false);
+      setOcrPhase(null);
+    }
+  }, [imgEl, outer, ocrLoading]);
 
   /* 사용자가 자동 검출 클릭 → 필요 시 OpenCV lazy load --------- */
   const onClickAutoDetect = useCallback(() => {
@@ -370,10 +411,77 @@ export function CardGrader() {
             >
               ↺ 내곽 리셋
             </button>
+            <button
+              type="button"
+              onClick={onClickRecognize}
+              disabled={ocrLoading || !!busyLabel}
+              style={{
+                ...ctrlBtn('var(--pur)'),
+                opacity: ocrLoading || !!busyLabel ? 0.6 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              {ocrLoading ? (
+                <>
+                  <SpinnerSm /> OCR…
+                </>
+              ) : (
+                '📖 카드 정보 추출'
+              )}
+            </button>
             <button type="button" onClick={() => fileInputRef.current?.click()} style={ctrlBtn('var(--ink2)')}>
               🖼 다른 사진
             </button>
           </div>
+
+          {/* OCR 진행 / 결과 */}
+          {(ocrLoading || ocrPhase) && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: '10px 12px',
+                background: 'var(--ink)',
+                color: 'var(--yel)',
+                fontFamily: 'var(--f1)',
+                fontSize: 9,
+                letterSpacing: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                lineHeight: 1.5,
+              }}
+            >
+              <SpinnerSm />
+              <span style={{ flex: 1 }}>
+                {ocrPhase ?? '인식 중…'}
+                <br />
+                <span style={{ fontSize: 8, opacity: 0.85 }}>
+                  첫 실행 시 한국어 데이터 ~13MB + 영어 ~10MB 다운로드
+                </span>
+              </span>
+            </div>
+          )}
+          {ocrErr && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: '8px 10px',
+                background: 'var(--red)',
+                color: 'var(--white)',
+                fontFamily: 'var(--f1)',
+                fontSize: 9,
+                letterSpacing: 0.5,
+                textAlign: 'center',
+                lineHeight: 1.5,
+              }}
+            >
+              ⚠ {ocrErr}
+            </div>
+          )}
+          {ocrResult && <OcrResultCard r={ocrResult} />}
 
           {/* 결과 */}
           {result && <ResultCard r={result} />}
@@ -511,6 +619,141 @@ function ResultCard({ r }: { r: CenteringResult }) {
       </div>
       <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', lineHeight: 1.6, textAlign: 'center' }}>
         센터링 한 항목 기준. 코너 / 표면 / 인쇄 결함은 별도.
+      </div>
+    </div>
+  );
+}
+
+function OcrResultCard({ r }: { r: CardOcrResult }) {
+  const [showRaw, setShowRaw] = useState(false);
+  const numLabel = r.cardNumber ? `${r.cardNumber.left} / ${r.cardNumber.right}` : '—';
+  const found =
+    !!r.cardNumber || r.nameCandidates.length > 0 || r.hp !== null || !!r.promoCode;
+  return (
+    <div
+      style={{
+        marginBottom: 12,
+        padding: 12,
+        background: 'var(--white)',
+        boxShadow:
+          '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),4px 4px 0 var(--ink)',
+      }}
+    >
+      <div
+        style={{
+          fontFamily: 'var(--f1)',
+          fontSize: 10,
+          letterSpacing: 0.5,
+          fontWeight: 700,
+          color: 'var(--ink)',
+          marginBottom: 10,
+          paddingBottom: 6,
+          borderBottom: '2px solid var(--ink)',
+        }}
+      >
+        📖 카드 정보 추출 결과
+      </div>
+
+      {!found && (
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', textAlign: 'center', padding: 12 }}>
+          인식 가능한 카드 정보를 찾지 못했어요.
+          <br />
+          빛 반사 없는 정면 사진으로 다시 시도해주세요.
+        </div>
+      )}
+
+      {found && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <KvRow k="카드 번호" v={numLabel} highlight={!!r.cardNumber} />
+          {r.promoCode && <KvRow k="프로모 코드" v={r.promoCode} highlight />}
+          <KvRow k="HP" v={r.hp != null ? `${r.hp}` : '—'} />
+          <KvRow
+            k="이름 후보"
+            v={r.nameCandidates.length > 0 ? r.nameCandidates.join(' · ') : '—'}
+          />
+        </div>
+      )}
+
+      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button
+          type="button"
+          onClick={() => setShowRaw((v) => !v)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'var(--f1)',
+            fontSize: 9,
+            color: 'var(--blu)',
+            letterSpacing: 0.3,
+            padding: 0,
+          }}
+        >
+          {showRaw ? '▲ 원본 OCR 텍스트 숨김' : '▼ 원본 OCR 텍스트 보기'}
+        </button>
+        {r.cardNumber && (
+          <a
+            href={`/cards/search?q=${encodeURIComponent(r.cardNumber.raw)}`}
+            style={{
+              fontFamily: 'var(--f1)',
+              fontSize: 9,
+              color: 'var(--white)',
+              background: 'var(--blu)',
+              padding: '4px 8px',
+              textDecoration: 'none',
+              letterSpacing: 0.3,
+            }}
+          >
+            🔍 시세 검색 ▶
+          </a>
+        )}
+      </div>
+
+      {showRaw && (
+        <pre
+          style={{
+            marginTop: 8,
+            padding: 8,
+            background: 'var(--pap2)',
+            fontFamily: 'monospace',
+            fontSize: 9,
+            color: 'var(--ink)',
+            lineHeight: 1.5,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+            maxHeight: 200,
+            overflowY: 'auto',
+          }}
+        >
+          {r.rawText || '(빈 텍스트)'}
+        </pre>
+      )}
+
+      <div style={{ marginTop: 8, fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', lineHeight: 1.6 }}>
+        ⚠ OCR 자동 추출 — 이름은 OCR 정확도 한계로 오타가 있을 수 있어요. 번호로 시세를 조회하는 게 정확합니다.
+      </div>
+    </div>
+  );
+}
+
+function KvRow({ k, v, highlight }: { k: string; v: string; highlight?: boolean }) {
+  return (
+    <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+      <div style={{ minWidth: 80, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: 0.3 }}>
+        {k}
+      </div>
+      <div
+        style={{
+          flex: 1,
+          fontFamily: 'var(--f1)',
+          fontSize: highlight ? 13 : 11,
+          fontWeight: highlight ? 700 : 400,
+          color: highlight ? 'var(--red)' : 'var(--ink)',
+          letterSpacing: 0.3,
+          wordBreak: 'break-all',
+        }}
+      >
+        {v}
       </div>
     </div>
   );
