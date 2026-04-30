@@ -168,12 +168,15 @@ export async function getHourlyReportCounts(): Promise<{ counts: number[]; nowHo
   const nowHour = kstHour(now);
   try {
     const start = kstStartOfDayUtc(now);
-    // SQL GROUP BY로 집계 — 행 전체 fetch 대신 DB에서 바로 시간대별 카운트
+    // SQL GROUP BY로 집계 — 행 전체 fetch 대신 DB에서 바로 시간대별 카운트.
+    // 라벨이 "시간대별 제보량" 이므로 kind='report' 필드만 카운트.
+    // (table 이름은 @@map 에 따라 "feeds" 소문자 — 이전 PascalCase 오타 수정)
     const rows = await prisma.$queryRaw<Array<{ h: number; cnt: bigint }>>`
       SELECT EXTRACT(HOUR FROM "createdAt" AT TIME ZONE 'Asia/Seoul')::int AS h,
              COUNT(*)::bigint AS cnt
-      FROM "Feed"
+      FROM "feeds"
       WHERE "createdAt" >= ${start}
+        AND "kind" = 'report'
       GROUP BY h
     `;
     const counts = new Array<number>(24).fill(0);

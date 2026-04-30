@@ -15,11 +15,18 @@ const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? '';
  *   - slotIndex === 0  : AdFit (1개만 채워지므로 첫 슬롯 차지)
  *   - slotIndex >= 1   : AdSense (같은 slotId 로 여러 슬롯 fill 가능)
  *
- * AdSense 미구성이면 후속 슬롯은 "AdSense — env 미설정" placeholder.
- * AdFit 미구성이면 첫 슬롯도 placeholder. 두 네트워크 모두 등록하면 빈 박스 0.
+ * 광고 채울 수 없는 슬롯(env 미설정)은 빈 박스 대신 아예 null 반환 → 피드 사이에
+ * 회색 placeholder 가 안 끼게 함.
  */
 export function FeedAdRow({ slotIndex = 0 }: { slotIndex?: number }) {
-  const useAdSense = slotIndex >= 1 && (ADSENSE_CLIENT && ADSENSE_SLOT);
+  const adSenseConfigured = !!(ADSENSE_CLIENT && ADSENSE_SLOT);
+  const adFitConfigured = !!ADFIT_UNIT;
+  const useAdSense = slotIndex >= 1 && adSenseConfigured;
+
+  // 후속 슬롯인데 AdSense 미설정 → 빈 박스 띄우지 말고 슬롯 자체를 생략
+  if (slotIndex >= 1 && !adSenseConfigured) return null;
+  // 첫 슬롯인데 AdFit 도 미설정 → 마찬가지로 생략
+  if (slotIndex === 0 && !adFitConfigured) return null;
 
   return (
     <div

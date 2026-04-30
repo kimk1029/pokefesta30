@@ -41,8 +41,7 @@ export function AdSenseSlot({ slotId }: { slotId: string }) {
       style={{ display: 'block', width: '100%', minHeight: 90 }}
       data-ad-client={CLIENT}
       data-ad-slot={slotId}
-      data-ad-format="fluid"
-      data-ad-layout-key="-fb+5w+4e-db+86"
+      data-ad-format="auto"
       data-full-width-responsive="true"
     />
   );
