@@ -43,32 +43,33 @@ export function HomeRecentFeed({ initialFeeds }: Props) {
     <div className="sect">
       <SectionTitle
         title="실시간 피드"
+        titleRight={
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={refreshing}
+            aria-label="피드 새로고침"
+            title={refreshing ? '새로고침 중…' : '최신 피드 가져오기'}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: refreshing ? 'default' : 'pointer',
+              padding: 2,
+              color: 'currentColor',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 0,
+              animation: refreshing ? 'pf-ball-spin 0.8s linear infinite' : undefined,
+            }}
+          >
+            <RefreshIcon size={14} />
+          </button>
+        }
         right={
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <button
-              type="button"
-              onClick={refresh}
-              disabled={refreshing}
-              aria-label="피드 새로고침"
-              title={refreshing ? '새로고침 중…' : '최신 피드 가져오기'}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: refreshing ? 'default' : 'pointer',
-                fontSize: 14,
-                lineHeight: 1,
-                padding: 4,
-                color: 'var(--ink2)',
-                display: 'inline-block',
-                animation: refreshing ? 'pf-ball-spin 0.8s linear infinite' : undefined,
-              }}
-            >
-              🔄
-            </button>
-            <Link href="/feed" className="more">
-              전체 ▶
-            </Link>
-          </span>
+          <Link href="/feed" className="more">
+            전체 ▶
+          </Link>
         }
       />
 
@@ -106,5 +107,28 @@ export function HomeRecentFeed({ initialFeeds }: Props) {
         })
       )}
     </div>
+  );
+}
+
+/**
+ * 새로고침 아이콘 — 단순한 원형 화살표.
+ * stroke=currentColor 라 부모의 글자색을 그대로 따라감 (제목과 동일).
+ */
+function RefreshIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M21 12a9 9 0 1 1-3-6.7" />
+      <polyline points="21 4 21 9 16 9" />
+    </svg>
   );
 }
