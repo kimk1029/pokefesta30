@@ -45,6 +45,12 @@ export function detectCardOuterPureJs(img: HTMLImageElement): Quad | null {
     if (sc > 0.2) candidates.push({ quad: colorQuad, score: sc, tag: 'color' });
   }
 
+  const blobQuad = detectByLargestBlob(pixels, w, h);
+  if (blobQuad) {
+    const sc = scoreQuad(blobQuad, w, h);
+    if (sc > 0.2) candidates.push({ quad: blobQuad, score: sc, tag: 'blob' });
+  }
+
   const houghQuad = detectByHough(gray, w, h);
   if (houghQuad) {
     const sc = scoreQuad(houghQuad, w, h);
@@ -186,6 +192,82 @@ function detectByColor(pixels: Uint8ClampedArray, w: number, h: number): Quad | 
   const bl = intersectLines(left, bottom);
   if (!tl || !tr || !br || !bl) return null;
   return orderCornersTLTRBRBL([tl, tr, br, bl]);
+}
+
+/* ============ A2. 가장 큰 연결 성분의 axis-aligned bbox ============ */
+
+/**
+ * 배경색 마스크 → 연결 성분(connected components) 중 가장 큰 것의 bounding box.
+ * LSQ 직선 fit 보다 단순하고 노이즈에 강함. 카드가 회전돼있으면 bbox 가 카드보다
+ * 좀 크게 잡히지만 사용자가 핸들로 미세조정 가능하므로 OK.
+ */
+function detectByLargestBlob(pixels: Uint8ClampedArray, w: number, h: number): Quad | null {
+  const bg = sampleBackground(pixels, w, h);
+  const mask = new Uint8Array(w * h);
+  let fgCount = 0;
+  for (let i = 0; i < w * h; i++) {
+    const dr = pixels[i * 4] - bg.r;
+    const dg = pixels[i * 4 + 1] - bg.g;
+    const db = pixels[i * 4 + 2] - bg.b;
+    if (Math.sqrt(dr * dr + dg * dg + db * db) > 38) {
+      mask[i] = 1;
+      fgCount++;
+    }
+  }
+  const fgRatio = fgCount / (w * h);
+  if (fgRatio < 0.05 || fgRatio > 0.97) return null;
+
+  const closed = dilate(mask, w, h);
+
+  // BFS 로 가장 큰 연결 영역의 bbox 찾기
+  const visited = new Uint8Array(w * h);
+  const stack: number[] = [];
+  let bestArea = 0;
+  let best = { x0: 0, y0: 0, x1: 0, y1: 0 };
+
+  for (let sy = 0; sy < h; sy++) {
+    for (let sx = 0; sx < w; sx++) {
+      const start = sy * w + sx;
+      if (!closed[start] || visited[start]) continue;
+
+      let area = 0;
+      let x0 = w, y0 = h, x1 = 0, y1 = 0;
+      stack.length = 0;
+      stack.push(start);
+      visited[start] = 1;
+      while (stack.length) {
+        const idx = stack.pop()!;
+        area++;
+        const x = idx % w;
+        const y = (idx - x) / w;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+        if (x > 0 && closed[idx - 1] && !visited[idx - 1]) { visited[idx - 1] = 1; stack.push(idx - 1); }
+        if (x < w - 1 && closed[idx + 1] && !visited[idx + 1]) { visited[idx + 1] = 1; stack.push(idx + 1); }
+        if (y > 0 && closed[idx - w] && !visited[idx - w]) { visited[idx - w] = 1; stack.push(idx - w); }
+        if (y < h - 1 && closed[idx + w] && !visited[idx + w]) { visited[idx + w] = 1; stack.push(idx + w); }
+      }
+
+      if (area > bestArea) {
+        bestArea = area;
+        best = { x0, y0, x1, y1 };
+      }
+    }
+  }
+
+  if (bestArea < w * h * 0.1) return null;
+  const { x0, y0, x1, y1 } = best;
+  // bbox 가 이미지 거의 전체면 (사진 자체가 단색) reject
+  if ((x1 - x0) > w * 0.97 && (y1 - y0) > h * 0.97) return null;
+
+  return [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
+  ];
 }
 
 /* ============== B. Sobel + Hough Line Transform =============== */
