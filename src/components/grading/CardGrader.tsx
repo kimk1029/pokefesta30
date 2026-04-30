@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { loadOpenCv } from './openCvLoader';
+import { isOpenCvReady, loadOpenCv } from './openCvLoader';
 
 /**
  * 카드 그레이딩(센터링 추정) 도구.
@@ -43,8 +43,11 @@ export function CardGrader() {
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null);
   const [outer, setOuter] = useState<Quad | null>(null);
   const [inner, setInner] = useState<Quad | null>(null);
+  // CV 는 마운트 시 자동 로드하지 않고, 사용자가 "자동 검출" 누를 때만 lazy load.
+  // 모바일 저메모리 환경에서 8MB OpenCV.js + WASM 컴파일이 페이지를 다운시키는 문제 회피.
+  const [cvReady, setCvReady] = useState(() => isOpenCvReady());
   const [cvLoading, setCvLoading] = useState(false);
-  const [cvReady, setCvReady] = useState(false);
+  const [cvPhase, setCvPhase] = useState<string | null>(null);
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -57,16 +60,7 @@ export function CardGrader() {
   // 디스플레이 스케일: 자연 픽셀 → 화면 픽셀
   const scale = imgEl && displayW > 0 ? displayW / imgEl.naturalWidth : 1;
 
-  /* OpenCV 미리 로드 (컴포넌트 마운트 시 백그라운드) ----------------- */
-  useEffect(() => {
-    setCvLoading(true);
-    loadOpenCv()
-      .then(() => setCvReady(true))
-      .catch((e) => setErr(e instanceof Error ? e.message : 'OpenCV 로드 실패'))
-      .finally(() => setCvLoading(false));
-  }, []);
-
-  /* 이미지 변경 시 canvas 사이즈 + 자동 검출 ---------------------- */
+  /* 이미지 변경 시 canvas 사이즈 + 폴백 사각형 ---------------------- */
   useEffect(() => {
     if (!imgEl) return;
     const containerW = containerRef.current?.clientWidth ?? imgEl.naturalWidth;
@@ -75,16 +69,12 @@ export function CardGrader() {
     setDisplayW(w);
     setDisplayH(h);
 
-    if (cvReady) {
-      autoDetect(imgEl);
-    } else {
-      // CV 아직 로딩 중이면 일단 폴백 사각형 띄우기
-      const fb = fallbackQuads(imgEl.naturalWidth, imgEl.naturalHeight);
-      setOuter(fb.outer);
-      setInner(fb.inner);
-    }
+    // 일단 폴백 사각형 — 사용자는 바로 드래그로 조정 가능. CV 는 옵션.
+    const fb = fallbackQuads(imgEl.naturalWidth, imgEl.naturalHeight);
+    setOuter(fb.outer);
+    setInner(fb.inner);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imgEl, cvReady]);
+  }, [imgEl]);
 
   /* 캔버스 그리기 — 이미지 + 외곽/내곽 폴리라인 ------------------- */
   useEffect(() => {
@@ -120,34 +110,59 @@ export function CardGrader() {
     img.src = url;
   };
 
-  /* 자동 외곽 검출 ---------------------------------------------- */
-  const autoDetect = useCallback((image: HTMLImageElement) => {
+  /* 자동 외곽 검출 — OpenCV.js 가 준비됐을 때만 호출 ------------- */
+  const runDetection = useCallback((image: HTMLImageElement) => {
     setBusyLabel('외곽 검출 중…');
     setErr(null);
-    // 비동기 처리 — UI 블록 방지
     setTimeout(() => {
       try {
         const detected = detectOuterQuad(image);
         if (detected) {
           setOuter(detected);
-          setInner(shrinkQuad(detected, 0.045)); // 카드 인쇄 프레임 평균치 기준
+          setInner(shrinkQuad(detected, 0.045));
         } else {
-          // 검출 실패 — 폴백
-          const fb = fallbackQuads(image.naturalWidth, image.naturalHeight);
-          setOuter(fb.outer);
-          setInner(fb.inner);
           setErr('외곽 자동 검출 실패 — 핸들로 직접 맞춰주세요');
         }
       } catch (e) {
         setErr(e instanceof Error ? e.message : '검출 실패');
-        const fb = fallbackQuads(image.naturalWidth, image.naturalHeight);
-        setOuter(fb.outer);
-        setInner(fb.inner);
       } finally {
         setBusyLabel(null);
       }
     }, 30);
   }, []);
+
+  /* 사용자가 자동 검출 클릭 → 필요 시 OpenCV lazy load --------- */
+  const onClickAutoDetect = useCallback(() => {
+    if (!imgEl) return;
+    if (cvReady) {
+      runDetection(imgEl);
+      return;
+    }
+    setErr(null);
+    setCvLoading(true);
+    setCvPhase('스크립트 다운로드 중…');
+    loadOpenCv({
+      onPhase: (p) => {
+        if (p === 'inject') setCvPhase('스크립트 다운로드 중…');
+        else if (p === 'script-loaded') setCvPhase('WASM 초기화 중…');
+        else if (p === 'wasm-ready') setCvPhase(null);
+      },
+    })
+      .then(() => {
+        setCvReady(true);
+        setCvLoading(false);
+        setCvPhase(null);
+        runDetection(imgEl);
+      })
+      .catch((e) => {
+        setCvLoading(false);
+        setCvPhase(null);
+        setErr(
+          (e instanceof Error ? e.message : 'OpenCV 로드 실패') +
+            ' — 수동으로 핸들을 드래그해주세요',
+        );
+      });
+  }, [imgEl, cvReady, runDetection]);
 
   /* 코너 드래그 ------------------------------------------------ */
   const draggingRef = useRef<{ which: 'outer' | 'inner'; idx: 0 | 1 | 2 | 3 } | null>(null);
@@ -224,16 +239,13 @@ export function CardGrader() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={cvLoading && !cvReady}
             style={mainBtn('var(--blu)')}
           >
             📷 카드 사진 선택 / 촬영
           </button>
-          {cvLoading && !cvReady && (
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', textAlign: 'center' }}>
-              OpenCV 라이브러리 로드 중… (~3MB, 첫 1회만)
-            </div>
-          )}
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', textAlign: 'center', lineHeight: 1.6 }}>
+            먼저 사진을 올려주세요 — 그 다음 자동 외곽 검출(선택) 또는 핸들 드래그로 맞춥니다.
+          </div>
         </div>
       )}
 
@@ -291,29 +303,62 @@ export function CardGrader() {
                 onPointerDown={onPointerDown('inner', i as 0 | 1 | 2 | 3)}
               />
             ))}
-            {busyLabel && (
+            {(busyLabel || cvLoading) && (
               <div
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  background: 'rgba(0,0,0,.6)',
-                  display: 'grid',
-                  placeItems: 'center',
+                  background: 'rgba(0,0,0,.65)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 12,
                   color: 'var(--yel)',
                   fontFamily: 'var(--f1)',
-                  fontSize: 11,
+                  fontSize: 10,
                   letterSpacing: 0.5,
+                  padding: 16,
+                  textAlign: 'center',
                 }}
               >
-                {busyLabel}
+                <Spinner />
+                <div>{cvLoading ? `OpenCV 로드 중 — ${cvPhase ?? '준비 중…'}` : busyLabel}</div>
+                {cvLoading && (
+                  <div style={{ fontSize: 8, opacity: 0.85, lineHeight: 1.6 }}>
+                    ~8MB · 모바일 데이터에서 30~60초 걸릴 수 있어요
+                    <br />
+                    멈춘 듯 보여도 백그라운드에서 진행 중입니다
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {/* 컨트롤 */}
           <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => imgEl && autoDetect(imgEl)} disabled={!cvReady} style={ctrlBtn('var(--blu)')}>
-              🔄 자동 재검출
+            <button
+              type="button"
+              onClick={onClickAutoDetect}
+              disabled={cvLoading || !!busyLabel}
+              style={{
+                ...ctrlBtn('var(--blu)'),
+                opacity: cvLoading || !!busyLabel ? 0.6 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              {cvLoading ? (
+                <>
+                  <SpinnerSm /> 로드 중…
+                </>
+              ) : cvReady ? (
+                '🔄 자동 재검출'
+              ) : (
+                '🪄 외곽 자동 검출'
+              )}
             </button>
             <button
               type="button"
@@ -343,6 +388,60 @@ export function CardGrader() {
         </>
       )}
     </div>
+  );
+}
+
+/* ---------------------------- spinners -------------------------- */
+
+function Spinner() {
+  // 포켓볼 스타일 큰 스피너 — 페이지 전체 로딩에 사용
+  return (
+    <div
+      aria-hidden
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: '50%',
+        border: '3px solid var(--ink)',
+        background:
+          'linear-gradient(to bottom,var(--red) 0,var(--red) 46%,var(--ink) 46%,var(--ink) 54%,var(--white) 54%,var(--white) 100%)',
+        animation: 'pf-ball-spin 0.8s linear infinite',
+        position: 'relative',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          width: 14,
+          height: 14,
+          borderRadius: '50%',
+          background: 'var(--white)',
+          border: '2px solid var(--ink)',
+          transform: 'translate(-50%,-50%)',
+        }}
+      />
+    </div>
+  );
+}
+
+function SpinnerSm() {
+  // 버튼 안에 들어가는 작은 스피너
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: 'inline-block',
+        width: 12,
+        height: 12,
+        border: '2px solid currentColor',
+        borderTopColor: 'transparent',
+        borderRadius: '50%',
+        animation: 'pf-ball-spin 0.8s linear infinite',
+        verticalAlign: 'middle',
+      }}
+    />
   );
 }
 
