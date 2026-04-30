@@ -52,9 +52,13 @@ export function CardGrader() {
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // 진행률 (0..1, null = indeterminate). CV 로드 + 외곽 검출 전체 단계용.
+  const [cvProgress, setCvProgress] = useState<number | null>(null);
+
   // OCR (카드 정보 추출) 상태
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrPhase, setOcrPhase] = useState<string | null>(null);
+  const [ocrProgress, setOcrProgress] = useState<number | null>(null);
   const [ocrResult, setOcrResult] = useState<CardOcrResult | null>(null);
   const [ocrErr, setOcrErr] = useState<string | null>(null);
 
@@ -123,6 +127,7 @@ export function CardGrader() {
   const runDetection = useCallback((image: HTMLImageElement) => {
     setBusyLabel('외곽 검출 중…');
     setErr(null);
+    setCvProgress(null); // 검출 자체는 sync — indeterminate
     setTimeout(() => {
       try {
         const detected = detectOuterQuad(image);
@@ -136,6 +141,7 @@ export function CardGrader() {
         setErr(e instanceof Error ? e.message : '검출 실패');
       } finally {
         setBusyLabel(null);
+        setCvProgress(null);
       }
     }, 30);
   }, []);
@@ -147,20 +153,30 @@ export function CardGrader() {
     setOcrResult(null);
     setOcrLoading(true);
     setOcrPhase('스크립트 다운로드 준비…');
+    setOcrProgress(0);
     try {
       const result = await recognizeCard(imgEl, outer, {
         onProgress: (p) => {
-          if (p.phase === 'load-script') setOcrPhase('Tesseract 다운로드 중…');
-          else if (p.phase === 'load-lang') {
-            const pct = p.progress != null ? ` ${Math.round(p.progress * 100)}%` : '';
-            setOcrPhase(`언어 데이터 다운로드 중${pct} (kor+eng, ~25MB)`);
+          // 단계별 진행률 매핑 — 전체를 0..1 로 정규화:
+          //   load-script   : 0   → 0.10
+          //   load-lang     : 0.10 → 0.50  (Tesseract 가 progress 줌)
+          //   recognize     : 0.50 → 1.00  (Tesseract 가 progress 줌)
+          if (p.phase === 'load-script') {
+            setOcrPhase('Tesseract 다운로드 중…');
+            setOcrProgress(0.05);
+          } else if (p.phase === 'load-lang') {
+            const sub = p.progress != null ? Math.round(p.progress * 100) : null;
+            setOcrPhase(`언어 데이터 다운로드 중${sub != null ? ` (${sub}%)` : ''} · kor+eng ~23MB`);
+            setOcrProgress(0.1 + (p.progress ?? 0) * 0.4);
           } else if (p.phase === 'recognize') {
-            const pct = p.progress != null ? ` ${Math.round(p.progress * 100)}%` : '';
-            setOcrPhase(`텍스트 인식 중${pct}`);
+            const sub = p.progress != null ? Math.round(p.progress * 100) : null;
+            setOcrPhase(`텍스트 인식 중${sub != null ? ` (${sub}%)` : ''}`);
+            setOcrProgress(0.5 + (p.progress ?? 0) * 0.5);
           }
         },
       });
       setOcrResult(result);
+      setOcrProgress(1);
     } catch (e) {
       setOcrErr(
         (e instanceof Error ? e.message : 'OCR 실패') +
@@ -169,6 +185,7 @@ export function CardGrader() {
     } finally {
       setOcrLoading(false);
       setOcrPhase(null);
+      setOcrProgress(null);
     }
   }, [imgEl, outer, ocrLoading]);
 
@@ -182,22 +199,36 @@ export function CardGrader() {
     setErr(null);
     setCvLoading(true);
     setCvPhase('스크립트 다운로드 중…');
+    setCvProgress(0.05);
     loadOpenCv({
       onPhase: (p) => {
-        if (p === 'inject') setCvPhase('스크립트 다운로드 중…');
-        else if (p === 'script-loaded') setCvPhase('WASM 초기화 중…');
-        else if (p === 'wasm-ready') setCvPhase(null);
+        // 단계 → 누적 진행률 매핑 (실제 다운로드 progress 이벤트는 없어 이산값):
+        //   inject        → 5%   (script 태그 주입)
+        //   script-loaded → 60%  (스크립트 다운로드 + 파싱 끝, WASM 초기화 시작)
+        //   wasm-ready    → 100% (Mat 사용 가능)
+        if (p === 'inject') {
+          setCvPhase('OpenCV 다운로드 중…');
+          setCvProgress(0.05);
+        } else if (p === 'script-loaded') {
+          setCvPhase('WASM 초기화 중…');
+          setCvProgress(0.6);
+        } else if (p === 'wasm-ready') {
+          setCvPhase('준비 완료');
+          setCvProgress(1);
+        }
       },
     })
       .then(() => {
         setCvReady(true);
         setCvLoading(false);
         setCvPhase(null);
+        setCvProgress(null);
         runDetection(imgEl);
       })
       .catch((e) => {
         setCvLoading(false);
         setCvPhase(null);
+        setCvProgress(null);
         setErr(
           (e instanceof Error ? e.message : 'OpenCV 로드 실패') +
             ' — 수동으로 핸들을 드래그해주세요',
@@ -349,12 +380,12 @@ export function CardGrader() {
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  background: 'rgba(0,0,0,.65)',
+                  background: 'rgba(0,0,0,.7)',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 12,
+                  gap: 14,
                   color: 'var(--yel)',
                   fontFamily: 'var(--f1)',
                   fontSize: 10,
@@ -364,7 +395,10 @@ export function CardGrader() {
                 }}
               >
                 <Spinner />
-                <div>{cvLoading ? `OpenCV 로드 중 — ${cvPhase ?? '준비 중…'}` : busyLabel}</div>
+                <div>{cvLoading ? `OpenCV — ${cvPhase ?? '준비 중…'}` : busyLabel}</div>
+                <div style={{ width: 'min(260px, 80%)' }}>
+                  <ProgressBar value={cvProgress} indeterminate={!cvLoading} />
+                </div>
                 {cvLoading && (
                   <div style={{ fontSize: 8, opacity: 0.85, lineHeight: 1.6 }}>
                     ~8MB · 모바일 데이터에서 30~60초 걸릴 수 있어요
@@ -448,20 +482,17 @@ export function CardGrader() {
                 fontFamily: 'var(--f1)',
                 fontSize: 9,
                 letterSpacing: 0.5,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
                 lineHeight: 1.5,
               }}
             >
-              <SpinnerSm />
-              <span style={{ flex: 1 }}>
-                {ocrPhase ?? '인식 중…'}
-                <br />
-                <span style={{ fontSize: 8, opacity: 0.85 }}>
-                  첫 실행 시 한국어 데이터 ~13MB + 영어 ~10MB 다운로드
-                </span>
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <SpinnerSm />
+                <span style={{ flex: 1 }}>{ocrPhase ?? '인식 중…'}</span>
+              </div>
+              <ProgressBar value={ocrProgress} indeterminate={ocrProgress == null} tone="yellow" />
+              <div style={{ marginTop: 6, fontSize: 8, opacity: 0.8 }}>
+                첫 실행 시 한국어 ~13MB + 영어 ~10MB 다운로드
+              </div>
             </div>
           )}
           {ocrErr && (
@@ -494,6 +525,76 @@ export function CardGrader() {
             드래그로 8개 코너 핸들을 카드에 정확히 맞춰주세요.
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------- progress bar --------------------- */
+
+/**
+ * 픽셀 스타일 진행바.
+ * - value: 0..1 (또는 null + indeterminate 로 줄무늬 애니메이션)
+ * - tone: 'red' (CV) | 'yellow' (OCR) — 채움색.
+ */
+function ProgressBar({
+  value,
+  indeterminate,
+  tone = 'red',
+}: {
+  value?: number | null;
+  indeterminate?: boolean;
+  tone?: 'red' | 'yellow';
+}) {
+  const pct = indeterminate || value == null ? null : Math.round(Math.max(0, Math.min(1, value)) * 100);
+  const fillColor = tone === 'yellow' ? 'var(--yel)' : 'var(--red)';
+
+  return (
+    <div style={{ width: '100%' }}>
+      <div
+        style={{
+          position: 'relative',
+          height: 12,
+          background: 'rgba(255,255,255,.15)',
+          border: '2px solid currentColor',
+          overflow: 'hidden',
+        }}
+      >
+        {pct == null ? (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: `repeating-linear-gradient(45deg, ${fillColor} 0 8px, transparent 8px 16px)`,
+              backgroundSize: '32px 32px',
+              animation: 'pf-pb-indet 0.6s linear infinite',
+              opacity: 0.85,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: `${pct}%`,
+              height: '100%',
+              background: fillColor,
+              transition: 'width 200ms linear',
+            }}
+          />
+        )}
+      </div>
+      {pct != null && (
+        <div
+          style={{
+            marginTop: 4,
+            fontFamily: 'var(--f1)',
+            fontSize: 9,
+            letterSpacing: 0.5,
+            textAlign: 'right',
+            color: 'currentColor',
+          }}
+        >
+          {pct}%
+        </div>
       )}
     </div>
   );
