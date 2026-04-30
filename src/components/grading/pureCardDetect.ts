@@ -403,10 +403,15 @@ function fitHorizontalLineLSQ(pts: Pt[]): Line | null {
 }
 
 function intersectLines(L1: Line, L2: Line): Pt | null {
+  // 두 직선 a·x + b·y + c = 0 의 교점.
+  // 시스템: [a1 b1; a2 b2][x;y] = [-c1;-c2]
+  // det = a1·b2 - a2·b1
+  // x = (b1·c2 - b2·c1) / det     (Cramer)
+  // y = (a2·c1 - a1·c2) / det
   const det = L1.a * L2.b - L2.a * L1.b;
   if (Math.abs(det) < 1e-6) return null;
-  const x = (L1.b * L2.c - L2.b * L1.c) / -det;
-  const y = (L2.a * L1.c - L1.a * L2.c) / -det;
+  const x = (L1.b * L2.c - L2.b * L1.c) / det;
+  const y = (L2.a * L1.c - L1.a * L2.c) / det;
   return { x, y };
 }
 
