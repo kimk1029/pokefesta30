@@ -170,9 +170,16 @@ export async function getHourlyReportCounts(): Promise<{ counts: number[]; nowHo
     const start = kstStartOfDayUtc(now);
     // SQL GROUP BY로 집계 — 행 전체 fetch 대신 DB에서 바로 시간대별 카운트.
     // 라벨이 "시간대별 제보량" 이므로 kind='report' 필드만 카운트.
-    // (table 이름은 @@map 에 따라 "feeds" 소문자 — 이전 PascalCase 오타 수정)
+    //
+    // 시간대 변환 주의: Prisma 의 DateTime 은 TIMESTAMP(3) (without TZ).
+    // Postgres 에서 naive timestamp 에 `AT TIME ZONE 'Asia/Seoul'` 를 단독 적용하면
+    // 컬럼값을 "이미 Asia/Seoul 시간"이라 해석해 잘못된 hour 가 나온다.
+    // 우리는 createdAt 을 UTC 로 저장하므로 먼저 'UTC' 로 마킹(naive→timestamptz)한 뒤
+    // 'Asia/Seoul' 로 변환(timestamptz→naive in KST)하고 hour 추출.
     const rows = await prisma.$queryRaw<Array<{ h: number; cnt: bigint }>>`
-      SELECT EXTRACT(HOUR FROM "createdAt" AT TIME ZONE 'Asia/Seoul')::int AS h,
+      SELECT EXTRACT(
+               HOUR FROM ("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')
+             )::int AS h,
              COUNT(*)::bigint AS cnt
       FROM "feeds"
       WHERE "createdAt" >= ${start}
