@@ -39,7 +39,14 @@ export function detectCardOuterPureJs(img: HTMLImageElement): Quad | null {
   // 두 전략 동시 시도 — 더 점수 좋은 쪽 채택
   const candidates: Array<{ quad: Quad; score: number; tag: string }> = [];
 
-  // 가장 단순하고 robust 한 전략 — 모든 fg 픽셀의 bounding box. 색이 다르면 이게 거의 항상 맞음.
+  // 1순위 — 종합 합의(consensus): 색 + 엣지 + 채도 신호 voting → 행/열 projection bbox
+  const consensus = detectByConsensus(pixels, gray, w, h);
+  if (consensus) {
+    const sc = scoreQuad(consensus, w, h);
+    if (sc > 0.2) candidates.push({ quad: consensus, score: sc, tag: 'consensus' });
+  }
+
+  // 2~ — 단일 신호 backup
   const fgBbox = detectByForegroundBbox(pixels, w, h);
   if (fgBbox) {
     const sc = scoreQuad(fgBbox, w, h);
@@ -56,12 +63,6 @@ export function detectCardOuterPureJs(img: HTMLImageElement): Quad | null {
   if (blobQuad) {
     const sc = scoreQuad(blobQuad, w, h);
     if (sc > 0.2) candidates.push({ quad: blobQuad, score: sc, tag: 'blob' });
-  }
-
-  const densityQuad = detectByEdgeDensity(gray, w, h);
-  if (densityQuad) {
-    const sc = scoreQuad(densityQuad, w, h);
-    if (sc > 0.2) candidates.push({ quad: densityQuad, score: sc, tag: 'density' });
   }
 
   const houghQuad = detectByHough(gray, w, h);
@@ -210,6 +211,138 @@ function detectByColor(pixels: Uint8ClampedArray, w: number, h: number): Quad | 
   const bl = intersectLines(left, bottom);
   if (!tl || !tr || !br || !bl) return null;
   return orderCornersTLTRBRBL([tl, tr, br, bl]);
+}
+
+/* ============== A0. 종합 합의(consensus) 기반 검출 ============== */
+
+/**
+ * 여러 신호를 픽셀별 voting 으로 합쳐 카드/배경을 분리.
+ * 단일 신호가 실패해도 다른 신호가 보강 → 더 안정적.
+ *
+ * 신호:
+ *  S1: 배경 RGB 색에서 거리 큰 픽셀 (color)
+ *  S2: 주변 엣지가 조밀한 픽셀 (texture/print 영역)
+ *  S3: 채도가 배경과 다른 픽셀 (홀로/컬러카드는 채도 ↑, 책상은 ↓)
+ *
+ * 각 픽셀의 vote ∈ [0..3]. 2 이상이면 confident foreground.
+ * 행/열별 projection 으로 카드 경계 찾음 — 노이즈에 강함.
+ */
+function detectByConsensus(
+  pixels: Uint8ClampedArray,
+  gray: Uint8Array,
+  w: number,
+  h: number,
+): Quad | null {
+  const n = w * h;
+  const votes = new Uint8Array(n);
+
+  // ---- S1: 배경 RGB 거리 ----
+  const bg = sampleBackground(pixels, w, h);
+  for (let i = 0; i < n; i++) {
+    const dr = pixels[i * 4] - bg.r;
+    const dg = pixels[i * 4 + 1] - bg.g;
+    const db = pixels[i * 4 + 2] - bg.b;
+    if (dr * dr + dg * dg + db * db > 28 * 28) votes[i]++;
+  }
+
+  // ---- S2: 엣지 조밀 영역 (Sobel magnitude → 5x5 box blur → 상위 35% 채택) ----
+  const sobel = sobelMagnitude(gray, w, h);
+  const sobelBlur = boxBlur(sobel, w, h, 2); // 5x5 mean
+  const edgeThresh = topPercentileThreshold(sobelBlur, 0.65);
+  if (edgeThresh > 0) {
+    for (let i = 0; i < n; i++) if (sobelBlur[i] > edgeThresh) votes[i]++;
+  }
+
+  // ---- S3: 채도 차이 ----
+  const bgSat = saturationOf(bg.r, bg.g, bg.b);
+  for (let i = 0; i < n; i++) {
+    const sat = saturationOf(pixels[i * 4], pixels[i * 4 + 1], pixels[i * 4 + 2]);
+    if (Math.abs(sat - bgSat) > 0.18) votes[i]++;
+  }
+
+  // ---- voting → fg 마스크 (>=2 votes) ----
+  let fgCount = 0;
+  for (let i = 0; i < n; i++) if (votes[i] >= 2) { votes[i] = 1; fgCount++; }
+                              else votes[i] = 0;
+  // 너무 적으면 임계 한 단계 낮춤 (votes >=1 도 카운트해 fallback)
+  if (fgCount < n * 0.05) {
+    return null;
+  }
+
+  // ---- 행/열 projection 으로 bbox ----
+  const colSum = new Uint32Array(w);
+  const rowSum = new Uint32Array(h);
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; x++) {
+      if (votes[row + x]) { colSum[x]++; rowSum[y]++; }
+    }
+  }
+  // 임계: column 의 경우 height 의 25%, row 의 경우 width 의 25%
+  // 카드 한 줄을 가로지르려면 그 정도는 픽셀이 있어야 함.
+  const colThresh = h * 0.25;
+  const rowThresh = w * 0.25;
+  let x0 = -1, x1 = -1, y0 = -1, y1 = -1;
+  for (let x = 0; x < w; x++) if (colSum[x] > colThresh) { x0 = x; break; }
+  for (let x = w - 1; x >= 0; x--) if (colSum[x] > colThresh) { x1 = x; break; }
+  for (let y = 0; y < h; y++) if (rowSum[y] > rowThresh) { y0 = y; break; }
+  for (let y = h - 1; y >= 0; y--) if (rowSum[y] > rowThresh) { y1 = y; break; }
+
+  if (x0 < 0 || y0 < 0) return null;
+  if (x1 - x0 < w * 0.2 || y1 - y0 < h * 0.2) return null;
+
+  return [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
+  ];
+}
+
+/** RGB → HSV 채도 (0..1). 단순 max-min/max. */
+function saturationOf(r: number, g: number, b: number): number {
+  const max = Math.max(r, g, b);
+  if (max === 0) return 0;
+  const min = Math.min(r, g, b);
+  return (max - min) / max;
+}
+
+/** Float32 1D 박스 블러. radius=2 면 5x5. */
+function boxBlur(src: Float32Array, w: number, h: number, radius: number): Float32Array {
+  const out = new Float32Array(w * h);
+  const k = 2 * radius + 1;
+  // 수평 패스
+  const tmp = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    let sum = 0;
+    for (let x = -radius; x <= radius; x++) {
+      const cx = Math.max(0, Math.min(w - 1, x));
+      sum += src[y * w + cx];
+    }
+    tmp[y * w] = sum;
+    for (let x = 1; x < w; x++) {
+      const inX = Math.min(w - 1, x + radius);
+      const outX = Math.max(0, x - radius - 1);
+      sum += src[y * w + inX] - src[y * w + outX];
+      tmp[y * w + x] = sum;
+    }
+  }
+  // 수직 패스
+  for (let x = 0; x < w; x++) {
+    let sum = 0;
+    for (let y = -radius; y <= radius; y++) {
+      const cy = Math.max(0, Math.min(h - 1, y));
+      sum += tmp[cy * w + x];
+    }
+    out[x] = sum / (k * k);
+    for (let y = 1; y < h; y++) {
+      const inY = Math.min(h - 1, y + radius);
+      const outY = Math.max(0, y - radius - 1);
+      sum += tmp[inY * w + x] - tmp[outY * w + x];
+      out[y * w + x] = sum / (k * k);
+    }
+  }
+  return out;
 }
 
 /* ============ A1. 모든 foreground 픽셀의 axis-aligned bbox ============ */
