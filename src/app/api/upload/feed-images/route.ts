@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   }
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(
-      { error: 'Vercel Blob 이 설정되지 않았습니다.' },
+      { error: 'Vercel Blob 이 설정되지 않았습니다. Vercel → Storage → Blob store 생성 후 프로젝트 연결 필요.' },
       { status: 503 },
     );
   }
