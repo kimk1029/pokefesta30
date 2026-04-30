@@ -169,14 +169,18 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
           {(mode === 'trade' || isReport) && <span className="req">*</span>}
         </div>
         <div className="chip-grid">
+          {/* 피드 일반은 "장소 없음" 도 유효한 선택 — 첫 번째에 항상 표시,
+              place === '' 일 때 active 로 현재 선택 상태 시각화. */}
+          {isFeed && !isReport && (
+            <Chip active={place === ''} onClick={() => setPlace('')}>
+              🚫 장소 없음
+            </Chip>
+          )}
           {places.map((p) => (
             <Chip key={p.id} active={place === p.id} onClick={() => setPlace(p.id)}>
               {p.emoji} {p.name}
             </Chip>
           ))}
-          {isFeed && !isReport && place && (
-            <Chip onClick={() => setPlace('')}>✕ 장소 없이</Chip>
-          )}
         </div>
       </div>
 
