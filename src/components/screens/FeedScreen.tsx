@@ -12,12 +12,10 @@ import type { FeedKind, FeedPost } from '@/lib/types';
 
 type Filter = 'all' | FeedKind;
 
-/** 광고 노출 정책 — 자연스러운 인벤토리 밀도 */
-const AD_FIRST_AT = 4;   // 처음 4개 글까지는 광고 없음 (이탈 방지)
-const AD_INTERVAL = 8;   // 이후 8개마다 1개
-// AdFit 은 한 페이지에 같은 ad-unit 을 두 번 채우지 않음 (SDK 가 첫 번째만 fill,
-// 두 번째 슬롯은 빈 박스로 남음). 별도 ad-unit 등록 전까지는 페이지당 1개만 노출.
-const AD_MAX_PER_PAGE = 1;
+/** 광고 노출 정책 — 4번째 글마다 광고 1개 (전체 ∞)
+ *  네트워크는 FeedAdRow 안에서 alternate (slot0=AdFit, slot1+=AdSense). */
+const AD_FIRST_AT = 4;
+const AD_INTERVAL = 4;
 
 const FILTERS: ReadonlyArray<{ id: Filter; label: string }> = [
   { id: 'all', label: '전체' },
@@ -162,8 +160,8 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
                 pos >= AD_FIRST_AT &&
                 (pos - AD_FIRST_AT) % AD_INTERVAL === 0 &&
                 i !== posts.length - 1;
-              if (!isAdSlot || adIndex >= AD_MAX_PER_PAGE) return [row];
-              const ad = <FeedAdRow key={`ad-${adIndex}`} />;
+              if (!isAdSlot) return [row];
+              const ad = <FeedAdRow key={`ad-${adIndex}`} slotIndex={adIndex} />;
               adIndex++;
               return [row, ad];
             });

@@ -49,9 +49,9 @@ export function HomeScreen({ places, feeds, todayCount, hourlyCounts, nowHour, h
         ) : (
           recentFeeds.flatMap((p, i) => {
             const row = <FeedRow key={p.id} post={p} />;
-            // 3번째 피드 다음 한 칸 광고 (피드가 4개 이상일 때만)
-            if (i === 2 && recentFeeds.length >= 4) {
-              return [row, <FeedAdRow key="home-ad" />];
+            // 4번째 피드 다음 1개 광고 (피드가 5개 이상일 때만 — 4번째가 마지막이면 광고 생략)
+            if (i === 3 && recentFeeds.length >= 5) {
+              return [row, <FeedAdRow key="home-ad" slotIndex={0} />];
             }
             return [row];
           })
