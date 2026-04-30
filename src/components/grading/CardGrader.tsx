@@ -203,16 +203,21 @@ export function CardGrader() {
     setCvPhase('스크립트 다운로드 중…');
     setCvProgress(0.05);
     loadOpenCv({
-      onPhase: (p) => {
+      onPhase: (p, info) => {
         // 단계 → 누적 진행률 매핑 (실제 다운로드 progress 이벤트는 없어 이산값):
         //   inject        → 5%   (script 태그 주입)
         //   script-loaded → 60%  (스크립트 다운로드 + 파싱 끝, WASM 초기화 시작)
         //   wasm-ready    → 100% (Mat 사용 가능)
+        const cdnTag = info?.host ? ` · ${info.host}` : '';
+        const tries =
+          info?.attempt && info?.totalAttempts && info.totalAttempts > 1
+            ? ` (${info.attempt}/${info.totalAttempts})`
+            : '';
         if (p === 'inject') {
-          setCvPhase('OpenCV 다운로드 중…');
+          setCvPhase(`OpenCV 다운로드 중${tries}${cdnTag}`);
           setCvProgress(0.05);
         } else if (p === 'script-loaded') {
-          setCvPhase('WASM 초기화 중…');
+          setCvPhase(`WASM 초기화 중${tries}${cdnTag}`);
           setCvProgress(0.6);
         } else if (p === 'wasm-ready') {
           setCvPhase('준비 완료');
