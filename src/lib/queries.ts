@@ -73,6 +73,7 @@ type FeedRow = {
   images?: unknown;
   createdAt: Date;
   place: { name: string } | null;
+  author?: { name: string | null } | null;
 };
 
 function toFeedPost(r: FeedRow): FeedPost {
@@ -86,6 +87,7 @@ function toFeedPost(r: FeedRow): FeedPost {
     time: relTime(r.createdAt),
     createdAt: r.createdAt.toISOString(),
     user: r.authorEmoji ?? '🐣',
+    authorName: r.author?.name ?? null,
     authorBgId: r.authorBgId,
     authorFrameId: r.authorFrameId,
     images: asImages(r.images),
@@ -213,7 +215,10 @@ export async function getFeedPage(opts: {
       },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
-      include: { place: { select: { name: true } } },
+      include: {
+        place: { select: { name: true } },
+        author: { select: { name: true } },
+      },
     });
     const hasMore = rows.length > limit;
     const slice = hasMore ? rows.slice(0, limit) : rows;

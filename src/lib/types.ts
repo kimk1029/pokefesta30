@@ -64,6 +64,7 @@ export interface FeedPost {
   time: string;
   createdAt: string;
   user: string;         // authorEmoji (아바타 id or 이모지)
+  authorName?: string | null; // 사용자 닉네임 (FeedRow 아바타 아래 표시용)
   authorBgId?: string;
   authorFrameId?: string;
   /** 첨부 사진 URL 배열. 빈 배열이거나 undefined 면 사진 없음. 펼침 시에만 렌더. */

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { recognizeCard, type CardOcrResult } from './cardOcr';
-import { isOpenCvReady, loadOpenCv } from './openCvLoader';
+import { detectCardOuterPureJs } from './pureCardDetect';
 
 /**
  * 카드 그레이딩(센터링 추정) 도구.
@@ -44,16 +44,9 @@ export function CardGrader() {
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null);
   const [outer, setOuter] = useState<Quad | null>(null);
   const [inner, setInner] = useState<Quad | null>(null);
-  // CV 는 마운트 시 자동 로드하지 않고, 사용자가 "자동 검출" 누를 때만 lazy load.
-  // 모바일 저메모리 환경에서 8MB OpenCV.js + WASM 컴파일이 페이지를 다운시키는 문제 회피.
-  const [cvReady, setCvReady] = useState(() => isOpenCvReady());
-  const [cvLoading, setCvLoading] = useState(false);
-  const [cvPhase, setCvPhase] = useState<string | null>(null);
+  // 외곽 검출은 순수 JS — 다운로드 0bytes, 즉시 실행. OpenCV 의존성 제거됨.
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-
-  // 진행률 (0..1, null = indeterminate). CV 로드 + 외곽 검출 전체 단계용.
-  const [cvProgress, setCvProgress] = useState<number | null>(null);
 
   // OCR (카드 정보 추출) 상태
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -125,25 +118,24 @@ export function CardGrader() {
     img.src = url;
   };
 
-  /* 자동 외곽 검출 — OpenCV.js 가 준비됐을 때만 호출 ------------- */
+  /* 자동 외곽 검출 — 순수 JS, 외부 라이브러리/CDN 의존 없음 ----- */
   const runDetection = useCallback((image: HTMLImageElement) => {
     setBusyLabel('외곽 검출 중…');
     setErr(null);
-    setCvProgress(null); // 검출 자체는 sync — indeterminate
+    // 짧은 setTimeout — UI 가 spinner 보여줄 시간 확보 (검출 자체는 ~30ms 면 끝)
     setTimeout(() => {
       try {
-        const detected = detectOuterQuad(image);
+        const detected = detectCardOuterPureJs(image);
         if (detected) {
           setOuter(detected);
           setInner(shrinkQuad(detected, 0.045));
         } else {
-          setErr('외곽 자동 검출 실패 — 핸들로 직접 맞춰주세요');
+          setErr('외곽 자동 검출 실패 — 단색 배경 사진이 좋아요. 핸들로 직접 조정해도 됩니다.');
         }
       } catch (e) {
         setErr(e instanceof Error ? e.message : '검출 실패');
       } finally {
         setBusyLabel(null);
-        setCvProgress(null);
       }
     }, 30);
   }, []);
@@ -191,57 +183,11 @@ export function CardGrader() {
     }
   }, [imgEl, outer, ocrLoading]);
 
-  /* 사용자가 자동 검출 클릭 → 필요 시 OpenCV lazy load --------- */
+  /* 사용자가 자동 검출 클릭 — 즉시 순수 JS 검출 실행 ----------- */
   const onClickAutoDetect = useCallback(() => {
     if (!imgEl) return;
-    if (cvReady) {
-      runDetection(imgEl);
-      return;
-    }
-    setErr(null);
-    setCvLoading(true);
-    setCvPhase('스크립트 다운로드 중…');
-    setCvProgress(0.05);
-    loadOpenCv({
-      onPhase: (p, info) => {
-        // 단계 → 누적 진행률 매핑 (실제 다운로드 progress 이벤트는 없어 이산값):
-        //   inject        → 5%   (script 태그 주입)
-        //   script-loaded → 60%  (스크립트 다운로드 + 파싱 끝, WASM 초기화 시작)
-        //   wasm-ready    → 100% (Mat 사용 가능)
-        const cdnTag = info?.host ? ` · ${info.host}` : '';
-        const tries =
-          info?.attempt && info?.totalAttempts && info.totalAttempts > 1
-            ? ` (${info.attempt}/${info.totalAttempts})`
-            : '';
-        if (p === 'inject') {
-          setCvPhase(`OpenCV 다운로드 중${tries}${cdnTag}`);
-          setCvProgress(0.05);
-        } else if (p === 'script-loaded') {
-          setCvPhase(`WASM 초기화 중${tries}${cdnTag}`);
-          setCvProgress(0.6);
-        } else if (p === 'wasm-ready') {
-          setCvPhase('준비 완료');
-          setCvProgress(1);
-        }
-      },
-    })
-      .then(() => {
-        setCvReady(true);
-        setCvLoading(false);
-        setCvPhase(null);
-        setCvProgress(null);
-        runDetection(imgEl);
-      })
-      .catch((e) => {
-        setCvLoading(false);
-        setCvPhase(null);
-        setCvProgress(null);
-        setErr(
-          (e instanceof Error ? e.message : 'OpenCV 로드 실패') +
-            ' — 수동으로 핸들을 드래그해주세요',
-        );
-      });
-  }, [imgEl, cvReady, runDetection]);
+    runDetection(imgEl);
+  }, [imgEl, runDetection]);
 
   /* 코너 드래그 ------------------------------------------------ */
   const draggingRef = useRef<{ which: 'outer' | 'inner'; idx: 0 | 1 | 2 | 3 } | null>(null);
@@ -454,7 +400,7 @@ export function CardGrader() {
                 />
               );
             })()}
-            {(busyLabel || cvLoading) && (
+            {busyLabel && (
               <div
                 style={{
                   position: 'absolute',
@@ -474,17 +420,7 @@ export function CardGrader() {
                 }}
               >
                 <Spinner />
-                <div>{cvLoading ? `OpenCV — ${cvPhase ?? '준비 중…'}` : busyLabel}</div>
-                <div style={{ width: 'min(260px, 80%)' }}>
-                  <ProgressBar value={cvProgress} indeterminate={!cvLoading} />
-                </div>
-                {cvLoading && (
-                  <div style={{ fontSize: 8, opacity: 0.85, lineHeight: 1.6 }}>
-                    ~8MB · 모바일 데이터에서 30~60초 걸릴 수 있어요
-                    <br />
-                    멈춘 듯 보여도 백그라운드에서 진행 중입니다
-                  </div>
-                )}
+                <div>{busyLabel}</div>
               </div>
             )}
           </div>
@@ -494,22 +430,20 @@ export function CardGrader() {
             <button
               type="button"
               onClick={onClickAutoDetect}
-              disabled={cvLoading || !!busyLabel}
+              disabled={!!busyLabel}
               style={{
                 ...ctrlBtn('var(--blu)'),
-                opacity: cvLoading || !!busyLabel ? 0.6 : 1,
+                opacity: busyLabel ? 0.6 : 1,
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 6,
               }}
             >
-              {cvLoading ? (
+              {busyLabel ? (
                 <>
-                  <SpinnerSm /> 로드 중…
+                  <SpinnerSm /> 검출 중…
                 </>
-              ) : cvReady ? (
-                '🔄 자동 재검출'
               ) : (
                 '🪄 외곽 자동 검출'
               )}
@@ -1171,237 +1105,9 @@ function shrinkQuad(q: Quad, ratio: number): Quad {
   })) as Quad;
 }
 
-/** 4점을 TL, TR, BR, BL 순으로 정렬 */
-function orderCorners(pts: Pt[]): Quad {
-  // x+y 가 가장 작은 것 = TL, 가장 큰 것 = BR
-  // y-x 가 가장 큰 것 = BL, 가장 작은 것 = TR
-  const sums = pts.map((p) => p.x + p.y);
-  const diffs = pts.map((p) => p.y - p.x);
-  const tl = pts[sums.indexOf(Math.min(...sums))];
-  const br = pts[sums.indexOf(Math.max(...sums))];
-  const bl = pts[diffs.indexOf(Math.max(...diffs))];
-  const tr = pts[diffs.indexOf(Math.min(...diffs))];
-  return [tl, tr, br, bl];
-}
-
-/**
- * OpenCV.js 로 이미지에서 카드 외곽 사각형을 찾는다.
- *
- * 파이프라인:
- *  1. 다운스케일 (long side 1200px) — 임계값 일관성 + 속도
- *  2. 그레이스케일 + Gaussian blur
- *  3. Otsu 로 임계값 자동 도출 → Canny(otsu*0.5, otsu) — 카드 색/배경 색 무관 적응
- *  4. morphologyEx CLOSE (5×5) — 라운드 모서리에서 끊긴 엣지 메움
- *  5. findContours
- *  6. 각 큰 contour: 4점 approxPolyDP 시도, 실패하면 minAreaRect 회전 사각형 fallback
- *  7. 카드 종횡비(63:88 ≈ 0.716) 와 면적으로 후보들 점수화 → 베스트 선택
- *  8. cornerSubPix 로 sub-pixel 보정
- *  9. 다운스케일 비율 만큼 원본 좌표로 복원
- *
- * 실패 시 null. 모든 Mat 누수 방지를 위해 try/finally + delete 명시.
- */
-function detectOuterQuad(img: HTMLImageElement): Quad | null {
-  if (typeof window === 'undefined') return null;
-  const cv = (window as unknown as { cv?: CvLike }).cv;
-  if (!cv || !cv.Mat) return null;
-
-  // Pokemon TCG 카드 종횡비 (단변/장변)
-  const TARGET_RATIO = 63 / 88;
-  // 처리용 다운스케일 — 긴 변 이 값까지로 줄임
-  const PROC_LONG_SIDE = 1200;
-
-  const src = cv.imread(img);
-  const proc = new cv.Mat();
-  const gray = new cv.Mat();
-  const blurred = new cv.Mat();
-  const otsuBin = new cv.Mat();
-  const edges = new cv.Mat();
-  const closed = new cv.Mat();
-  const contours = new cv.MatVector();
-  const hierarchy = new cv.Mat();
-  let kernel: CvMat | null = null;
-  let cornersMat: CvMat | null = null;
-
-  try {
-    // 1. 다운스케일
-    const longSide = Math.max(src.rows, src.cols);
-    const procScale = longSide > PROC_LONG_SIDE ? PROC_LONG_SIDE / longSide : 1;
-    if (procScale < 1) {
-      const newW = Math.round(src.cols * procScale);
-      const newH = Math.round(src.rows * procScale);
-      cv.resize(src, proc, new cv.Size(newW, newH), 0, 0, cv.INTER_AREA);
-    } else {
-      src.copyTo(proc);
-    }
-
-    // 2. 그레이스케일 + 노이즈 완화
-    cv.cvtColor(proc, gray, cv.COLOR_RGBA2GRAY, 0);
-    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
-
-    // 3. Otsu 로 임계값 자동 도출 → Canny 의 high 값으로 사용 (카드/배경 명도 차이에 적응)
-    const otsu = cv.threshold(blurred, otsuBin, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
-    const high = Math.max(60, otsu);
-    const low = Math.max(20, high * 0.5);
-    cv.Canny(blurred, edges, low, high, 3, false);
-
-    // 4. 모폴로지 close — 5x5 로 라운드 모서리 끊김 메움
-    kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
-    cv.morphologyEx(edges, closed, cv.MORPH_CLOSE, kernel);
-
-    // 5. 외곽선 검출
-    cv.findContours(closed, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-    // 6. 후보 수집 — 각 contour 에서 approxPolyDP 4점 또는 minAreaRect
-    interface Candidate {
-      pts: Pt[];
-      area: number;
-    }
-    const candidates: Candidate[] = [];
-    const minArea = proc.rows * proc.cols * 0.1;
-    const maxArea = proc.rows * proc.cols * 0.99;
-
-    for (let i = 0; i < contours.size(); i++) {
-      const c = contours.get(i) as CvMat;
-      const area = cv.contourArea(c, false);
-      if (area < minArea || area > maxArea) {
-        c.delete();
-        continue;
-      }
-      const peri = cv.arcLength(c, true);
-
-      // 6a. approxPolyDP 4점 시도 — 둥근 모서리에 대응해 ε 두 단계 시도
-      let added = false;
-      for (const eps of [0.02, 0.04]) {
-        const approx = new cv.Mat();
-        cv.approxPolyDP(c, approx, peri * eps, true);
-        if (approx.rows === 4) {
-          const pts: Pt[] = [];
-          for (let j = 0; j < 4; j++) {
-            pts.push({ x: approx.data32S[j * 2], y: approx.data32S[j * 2 + 1] });
-          }
-          candidates.push({ pts, area });
-          approx.delete();
-          added = true;
-          break;
-        }
-        approx.delete();
-      }
-
-      // 6b. 4점 못 얻으면 minAreaRect 회전 사각형 — 라운드/노이즈 contour 대응
-      if (!added) {
-        try {
-          const rotRect = cv.minAreaRect(c);
-          const corners = rotatedRectCorners(rotRect);
-          // 회전 사각형 면적 = w*h
-          const rArea = rotRect.size.width * rotRect.size.height;
-          if (rArea >= minArea && rArea <= maxArea) {
-            candidates.push({ pts: corners, area: rArea });
-          }
-        } catch {
-          // minAreaRect 가 실패하면 skip
-        }
-      }
-      c.delete();
-    }
-
-    if (candidates.length === 0) return null;
-
-    // 7. 종횡비 + 면적 기반 점수 — 카드 비율(0.716) 에 가까울수록, 면적이 클수록 좋음
-    const imgArea = proc.rows * proc.cols;
-    let best: Candidate | null = null;
-    let bestScore = -Infinity;
-    for (const cand of candidates) {
-      const ordered = orderCorners(cand.pts);
-      const w = (edgeLen(ordered[0], ordered[1]) + edgeLen(ordered[3], ordered[2])) / 2;
-      const h = (edgeLen(ordered[0], ordered[3]) + edgeLen(ordered[1], ordered[2])) / 2;
-      if (w <= 0 || h <= 0) continue;
-      const ratio = Math.min(w, h) / Math.max(w, h);
-      const ratioScore = 1 - Math.min(0.5, Math.abs(ratio - TARGET_RATIO) * 2);
-      const areaScore = Math.min(1, cand.area / imgArea);
-      const score = ratioScore * 0.6 + areaScore * 0.4;
-      if (score > bestScore) {
-        bestScore = score;
-        best = { ...cand, pts: ordered };
-      }
-    }
-
-    if (!best) return null;
-
-    // 8. cornerSubPix 로 sub-pixel 보정
-    cornersMat = cv.matFromArray(4, 1, cv.CV_32FC2, best.pts.flatMap((p) => [p.x, p.y]));
-    try {
-      const winSize = new cv.Size(11, 11);
-      const zeroZone = new cv.Size(-1, -1);
-      const criteria = new cv.TermCriteria(
-        cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER,
-        30,
-        0.01,
-      );
-      cv.cornerSubPix(gray, cornersMat, winSize, zeroZone, criteria);
-    } catch {
-      // 실패해도 거친 값으로 진행
-    }
-
-    const refined: Pt[] = [];
-    const data = cornersMat.data32F;
-    for (let i = 0; i < 4; i++) {
-      refined.push({ x: data[i * 2], y: data[i * 2 + 1] });
-    }
-
-    // 9. 다운스케일했으면 원본 좌표로 복원
-    const inv = procScale < 1 ? 1 / procScale : 1;
-    const original = refined.map((p) => ({ x: p.x * inv, y: p.y * inv }));
-    return orderCorners(original);
-  } finally {
-    src.delete();
-    proc.delete();
-    gray.delete();
-    blurred.delete();
-    otsuBin.delete();
-    edges.delete();
-    closed.delete();
-    contours.delete();
-    hierarchy.delete();
-    if (kernel) kernel.delete();
-    if (cornersMat) cornersMat.delete();
-  }
-}
-
-function edgeLen(a: Pt, b: Pt): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-/**
- * cv.RotatedRect → 4개 꼭짓점 변환. cv.boxPoints 를 직접 호출하는 대신 수학으로 계산해서
- * Mat 추가 할당 / 타입 선언 부담을 줄임.
- */
-function rotatedRectCorners(rect: { center: { x: number; y: number }; size: { width: number; height: number }; angle: number }): Pt[] {
-  const cx = rect.center.x;
-  const cy = rect.center.y;
-  const w = rect.size.width;
-  const h = rect.size.height;
-  const a = (rect.angle * Math.PI) / 180;
-  const cos = Math.cos(a);
-  const sin = Math.sin(a);
-  const dx = w / 2;
-  const dy = h / 2;
-  // 회전 사각형 4 꼭짓점 (TL, TR, BR, BL — orderCorners 가 다시 정렬하므로 순서는 임의)
-  return [
-    { x: cx - dx * cos + dy * sin, y: cy - dx * sin - dy * cos },
-    { x: cx + dx * cos + dy * sin, y: cy + dx * sin - dy * cos },
-    { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos },
-    { x: cx - dx * cos - dy * sin, y: cy - dx * sin + dy * cos },
-  ];
-}
-
 /**
  * 외곽/내곽 사각형으로부터 센터링 추정.
- *
- * 단순화한 모델: 외곽 사각형이 거의 직사각형(평면 촬영)이라 가정하고 픽셀 단위로
- * 좌/우 여백 평균 + 상/하 여백 평균을 측정.
- *   leftMargin  = ((innerTL.x - outerTL.x) + (innerBL.x - outerBL.x)) / 2
- *   rightMargin = ((outerTR.x - innerTR.x) + (outerBR.x - innerBR.x)) / 2
- *   centeringL% = leftMargin / (leftMargin + rightMargin) * 100
+ * 평면 촬영 가정 — 픽셀 단위로 좌/우, 상/하 여백 평균 비교.
  */
 function computeCentering(outer: Quad, inner: Quad): CenteringResult {
   const leftM = ((inner[0].x - outer[0].x) + (inner[3].x - outer[3].x)) / 2;
@@ -1476,92 +1182,3 @@ function ctrlBtn(bg: string): React.CSSProperties {
   };
 }
 
-/* --------------------- minimal cv types ------------------------- */
-
-interface CvMat {
-  rows: number;
-  cols: number;
-  data32S: Int32Array;
-  data32F: Float32Array;
-  delete: () => void;
-}
-interface CvMatVector {
-  size: () => number;
-  get: (i: number) => CvMat;
-  delete: () => void;
-}
-interface CvSize {
-  width: number;
-  height: number;
-}
-interface CvPoint {
-  x: number;
-  y: number;
-}
-interface CvScalar {
-  val: number[];
-}
-interface CvTermCriteria {
-  type: number;
-  maxCount: number;
-  epsilon: number;
-}
-interface CvRotatedRect {
-  center: { x: number; y: number };
-  size: { width: number; height: number };
-  angle: number;
-}
-interface CvMatExt extends CvMat {
-  copyTo: (dst: CvMat) => void;
-}
-interface CvLike {
-  Mat: new () => CvMat;
-  MatVector: new () => CvMatVector;
-  Size: new (w: number, h: number) => CvSize;
-  Point: new (x: number, y: number) => CvPoint;
-  TermCriteria: new (type: number, maxCount: number, epsilon: number) => CvTermCriteria;
-  imread: (img: HTMLImageElement | HTMLCanvasElement) => CvMatExt;
-  matFromArray: (rows: number, cols: number, type: number, data: number[]) => CvMat;
-  cvtColor: (src: CvMat, dst: CvMat, code: number, dstCn?: number) => void;
-  resize: (src: CvMat, dst: CvMat, dsize: CvSize, fx?: number, fy?: number, interpolation?: number) => void;
-  GaussianBlur: (src: CvMat, dst: CvMat, ksize: CvSize, sX: number, sY?: number, borderType?: number) => void;
-  Canny: (src: CvMat, dst: CvMat, t1: number, t2: number, apertureSize?: number, L2gradient?: boolean) => void;
-  dilate: (
-    src: CvMat,
-    dst: CvMat,
-    kernel: CvMat,
-    anchor: CvPoint,
-    iterations: number,
-    borderType: number,
-    borderValue: CvScalar,
-  ) => void;
-  morphologyEx: (src: CvMat, dst: CvMat, op: number, kernel: CvMat) => void;
-  getStructuringElement: (shape: number, ksize: CvSize) => CvMat;
-  morphologyDefaultBorderValue: () => CvScalar;
-  threshold: (src: CvMat, dst: CvMat, thresh: number, max: number, type: number) => number;
-  findContours: (src: CvMat, contours: CvMatVector, hier: CvMat, mode: number, method: number) => void;
-  contourArea: (c: CvMat, oriented?: boolean) => number;
-  arcLength: (c: CvMat, closed: boolean) => number;
-  approxPolyDP: (c: CvMat, dst: CvMat, eps: number, closed: boolean) => void;
-  minAreaRect: (c: CvMat) => CvRotatedRect;
-  cornerSubPix: (
-    src: CvMat,
-    corners: CvMat,
-    winSize: CvSize,
-    zeroZone: CvSize,
-    criteria: CvTermCriteria,
-  ) => void;
-  COLOR_RGBA2GRAY: number;
-  BORDER_DEFAULT: number;
-  BORDER_CONSTANT: number;
-  THRESH_BINARY: number;
-  THRESH_OTSU: number;
-  RETR_EXTERNAL: number;
-  CHAIN_APPROX_SIMPLE: number;
-  MORPH_RECT: number;
-  MORPH_CLOSE: number;
-  INTER_AREA: number;
-  CV_32FC2: number;
-  TERM_CRITERIA_EPS: number;
-  TERM_CRITERIA_MAX_ITER: number;
-}
