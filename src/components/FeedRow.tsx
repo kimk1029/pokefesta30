@@ -1,15 +1,42 @@
+'use client';
+
+import { useState } from 'react';
 import { BookmarkButton } from './BookmarkButton';
 import { ComposedAvatar } from './ComposedAvatar';
 import { CongBadge } from './ui/CongBadge';
 import { isAvatarId } from '@/lib/avatars';
 import type { FeedPost } from '@/lib/types';
 
+function formatAbsolute(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${yyyy}.${mm}.${dd} ${hh}:${mi}`;
+}
+
 export function FeedRow({ post }: { post: FeedPost }) {
   const isReport = post.kind === 'report';
   const hasPixelAvatar = isAvatarId(post.user);
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="feed-item">
+    <div
+      className={`feed-item${expanded ? ' feed-item--expanded' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
+      onClick={() => setExpanded((v) => !v)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setExpanded((v) => !v);
+        }
+      }}
+    >
       <div className="fi-avatar">
         {hasPixelAvatar ? (
           <ComposedAvatar
@@ -38,8 +65,13 @@ export function FeedRow({ post }: { post: FeedPost }) {
           {isReport && post.level && <CongBadge level={post.level} size="small" />}
         </div>
         <div className="fi-text">{post.text}</div>
+        {expanded && (
+          <div className="fi-meta">
+            <span className="fi-meta-time">🕒 {formatAbsolute(post.createdAt)}</span>
+          </div>
+        )}
       </div>
-      <div className="fi-right">
+      <div className="fi-right" onClick={(e) => e.stopPropagation()}>
         <BookmarkButton feedId={post.id} />
         <span className="fi-time">{post.time}</span>
       </div>
