@@ -39,6 +39,13 @@ export function detectCardOuterPureJs(img: HTMLImageElement): Quad | null {
   // 두 전략 동시 시도 — 더 점수 좋은 쪽 채택
   const candidates: Array<{ quad: Quad; score: number; tag: string }> = [];
 
+  // 가장 단순하고 robust 한 전략 — 모든 fg 픽셀의 bounding box. 색이 다르면 이게 거의 항상 맞음.
+  const fgBbox = detectByForegroundBbox(pixels, w, h);
+  if (fgBbox) {
+    const sc = scoreQuad(fgBbox, w, h);
+    if (sc > 0.2) candidates.push({ quad: fgBbox, score: sc, tag: 'fgbbox' });
+  }
+
   const colorQuad = detectByColor(pixels, w, h);
   if (colorQuad) {
     const sc = scoreQuad(colorQuad, w, h);
@@ -107,14 +114,16 @@ function grayscale(px: Uint8ClampedArray, w: number, h: number): Uint8Array {
 interface Bg { r: number; g: number; b: number }
 
 function sampleBackground(px: Uint8ClampedArray, w: number, h: number): Bg {
-  let r = 0, g = 0, b = 0, n = 0;
-  const corners: Array<[number, number]> = [
-    [0, 0],
-    [w - 5, 0],
-    [0, h - 5],
-    [w - 5, h - 5],
+  // 8 지점 (4 코너 + 4 변 중앙 가장자리) 에서 5×5 평균 → 각 지점의 RGB 채취 후
+  // 채널별 median 으로 합성. 한쪽 코너에 그림자/카드일부가 들어가도 robust.
+  const positions: Array<[number, number]> = [
+    [2, 2],                             [Math.floor(w / 2) - 2, 2],                    [w - 7, 2],
+    [2, Math.floor(h / 2) - 2],                                                        [w - 7, Math.floor(h / 2) - 2],
+    [2, h - 7],                         [Math.floor(w / 2) - 2, h - 7],                [w - 7, h - 7],
   ];
-  for (const [cx, cy] of corners) {
+  const rs: number[] = [], gs: number[] = [], bs: number[] = [];
+  for (const [cx, cy] of positions) {
+    let r = 0, g = 0, b = 0, n = 0;
     for (let dy = 0; dy < 5; dy++) {
       for (let dx = 0; dx < 5; dx++) {
         const x = Math.max(0, Math.min(w - 1, cx + dx));
@@ -123,8 +132,11 @@ function sampleBackground(px: Uint8ClampedArray, w: number, h: number): Bg {
         r += px[i]; g += px[i + 1]; b += px[i + 2]; n++;
       }
     }
+    rs.push(r / n); gs.push(g / n); bs.push(b / n);
   }
-  return { r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) };
+  rs.sort((a, b) => a - b); gs.sort((a, b) => a - b); bs.sort((a, b) => a - b);
+  const m = (rs.length / 2) | 0;
+  return { r: Math.round(rs[m]), g: Math.round(gs[m]), b: Math.round(bs[m]) };
 }
 
 function dilate(mask: Uint8Array, w: number, h: number): Uint8Array {
@@ -200,6 +212,56 @@ function detectByColor(pixels: Uint8ClampedArray, w: number, h: number): Quad | 
   return orderCornersTLTRBRBL([tl, tr, br, bl]);
 }
 
+/* ============ A1. 모든 foreground 픽셀의 axis-aligned bbox ============ */
+
+/**
+ * 가장 단순한 전략: 배경색에서 충분히 다른 모든 픽셀의 bounding box.
+ *
+ * 색이 명확히 다른 카드/배경 조합에서 거의 항상 정확한 결과를 줌.
+ * connected components 도, line fitting 도 안 함 — 그냥 fg 픽셀 좌표 min/max.
+ *
+ * 노이즈 픽셀(먼지/그림자) 한두 개가 큰 영향을 끼칠 수 있으므로 1% 트림: 좌/우/상/하
+ * 각 방향에서 1 percentile 의 fg 픽셀 좌표를 잡아 outlier 제거.
+ */
+function detectByForegroundBbox(pixels: Uint8ClampedArray, w: number, h: number): Quad | null {
+  const bg = sampleBackground(pixels, w, h);
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const dr = pixels[i] - bg.r;
+      const dg = pixels[i + 1] - bg.g;
+      const db = pixels[i + 2] - bg.b;
+      if (dr * dr + dg * dg + db * db > 28 * 28) {
+        xs.push(x);
+        ys.push(y);
+      }
+    }
+  }
+  if (xs.length < w * h * 0.05) return null;
+
+  // outlier 트림 — 1 percentile / 99 percentile (먼지·그림자 노이즈 1픽셀이 bbox 늘리는 거 방지)
+  xs.sort((a, b) => a - b);
+  ys.sort((a, b) => a - b);
+  const pct = (arr: number[], p: number) =>
+    arr[Math.max(0, Math.min(arr.length - 1, Math.floor(arr.length * p)))];
+  const x0 = pct(xs, 0.01);
+  const x1 = pct(xs, 0.99);
+  const y0 = pct(ys, 0.01);
+  const y1 = pct(ys, 0.99);
+
+  if (x1 <= x0 || y1 <= y0) return null;
+  if (x1 - x0 < w * 0.15 || y1 - y0 < h * 0.15) return null;
+
+  return [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
+  ];
+}
+
 /* ============ A2. 가장 큰 연결 성분의 axis-aligned bbox ============ */
 
 /**
@@ -215,7 +277,7 @@ function detectByLargestBlob(pixels: Uint8ClampedArray, w: number, h: number): Q
     const dr = pixels[i * 4] - bg.r;
     const dg = pixels[i * 4 + 1] - bg.g;
     const db = pixels[i * 4 + 2] - bg.b;
-    if (Math.sqrt(dr * dr + dg * dg + db * db) > 38) {
+    if (Math.sqrt(dr * dr + dg * dg + db * db) > 28) {
       mask[i] = 1;
       fgCount++;
     }
@@ -593,11 +655,13 @@ function orderCornersTLTRBRBL(pts: Pt[]): Quad {
 }
 
 /**
- * 후보 quad 의 점수 — 카드 종횡비에 가까울수록 + 면적 클수록 + 이미지 안에 있을수록 ↑
- * 0..1 범위 (높을수록 좋음).
+ * 후보 quad 의 점수 — 카드 종횡비 + 면적 sweet spot + 이미지 안쪽.
+ *
+ * 면적 점수는 sweet spot (이미지의 25~80%) 에 종 모양으로 weight.
+ * 너무 작으면(노이즈), 너무 크면(전체 이미지) 둘 다 패널티 — 이전 버그(전체 이미지가
+ * 진짜 카드보다 점수 높게 나오는 문제) 수정.
  */
 function scoreQuad(q: Quad, w: number, h: number): number {
-  // 면적 (signed) 의 절댓값을 shoelace 로
   const area = Math.abs(
     q[0].x * q[1].y - q[1].x * q[0].y +
     q[1].x * q[2].y - q[2].x * q[1].y +
@@ -605,21 +669,30 @@ function scoreQuad(q: Quad, w: number, h: number): number {
     q[3].x * q[0].y - q[0].x * q[3].y,
   ) / 2;
   const imgArea = w * h;
-  const areaScore = Math.max(0, Math.min(1, area / imgArea));
+  const ar = area / imgArea;
 
-  // 종횡비
+  // sweet spot 기반 면적 점수 — 25~80% 가 최고, 양 끝은 완만하게 감소
+  let areaScore: number;
+  if (ar < 0.05) areaScore = 0;
+  else if (ar > 0.97) areaScore = 0;             // 거의 전체 이미지 = 명백히 잘못
+  else if (ar < 0.15) areaScore = (ar - 0.05) / 0.10; // 0.05→0, 0.15→1
+  else if (ar > 0.85) areaScore = (0.97 - ar) / 0.12; // 0.97→0, 0.85→1
+  else areaScore = 1;
+
+  // 종횡비 (단변/장변, 0..1)
   const wA = (Math.hypot(q[1].x - q[0].x, q[1].y - q[0].y) + Math.hypot(q[2].x - q[3].x, q[2].y - q[3].y)) / 2;
   const wB = (Math.hypot(q[3].x - q[0].x, q[3].y - q[0].y) + Math.hypot(q[2].x - q[1].x, q[2].y - q[1].y)) / 2;
   if (wA <= 0 || wB <= 0) return 0;
   const ratio = Math.min(wA, wB) / Math.max(wA, wB);
   const ratioScore = 1 - Math.min(0.6, Math.abs(ratio - TARGET_RATIO) * 1.6);
 
-  // 코너가 이미지 안쪽에 있을수록
+  // 코너가 이미지 안쪽
   let oob = 0;
   for (const p of q) {
     if (p.x < -2 || p.x > w + 2 || p.y < -2 || p.y > h + 2) oob++;
   }
   const insideScore = 1 - oob / 4;
 
-  return areaScore * 0.4 + ratioScore * 0.45 + insideScore * 0.15;
+  // 가중: 면적 sweet spot 50% + 종횡비 35% + inside 15%
+  return areaScore * 0.5 + ratioScore * 0.35 + insideScore * 0.15;
 }

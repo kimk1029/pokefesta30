@@ -569,8 +569,9 @@ function Loupe({
 }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const SIZE = 140;
-  const ZOOM = 1.5;
-  const SRC_SIDE = SIZE / ZOOM; // ~93px 영역을 1.5배 확대 — 컨텍스트가 충분히 보이는 가벼운 돋보기
+  // ZOOM 의미: "현재 화면에 보이는 사진 대비" 의 확대율 (1.0 = 동일, 2.0 = 2배 큼)
+  // 사진 자연 크기 vs 화면 크기를 모르면 SRC_SIDE 가 잘못 계산돼 항상 과확대됨 — 이전 버그.
+  const ZOOM_OF_DISPLAY = 1.5;
 
   useEffect(() => {
     const c = ref.current;
@@ -579,18 +580,23 @@ function Loupe({
     c.height = SIZE;
     const ctx = c.getContext('2d');
     if (!ctx) return;
+    // display scale: 화면에 1px = 자연 (1/displayScale) px
+    const displayScale = containerW > 0 ? containerW / imgEl.naturalWidth : 1;
+    // 자연 픽셀로 본 source side. ZOOM_OF_DISPLAY 배만큼 화면보다 크게 보이려면
+    // SRC_SIDE = SIZE / (displayScale * ZOOM_OF_DISPLAY)
+    const srcSide = Math.max(20, SIZE / Math.max(0.001, displayScale * ZOOM_OF_DISPLAY));
     // 가장자리에 가까울 때 source 가 음수가 될 수 있어 검은 배경 채우고 그 위에 그림
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, SIZE, SIZE);
     ctx.imageSmoothingQuality = 'high';
-    const sx = naturalX - SRC_SIDE / 2;
-    const sy = naturalY - SRC_SIDE / 2;
+    const sx = naturalX - srcSide / 2;
+    const sy = naturalY - srcSide / 2;
     try {
-      ctx.drawImage(imgEl, sx, sy, SRC_SIDE, SRC_SIDE, 0, 0, SIZE, SIZE);
+      ctx.drawImage(imgEl, sx, sy, srcSide, srcSide, 0, 0, SIZE, SIZE);
     } catch {
       // sx/sy 가 음수 + sw/sh 양수 이면 일부 브라우저는 OK, 일부는 throw — fallback 없이 패스
     }
-  }, [imgEl, naturalX, naturalY]);
+  }, [imgEl, naturalX, naturalY, containerW]);
 
   // 위치 계산: 손가락 위 GAP px, 위쪽 공간 부족하면 아래로 flip, 좌우는 컨테이너 안으로 클램프
   const SAFE = 8;
@@ -648,7 +654,7 @@ function Loupe({
           letterSpacing: 0.3,
         }}
       >
-        ×{ZOOM}
+        ×{ZOOM_OF_DISPLAY}
       </div>
     </div>
   );
