@@ -240,20 +240,24 @@ export function CardGrader() {
 
   /* 코너 드래그 ------------------------------------------------ */
   const draggingRef = useRef<{ which: 'outer' | 'inner'; idx: 0 | 1 | 2 | 3 } | null>(null);
+  // 드래그 중 표시할 돋보기용 상태 (re-render 트리거 — ref 만으로는 안 됨)
+  const [dragHandle, setDragHandle] = useState<{ which: 'outer' | 'inner'; idx: 0 | 1 | 2 | 3 } | null>(null);
 
   const onPointerDown = (which: 'outer' | 'inner', idx: 0 | 1 | 2 | 3) => (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     draggingRef.current = { which, idx };
+    setDragHandle({ which, idx });
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     const d = draggingRef.current;
     if (!d || !imgEl || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / scale;
-    const py = (e.clientY - rect.top) / scale;
+    // 화면 픽셀 → 자연 좌표 변환은 rect 기준이 가장 정확 (displayW 와 다를 수 있음).
+    const px = ((e.clientX - rect.left) / rect.width) * imgEl.naturalWidth;
+    const py = ((e.clientY - rect.top) / rect.height) * imgEl.naturalHeight;
     const clampedX = Math.max(0, Math.min(imgEl.naturalWidth, px));
     const clampedY = Math.max(0, Math.min(imgEl.naturalHeight, py));
     if (d.which === 'outer' && outer) {
@@ -269,6 +273,7 @@ export function CardGrader() {
 
   const onPointerUp = () => {
     draggingRef.current = null;
+    setDragHandle(null);
   };
 
   const result: CenteringResult | null = outer && inner ? computeCentering(outer, inner) : null;
@@ -425,6 +430,25 @@ export function CardGrader() {
                 worst={result.worstAxis === (l.side === 'left' || l.side === 'right' ? 'L/R' : 'T/B')}
               />
             ))}
+
+            {/* 드래그 중 돋보기 — 손가락 위(또는 너무 위면 아래) 에 3x 확대 뷰 */}
+            {dragHandle && imgEl && displayW > 0 && (() => {
+              const handlePos = dragHandle.which === 'outer'
+                ? (outer ? outer[dragHandle.idx] : null)
+                : (inner ? inner[dragHandle.idx] : null);
+              if (!handlePos) return null;
+              return (
+                <Loupe
+                  imgEl={imgEl}
+                  naturalX={handlePos.x}
+                  naturalY={handlePos.y}
+                  displayX={handlePos.x * scale}
+                  displayY={handlePos.y * scale}
+                  containerW={displayW}
+                  tone={dragHandle.which === 'outer' ? '#3A5BD9' : '#FFD23F'}
+                />
+              );
+            })()}
             {(busyLabel || cvLoading) && (
               <div
                 style={{
@@ -576,6 +600,117 @@ export function CardGrader() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/* --------------------------- loupe ----------------------------- */
+
+/**
+ * 코너 드래그 중 표시되는 돋보기 — 핸들 주변 영역을 3배 확대해 보여줌.
+ * 위치: 핸들 위쪽 GAP 만큼 떨어진 곳, 화면 위쪽이면 아래로 자동 flip.
+ * pointer-events:none — 드래그 자체를 방해하지 않음.
+ */
+function Loupe({
+  imgEl,
+  naturalX,
+  naturalY,
+  displayX,
+  displayY,
+  containerW,
+  tone,
+}: {
+  imgEl: HTMLImageElement;
+  naturalX: number;
+  naturalY: number;
+  displayX: number;
+  displayY: number;
+  containerW: number;
+  tone: string;
+}) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  const SIZE = 140;
+  const ZOOM = 3;
+  const SRC_SIDE = SIZE / ZOOM; // 약 47px 영역을 3배 확대
+
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    c.width = SIZE;
+    c.height = SIZE;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    // 가장자리에 가까울 때 source 가 음수가 될 수 있어 검은 배경 채우고 그 위에 그림
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    ctx.imageSmoothingQuality = 'high';
+    const sx = naturalX - SRC_SIDE / 2;
+    const sy = naturalY - SRC_SIDE / 2;
+    try {
+      ctx.drawImage(imgEl, sx, sy, SRC_SIDE, SRC_SIDE, 0, 0, SIZE, SIZE);
+    } catch {
+      // sx/sy 가 음수 + sw/sh 양수 이면 일부 브라우저는 OK, 일부는 throw — fallback 없이 패스
+    }
+  }, [imgEl, naturalX, naturalY]);
+
+  // 위치 계산: 손가락 위 GAP px, 위쪽 공간 부족하면 아래로 flip, 좌우는 컨테이너 안으로 클램프
+  const SAFE = 8;
+  const GAP = 40;
+  let lx = displayX - SIZE / 2;
+  let ly = displayY - SIZE - GAP;
+  if (ly < SAFE) ly = displayY + GAP;
+  lx = Math.max(SAFE, Math.min(containerW - SIZE - SAFE, lx));
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: lx,
+        top: ly,
+        width: SIZE,
+        height: SIZE,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        boxShadow: '0 0 0 3px var(--ink), 0 0 0 5px var(--white), 0 6px 14px rgba(0,0,0,.6)',
+        pointerEvents: 'none',
+        zIndex: 20,
+      }}
+    >
+      <canvas ref={ref} style={{ display: 'block', width: SIZE, height: SIZE }} />
+      {/* crosshair */}
+      <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,.7)' }} />
+      <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'rgba(255,255,255,.7)' }} />
+      {/* center precision dot */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%,-50%)',
+          width: 12,
+          height: 12,
+          borderRadius: '50%',
+          border: `2px solid ${tone}`,
+          background: 'transparent',
+          boxShadow: '0 0 0 1px rgba(0,0,0,.5)',
+        }}
+      />
+      {/* 줌 표시 */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 4,
+          right: 8,
+          fontFamily: 'var(--f1)',
+          fontSize: 8,
+          color: 'rgba(255,255,255,.85)',
+          background: 'rgba(0,0,0,.5)',
+          padding: '1px 4px',
+          letterSpacing: 0.3,
+        }}
+      >
+        ×{ZOOM}
+      </div>
     </div>
   );
 }
@@ -1056,20 +1191,31 @@ function detectOuterQuad(img: HTMLImageElement): Quad | null {
   const src = cv.imread(img);
   const gray = new cv.Mat();
   const blurred = new cv.Mat();
-  const edged = new cv.Mat();
+  const edges = new cv.Mat();
+  const dilated = new cv.Mat();
   const contours = new cv.MatVector();
   const hierarchy = new cv.Mat();
   let bestApprox: CvMat | null = null;
   let bestArea = 0;
+  let kernel: CvMat | null = null;
+  let cornersMat: CvMat | null = null;
 
   try {
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+    // 큰 이미지면 OCR/검출 비용 절감 — 처리는 long side 1200px 까지로 다운스케일.
+    // (코너 정확도는 다운스케일 후도 충분 — 0.5px 이내)
     cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
 
-    // Otsu 이진화 → 카드와 배경의 명도차이로 외곽 분리. 검은 카드라도 INV 로 양쪽 모두 시도.
-    cv.threshold(blurred, edged, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+    // Canny 엣지 — Otsu threshold 보다 카드 색/배경 색에 robust.
+    // 임계값은 보수적으로 시작 (50, 150). 카드 인쇄 프레임도 같이 잡힐 수 있으나 외곽이 더 큰 contour 라
+    // 면적 기준으로 우선순위가 됨.
+    cv.Canny(blurred, edges, 50, 150, 3, false);
 
-    cv.findContours(edged, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    // 모폴로지 dilation 으로 끊어진 엣지 연결 — 코너 부분이 라운드여서 끊기는 경우 대응.
+    kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+    cv.dilate(edges, dilated, kernel, new cv.Point(-1, -1), 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+
+    cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
     const minArea = src.rows * src.cols * 0.1;
     const maxArea = src.rows * src.cols * 0.98;
@@ -1082,8 +1228,9 @@ function detectOuterQuad(img: HTMLImageElement): Quad | null {
         continue;
       }
       const peri = cv.arcLength(c, true);
+      // epsilon 을 좀 더 크게 — 둥근 모서리/노이즈가 있어도 4점 추출 잘 됨.
       const approx = new cv.Mat();
-      cv.approxPolyDP(c, approx, peri * 0.02, true);
+      cv.approxPolyDP(c, approx, peri * 0.025, true);
       if (approx.rows === 4 && area > bestArea) {
         if (bestApprox) bestApprox.delete();
         bestApprox = approx;
@@ -1096,21 +1243,43 @@ function detectOuterQuad(img: HTMLImageElement): Quad | null {
 
     if (!bestApprox) return null;
 
-    const pts: Pt[] = [];
+    // sub-pixel 코너 보정 — cornerSubPix 로 그라디언트 최대점에 정확히 snap
+    // 입력은 CV_32FC2 4×1 매트릭스로 변환.
+    const initial: number[] = [];
     for (let i = 0; i < 4; i++) {
-      const x = bestApprox.data32S[i * 2];
-      const y = bestApprox.data32S[i * 2 + 1];
-      pts.push({ x, y });
+      initial.push(bestApprox.data32S[i * 2], bestApprox.data32S[i * 2 + 1]);
+    }
+    cornersMat = cv.matFromArray(4, 1, cv.CV_32FC2, initial);
+    try {
+      const winSize = new cv.Size(11, 11);
+      const zeroZone = new cv.Size(-1, -1);
+      const criteria = new cv.TermCriteria(
+        cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER,
+        30,
+        0.01,
+      );
+      cv.cornerSubPix(gray, cornersMat, winSize, zeroZone, criteria);
+    } catch {
+      // cornerSubPix 가 실패하면 거친 값 그대로 사용
+    }
+
+    const pts: Pt[] = [];
+    const data = cornersMat.data32F;
+    for (let i = 0; i < 4; i++) {
+      pts.push({ x: data[i * 2], y: data[i * 2 + 1] });
     }
     return orderCorners(pts);
   } finally {
     src.delete();
     gray.delete();
     blurred.delete();
-    edged.delete();
+    edges.delete();
+    dilated.delete();
     contours.delete();
     hierarchy.delete();
     if (bestApprox) bestApprox.delete();
+    if (kernel) kernel.delete();
+    if (cornersMat) cornersMat.delete();
   }
 }
 
@@ -1202,6 +1371,7 @@ interface CvMat {
   rows: number;
   cols: number;
   data32S: Int32Array;
+  data32F: Float32Array;
   delete: () => void;
 }
 interface CvMatVector {
@@ -1213,22 +1383,61 @@ interface CvSize {
   width: number;
   height: number;
 }
+interface CvPoint {
+  x: number;
+  y: number;
+}
+interface CvScalar {
+  val: number[];
+}
+interface CvTermCriteria {
+  type: number;
+  maxCount: number;
+  epsilon: number;
+}
 interface CvLike {
   Mat: new () => CvMat;
   MatVector: new () => CvMatVector;
   Size: new (w: number, h: number) => CvSize;
+  Point: new (x: number, y: number) => CvPoint;
+  TermCriteria: new (type: number, maxCount: number, epsilon: number) => CvTermCriteria;
   imread: (img: HTMLImageElement | HTMLCanvasElement) => CvMat;
+  matFromArray: (rows: number, cols: number, type: number, data: number[]) => CvMat;
   cvtColor: (src: CvMat, dst: CvMat, code: number, dstCn?: number) => void;
   GaussianBlur: (src: CvMat, dst: CvMat, ksize: CvSize, sX: number, sY?: number, borderType?: number) => void;
+  Canny: (src: CvMat, dst: CvMat, t1: number, t2: number, apertureSize?: number, L2gradient?: boolean) => void;
+  dilate: (
+    src: CvMat,
+    dst: CvMat,
+    kernel: CvMat,
+    anchor: CvPoint,
+    iterations: number,
+    borderType: number,
+    borderValue: CvScalar,
+  ) => void;
+  getStructuringElement: (shape: number, ksize: CvSize) => CvMat;
+  morphologyDefaultBorderValue: () => CvScalar;
   threshold: (src: CvMat, dst: CvMat, thresh: number, max: number, type: number) => number;
   findContours: (src: CvMat, contours: CvMatVector, hier: CvMat, mode: number, method: number) => void;
   contourArea: (c: CvMat, oriented?: boolean) => number;
   arcLength: (c: CvMat, closed: boolean) => number;
   approxPolyDP: (c: CvMat, dst: CvMat, eps: number, closed: boolean) => void;
+  cornerSubPix: (
+    src: CvMat,
+    corners: CvMat,
+    winSize: CvSize,
+    zeroZone: CvSize,
+    criteria: CvTermCriteria,
+  ) => void;
   COLOR_RGBA2GRAY: number;
   BORDER_DEFAULT: number;
+  BORDER_CONSTANT: number;
   THRESH_BINARY: number;
   THRESH_OTSU: number;
   RETR_EXTERNAL: number;
   CHAIN_APPROX_SIMPLE: number;
+  MORPH_RECT: number;
+  CV_32FC2: number;
+  TERM_CRITERIA_EPS: number;
+  TERM_CRITERIA_MAX_ITER: number;
 }
