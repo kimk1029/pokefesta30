@@ -1,32 +1,35 @@
 'use client';
 
 import { AdFitSlot } from './ads/AdFitSlot';
-import { AdSenseSlot } from './ads/AdSenseSlot';
-
-const ADFIT_UNIT = process.env.NEXT_PUBLIC_ADFIT_UNIT_FEED ?? '';
-const ADSENSE_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_FEED ?? '';
-const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? '';
 
 /**
- * 피드 인라인 광고 — 네트워크 교대 노출.
+ * AdFit 광고 단위 ID 목록 — 4번째 글마다 광고가 들어가는 모든 슬롯에서 빈 박스 없이
+ * 노출되려면 슬롯 수만큼의 ad-unit 이 필요.
  *
- * 4번째 글마다 광고 1개씩 박는 정책을 만족시키려면 한 페이지에 광고가 여러 개 떠야 하는데
- * AdFit SDK 는 같은 ad-unit 으로는 페이지당 1개만 fill 한다 (두 번째부터 빈 박스). 따라서:
- *   - slotIndex === 0  : AdFit (1개만 채워지므로 첫 슬롯 차지)
- *   - slotIndex >= 1   : AdSense (같은 slotId 로 여러 슬롯 fill 가능)
+ * AdFit SDK 는 같은 ad-unit 을 페이지에서 1번만 fill 한다 (서버측 dedupe).
+ * 따라서 슬롯마다 각자 다른 ad-unit 을 배정해야 모두 채워짐.
  *
- * 광고 채울 수 없는 슬롯(env 미설정)은 빈 박스 대신 아예 null 반환 → 피드 사이에
- * 회색 placeholder 가 안 끼게 함.
+ * 입력 우선순위:
+ *   1. NEXT_PUBLIC_ADFIT_UNITS_FEED — 콤마 구분 (예: "DAN-aaa,DAN-bbb,DAN-ccc")
+ *   2. NEXT_PUBLIC_ADFIT_UNIT_FEED  — 단일 (기존 호환)
+ *
+ * 슬롯 N 에 매핑되는 unit 이 없으면 그 슬롯은 렌더링되지 않음 (빈 박스 안 생김).
+ * → 사용자는 추가 슬롯에 광고를 띄우려면 AdFit 대시보드에서 ad-unit 을 추가 등록 후
+ *   콤마로 환경변수에 늘리면 됨.
  */
-export function FeedAdRow({ slotIndex = 0 }: { slotIndex?: number }) {
-  const adSenseConfigured = !!(ADSENSE_CLIENT && ADSENSE_SLOT);
-  const adFitConfigured = !!ADFIT_UNIT;
-  const useAdSense = slotIndex >= 1 && adSenseConfigured;
+const ADFIT_UNITS: string[] = (
+  process.env.NEXT_PUBLIC_ADFIT_UNITS_FEED ??
+  process.env.NEXT_PUBLIC_ADFIT_UNIT_FEED ??
+  ''
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 
-  // 후속 슬롯인데 AdSense 미설정 → 빈 박스 띄우지 말고 슬롯 자체를 생략
-  if (slotIndex >= 1 && !adSenseConfigured) return null;
-  // 첫 슬롯인데 AdFit 도 미설정 → 마찬가지로 생략
-  if (slotIndex === 0 && !adFitConfigured) return null;
+export function FeedAdRow({ slotIndex = 0 }: { slotIndex?: number }) {
+  const unit = ADFIT_UNITS[slotIndex];
+  // 해당 슬롯에 매핑된 ad-unit 이 없으면 슬롯 자체를 생략 (빈 박스 방지)
+  if (!unit) return null;
 
   return (
     <div
@@ -51,7 +54,7 @@ export function FeedAdRow({ slotIndex = 0 }: { slotIndex?: number }) {
         광고 · AD
       </span>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center' }}>
-        {useAdSense ? <AdSenseSlot slotId={ADSENSE_SLOT} /> : <AdFitSlot adUnit={ADFIT_UNIT} />}
+        <AdFitSlot adUnit={unit} />
       </div>
     </div>
   );
