@@ -53,6 +53,35 @@ export default async function Page() {
 
       <div style={{ height: 14 }} />
 
+      {/* 그레이딩 도구 진입 — 사진으로 센터링 추정 */}
+      <Link
+        href="/cards/grading"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          margin: '0 var(--gap) var(--cg)',
+          padding: '12px 14px',
+          background: 'var(--blu)',
+          color: 'var(--white)',
+          textDecoration: 'none',
+          fontFamily: 'var(--f1)',
+          fontSize: 10,
+          letterSpacing: 0.5,
+          lineHeight: 1.5,
+          boxShadow:
+            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),4px 4px 0 var(--ink)',
+        }}
+      >
+        <span style={{ fontSize: 22 }}>📐</span>
+        <span style={{ flex: 1 }}>
+          <b>카드 그레이딩 (센터링 추정)</b>
+          <br />
+          <span style={{ fontSize: 8, opacity: 0.85 }}>사진으로 PSA 예상 등급 측정 — 참고용</span>
+        </span>
+        <span style={{ fontSize: 14 }}>▶</span>
+      </Link>
+
       {/* 검색 폼 — 임의 카드명/코드 → /cards/search */}
       <form
         action="/cards/search"
