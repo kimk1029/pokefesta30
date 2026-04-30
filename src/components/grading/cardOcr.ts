@@ -23,12 +23,12 @@ export interface CardOcrResult {
   lines: OcrLine[];
   /** "045/198" 같은 번호 매칭 — 가장 확률 높은 것 첫 번째. */
   cardNumber: { left: string; right: string; raw: string } | null;
-  /** "HP120" 식 hp. */
-  hp: number | null;
-  /** 이름 후보들 — 가장 큰 글자 (위쪽 라인 우선) 기준 상위 3개. */
-  nameCandidates: string[];
-  /** 한국 프로모 코드 등 (SV-P, S-P, XY-P, BW-P). */
+  /** SV-P, S-P, XY-P 등 프로모 코드. */
   promoCode: string | null;
+  /** "SV1", "SV5K", "SM12a" 같은 세트 코드 (좌하단 또는 카드번호 옆). */
+  setCode: string | null;
+  /** "Illus. ..." 일러스트레이터 표기. */
+  illustrator: string | null;
 }
 
 interface OcrProgress {
@@ -40,26 +40,35 @@ interface OcrProgress {
 
 interface RunOpts {
   onProgress?: (p: OcrProgress) => void;
-  /** 'kor+eng' 또는 'eng' 만 — 한국어 lang 데이터(13MB) 다운로드 회피용. */
+  /** 'eng' (기본) 또는 'kor+eng' — 한국어 lang 데이터(13MB) 추가 다운로드. */
   langs?: string;
+  /**
+   * 카드 어느 부분만 OCR 할지.
+   *  'bottom' (기본) — 하단 15% (좌하단 세트코드 + 우하단 카드번호 영역)
+   *  'full'         — 전체
+   */
+  region?: 'bottom' | 'full';
 }
 
 /**
  * 외곽 quad 의 bounding box 로 이미지를 잘라 캔버스에 그린 후 OCR 실행.
- * outerQuad 가 null 이면 이미지 전체를 OCR.
+ * 기본: 하단 15% 만 잘라 영문 OCR — 카드번호/세트코드 인식에 최적화. (작아서 빠르고, 오인식 줄어듦)
+ * outerQuad 가 null 이면 이미지 전체에서 같은 비율 영역.
  */
 export async function recognizeCard(
   img: HTMLImageElement,
   outerQuad: Quad | null,
   opts: RunOpts = {},
 ): Promise<CardOcrResult> {
-  const langs = opts.langs ?? 'kor+eng';
+  const langs = opts.langs ?? 'eng';
+  const region = opts.region ?? 'bottom';
 
   opts.onProgress?.({ phase: 'load-script', label: '스크립트 다운로드' });
   const T = await loadTesseract();
 
   // 카드 영역 크롭 + 리사이즈
-  const canvas = cropToBboxAndResize(img, outerQuad, 1500);
+  const fullCanvas = cropToBboxAndResize(img, outerQuad, 1500);
+  const canvas = region === 'bottom' ? cropBottomStrip(fullCanvas, 0.15) : fullCanvas;
 
   opts.onProgress?.({ phase: 'recognize', progress: 0, label: '텍스트 인식 준비…' });
 
@@ -125,14 +134,30 @@ function cropToBboxAndResize(
   return canvas;
 }
 
+/** 캔버스 하단 ratio(0..1) 영역만 새 캔버스로 잘라냄. 카드 번호/세트코드 영역 추출용. */
+function cropBottomStrip(src: HTMLCanvasElement, ratio: number): HTMLCanvasElement {
+  const stripH = Math.max(40, Math.round(src.height * ratio));
+  const out = document.createElement('canvas');
+  out.width = src.width;
+  out.height = stripH;
+  const ctx = out.getContext('2d');
+  if (!ctx) return src;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, src.height - stripH, src.width, stripH, 0, 0, src.width, stripH);
+  return out;
+}
+
 /* ---------------------------- parse ---------------------------- */
 
 const CARD_NUM_RE = /(\d{1,3})\s*[\\/／]\s*(\d{1,3})/g;
-const PROMO_NUM_RE = /(\d{1,3})\s*[\\/／]\s*(SV-?P|S-?P|XY-?P|BW-?P|HGSS-?P|DP-?P)/gi;
-const HP_RE = /\bHP\s*(\d{2,3})\b/i;
+const PROMO_NUM_RE = /(\d{1,3})\s*[\\/／]\s*(SV-?P|S-?P|XY-?P|BW-?P|HGSS-?P|DP-?P|SM-?P)/gi;
+// 세트 코드: 영문 대문자 1~4 + 선택적 숫자/대문자 1~3, 단어 경계.
+// 예: SV1, SV5K, SM12a, XY12, BW11, HGSS, RC0123 (HGSS는 대문자 4)
+const SET_CODE_RE = /\b(SV[A-Z0-9]{0,3}|SM[A-Z0-9]{0,3}|XY[A-Z0-9]{0,3}|BW[A-Z0-9]{0,3}|HGSS[A-Z0-9]{0,3}|DP[A-Z0-9]{0,3}|RC\d{1,3})\b/g;
+const ILLUS_RE = /Illus(?:trator)?\.?\s+([A-Za-z][A-Za-z\.\s'-]{1,30})/i;
 
 function parseCardText(text: string, lines: OcrLine[]): CardOcrResult {
-  // 1) Card number
+  // 1) Card number — 프로모(SV-P 등) 우선 매칭, 그 다음 일반 N/M 형식.
   const promoMatches = Array.from(text.matchAll(PROMO_NUM_RE));
   const numMatches = Array.from(text.matchAll(CARD_NUM_RE));
 
@@ -144,7 +169,7 @@ function parseCardText(text: string, lines: OcrLine[]): CardOcrResult {
     cardNumber = { left: m[1], right: m[2].toUpperCase(), raw: m[0] };
     promoCode = m[2].toUpperCase();
   } else if (numMatches.length > 0) {
-    // 가장 그럴듯한 매치: 분모(우측)가 큰 것 선호 (실제 세트 카드 번호가 보통 분모 큼)
+    // 분모(우측)가 큰 매치 선호 — 실제 세트 카드 번호의 분모(전체 카드 수)가 보통 두자리 이상
     const best = numMatches
       .map((m) => ({ m, denom: Number(m[2]) }))
       .filter((x) => x.denom >= 1)
@@ -154,36 +179,29 @@ function parseCardText(text: string, lines: OcrLine[]): CardOcrResult {
     }
   }
 
-  // 2) HP
-  let hp: number | null = null;
-  const hpMatch = text.match(HP_RE);
-  if (hpMatch) {
-    const v = Number(hpMatch[1]);
-    if (v >= 30 && v <= 350) hp = v;
+  // 2) Set code — 카드 번호와 분리된 세트 식별자.
+  // 카드 번호 부분과 겹치지 않게 cardNumber.raw 가 포함된 영역은 제외.
+  let setCode: string | null = null;
+  const setMatches = Array.from(text.matchAll(SET_CODE_RE)).map((m) => m[0].toUpperCase());
+  if (setMatches.length > 0) {
+    // 가장 흔한(빈도 높은) 코드 우선
+    const counts = new Map<string, number>();
+    for (const c of setMatches) counts.set(c, (counts.get(c) ?? 0) + 1);
+    const ranked = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+    setCode = ranked[0][0];
   }
 
-  // 3) Name candidates — 위쪽 라인 우선, 한글/영문 한 글자 이상 + 숫자 비율 낮은 라인
-  const nameCandidates = lines
-    .filter((l) => {
-      const t = l.text.trim();
-      if (t.length < 2 || t.length > 30) return false;
-      // 숫자만 또는 거의 숫자인 라인 제외
-      const digitRatio = (t.replace(/\D/g, '').length) / t.length;
-      if (digitRatio > 0.5) return false;
-      // HP / illus / no. 등 메타 키워드 제외
-      if (/^(HP|illus|no\.|©|™)/i.test(t)) return false;
-      return true;
-    })
-    .sort((a, b) => b.confidence - a.confidence)
-    .slice(0, 3)
-    .map((l) => l.text.trim());
+  // 3) Illustrator
+  let illustrator: string | null = null;
+  const im = text.match(ILLUS_RE);
+  if (im) illustrator = im[1].trim().replace(/\s+/g, ' ');
 
   return {
     rawText: text,
     lines,
     cardNumber,
-    hp,
-    nameCandidates,
     promoCode,
+    setCode,
+    illustrator,
   };
 }

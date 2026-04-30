@@ -166,7 +166,7 @@ export function CardGrader() {
             setOcrProgress(0.05);
           } else if (p.phase === 'load-lang') {
             const sub = p.progress != null ? Math.round(p.progress * 100) : null;
-            setOcrPhase(`언어 데이터 다운로드 중${sub != null ? ` (${sub}%)` : ''} · kor+eng ~23MB`);
+            setOcrPhase(`언어 데이터 다운로드 중${sub != null ? ` (${sub}%)` : ''} · eng ~10MB`);
             setOcrProgress(0.1 + (p.progress ?? 0) * 0.4);
           } else if (p.phase === 'recognize') {
             const sub = p.progress != null ? Math.round(p.progress * 100) : null;
@@ -375,6 +375,17 @@ export function CardGrader() {
                 onPointerDown={onPointerDown('inner', i as 0 | 1 | 2 | 3)}
               />
             ))}
+            {/* 외각/내각 거리 라벨 — 4변 미드포인트에 % + px 표시 */}
+            {outer && inner && result && marginLabels(outer, inner, scale).map((l) => (
+              <MarginLabel
+                key={l.side}
+                x={l.x}
+                y={l.y}
+                pct={l.pct}
+                px={l.px}
+                worst={result.worstAxis === (l.side === 'left' || l.side === 'right' ? 'L/R' : 'T/B')}
+              />
+            ))}
             {(busyLabel || cvLoading) && (
               <div
                 style={{
@@ -491,7 +502,7 @@ export function CardGrader() {
               </div>
               <ProgressBar value={ocrProgress} indeterminate={ocrProgress == null} tone="yellow" />
               <div style={{ marginTop: 6, fontSize: 8, opacity: 0.8 }}>
-                첫 실행 시 한국어 ~13MB + 영어 ~10MB 다운로드
+                하단 영역 (카드번호/세트코드) 만 영문 인식 — 첫 실행 시 ~10MB 다운로드
               </div>
             </div>
           )}
@@ -526,6 +537,80 @@ export function CardGrader() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/* --------------------- margin distance labels ------------------ */
+
+interface MarginLabelInfo {
+  side: 'left' | 'right' | 'top' | 'bottom';
+  /** 화면 픽셀 좌표 (라벨 중심) */
+  x: number;
+  y: number;
+  /** 가까운 변 비율 (이 변의 여백 %) */
+  pct: number;
+  /** 픽셀 단위 여백 (이미지 자연 좌표) */
+  px: number;
+}
+
+function marginLabels(outer: Quad, inner: Quad, scale: number): MarginLabelInfo[] {
+  // 외곽/내곽 각 변의 평균 좌표 (이미지 자연 좌표)
+  const oLx = (outer[0].x + outer[3].x) / 2;
+  const oRx = (outer[1].x + outer[2].x) / 2;
+  const oTy = (outer[0].y + outer[1].y) / 2;
+  const oBy = (outer[2].y + outer[3].y) / 2;
+  const iLx = (inner[0].x + inner[3].x) / 2;
+  const iRx = (inner[1].x + inner[2].x) / 2;
+  const iTy = (inner[0].y + inner[1].y) / 2;
+  const iBy = (inner[2].y + inner[3].y) / 2;
+
+  const leftMpx = iLx - oLx;
+  const rightMpx = oRx - iRx;
+  const topMpx = iTy - oTy;
+  const bottomMpx = oBy - iBy;
+
+  const lrTotal = Math.max(0.001, leftMpx + rightMpx);
+  const tbTotal = Math.max(0.001, topMpx + bottomMpx);
+  const leftPct = Math.round(clamp(leftMpx / lrTotal, 0, 1) * 100);
+  const rightPct = 100 - leftPct;
+  const topPct = Math.round(clamp(topMpx / tbTotal, 0, 1) * 100);
+  const bottomPct = 100 - topPct;
+
+  // 카드 무게중심 → T/B 라벨의 X, L/R 라벨의 Y
+  const cx = ((outer[0].x + outer[1].x + outer[2].x + outer[3].x) / 4) * scale;
+  const cy = ((outer[0].y + outer[1].y + outer[2].y + outer[3].y) / 4) * scale;
+
+  return [
+    { side: 'left',   x: ((oLx + iLx) / 2) * scale, y: cy, pct: leftPct,   px: Math.max(0, Math.round(leftMpx)) },
+    { side: 'right',  x: ((oRx + iRx) / 2) * scale, y: cy, pct: rightPct,  px: Math.max(0, Math.round(rightMpx)) },
+    { side: 'top',    x: cx, y: ((oTy + iTy) / 2) * scale, pct: topPct,    px: Math.max(0, Math.round(topMpx)) },
+    { side: 'bottom', x: cx, y: ((oBy + iBy) / 2) * scale, pct: bottomPct, px: Math.max(0, Math.round(bottomMpx)) },
+  ];
+}
+
+function MarginLabel({ x, y, pct, px, worst }: { x: number; y: number; pct: number; px: number; worst?: boolean }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: x,
+        top: y,
+        transform: 'translate(-50%, -50%)',
+        background: worst ? 'var(--red)' : 'rgba(0,0,0,.85)',
+        color: 'var(--white)',
+        padding: '3px 6px',
+        fontFamily: 'var(--f1)',
+        fontSize: 8,
+        letterSpacing: 0.3,
+        whiteSpace: 'nowrap',
+        pointerEvents: 'none', // 핸들 드래그 방해 안 하게
+        boxShadow: '1px 1px 0 var(--ink)',
+        lineHeight: 1.3,
+      }}
+    >
+      <span style={{ fontWeight: 700 }}>{pct}%</span>
+      <span style={{ opacity: 0.75, marginLeft: 4 }}>{px}px</span>
     </div>
   );
 }
@@ -729,7 +814,7 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
   const [showRaw, setShowRaw] = useState(false);
   const numLabel = r.cardNumber ? `${r.cardNumber.left} / ${r.cardNumber.right}` : '—';
   const found =
-    !!r.cardNumber || r.nameCandidates.length > 0 || r.hp !== null || !!r.promoCode;
+    !!r.cardNumber || !!r.setCode || !!r.promoCode || !!r.illustrator;
   return (
     <div
       style={{
@@ -757,21 +842,18 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
 
       {!found && (
         <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', textAlign: 'center', padding: 12 }}>
-          인식 가능한 카드 정보를 찾지 못했어요.
+          카드 번호/세트 코드를 찾지 못했어요.
           <br />
-          빛 반사 없는 정면 사진으로 다시 시도해주세요.
+          하단 영역이 잘 안 보이거나 번호 자리가 외곽 밖이면 외곽 사각형을 더 정확히 맞춰주세요.
         </div>
       )}
 
       {found && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <KvRow k="카드 번호" v={numLabel} highlight={!!r.cardNumber} />
+          {r.setCode && <KvRow k="세트 코드" v={r.setCode} highlight />}
           {r.promoCode && <KvRow k="프로모 코드" v={r.promoCode} highlight />}
-          <KvRow k="HP" v={r.hp != null ? `${r.hp}` : '—'} />
-          <KvRow
-            k="이름 후보"
-            v={r.nameCandidates.length > 0 ? r.nameCandidates.join(' · ') : '—'}
-          />
+          {r.illustrator && <KvRow k="일러스트레이터" v={r.illustrator} />}
         </div>
       )}
 
