@@ -74,7 +74,12 @@ export function CardGrader() {
   /* 이미지 변경 시 canvas 사이즈 + 폴백 사각형 ---------------------- */
   useEffect(() => {
     if (!imgEl) return;
-    const containerW = containerRef.current?.clientWidth ?? imgEl.naturalWidth;
+    // 컨테이너가 첫 렌더에선 displayW=0 으로 collapse 돼 clientWidth=0 일 수 있음.
+    // 그럴 땐 viewport 기반 fallback 사용 → 라인이 너무 작은 캔버스에 그려져 안 보이는 문제 방지.
+    const measured = containerRef.current?.clientWidth ?? 0;
+    const fallback =
+      typeof window !== 'undefined' ? Math.max(280, window.innerWidth - 32) : 360;
+    const containerW = measured > 50 ? measured : fallback;
     const w = Math.min(containerW, imgEl.naturalWidth);
     const h = (w / imgEl.naturalWidth) * imgEl.naturalHeight;
     setDisplayW(w);
@@ -87,7 +92,7 @@ export function CardGrader() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imgEl]);
 
-  /* 캔버스 그리기 — 이미지 + 외곽/내곽 폴리라인 ------------------- */
+  /* 캔버스 그리기 — 이미지만. 외곽/내곽 라인은 SVG 오버레이로 분리. ----- */
   useEffect(() => {
     const c = canvasRef.current;
     if (!c || !imgEl) return;
@@ -98,10 +103,7 @@ export function CardGrader() {
     c.height = displayH;
     ctx.clearRect(0, 0, displayW, displayH);
     ctx.drawImage(imgEl, 0, 0, displayW, displayH);
-
-    if (outer) drawQuad(ctx, outer, scale, '#3A5BD9', 3);
-    if (inner) drawQuad(ctx, inner, scale, '#FFD23F', 2);
-  }, [imgEl, outer, inner, displayW, displayH, scale]);
+  }, [imgEl, displayW, displayH]);
 
   /* 파일 선택 핸들러 -------------------------------------------- */
   const onFile = (file: File) => {
@@ -357,6 +359,43 @@ export function CardGrader() {
             }}
           >
             <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />
+
+            {/* 외곽/내곽 SVG 오버레이 — viewBox 가 자연 좌표라 캔버스/디스플레이 비율과 무관하게 정확히 맞음.
+                vector-effect=non-scaling-stroke 로 어느 줌에서도 항상 일정한 굵기. */}
+            {outer && inner && (
+              <svg
+                viewBox={`0 0 ${imgEl.naturalWidth} ${imgEl.naturalHeight}`}
+                preserveAspectRatio="none"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                }}
+              >
+                {/* 외곽 = 카드 컷 라인 (파랑, 굵음) */}
+                <polygon
+                  points={quadToPoints(outer)}
+                  fill="none"
+                  stroke="#3A5BD9"
+                  strokeWidth={4}
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+                {/* 내곽 = 인쇄 프레임 안쪽 (노랑, 점선) */}
+                <polygon
+                  points={quadToPoints(inner)}
+                  fill="none"
+                  stroke="#FFD23F"
+                  strokeWidth={3}
+                  strokeDasharray="8,5"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            )}
+
             {outer && outer.map((p, i) => (
               <Handle
                 key={`o-${i}`}
@@ -965,16 +1004,9 @@ function Stat({ label, value, hi }: { label: string; value: string; hi: boolean 
 
 /* --------------------- helpers (math + cv) ---------------------- */
 
-function drawQuad(ctx: CanvasRenderingContext2D, q: Quad, scale: number, color: string, lw: number) {
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lw;
-  ctx.beginPath();
-  ctx.moveTo(q[0].x * scale, q[0].y * scale);
-  for (let i = 1; i < 4; i++) ctx.lineTo(q[i].x * scale, q[i].y * scale);
-  ctx.closePath();
-  ctx.stroke();
-  ctx.restore();
+/** SVG <polygon points="..."> 문자열 — quad 4점을 자연 좌표로. */
+function quadToPoints(q: Quad): string {
+  return q.map((p) => `${p.x},${p.y}`).join(' ');
 }
 
 function fallbackQuads(w: number, h: number): { outer: Quad; inner: Quad } {
