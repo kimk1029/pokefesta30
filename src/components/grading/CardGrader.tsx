@@ -569,8 +569,8 @@ function Loupe({
 }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const SIZE = 140;
-  const ZOOM = 2;
-  const SRC_SIDE = SIZE / ZOOM; // 70px 영역을 2배 확대 — 너무 가까워 화면이 흐려지지 않게 적당히
+  const ZOOM = 1.5;
+  const SRC_SIDE = SIZE / ZOOM; // ~93px 영역을 1.5배 확대 — 컨텍스트가 충분히 보이는 가벼운 돋보기
 
   useEffect(() => {
     const c = ref.current;

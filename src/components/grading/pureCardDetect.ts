@@ -51,6 +51,12 @@ export function detectCardOuterPureJs(img: HTMLImageElement): Quad | null {
     if (sc > 0.2) candidates.push({ quad: blobQuad, score: sc, tag: 'blob' });
   }
 
+  const densityQuad = detectByEdgeDensity(gray, w, h);
+  if (densityQuad) {
+    const sc = scoreQuad(densityQuad, w, h);
+    if (sc > 0.2) candidates.push({ quad: densityQuad, score: sc, tag: 'density' });
+  }
+
   const houghQuad = detectByHough(gray, w, h);
   if (houghQuad) {
     const sc = scoreQuad(houghQuad, w, h);
@@ -261,6 +267,85 @@ function detectByLargestBlob(pixels: Uint8ClampedArray, w: number, h: number): Q
   const { x0, y0, x1, y1 } = best;
   // bbox 가 이미지 거의 전체면 (사진 자체가 단색) reject
   if ((x1 - x0) > w * 0.97 && (y1 - y0) > h * 0.97) return null;
+
+  return [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
+  ];
+}
+
+/* ================= A3. 엣지 밀도 그리드 ================= */
+
+/**
+ * 카드와 배경이 색이 비슷해도, 카드 안에는 텍스트/아트/HP/번호 등으로 엣지가 조밀하고
+ * 배경(테이블/책상)은 엣지가 거의 없음. 이 차이를 이용한 robust 검출.
+ *
+ * 1. Sobel magnitude 계산
+ * 2. 이미지를 16×24 셀 그리드로 나눠 셀별 엣지 합 계산
+ * 3. 셀 합의 70 percentile 을 임계로 → "고밀도" 셀 마스크
+ * 4. 고밀도 셀들의 bounding box → 카드 영역
+ *
+ * 색에 무관하므로 색 기반 두 전략이 모두 실패하는 흰 카드/베이지 책상 같은 어려운
+ * 케이스에서도 작동.
+ */
+function detectByEdgeDensity(gray: Uint8Array, w: number, h: number): Quad | null {
+  const sobel = sobelMagnitude(gray, w, h);
+
+  const GX = 16;
+  const GY = 24;
+  const cellW = Math.floor(w / GX);
+  const cellH = Math.floor(h / GY);
+  if (cellW < 4 || cellH < 4) return null;
+
+  const cells = new Float32Array(GY * GX);
+  for (let cy = 0; cy < GY; cy++) {
+    const y0 = cy * cellH;
+    const y1 = Math.min(h, y0 + cellH);
+    for (let cx = 0; cx < GX; cx++) {
+      const x0 = cx * cellW;
+      const x1 = Math.min(w, x0 + cellW);
+      let sum = 0;
+      for (let y = y0; y < y1; y++) {
+        const row = y * w;
+        for (let x = x0; x < x1; x++) sum += sobel[row + x];
+      }
+      cells[cy * GX + cx] = sum;
+    }
+  }
+
+  // 70 percentile 임계
+  const sorted = Array.from(cells).sort((a, b) => a - b);
+  const thresh = sorted[Math.floor(sorted.length * 0.70)];
+  if (thresh <= 0) return null;
+
+  // 고밀도 셀 bbox
+  let cx0 = GX, cy0 = GY, cx1 = -1, cy1 = -1;
+  let denseCount = 0;
+  for (let cy = 0; cy < GY; cy++) {
+    for (let cx = 0; cx < GX; cx++) {
+      if (cells[cy * GX + cx] > thresh) {
+        denseCount++;
+        if (cx < cx0) cx0 = cx;
+        if (cy < cy0) cy0 = cy;
+        if (cx > cx1) cx1 = cx;
+        if (cy > cy1) cy1 = cy;
+      }
+    }
+  }
+  if (cx1 < cx0 || cy1 < cy0) return null;
+  // 모든 셀이 dense 면 사진 자체가 noisy — reject
+  if (denseCount > GX * GY * 0.85) return null;
+
+  // 셀 좌표 → 픽셀 좌표 (셀 안의 가장자리)
+  const x0 = cx0 * cellW;
+  const y0 = cy0 * cellH;
+  const x1 = Math.min(w, (cx1 + 1) * cellW);
+  const y1 = Math.min(h, (cy1 + 1) * cellH);
+
+  // 너무 좁으면 reject
+  if (x1 - x0 < w * 0.2 || y1 - y0 < h * 0.2) return null;
 
   return [
     { x: x0, y: y0 },
