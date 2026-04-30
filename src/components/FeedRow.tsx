@@ -65,20 +65,6 @@ export function FeedRow({ post }: { post: FeedPost }) {
             </span>
           )}
           {isReport && post.level && <CongBadge level={post.level} size="small" />}
-          {/* 사진 첨부 표시 — 펼치기 전엔 카운트만 보여줌 */}
-          {hasImages && !expanded && (
-            <span
-              className="tag"
-              style={{
-                fontSize: 9,
-                padding: '2px 7px',
-                background: 'var(--ink)',
-                color: 'var(--white)',
-              }}
-            >
-              📷 {images.length}
-            </span>
-          )}
         </div>
         <div className="fi-text">{post.text}</div>
         {/* 사진은 상세 펼쳤을 때만 노출 */}
@@ -126,6 +112,27 @@ export function FeedRow({ post }: { post: FeedPost }) {
       </div>
       <div className="fi-right" onClick={(e) => e.stopPropagation()}>
         <BookmarkButton feedId={post.id} />
+        {/* 사진 인디케이터 — 좋아요 아래, 아이콘 + 갯수(오른쪽) */}
+        {hasImages && (
+          <div
+            aria-label={`사진 ${images.length}장`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 3,
+              padding: '2px 4px',
+              fontFamily: 'var(--f1)',
+              color: 'var(--ink2)',
+              letterSpacing: 0.3,
+              lineHeight: 1,
+            }}
+          >
+            <span style={{ fontSize: 16 }}>📷</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink)' }}>
+              {images.length}
+            </span>
+          </div>
+        )}
         <span className="fi-time">{post.time}</span>
       </div>
     </div>
