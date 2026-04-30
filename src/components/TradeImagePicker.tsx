@@ -9,6 +9,8 @@ interface Props {
   onChange: (urls: string[]) => void;
   /** 최대 장수 (기본 5) */
   max?: number;
+  /** 업로드 엔드포인트 (기본: 거래). 피드는 '/api/upload/feed-images'. */
+  endpoint?: string;
 }
 
 const MAX_DEFAULT = 5;
@@ -52,7 +54,12 @@ async function compressImage(file: File): Promise<Blob> {
   }
 }
 
-export function TradeImagePicker({ value, onChange, max = MAX_DEFAULT }: Props) {
+export function TradeImagePicker({
+  value,
+  onChange,
+  max = MAX_DEFAULT,
+  endpoint = '/api/upload/trade-images',
+}: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -77,7 +84,7 @@ export function TradeImagePicker({ value, onChange, max = MAX_DEFAULT }: Props) 
         fd.append('files', b, name);
       });
 
-      const res = await fetch('/api/upload/trade-images', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         body: fd,
       });

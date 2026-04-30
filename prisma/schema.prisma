@@ -109,6 +109,8 @@ model Feed {
   authorEmoji     String  @default("🐣")
   authorBgId      String  @default("default")
   authorFrameId   String  @default("none")
+  /// 첨부 사진 URL 배열 (Vercel Blob URL). 상세 펼침 시에만 노출.
+  images      Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

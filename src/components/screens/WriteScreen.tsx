@@ -105,6 +105,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
     fd.set('avatar_id', avatarId);
     if (place) fd.set('place_id', place);
     if (isReport) fd.set('level', level);
+    if (images.length > 0) fd.set('images', JSON.stringify(images));
     startTransition(async () => {
       try {
         await submitFeed(fd);
@@ -272,6 +273,21 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
           onChange={(e) => setNote(e.target.value)}
         />
       </div>
+
+      {/* 피드 첨부 사진 (선택) — 상세 펼침 시에만 노출됨 */}
+      {isFeed && (
+        <div className="form-sect">
+          <div className="form-label">
+            📷 사진 첨부 <span style={{ fontSize: 10, opacity: 0.6 }}>(선택, 최대 3장 · 펼쳐야 보임)</span>
+          </div>
+          <TradeImagePicker
+            value={images}
+            onChange={setImages}
+            max={3}
+            endpoint="/api/upload/feed-images"
+          />
+        </div>
+      )}
 
       {error && (
         <div

@@ -70,6 +70,7 @@ type FeedRow = {
   authorEmoji: string;
   authorBgId?: string;
   authorFrameId?: string;
+  images?: unknown;
   createdAt: Date;
   place: { name: string } | null;
 };
@@ -87,6 +88,7 @@ function toFeedPost(r: FeedRow): FeedPost {
     user: r.authorEmoji ?? '🐣',
     authorBgId: r.authorBgId,
     authorFrameId: r.authorFrameId,
+    images: asImages(r.images),
   };
 }
 

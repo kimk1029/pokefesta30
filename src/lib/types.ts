@@ -66,6 +66,8 @@ export interface FeedPost {
   user: string;         // authorEmoji (아바타 id or 이모지)
   authorBgId?: string;
   authorFrameId?: string;
+  /** 첨부 사진 URL 배열. 빈 배열이거나 undefined 면 사진 없음. 펼침 시에만 렌더. */
+  images?: string[];
 }
 
 export type ShopCategory = 'charge' | 'ticket' | 'skin';

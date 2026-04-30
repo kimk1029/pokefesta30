@@ -22,6 +22,8 @@ export function FeedRow({ post }: { post: FeedPost }) {
   const isReport = post.kind === 'report';
   const hasPixelAvatar = isAvatarId(post.user);
   const [expanded, setExpanded] = useState(false);
+  const images = post.images ?? [];
+  const hasImages = images.length > 0;
 
   return (
     <div
@@ -63,8 +65,59 @@ export function FeedRow({ post }: { post: FeedPost }) {
             </span>
           )}
           {isReport && post.level && <CongBadge level={post.level} size="small" />}
+          {/* 사진 첨부 표시 — 펼치기 전엔 카운트만 보여줌 */}
+          {hasImages && !expanded && (
+            <span
+              className="tag"
+              style={{
+                fontSize: 9,
+                padding: '2px 7px',
+                background: 'var(--ink)',
+                color: 'var(--white)',
+              }}
+            >
+              📷 {images.length}
+            </span>
+          )}
         </div>
         <div className="fi-text">{post.text}</div>
+        {/* 사진은 상세 펼쳤을 때만 노출 */}
+        {expanded && hasImages && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${Math.min(images.length, 3)}, 1fr)`,
+              gap: 6,
+              marginTop: 8,
+            }}
+          >
+            {images.map((url, i) => (
+              <a
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'block', aspectRatio: '1/1', overflow: 'hidden' }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`피드 사진 ${i + 1}`}
+                  loading="lazy"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    background: 'var(--pap2)',
+                    boxShadow:
+                      '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+                  }}
+                />
+              </a>
+            ))}
+          </div>
+        )}
         {expanded && (
           <div className="fi-meta">
             <span className="fi-meta-time">🕒 {formatAbsolute(post.createdAt)}</span>

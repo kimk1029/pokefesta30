@@ -106,6 +106,20 @@ export async function submitFeed(formData: FormData): Promise<void> {
   const text = String(formData.get('text') ?? '').trim();
   if (!text) throw new Error('text required');
 
+  // 첨부 사진 (선택). JSON 배열 문자열로 들어옴.
+  const imagesRaw = String(formData.get('images') ?? '').trim();
+  let images: string[] = [];
+  if (imagesRaw) {
+    try {
+      const parsed = JSON.parse(imagesRaw) as unknown;
+      if (Array.isArray(parsed)) {
+        images = parsed.filter((u): u is string => typeof u === 'string' && u.length > 0).slice(0, 3);
+      }
+    } catch {
+      // 무시 — 사진 없이 등록 진행
+    }
+  }
+
   let level: CongestionLevel | null = null;
   if (kind === 'report') {
     const rawLevel = String(formData.get('level') ?? '');
@@ -151,6 +165,7 @@ export async function submitFeed(formData: FormData): Promise<void> {
           authorEmoji,
           authorBgId: snapBg,
           authorFrameId: snapFrame,
+          images: images.length > 0 ? images : undefined,
         },
       });
       if (kind === 'report' && placeId && level) {
