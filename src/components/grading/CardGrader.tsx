@@ -1181,44 +1181,79 @@ function orderCorners(pts: Pt[]): Quad {
 
 /**
  * OpenCV.js 로 이미지에서 카드 외곽 사각형을 찾는다.
- * 실패 시 null. 메모리 누수 방지를 위해 모든 Mat / MatVector 명시적 delete.
+ *
+ * 파이프라인:
+ *  1. 다운스케일 (long side 1200px) — 임계값 일관성 + 속도
+ *  2. 그레이스케일 + Gaussian blur
+ *  3. Otsu 로 임계값 자동 도출 → Canny(otsu*0.5, otsu) — 카드 색/배경 색 무관 적응
+ *  4. morphologyEx CLOSE (5×5) — 라운드 모서리에서 끊긴 엣지 메움
+ *  5. findContours
+ *  6. 각 큰 contour: 4점 approxPolyDP 시도, 실패하면 minAreaRect 회전 사각형 fallback
+ *  7. 카드 종횡비(63:88 ≈ 0.716) 와 면적으로 후보들 점수화 → 베스트 선택
+ *  8. cornerSubPix 로 sub-pixel 보정
+ *  9. 다운스케일 비율 만큼 원본 좌표로 복원
+ *
+ * 실패 시 null. 모든 Mat 누수 방지를 위해 try/finally + delete 명시.
  */
 function detectOuterQuad(img: HTMLImageElement): Quad | null {
   if (typeof window === 'undefined') return null;
   const cv = (window as unknown as { cv?: CvLike }).cv;
   if (!cv || !cv.Mat) return null;
 
+  // Pokemon TCG 카드 종횡비 (단변/장변)
+  const TARGET_RATIO = 63 / 88;
+  // 처리용 다운스케일 — 긴 변 이 값까지로 줄임
+  const PROC_LONG_SIDE = 1200;
+
   const src = cv.imread(img);
+  const proc = new cv.Mat();
   const gray = new cv.Mat();
   const blurred = new cv.Mat();
+  const otsuBin = new cv.Mat();
   const edges = new cv.Mat();
-  const dilated = new cv.Mat();
+  const closed = new cv.Mat();
   const contours = new cv.MatVector();
   const hierarchy = new cv.Mat();
-  let bestApprox: CvMat | null = null;
-  let bestArea = 0;
   let kernel: CvMat | null = null;
   let cornersMat: CvMat | null = null;
 
   try {
-    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-    // 큰 이미지면 OCR/검출 비용 절감 — 처리는 long side 1200px 까지로 다운스케일.
-    // (코너 정확도는 다운스케일 후도 충분 — 0.5px 이내)
+    // 1. 다운스케일
+    const longSide = Math.max(src.rows, src.cols);
+    const procScale = longSide > PROC_LONG_SIDE ? PROC_LONG_SIDE / longSide : 1;
+    if (procScale < 1) {
+      const newW = Math.round(src.cols * procScale);
+      const newH = Math.round(src.rows * procScale);
+      cv.resize(src, proc, new cv.Size(newW, newH), 0, 0, cv.INTER_AREA);
+    } else {
+      src.copyTo(proc);
+    }
+
+    // 2. 그레이스케일 + 노이즈 완화
+    cv.cvtColor(proc, gray, cv.COLOR_RGBA2GRAY, 0);
     cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
 
-    // Canny 엣지 — Otsu threshold 보다 카드 색/배경 색에 robust.
-    // 임계값은 보수적으로 시작 (50, 150). 카드 인쇄 프레임도 같이 잡힐 수 있으나 외곽이 더 큰 contour 라
-    // 면적 기준으로 우선순위가 됨.
-    cv.Canny(blurred, edges, 50, 150, 3, false);
+    // 3. Otsu 로 임계값 자동 도출 → Canny 의 high 값으로 사용 (카드/배경 명도 차이에 적응)
+    const otsu = cv.threshold(blurred, otsuBin, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+    const high = Math.max(60, otsu);
+    const low = Math.max(20, high * 0.5);
+    cv.Canny(blurred, edges, low, high, 3, false);
 
-    // 모폴로지 dilation 으로 끊어진 엣지 연결 — 코너 부분이 라운드여서 끊기는 경우 대응.
-    kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
-    cv.dilate(edges, dilated, kernel, new cv.Point(-1, -1), 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+    // 4. 모폴로지 close — 5x5 로 라운드 모서리 끊김 메움
+    kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
+    cv.morphologyEx(edges, closed, cv.MORPH_CLOSE, kernel);
 
-    cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    // 5. 외곽선 검출
+    cv.findContours(closed, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-    const minArea = src.rows * src.cols * 0.1;
-    const maxArea = src.rows * src.cols * 0.98;
+    // 6. 후보 수집 — 각 contour 에서 approxPolyDP 4점 또는 minAreaRect
+    interface Candidate {
+      pts: Pt[];
+      area: number;
+    }
+    const candidates: Candidate[] = [];
+    const minArea = proc.rows * proc.cols * 0.1;
+    const maxArea = proc.rows * proc.cols * 0.99;
 
     for (let i = 0; i < contours.size(); i++) {
       const c = contours.get(i) as CvMat;
@@ -1228,28 +1263,67 @@ function detectOuterQuad(img: HTMLImageElement): Quad | null {
         continue;
       }
       const peri = cv.arcLength(c, true);
-      // epsilon 을 좀 더 크게 — 둥근 모서리/노이즈가 있어도 4점 추출 잘 됨.
-      const approx = new cv.Mat();
-      cv.approxPolyDP(c, approx, peri * 0.025, true);
-      if (approx.rows === 4 && area > bestArea) {
-        if (bestApprox) bestApprox.delete();
-        bestApprox = approx;
-        bestArea = area;
-      } else {
+
+      // 6a. approxPolyDP 4점 시도 — 둥근 모서리에 대응해 ε 두 단계 시도
+      let added = false;
+      for (const eps of [0.02, 0.04]) {
+        const approx = new cv.Mat();
+        cv.approxPolyDP(c, approx, peri * eps, true);
+        if (approx.rows === 4) {
+          const pts: Pt[] = [];
+          for (let j = 0; j < 4; j++) {
+            pts.push({ x: approx.data32S[j * 2], y: approx.data32S[j * 2 + 1] });
+          }
+          candidates.push({ pts, area });
+          approx.delete();
+          added = true;
+          break;
+        }
         approx.delete();
+      }
+
+      // 6b. 4점 못 얻으면 minAreaRect 회전 사각형 — 라운드/노이즈 contour 대응
+      if (!added) {
+        try {
+          const rotRect = cv.minAreaRect(c);
+          const corners = rotatedRectCorners(rotRect);
+          // 회전 사각형 면적 = w*h
+          const rArea = rotRect.size.width * rotRect.size.height;
+          if (rArea >= minArea && rArea <= maxArea) {
+            candidates.push({ pts: corners, area: rArea });
+          }
+        } catch {
+          // minAreaRect 가 실패하면 skip
+        }
       }
       c.delete();
     }
 
-    if (!bestApprox) return null;
+    if (candidates.length === 0) return null;
 
-    // sub-pixel 코너 보정 — cornerSubPix 로 그라디언트 최대점에 정확히 snap
-    // 입력은 CV_32FC2 4×1 매트릭스로 변환.
-    const initial: number[] = [];
-    for (let i = 0; i < 4; i++) {
-      initial.push(bestApprox.data32S[i * 2], bestApprox.data32S[i * 2 + 1]);
+    // 7. 종횡비 + 면적 기반 점수 — 카드 비율(0.716) 에 가까울수록, 면적이 클수록 좋음
+    const imgArea = proc.rows * proc.cols;
+    let best: Candidate | null = null;
+    let bestScore = -Infinity;
+    for (const cand of candidates) {
+      const ordered = orderCorners(cand.pts);
+      const w = (edgeLen(ordered[0], ordered[1]) + edgeLen(ordered[3], ordered[2])) / 2;
+      const h = (edgeLen(ordered[0], ordered[3]) + edgeLen(ordered[1], ordered[2])) / 2;
+      if (w <= 0 || h <= 0) continue;
+      const ratio = Math.min(w, h) / Math.max(w, h);
+      const ratioScore = 1 - Math.min(0.5, Math.abs(ratio - TARGET_RATIO) * 2);
+      const areaScore = Math.min(1, cand.area / imgArea);
+      const score = ratioScore * 0.6 + areaScore * 0.4;
+      if (score > bestScore) {
+        bestScore = score;
+        best = { ...cand, pts: ordered };
+      }
     }
-    cornersMat = cv.matFromArray(4, 1, cv.CV_32FC2, initial);
+
+    if (!best) return null;
+
+    // 8. cornerSubPix 로 sub-pixel 보정
+    cornersMat = cv.matFromArray(4, 1, cv.CV_32FC2, best.pts.flatMap((p) => [p.x, p.y]));
     try {
       const winSize = new cv.Size(11, 11);
       const zeroZone = new cv.Size(-1, -1);
@@ -1260,27 +1334,59 @@ function detectOuterQuad(img: HTMLImageElement): Quad | null {
       );
       cv.cornerSubPix(gray, cornersMat, winSize, zeroZone, criteria);
     } catch {
-      // cornerSubPix 가 실패하면 거친 값 그대로 사용
+      // 실패해도 거친 값으로 진행
     }
 
-    const pts: Pt[] = [];
+    const refined: Pt[] = [];
     const data = cornersMat.data32F;
     for (let i = 0; i < 4; i++) {
-      pts.push({ x: data[i * 2], y: data[i * 2 + 1] });
+      refined.push({ x: data[i * 2], y: data[i * 2 + 1] });
     }
-    return orderCorners(pts);
+
+    // 9. 다운스케일했으면 원본 좌표로 복원
+    const inv = procScale < 1 ? 1 / procScale : 1;
+    const original = refined.map((p) => ({ x: p.x * inv, y: p.y * inv }));
+    return orderCorners(original);
   } finally {
     src.delete();
+    proc.delete();
     gray.delete();
     blurred.delete();
+    otsuBin.delete();
     edges.delete();
-    dilated.delete();
+    closed.delete();
     contours.delete();
     hierarchy.delete();
-    if (bestApprox) bestApprox.delete();
     if (kernel) kernel.delete();
     if (cornersMat) cornersMat.delete();
   }
+}
+
+function edgeLen(a: Pt, b: Pt): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/**
+ * cv.RotatedRect → 4개 꼭짓점 변환. cv.boxPoints 를 직접 호출하는 대신 수학으로 계산해서
+ * Mat 추가 할당 / 타입 선언 부담을 줄임.
+ */
+function rotatedRectCorners(rect: { center: { x: number; y: number }; size: { width: number; height: number }; angle: number }): Pt[] {
+  const cx = rect.center.x;
+  const cy = rect.center.y;
+  const w = rect.size.width;
+  const h = rect.size.height;
+  const a = (rect.angle * Math.PI) / 180;
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  const dx = w / 2;
+  const dy = h / 2;
+  // 회전 사각형 4 꼭짓점 (TL, TR, BR, BL — orderCorners 가 다시 정렬하므로 순서는 임의)
+  return [
+    { x: cx - dx * cos + dy * sin, y: cy - dx * sin - dy * cos },
+    { x: cx + dx * cos + dy * sin, y: cy + dx * sin - dy * cos },
+    { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos },
+    { x: cx - dx * cos - dy * sin, y: cy - dx * sin + dy * cos },
+  ];
 }
 
 /**
@@ -1395,15 +1501,24 @@ interface CvTermCriteria {
   maxCount: number;
   epsilon: number;
 }
+interface CvRotatedRect {
+  center: { x: number; y: number };
+  size: { width: number; height: number };
+  angle: number;
+}
+interface CvMatExt extends CvMat {
+  copyTo: (dst: CvMat) => void;
+}
 interface CvLike {
   Mat: new () => CvMat;
   MatVector: new () => CvMatVector;
   Size: new (w: number, h: number) => CvSize;
   Point: new (x: number, y: number) => CvPoint;
   TermCriteria: new (type: number, maxCount: number, epsilon: number) => CvTermCriteria;
-  imread: (img: HTMLImageElement | HTMLCanvasElement) => CvMat;
+  imread: (img: HTMLImageElement | HTMLCanvasElement) => CvMatExt;
   matFromArray: (rows: number, cols: number, type: number, data: number[]) => CvMat;
   cvtColor: (src: CvMat, dst: CvMat, code: number, dstCn?: number) => void;
+  resize: (src: CvMat, dst: CvMat, dsize: CvSize, fx?: number, fy?: number, interpolation?: number) => void;
   GaussianBlur: (src: CvMat, dst: CvMat, ksize: CvSize, sX: number, sY?: number, borderType?: number) => void;
   Canny: (src: CvMat, dst: CvMat, t1: number, t2: number, apertureSize?: number, L2gradient?: boolean) => void;
   dilate: (
@@ -1415,6 +1530,7 @@ interface CvLike {
     borderType: number,
     borderValue: CvScalar,
   ) => void;
+  morphologyEx: (src: CvMat, dst: CvMat, op: number, kernel: CvMat) => void;
   getStructuringElement: (shape: number, ksize: CvSize) => CvMat;
   morphologyDefaultBorderValue: () => CvScalar;
   threshold: (src: CvMat, dst: CvMat, thresh: number, max: number, type: number) => number;
@@ -1422,6 +1538,7 @@ interface CvLike {
   contourArea: (c: CvMat, oriented?: boolean) => number;
   arcLength: (c: CvMat, closed: boolean) => number;
   approxPolyDP: (c: CvMat, dst: CvMat, eps: number, closed: boolean) => void;
+  minAreaRect: (c: CvMat) => CvRotatedRect;
   cornerSubPix: (
     src: CvMat,
     corners: CvMat,
@@ -1437,6 +1554,8 @@ interface CvLike {
   RETR_EXTERNAL: number;
   CHAIN_APPROX_SIMPLE: number;
   MORPH_RECT: number;
+  MORPH_CLOSE: number;
+  INTER_AREA: number;
   CV_32FC2: number;
   TERM_CRITERIA_EPS: number;
   TERM_CRITERIA_MAX_ITER: number;
