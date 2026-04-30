@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { AppBarProfile } from '@/components/AppBarProfile';
 import { FeedAdRow } from '@/components/FeedAdRow';
 import { FeedRow } from '@/components/FeedRow';
-import { HeroSlider } from '@/components/HeroSlider';
+import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
 import { HomeInfoTabs } from '@/components/HomeInfoTabs';
 import { QuickGrid } from '@/components/QuickGrid';
 import { AppBar } from '@/components/ui/AppBar';
@@ -16,16 +16,17 @@ interface Props {
   todayCount: number;
   hourlyCounts: number[];
   nowHour: number;
+  heroBanners?: HeroSlideData[];
 }
 
-export function HomeScreen({ places, feeds, todayCount, hourlyCounts, nowHour }: Props) {
+export function HomeScreen({ places, feeds, todayCount, hourlyCounts, nowHour, heroBanners }: Props) {
   const recentFeeds = feeds.slice(0, 5);
 
   return (
     <>
       <StatusBar />
       <AppBar right={<AppBarProfile />} />
-      <HeroSlider />
+      <HeroSlider slides={heroBanners} />
       <QuickGrid />
 
       <HomeInfoTabs places={places} todayCount={todayCount} hourlyCounts={hourlyCounts} nowHour={nowHour} />

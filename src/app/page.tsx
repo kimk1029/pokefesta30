@@ -1,5 +1,6 @@
 import { HomeScreen } from '@/components/screens/HomeScreen';
 import {
+  getActiveHeroBanners,
   getFeedPosts,
   getHourlyReportCounts,
   getPlaces,
@@ -9,11 +10,12 @@ import {
 export const revalidate = 30;
 
 export default async function Page() {
-  const [places, feeds, todayCount, hourly] = await Promise.all([
+  const [places, feeds, todayCount, hourly, heroBanners] = await Promise.all([
     getPlaces(),
     getFeedPosts(5),
     getTodayReportCount(),
     getHourlyReportCounts(),
+    getActiveHeroBanners(),
   ]);
   return (
     <HomeScreen
@@ -22,6 +24,7 @@ export default async function Page() {
       todayCount={todayCount}
       hourlyCounts={hourly.counts}
       nowHour={hourly.nowHour}
+      heroBanners={heroBanners}
     />
   );
 }

@@ -457,6 +457,47 @@ export async function getMyInventory(userId: string): Promise<InventorySnapshot>
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* hero banners                                                        */
+/* ------------------------------------------------------------------ */
+
+export interface HeroSlideRow {
+  cls: 'slide-a' | 'slide-b' | 'slide-c' | 'slide-d';
+  badge: string;
+  title: string;
+  sub: string;
+  visualType: 'emoji' | 'image';
+  visualValue: string;
+  onClick: 'stamp-rally' | 'oripa' | null;
+  ctaHint: string | null;
+}
+
+const SLIDE_CLASS_SET = new Set(['slide-a', 'slide-b', 'slide-c', 'slide-d']);
+const VISUAL_TYPE_SET = new Set(['emoji', 'image']);
+const ON_CLICK_SET = new Set(['stamp-rally', 'oripa']);
+
+export async function getActiveHeroBanners(): Promise<HeroSlideRow[]> {
+  try {
+    const rows = await prisma.heroBanner.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    });
+    return rows.map((r) => ({
+      cls: (SLIDE_CLASS_SET.has(r.slideClass) ? r.slideClass : 'slide-a') as HeroSlideRow['cls'],
+      badge: r.badge,
+      title: r.title,
+      sub: r.sub,
+      visualType: (VISUAL_TYPE_SET.has(r.visualType) ? r.visualType : 'emoji') as HeroSlideRow['visualType'],
+      visualValue: r.visualValue,
+      onClick: (r.onClick && ON_CLICK_SET.has(r.onClick) ? r.onClick : null) as HeroSlideRow['onClick'],
+      ctaHint: r.ctaHint,
+    }));
+  } catch (err) {
+    console.error('[getActiveHeroBanners]', err);
+    return [];
+  }
+}
+
 export const getTodayReportCount = unstable_cache(
   async (): Promise<number> => {
     try {

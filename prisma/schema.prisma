@@ -27,6 +27,10 @@ model User {
 
   // profile / inventory (클라이언트 로컬스토리지 대체)
   points           Int      @default(0)
+  /// 마지막 출석체크 시각. KST 일자 비교용. null = 아직 출석 한 번도 안 함.
+  lastCheckInAt    DateTime?
+  /// 연속 출석 일수. 3 의 배수에 도달할 때 보너스 지급.
+  streakCount      Int      @default(0)
   avatarId         String   @default("bulbasaur")
   backgroundId    String   @default("default")
   frameId          String   @default("none")
@@ -252,6 +256,35 @@ model CardPriceSnapshot {
 
   @@index([cardId, fetchedAt(sort: Desc)])
   @@map("card_price_snapshots")
+}
+
+/// 홈 히어로 슬라이더 배너 — 어드민에서 관리.
+/// visualType='emoji' 면 visualValue 가 단일 이모지/문자, 'image' 면 정적 경로 또는 URL.
+/// onClick: null | 'stamp-rally' | 'oripa' (특수 액션 라우팅)
+model HeroBanner {
+  id           Int      @id @default(autoincrement())
+  /// 정렬 키. 작을수록 먼저 노출.
+  sortOrder    Int      @default(0)
+  /// 슬라이드 배경 클래스 — 'slide-a' | 'slide-b' | 'slide-c' | 'slide-d'
+  slideClass   String   @default("slide-a")
+  badge        String
+  /// 줄바꿈은 \n 으로 입력
+  title        String
+  /// 줄바꿈은 \n 으로 입력
+  sub          String
+  ctaHint      String?
+  /// 'emoji' | 'image'
+  visualType   String   @default("emoji")
+  /// emoji: '💬' 같은 단일 글자, image: '/promo/foo.png'
+  visualValue  String   @default("✨")
+  /// null | 'stamp-rally' | 'oripa'
+  onClick      String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([active, sortOrder])
+  @@map("hero_banners")
 }
 
 model Bookmark {

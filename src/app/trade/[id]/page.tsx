@@ -11,6 +11,7 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import { Tag } from '@/components/ui/Tag';
 import { authOptions } from '@/lib/auth';
 import { formatPrice } from '@/lib/numberFormat';
+import { prisma } from '@/lib/prisma';
 import { getTradeById } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,15 @@ export default async function Page({ params }: Props) {
   if (!trade) notFound();
 
   const isAuthor = !!session?.user?.id && session.user.id === trade.authorId;
+
+  // "거래 완료" 버튼 활성화 조건: 누군가 1:1 쪽지를 보낸 적이 있어야 함
+  const hasInboundMessage =
+    isAuthor && trade.authorId
+      ? !!(await prisma.message.findFirst({
+          where: { tradeId: trade.id, receiverId: trade.authorId },
+          select: { id: true },
+        }))
+      : false;
 
   const STATUS_LABEL: Record<string, string> = {
     open: '거래 중',
@@ -135,6 +145,7 @@ export default async function Page({ params }: Props) {
               tradeId={trade.id}
               status={trade.status}
               isAuthor={isAuthor}
+              canComplete={hasInboundMessage}
             />
           </>
         )}

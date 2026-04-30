@@ -6,30 +6,40 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { StampRallyModal } from './StampRallyModal';
 
+export type HeroSlideClass = 'slide-a' | 'slide-b' | 'slide-c' | 'slide-d';
+export type HeroOnClick = 'stamp-rally' | 'oripa' | null;
+
+/** DB 또는 폴백 상수에서 오는 직렬화 가능한 형태. visual 은 emoji/image 두 종류만. */
+export interface HeroSlideData {
+  cls: HeroSlideClass;
+  badge: string;
+  title: string;
+  sub: string;
+  visualType: 'emoji' | 'image';
+  visualValue: string;
+  onClick: HeroOnClick;
+  ctaHint?: string | null;
+}
+
 interface Slide {
-  cls: 'slide-a' | 'slide-b' | 'slide-c' | 'slide-d';
+  cls: HeroSlideClass;
   badge: string;
   title: string;
   sub: string;
   visual: ReactNode;
-  onClick?: 'stamp-rally' | 'oripa' | null;
-  ctaHint?: string;
+  onClick: HeroOnClick;
+  ctaHint?: string | null;
 }
 
-const SLIDES: Slide[] = [
+/** DB 가 비었을 때를 위한 폴백 — 어드민에서 모두 삭제해도 빈 화면이 되지 않도록. */
+const FALLBACK_SLIDES: HeroSlideData[] = [
   {
     cls: 'slide-a',
     badge: '★ 팬 프로젝트',
     title: '잉어킹\n프로모!',
     sub: '성수 6곳 스탬프 랠리\n탭해서 이벤트 상세 보기',
-    visual: (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src="/promo/magikarp-promo.png"
-        alt="잉어킹 프로모 카드"
-        className="hero-promo-card"
-      />
-    ),
+    visualType: 'image',
+    visualValue: '/promo/magikarp-promo.png',
     onClick: 'stamp-rally',
     ctaHint: '👉 TAP',
   },
@@ -38,7 +48,8 @@ const SLIDES: Slide[] = [
     badge: '⚡ 실시간 거래 활성',
     title: '삽니다\n팝니다',
     sub: '성수 현장 직거래\n장소 태그로 빠르게 연결',
-    visual: <div style={{ fontSize: 68, lineHeight: 1 }}>💬</div>,
+    visualType: 'emoji',
+    visualValue: '💬',
     onClick: null,
   },
   {
@@ -46,7 +57,8 @@ const SLIDES: Slide[] = [
     badge: '📢 30초 제보',
     title: '지금\n제보하기',
     sub: '방금 본 현장 상황을\n다른 트레이너에게 알려주세요',
-    visual: <div style={{ fontSize: 68, lineHeight: 1 }}>📢</div>,
+    visualType: 'emoji',
+    visualValue: '📢',
     onClick: null,
   },
   {
@@ -54,7 +66,8 @@ const SLIDES: Slide[] = [
     badge: '🎴 오리파 뽑기',
     title: '한정 카드\n뽑기!',
     sub: 'S급 카드를 뽑을 기회\n탭해서 지금 도전',
-    visual: <div style={{ fontSize: 68, lineHeight: 1 }}>🎴</div>,
+    visualType: 'emoji',
+    visualValue: '🎴',
     onClick: 'oripa',
     ctaHint: '👉 TAP',
   },
@@ -62,9 +75,33 @@ const SLIDES: Slide[] = [
 
 const AUTOPLAY_MS = 3500;
 
-export function HeroSlider() {
+function renderVisual(s: HeroSlideData): ReactNode {
+  if (s.visualType === 'image') {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={s.visualValue} alt={s.badge} className="hero-promo-card" />
+    );
+  }
+  return <div style={{ fontSize: 68, lineHeight: 1 }}>{s.visualValue}</div>;
+}
+
+interface HeroSliderProps {
+  slides?: HeroSlideData[];
+}
+
+export function HeroSlider({ slides }: HeroSliderProps = {}) {
   const router = useRouter();
   const { status } = useSession();
+  const source = slides && slides.length > 0 ? slides : FALLBACK_SLIDES;
+  const SLIDES: Slide[] = source.map((s) => ({
+    cls: s.cls,
+    badge: s.badge,
+    title: s.title,
+    sub: s.sub,
+    visual: renderVisual(s),
+    onClick: s.onClick,
+    ctaHint: s.ctaHint ?? null,
+  }));
   const [cur, setCur] = useState(0);
   const [showRally, setShowRally] = useState(false);
   const startX = useRef(0);

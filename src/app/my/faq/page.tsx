@@ -1,6 +1,7 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { REWARDS } from '@/lib/rewards';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,11 +12,39 @@ interface QA {
 
 const FAQ: Array<{ title: string; items: QA[] }> = [
   {
+    title: '포인트 모으기',
+    items: [
+      {
+        q: '포인트는 어떻게 받나요?',
+        a:
+          `다음 활동을 하면 자동으로 포인트가 쌓입니다.\n` +
+          `· 하루 1회 출석 (KST 기준 일자 변경 시) +${REWARDS.login_daily}P\n` +
+          `· 3일 연속 출석 보너스 +${REWARDS.login_streak3_bonus}P\n` +
+          `· 일반 피드 작성 +${REWARDS.feed_general}P\n` +
+          `· 혼잡도 제보 작성 +${REWARDS.feed_report}P\n` +
+          `· 거래글 등록 +${REWARDS.trade_post}P\n` +
+          `· 거래 완료 처리 +${REWARDS.trade_done}P (쪽지를 1통 이상 받은 글에서만)`,
+      },
+      {
+        q: '출석 보너스는 언제 들어와요?',
+        a: 'KST(한국 시간) 기준으로 날짜가 바뀐 뒤 앱에 다시 들어오면 즉시 적립됩니다. 마이페이지/홈 진입 시점에 자동 처리.',
+      },
+      {
+        q: '거래 완료 포인트가 안 들어와요.',
+        a: '거래 완료 보상은 누군가 해당 거래글로 1:1 쪽지를 보낸 적이 있어야 지급됩니다. 쪽지 없이는 "거래 완료" 버튼이 비활성 상태입니다.',
+      },
+      {
+        q: '포인트는 어디에 쓰나요?',
+        a: '마이페이지 → 상점에서 아바타 · 배경 · 프레임을 구매하거나, 오리파 뽑기에 사용할 수 있습니다.',
+      },
+    ],
+  },
+  {
     title: '계정 / 로그인',
     items: [
       {
         q: '닉네임은 어떻게 바꾸나요?',
-        a: '마이페이지 → 이름 옆 연필 아이콘 → 새 이름 입력 후 저장. 2~20자까지 가능합니다.',
+        a: '마이페이지 → 이름 옆 "닉네임수정" 버튼 → 새 이름 입력 후 저장. 2~20자까지 가능합니다.',
       },
       {
         q: '로그인이 안돼요. 카카오톡에서 열면 "Unable to log in" 이 떠요.',
@@ -32,11 +61,11 @@ const FAQ: Array<{ title: string; items: QA[] }> = [
     items: [
       {
         q: '거래글 작성 후 완료 처리는 어떻게 하나요?',
-        a: '거래글 상세 페이지 → 본인 글이면 "거래 완료" 버튼 노출. 완료된 글은 목록에서 흐리게 표시되고, 상단 토글로 숨기거나 다시 볼 수 있습니다.',
+        a: '거래글 상세 페이지 → 본인 글이면 "거래 완료" 버튼 노출. 단, 누군가가 1:1 쪽지를 보낸 적이 있어야 완료 처리가 가능합니다 (스팸·자기완료 방지). 완료된 글은 목록에서 흐리게 표시됩니다.',
       },
       {
         q: '제보하면 포인트가 얼마나 쌓이나요?',
-        a: '혼잡도 제보 +20P, 일반 피드 +10P, 거래글 작성 +30P, 거래 완료 +100P 입니다.',
+        a: `일반 피드 +${REWARDS.feed_general}P, 혼잡도 제보 +${REWARDS.feed_report}P, 거래글 작성 +${REWARDS.trade_post}P, 거래 완료 +${REWARDS.trade_done}P 입니다.`,
       },
       {
         q: '가격은 어떻게 입력하나요?',
@@ -140,6 +169,7 @@ export default function Page() {
                   lineHeight: 1.8,
                   color: 'var(--ink2)',
                   letterSpacing: 0.3,
+                  whiteSpace: 'pre-line',
                 }}
               >
                 <span style={{ color: 'var(--blu)', marginRight: 6 }}>A.</span>

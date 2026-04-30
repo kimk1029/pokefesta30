@@ -125,19 +125,18 @@ export function EditableName({ initialName }: Props) {
         aria-label="닉네임 수정"
         style={{
           flexShrink: 0,
-          background: 'transparent',
-          border: 'none',
+          background: 'var(--pap2)',
+          color: 'var(--ink2)',
+          border: '1px solid var(--ink)',
           cursor: 'pointer',
-          fontSize: 14,
-          padding: 2,
-          opacity: 0.85,
-          // 연필이 기본 가로로 놓여있는 글꼴에서도 45° 기울여 편집 포즈로
-          display: 'inline-block',
-          transform: 'rotate(-45deg)',
+          fontFamily: 'var(--f1)',
+          fontSize: 8,
+          letterSpacing: 0.5,
+          padding: '3px 6px',
           lineHeight: 1,
         }}
       >
-        ✏
+        닉네임수정
       </button>
     </div>
   );

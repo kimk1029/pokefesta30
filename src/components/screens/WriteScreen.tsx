@@ -45,7 +45,10 @@ interface Props {
 export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
   const { avatar: avatarId } = useInventory();
   const [kind, setKind] = useState<FeedKind>(defaultKind);
-  const [place, setPlace] = useState<string>(places[0]?.id ?? '');
+  // 피드는 기본 "장소 없음", 거래는 첫 장소를 기본으로
+  const [place, setPlace] = useState<string>(
+    mode === 'feed' ? '' : (places[0]?.id ?? ''),
+  );
   const [level, setLevel] = useState<CongestionLevel>('normal');
   const [ttype, setTtype] = useState<TradeType>('buy');
   const [title, setTitle] = useState('');

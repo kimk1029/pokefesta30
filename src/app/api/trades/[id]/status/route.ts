@@ -41,9 +41,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const before = await prisma.trade.findUnique({ where: { id } });
     if (!before) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
+    // 거래 완료는 누군가 1:1 쪽지를 보낸 적이 있어야 가능 (스팸·자기완료 방지)
+    const becameDone = status === 'done' && before.status !== 'done';
+    if (becameDone && before.authorId) {
+      const inboundMsg = await prisma.message.findFirst({
+        where: { tradeId: id, receiverId: before.authorId },
+        select: { id: true },
+      });
+      if (!inboundMsg) {
+        return NextResponse.json(
+          { error: '아직 쪽지를 받은 적이 없어 완료 처리할 수 없어요. 구매자와 쪽지를 먼저 주고받아 주세요.' },
+          { status: 409 },
+        );
+      }
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const row = await tx.trade.update({ where: { id }, data: { status } });
-      const becameDone = status === 'done' && before.status !== 'done';
       if (becameDone && before.authorId) {
         await tx.user.update({
           where: { id: before.authorId },

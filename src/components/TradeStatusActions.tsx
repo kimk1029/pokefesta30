@@ -8,6 +8,8 @@ interface Props {
   tradeId: number;
   status: string;
   isAuthor: boolean;
+  /** 누군가 이 거래글에 1:1 쪽지를 보낸 적 있는지. 없으면 "거래 완료" 비활성. */
+  canComplete: boolean;
 }
 
 const LABEL: Record<string, string> = {
@@ -17,7 +19,7 @@ const LABEL: Record<string, string> = {
   cancelled: '취소됨',
 };
 
-export function TradeStatusActions({ tradeId, status, isAuthor }: Props) {
+export function TradeStatusActions({ tradeId, status, isAuthor, canComplete }: Props) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -108,13 +110,41 @@ export function TradeStatusActions({ tradeId, status, isAuthor }: Props) {
         </button>
         <button
           type="button"
-          onClick={() => patch('done')}
-          disabled={pending !== null || status === 'done'}
-          style={{ ...btn('var(--grn-dk)'), opacity: status === 'done' ? 0.55 : 1 }}
+          onClick={() => {
+            if (!canComplete && status !== 'done') {
+              setMsg('⚠ 쪽지를 1통 이상 받은 뒤에 완료 처리할 수 있어요');
+              setTimeout(() => setMsg(null), 1800);
+              return;
+            }
+            patch('done');
+          }}
+          disabled={pending !== null || status === 'done' || !canComplete}
+          title={!canComplete && status !== 'done' ? '쪽지를 1통 이상 받아야 완료할 수 있어요' : undefined}
+          style={{
+            ...btn('var(--grn-dk)'),
+            opacity: status === 'done' || !canComplete ? 0.55 : 1,
+            cursor: !canComplete && status !== 'done' ? 'not-allowed' : 'pointer',
+          }}
         >
           {status === 'done' ? '완료' : `완료 +${REWARDS.trade_done}P`}
         </button>
       </div>
+      {!canComplete && status !== 'done' && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: '6px 8px',
+            background: 'var(--pap2)',
+            color: 'var(--ink2)',
+            fontFamily: 'var(--f1)',
+            fontSize: 8,
+            letterSpacing: 0.5,
+            textAlign: 'center',
+          }}
+        >
+          ✉ 쪽지를 받은 적이 없어요. 구매자와 쪽지를 먼저 주고받은 뒤 완료해주세요.
+        </div>
+      )}
     </div>
   );
 }
