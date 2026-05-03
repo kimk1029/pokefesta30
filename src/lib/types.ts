@@ -1,15 +1,11 @@
-export type CongestionLevel = 'empty' | 'normal' | 'busy' | 'full';
-
 export type TradeType = 'buy' | 'sell';
 
+/** 거래 시 만남 장소 (지하철역, 카페 등). 페스타 혼잡도는 제거됨. */
 export interface Place {
   id: string;
   name: string;
   emoji: string;
   bg: string;
-  level: CongestionLevel;
-  mins: number;
-  count: number;
 }
 
 export interface Trade {
@@ -32,17 +28,6 @@ export interface Trade {
   images?: string[];      // 첨부 사진 URL 배열
 }
 
-export type FeedKind = 'general' | 'report';
-
-export interface FeedItem {
-  id: number;
-  place: string;
-  level: CongestionLevel;
-  text: string;
-  time: string;
-  user: string;
-}
-
 export type TradeStatus = 'open' | 'reserved' | 'done' | 'cancelled';
 
 export interface TradeDetail extends Trade {
@@ -56,10 +41,6 @@ export interface TradeDetail extends Trade {
 
 export interface FeedPost {
   id: number;
-  kind: FeedKind;
-  level?: CongestionLevel | null;
-  place: string | null;
-  placeId?: string | null;
   text: string;
   time: string;
   createdAt: string;
@@ -176,7 +157,7 @@ export interface MyProfile {
   xp: number;
   xpNeeded: number;
   rating: string;
-  reportCount: number;
+  cardCount: number;
   tradeCount: number;
   savedCount: number;
   points: number;

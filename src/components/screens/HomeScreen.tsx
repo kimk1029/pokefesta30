@@ -1,22 +1,28 @@
 import { AppBarProfile } from '@/components/AppBarProfile';
 import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
-import { HomeInfoTabs } from '@/components/HomeInfoTabs';
 import { HomeRecentFeed } from '@/components/HomeRecentFeed';
+import { MyCardsPreview } from '@/components/MyCardsPreview';
 import { QuickGrid } from '@/components/QuickGrid';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
-import type { FeedPost, Place } from '@/lib/types';
+import type { MyCardRow } from '@/lib/queries';
+import type { FeedPost } from '@/lib/types';
 
 interface Props {
-  places: Place[];
   feeds: FeedPost[];
-  todayCount: number;
-  hourlyCounts: number[];
-  nowHour: number;
   heroBanners?: HeroSlideData[];
+  myCards: MyCardRow[];
+  myCardsTotal: number;
+  isLoggedIn: boolean;
 }
 
-export function HomeScreen({ places, feeds, todayCount, hourlyCounts, nowHour, heroBanners }: Props) {
+export function HomeScreen({
+  feeds,
+  heroBanners,
+  myCards,
+  myCardsTotal,
+  isLoggedIn,
+}: Props) {
   return (
     <>
       <StatusBar />
@@ -24,7 +30,7 @@ export function HomeScreen({ places, feeds, todayCount, hourlyCounts, nowHour, h
       <HeroSlider slides={heroBanners} />
       <QuickGrid />
 
-      <HomeInfoTabs places={places} todayCount={todayCount} hourlyCounts={hourlyCounts} nowHour={nowHour} />
+      {isLoggedIn && <MyCardsPreview cards={myCards} total={myCardsTotal} />}
 
       <HomeRecentFeed initialFeeds={feeds.slice(0, 5)} />
 

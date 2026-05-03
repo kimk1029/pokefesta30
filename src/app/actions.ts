@@ -8,11 +8,9 @@ import { isAvatarId } from '@/lib/avatars';
 import { defaultNameFor } from '@/lib/defaultName';
 import { prisma } from '@/lib/prisma';
 import { REWARDS } from '@/lib/rewards';
-import type { CongestionLevel, FeedKind, TradeType } from '@/lib/types';
+import type { TradeType } from '@/lib/types';
 
-const LEVELS: readonly CongestionLevel[] = ['empty', 'normal', 'busy', 'full'] as const;
 const TRADE_TYPES: readonly TradeType[] = ['buy', 'sell'] as const;
-const FEED_KINDS: readonly FeedKind[] = ['general', 'report'] as const;
 
 async function requireSession() {
   const session = await getServerSession(authOptions);
@@ -86,27 +84,18 @@ function authorTokenFromForm(
 }
 
 /* ============================================================
- * Feed — 통합 작성 (일반 + 제보)
+ * Feed — 일반 커뮤니티 글 작성
  *   form fields:
- *     kind: 'general' | 'report'
- *     place_id?: string
- *     level?: CongestionLevel  (kind=report 필수)
  *     text: string
+ *     avatar_id?: string
+ *     images?: string[] (JSON)
  * ========================================================== */
 export async function submitFeed(formData: FormData): Promise<void> {
   const session = await requireSession();
 
-  const kindRaw = String(formData.get('kind') ?? 'general');
-  if (!FEED_KINDS.includes(kindRaw as FeedKind)) {
-    throw new Error(`invalid kind: ${kindRaw}`);
-  }
-  const kind = kindRaw as FeedKind;
-  const placeIdRaw = String(formData.get('place_id') ?? '').trim();
-  const placeId = placeIdRaw || null;
   const text = String(formData.get('text') ?? '').trim();
   if (!text) throw new Error('text required');
 
-  // 첨부 사진 (선택). JSON 배열 문자열로 들어옴.
   const imagesRaw = String(formData.get('images') ?? '').trim();
   let images: string[] = [];
   if (imagesRaw) {
@@ -120,19 +109,8 @@ export async function submitFeed(formData: FormData): Promise<void> {
     }
   }
 
-  let level: CongestionLevel | null = null;
-  if (kind === 'report') {
-    const rawLevel = String(formData.get('level') ?? '');
-    if (!LEVELS.includes(rawLevel as CongestionLevel)) {
-      throw new Error(`invalid level: ${rawLevel}`);
-    }
-    if (!placeId) throw new Error('place_id required for report');
-    level = rawLevel as CongestionLevel;
-  }
-
   const authorId = await ensureUser(session);
   const authorEmoji = authorTokenFromForm(formData, session);
-  const reward = kind === 'report' ? REWARDS.feed_report : REWARDS.feed_general;
 
   // 작성 시점의 배경/테두리 스냅샷 (author 인벤토리 기준)
   let snapBg = 'default';
@@ -148,8 +126,7 @@ export async function submitFeed(formData: FormData): Promise<void> {
         snapFrame = u.frameId;
       }
     } catch (err) {
-      console.error('[submitFeed] 스냅샷 쿼리 실패 (컬럼 없음 가능):', err);
-      // 기본값 유지하고 계속 진행
+      console.error('[submitFeed] 스냅샷 쿼리 실패:', err);
     }
   }
 
@@ -157,9 +134,6 @@ export async function submitFeed(formData: FormData): Promise<void> {
     await prisma.$transaction(async (tx) => {
       await tx.feed.create({
         data: {
-          kind,
-          level,
-          placeId,
           text,
           authorId,
           authorEmoji,
@@ -168,16 +142,10 @@ export async function submitFeed(formData: FormData): Promise<void> {
           images: images.length > 0 ? images : undefined,
         },
       });
-      if (kind === 'report' && placeId && level) {
-        await tx.place.update({
-          where: { id: placeId },
-          data: { level, lastReportAt: new Date(), count: { increment: 1 } },
-        });
-      }
       if (authorId) {
         await tx.user.update({
           where: { id: authorId },
-          data: { points: { increment: reward } },
+          data: { points: { increment: REWARDS.feed_general } },
         });
       }
     });
@@ -189,24 +157,9 @@ export async function submitFeed(formData: FormData): Promise<void> {
   }
 
   revalidatePath('/feed');
-  revalidatePath('/live');
   revalidatePath('/');
   revalidateTag('feeds');
-  if (kind === 'report') revalidateTag('places');
   redirect('/feed');
-}
-
-/**
- * 구 호환 — submitReport 는 submitFeed(kind=report) 로 내부 위임.
- * WriteScreen 'report' 모드에서 아직 사용 가능.
- */
-export async function submitReport(formData: FormData): Promise<void> {
-  formData.set('kind', 'report');
-  const note = formData.get('note');
-  if (note !== null && !formData.get('text')) {
-    formData.set('text', String(note));
-  }
-  return submitFeed(formData);
 }
 
 /* ============================================================

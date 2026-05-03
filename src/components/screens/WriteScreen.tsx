@@ -8,60 +8,45 @@ import { TradeImagePicker } from '@/components/TradeImagePicker';
 import { REWARDS } from '@/lib/rewards';
 import { AppBar } from '@/components/ui/AppBar';
 import { Chip } from '@/components/ui/Chip';
-import { CongOption } from '@/components/ui/CongOption';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { Segmented } from '@/components/ui/Segmented';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { TextInput } from '@/components/ui/TextInput';
 import { TradeTypeButton } from '@/components/ui/TradeTypeButton';
-import type { CongestionLevel, FeedKind, Place, TradeType } from '@/lib/types';
+import type { Place, TradeType } from '@/lib/types';
 
 export type WriteMode = 'feed' | 'trade';
 
 const TITLES: Record<WriteMode, string> = {
-  feed: '피드 작성',
+  feed: '커뮤니티 글 작성',
   trade: '거래글 작성',
 };
 
-const KIND_FILTERS: ReadonlyArray<{ id: FeedKind; label: string }> = [
-  { id: 'general', label: '🗣 일반' },
-  { id: 'report', label: '📢 제보' },
-];
-
-const LEVELS: Array<{ id: CongestionLevel; emoji: string; label: string }> = [
-  { id: 'empty', emoji: '🟢', label: '여유' },
-  { id: 'normal', emoji: '🟡', label: '보통' },
-  { id: 'busy', emoji: '🟠', label: '혼잡' },
-  { id: 'full', emoji: '🔴', label: '매우혼잡' },
-];
-
 interface Props {
   mode: WriteMode;
-  /** feed 모드에서 초기 카테고리 */
-  defaultKind?: FeedKind;
-  places: Place[];
+  /** 거래 모드에서만 사용 — 만남 장소 칩 */
+  places?: Place[];
+  /** "내 카드"에서 진입 시 제목/본문 prefill */
+  prefill?: { title?: string; body?: string };
 }
 
-export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
+export function WriteScreen({ mode, places = [], prefill }: Props) {
   const { avatar: avatarId } = useInventory();
-  const [kind, setKind] = useState<FeedKind>(defaultKind);
-  // 피드는 기본 "장소 없음", 거래는 첫 장소를 기본으로
   const [place, setPlace] = useState<string>(
-    mode === 'feed' ? '' : (places[0]?.id ?? ''),
+    mode === 'trade' ? (places[0]?.id ?? '') : '',
   );
-  const [level, setLevel] = useState<CongestionLevel>('normal');
-  const [ttype, setTtype] = useState<TradeType>('buy');
-  const [title, setTitle] = useState('');
+  const [ttype, setTtype] = useState<TradeType>(
+    prefill?.title?.startsWith('[판매]') ? 'sell' : 'buy',
+  );
+  const [title, setTitle] = useState(prefill?.title ?? '');
   const [price, setPrice] = useState('');
   const [kakaoId, setKakaoId] = useState('');
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(prefill?.body ?? '');
   const [images, setImages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const submitLockRef = useRef(false);
 
   const isFeed = mode === 'feed';
-  const isReport = isFeed && kind === 'report';
 
   const submit = () => {
     if (pending || submitLockRef.current) return;
@@ -71,7 +56,6 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
     }
     if (isFeed) {
       if (!note.trim()) return setError('내용을 입력해주세요');
-      if (isReport && !place) return setError('제보는 장소가 필요해요');
     }
     setError(null);
     submitLockRef.current = true;
@@ -99,12 +83,9 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
       return;
     }
 
-    // feed (general / report)
-    fd.set('kind', kind);
+    // feed
     fd.set('text', note);
     fd.set('avatar_id', avatarId);
-    if (place) fd.set('place_id', place);
-    if (isReport) fd.set('level', level);
     if (images.length > 0) fd.set('images', JSON.stringify(images));
     startTransition(async () => {
       try {
@@ -117,12 +98,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
     });
   };
 
-  const submitLabel =
-    mode === 'trade'
-      ? '거래글 등록'
-      : isReport
-        ? '제보 등록'
-        : '피드 올리기';
+  const submitLabel = mode === 'trade' ? '거래글 등록' : '글 올리기';
 
   return (
     <>
@@ -147,59 +123,17 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
         </div>
       )}
 
-      {/* Feed category */}
-      {isFeed && (
+      {/* Place — 거래 전용 */}
+      {mode === 'trade' && (
         <div className="form-sect">
           <div className="form-label">
-            📂 카테고리 <span className="req">*</span>
+            📍 만남 장소 <span className="req">*</span>
           </div>
-          <Segmented items={KIND_FILTERS} value={kind} onChange={setKind} />
-          <div className="form-hint" style={{ marginTop: 8 }}>
-            {kind === 'report'
-              ? '혼잡도 제보는 현황판 · 장소 상태에 반영됩니다'
-              : '현장 분위기 · 팁 · 잡담 모두 환영!'}
-          </div>
-        </div>
-      )}
-
-      {/* Place */}
-      <div className="form-sect">
-        <div className="form-label">
-          📍 장소
-          {(mode === 'trade' || isReport) && <span className="req">*</span>}
-        </div>
-        <div className="chip-grid">
-          {/* 피드 일반은 "장소 없음" 도 유효한 선택 — 첫 번째에 항상 표시,
-              place === '' 일 때 active 로 현재 선택 상태 시각화. */}
-          {isFeed && !isReport && (
-            <Chip active={place === ''} onClick={() => setPlace('')}>
-              🚫 장소 없음
-            </Chip>
-          )}
-          {places.map((p) => (
-            <Chip key={p.id} active={place === p.id} onClick={() => setPlace(p.id)}>
-              {p.emoji} {p.name}
-            </Chip>
-          ))}
-        </div>
-      </div>
-
-      {/* Congestion (report only) */}
-      {isReport && (
-        <div className="form-sect">
-          <div className="form-label">
-            🌡 혼잡도 <span className="req">*</span>
-          </div>
-          <div className="cong-grid">
-            {LEVELS.map((o) => (
-              <CongOption
-                key={o.id}
-                level={o.id}
-                emoji={o.emoji}
-                label={o.label}
-                active={level === o.id}
-                onClick={() => setLevel(o.id)}
-              />
+          <div className="chip-grid">
+            {places.map((p) => (
+              <Chip key={p.id} active={place === p.id} onClick={() => setPlace(p.id)}>
+                {p.emoji} {p.name}
+              </Chip>
             ))}
           </div>
         </div>
@@ -225,7 +159,6 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
               value={price}
               onChange={(e) => {
                 const raw = e.target.value;
-                // 숫자만 있으면 3자리 콤마 자동 포맷. 다른 문자 섞이면 그대로 둠.
                 const digitsOnly = raw.replace(/,/g, '');
                 if (/^\d+$/.test(digitsOnly)) {
                   setPrice(Number(digitsOnly).toLocaleString('ko-KR'));
@@ -259,26 +192,16 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
       {/* Text body */}
       <div className="form-sect">
         <div className="form-label">
-          {mode === 'trade'
-            ? '📄 내용'
-            : isReport
-              ? '💬 한 줄 제보'
-              : '🗣 하고 싶은 말'}
+          {mode === 'trade' ? '📄 내용' : '🗣 하고 싶은 말'}
         </div>
         <TextInput
-          placeholder={
-            mode === 'trade'
-              ? '거래 관련 상세 내용'
-              : isReport
-                ? '예) 20명 대기, 회전 빠름'
-                : '자유롭게 입력하세요'
-          }
+          placeholder={mode === 'trade' ? '거래 관련 상세 내용' : '자유롭게 입력하세요'}
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
       </div>
 
-      {/* 피드 첨부 사진 (선택) — 상세 펼침 시에만 노출됨 */}
+      {/* 피드 첨부 사진 */}
       {isFeed && (
         <div className="form-sect">
           <div className="form-label">
@@ -318,12 +241,7 @@ export function WriteScreen({ mode, defaultKind = 'general', places }: Props) {
         }}
       >
         🪙 작성 시 +
-        {mode === 'trade'
-          ? REWARDS.trade_post
-          : isReport
-            ? REWARDS.feed_report
-            : REWARDS.feed_general}
-        P 지급
+        {mode === 'trade' ? REWARDS.trade_post : REWARDS.feed_general}P 지급
         {mode === 'trade' && <> · 거래 완료 시 +{REWARDS.trade_done}P</>}
       </div>
 

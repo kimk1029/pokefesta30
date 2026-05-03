@@ -1,30 +1,24 @@
-import { HomeScreen } from '@/components/screens/HomeScreen';
-import {
-  getActiveHeroBanners,
-  getFeedPosts,
-  getHourlyReportCounts,
-  getPlaces,
-  getTodayReportCount,
-} from '@/lib/queries';
+import { getServerSession } from 'next-auth';
+import { DashboardScreen } from '@/components/dashboard/DashboardScreen';
+import { authOptions } from '@/lib/auth';
+import { getActiveHeroBanners, getMyCardsWithPrices } from '@/lib/queries';
 
 export const revalidate = 30;
 
 export default async function Page() {
-  const [places, feeds, todayCount, hourly, heroBanners] = await Promise.all([
-    getPlaces(),
-    getFeedPosts(5),
-    getTodayReportCount(),
-    getHourlyReportCounts(),
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id ?? null;
+
+  const [cards, heroBanners] = await Promise.all([
+    userId ? getMyCardsWithPrices(userId, 100) : Promise.resolve([]),
     getActiveHeroBanners(),
   ]);
+
   return (
-    <HomeScreen
-      places={places}
-      feeds={feeds}
-      todayCount={todayCount}
-      hourlyCounts={hourly.counts}
-      nowHour={hourly.nowHour}
+    <DashboardScreen
+      cards={cards}
       heroBanners={heroBanners}
+      isLoggedIn={Boolean(userId)}
     />
   );
 }

@@ -20,17 +20,81 @@ export interface CardCatalogEntry {
   ebayQuery: string;
   /** SNKRDUNK 검색에 사용할 override. 미설정 시 name 을 ko→ja 사전으로 번역해 사용. */
   snkrdunkQuery?: string;
+  /** OCR 매칭용 — 카드 영문/한글/일문 이름 키워드 (소문자 비교). */
+  matchNames?: string[];
+  /** OCR 매칭용 — 공식 세트 코드 (예: 'SV1', 'SV-P'). 대문자 비교. */
+  setCode?: string;
+  /** OCR 매칭용 — 카드 번호의 좌측 (예: '045'). */
+  cardNumber?: string;
 }
 
 export const CARDS_CATALOG: CardCatalogEntry[] = [
-  { id: 'magikarp-holo',  name: '잉어킹 홀로',          emoji: '🖼', grade: 'S', ebayQuery: 'magikarp holo pokemon card' },
-  { id: 'charizard-base', name: '리자몽 베이스셋',      emoji: '🔥', grade: 'S', ebayQuery: 'charizard base set holo' },
-  { id: 'pikachu-promo',  name: '피카츄 프로모',        emoji: '⚡', grade: 'A', ebayQuery: 'pikachu promo pokemon card' },
-  { id: 'rainbow-rare',   name: '레인보우 레어',        emoji: '🌈', grade: 'A', ebayQuery: 'pokemon rainbow rare' },
-  { id: 'eevee-dev',      name: '이브이 진화형',        emoji: '🦊', grade: 'B', ebayQuery: 'eevee evolutions pokemon card' },
-  { id: 'gold-secret',    name: '골드 시크릿',          emoji: '🥇', grade: 'B', ebayQuery: 'pokemon gold secret rare' },
-  { id: 'mewtwo-v',       name: '뮤츠 V',               emoji: '🧬', grade: 'A', ebayQuery: 'mewtwo v pokemon card' },
-  { id: 'sticker-pack',   name: '포켓몬 스티커',        emoji: '🌟', grade: 'C', ebayQuery: 'pokemon sticker pack sealed' },
+  {
+    id: 'magikarp-holo',
+    name: '잉어킹 홀로',
+    emoji: '🖼',
+    grade: 'S',
+    ebayQuery: 'magikarp holo pokemon card',
+    matchNames: ['magikarp', '잉어킹', 'コイキング'],
+  },
+  {
+    id: 'charizard-base',
+    name: '리자몽 베이스셋',
+    emoji: '🔥',
+    grade: 'S',
+    ebayQuery: 'charizard base set holo',
+    matchNames: ['charizard', '리자몽', 'リザードン'],
+    cardNumber: '004',
+  },
+  {
+    id: 'pikachu-promo',
+    name: '피카츄 프로모',
+    emoji: '⚡',
+    grade: 'A',
+    ebayQuery: 'pikachu promo pokemon card',
+    matchNames: ['pikachu', '피카츄', 'ピカチュウ'],
+    setCode: 'SV-P',
+  },
+  {
+    id: 'rainbow-rare',
+    name: '레인보우 레어',
+    emoji: '🌈',
+    grade: 'A',
+    ebayQuery: 'pokemon rainbow rare',
+    matchNames: ['rainbow rare'],
+  },
+  {
+    id: 'eevee-dev',
+    name: '이브이 진화형',
+    emoji: '🦊',
+    grade: 'B',
+    ebayQuery: 'eevee evolutions pokemon card',
+    matchNames: ['eevee', '이브이', 'イーブイ'],
+  },
+  {
+    id: 'gold-secret',
+    name: '골드 시크릿',
+    emoji: '🥇',
+    grade: 'B',
+    ebayQuery: 'pokemon gold secret rare',
+    matchNames: ['gold secret', 'gold rare'],
+  },
+  {
+    id: 'mewtwo-v',
+    name: '뮤츠 V',
+    emoji: '🧬',
+    grade: 'A',
+    ebayQuery: 'mewtwo v pokemon card',
+    matchNames: ['mewtwo', '뮤츠', 'ミュウツー'],
+  },
+  {
+    id: 'sticker-pack',
+    name: '포켓몬 스티커',
+    emoji: '🌟',
+    grade: 'C',
+    ebayQuery: 'pokemon sticker pack sealed',
+    matchNames: ['sticker'],
+  },
 ];
 
 /**

@@ -4,7 +4,7 @@ import { MyScreen } from '@/components/screens/MyScreen';
 import { authOptions } from '@/lib/auth';
 import { levelFromPoints } from '@/lib/level';
 import { prisma } from '@/lib/prisma';
-import { getMyInventory } from '@/lib/queries';
+import { countMyCards, getMyInventory } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,12 +23,12 @@ export default async function Page() {
   const userId = session.user.id;
 
   // 실제 DB 집계
-  const [inv, profile, reportCount, tradeCount, savedCount] = await Promise.all([
+  const [inv, profile, tradeCount, savedCount, cardCount] = await Promise.all([
     getMyInventory(userId),
     prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null),
-    prisma.feed.count({ where: { authorId: userId, kind: 'report' } }).catch(() => 0),
     prisma.trade.count({ where: { authorId: userId } }).catch(() => 0),
     prisma.bookmark.count({ where: { userId } }).catch(() => 0),
+    countMyCards(userId),
   ]);
 
   const level = levelFromPoints(inv.points);
@@ -40,7 +40,7 @@ export default async function Page() {
         user: { ...session.user, name: profile?.name ?? session.user.name },
       }}
       level={level}
-      reportCount={reportCount}
+      cardCount={cardCount}
       tradeCount={tradeCount}
       savedCount={savedCount}
     />

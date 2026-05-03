@@ -5,33 +5,26 @@ import { defaultNameFor } from '@/lib/defaultName';
 import { prisma } from '@/lib/prisma';
 import { getFeedPage } from '@/lib/queries';
 import { REWARDS } from '@/lib/rewards';
-import type { CongestionLevel, FeedKind } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-const KINDS: FeedKind[] = ['general', 'report'];
-const LEVELS: CongestionLevel[] = ['empty', 'normal', 'busy', 'full'];
-
 /**
- * GET /api/feeds?kind=general|report&cursor=<iso>&limit=20
+ * GET /api/feeds?cursor=<iso>&limit=20
  * 응답: { items: FeedPost[], nextCursor: string | null }
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const kindParam = searchParams.get('kind');
-  const kind: FeedKind | undefined =
-    kindParam && KINDS.includes(kindParam as FeedKind) ? (kindParam as FeedKind) : undefined;
   const cursor = searchParams.get('cursor') ?? null;
   const limitRaw = Number(searchParams.get('limit') ?? 20);
   const limit = Number.isFinite(limitRaw) ? limitRaw : 20;
 
-  const page = await getFeedPage({ kind, cursor, limit });
+  const page = await getFeedPage({ cursor, limit });
   return NextResponse.json(page);
 }
 
 /**
  * POST /api/feeds  (auth required)
- * body: { kind: 'general'|'report', placeId?, text, level? }
+ * body: { text }
  */
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -43,27 +36,10 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 });
   }
-  const { kind, placeId, text, level } = (body ?? {}) as {
-    kind?: string;
-    placeId?: string;
-    text?: string;
-    level?: string;
-  };
+  const { text } = (body ?? {}) as { text?: string };
 
-  const resolvedKind: FeedKind = kind && KINDS.includes(kind as FeedKind)
-    ? (kind as FeedKind)
-    : 'general';
   if (!text || !text.trim()) {
     return NextResponse.json({ error: 'text required' }, { status: 400 });
-  }
-
-  let resolvedLevel: CongestionLevel | null = null;
-  if (resolvedKind === 'report') {
-    if (!placeId) return NextResponse.json({ error: 'placeId required for report' }, { status: 400 });
-    if (!level || !LEVELS.includes(level as CongestionLevel)) {
-      return NextResponse.json({ error: 'invalid level' }, { status: 400 });
-    }
-    resolvedLevel = level as CongestionLevel;
   }
 
   // users 행 확보 (FK 안전)
@@ -71,34 +47,24 @@ export async function POST(req: NextRequest) {
   if (session.user.id) {
     await prisma.user.upsert({
       where: { id: session.user.id },
-      update: {}, // 커스텀 닉네임 보존
+      update: {},
       create: { id: session.user.id, name: defaultNameFor(session.user.id) },
     });
     authorId = session.user.id;
   }
 
-  const reward = resolvedKind === 'report' ? REWARDS.feed_report : REWARDS.feed_general;
   const created = await prisma.$transaction(async (tx) => {
     const row = await tx.feed.create({
       data: {
-        kind: resolvedKind,
-        level: resolvedLevel,
-        placeId: placeId || null,
         text: text.trim(),
         authorId,
         authorEmoji: session.user.name?.slice(0, 2) ?? '🐣',
       },
     });
-    if (resolvedKind === 'report' && placeId && resolvedLevel) {
-      await tx.place.update({
-        where: { id: placeId },
-        data: { level: resolvedLevel, lastReportAt: new Date(), count: { increment: 1 } },
-      });
-    }
     if (authorId) {
       await tx.user.update({
         where: { id: authorId },
-        data: { points: { increment: reward } },
+        data: { points: { increment: REWARDS.feed_general } },
       });
     }
     return row;

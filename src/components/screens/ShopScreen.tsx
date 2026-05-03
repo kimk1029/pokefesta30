@@ -215,8 +215,7 @@ function PointHelpModal({ onClose }: { onClose: () => void }) {
   const rows = [
     { label: '하루 1회 출석', points: REWARDS.login_daily },
     { label: '3일 연속 출석 보너스', points: REWARDS.login_streak3_bonus },
-    { label: '일반 피드 작성', points: REWARDS.feed_general },
-    { label: '혼잡도 제보 작성', points: REWARDS.feed_report },
+    { label: '커뮤니티 글 작성', points: REWARDS.feed_general },
     { label: '거래글 등록', points: REWARDS.trade_post },
     { label: '거래 완료 처리', points: REWARDS.trade_done },
   ];

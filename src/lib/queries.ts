@@ -1,4 +1,3 @@
-import { unstable_cache } from 'next/cache';
 import {
   DEFAULT_AVATAR,
   DEFAULT_OWNED,
@@ -15,9 +14,6 @@ import {
   type FrameId,
 } from './shop';
 import type {
-  CongestionLevel,
-  FeedItem,
-  FeedKind,
   FeedPost,
   Place,
   Trade,
@@ -30,25 +26,14 @@ import type {
 /* helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-function minsSince(iso: Date | string | null | undefined): number {
-  if (!iso) return 9_999;
-  const t = typeof iso === 'string' ? new Date(iso).getTime() : iso.getTime();
-  return Math.max(0, Math.floor((Date.now() - t) / 60_000));
-}
-
 function relTime(iso: Date | string): string {
-  const mins = minsSince(iso);
+  const t = typeof iso === 'string' ? new Date(iso).getTime() : iso.getTime();
+  const mins = Math.max(0, Math.floor((Date.now() - t) / 60_000));
   if (mins <= 1) return '방금 전';
   if (mins < 60) return `${mins}분 전`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}시간 전`;
   return `${Math.floor(hrs / 24)}일 전`;
-}
-
-function asCongestionLevel(s: string | null | undefined): CongestionLevel | null {
-  if (!s) return null;
-  const allowed = ['empty', 'normal', 'busy', 'full'] as const;
-  return allowed.includes(s as CongestionLevel) ? (s as CongestionLevel) : null;
 }
 
 function asTradeStatus(s: string): TradeStatus {
@@ -57,32 +42,20 @@ function asTradeStatus(s: string): TradeStatus {
     : 'open';
 }
 
-function asFeedKind(s: string): FeedKind {
-  return s === 'report' ? 'report' : 'general';
-}
-
 type FeedRow = {
   id: number;
-  kind: string;
-  level: string | null;
-  placeId: string | null;
   text: string;
   authorEmoji: string;
   authorBgId?: string;
   authorFrameId?: string;
   images?: unknown;
   createdAt: Date;
-  place: { name: string } | null;
   author?: { name: string | null } | null;
 };
 
 function toFeedPost(r: FeedRow): FeedPost {
   return {
     id: r.id,
-    kind: asFeedKind(r.kind),
-    level: asCongestionLevel(r.level),
-    place: r.place?.name ?? null,
-    placeId: r.placeId,
     text: r.text,
     time: relTime(r.createdAt),
     createdAt: r.createdAt.toISOString(),
@@ -95,21 +68,16 @@ function toFeedPost(r: FeedRow): FeedPost {
 }
 
 /* ------------------------------------------------------------------ */
-/* reads                                                               */
+/* places — 거래 만남 장소 (페스타 혼잡도 필드는 제거됨)                  */
 /* ------------------------------------------------------------------ */
 
-/** 첫 배포 / 빈 Supabase 를 위한 장소 기본 시드. 스탬프 6곳 + 참고 장소. */
+/** 첫 배포 / 빈 Supabase 를 위한 장소 기본 시드. 거래 시 만남 장소로 사용. */
 const DEFAULT_PLACES = [
-  { id: 'shoe',     name: '성수 구두 테마공원',      emoji: '👟', bg: '#FB923C' },
-  { id: 'trend',    name: '포켓몬 30주년 파티 팝업', emoji: '🎊', bg: '#FFD23F' },
-  { id: 'metamong', name: '메타몽 놀이터',          emoji: '🎪', bg: '#4ADE80' },
-  { id: 'rainbow',  name: '어린이 무지개 공원',     emoji: '🌈', bg: '#6FC0E5' },
-  { id: 'secret',   name: '포켓몬 시크릿 포레스트',  emoji: '🌲', bg: '#6B3FA0' },
-  { id: 'seongsu',  name: '성수역 부근',            emoji: '🚇', bg: '#E63946' },
-  { id: 'seoulsup', name: '서울숲역 부근',          emoji: '🌳', bg: '#4ADE80' },
+  { id: 'seongsu',  name: '성수역 부근',   emoji: '🚇', bg: '#E63946' },
+  { id: 'seoulsup', name: '서울숲역 부근', emoji: '🌳', bg: '#4ADE80' },
 ];
 
-async function _getPlaces(): Promise<Place[]> {
+export async function getPlaces(): Promise<Place[]> {
   try {
     let rows = await prisma.place.findMany({ orderBy: { id: 'asc' } });
     if (rows.length === 0) {
@@ -121,9 +89,6 @@ async function _getPlaces(): Promise<Place[]> {
       name: r.name,
       emoji: r.emoji,
       bg: r.bg,
-      level: asCongestionLevel(r.level) ?? 'empty',
-      mins: minsSince(r.lastReportAt),
-      count: r.count,
     }));
   } catch (err) {
     console.error('[getPlaces]', err);
@@ -131,78 +96,13 @@ async function _getPlaces(): Promise<Place[]> {
   }
 }
 
-export const getPlaces = unstable_cache(_getPlaces, ['places'], { revalidate: 60, tags: ['places'] });
-
-/**
- * 오늘(KST 기준 00:00~) 시간대별 피드 건수 24개 + 현재 KST 시(hour).
- * report + general 전체 피드 집계 (현황 + 피드양 합산).
- * 서버 TZ 와 무관하게 Asia/Seoul 기준으로 버킷팅.
- */
-const KST_HOUR_FMT = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'Asia/Seoul',
-  hour: '2-digit',
-  hour12: false,
-});
-const KST_DATE_FMT = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Seoul',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-});
-
-function kstHour(d: Date): number {
-  const s = KST_HOUR_FMT.format(d);
-  // en-US 의 '24' (자정 이후)을 0 으로 정규화
-  const n = Number(s);
-  return n >= 24 ? 0 : n;
-}
-
-function kstStartOfDayUtc(now: Date = new Date()): Date {
-  const ymd = KST_DATE_FMT.format(now); // 'YYYY-MM-DD' (KST 날짜)
-  // KST 00:00 → UTC 로는 해당 날 전날 15:00
-  return new Date(`${ymd}T00:00:00+09:00`);
-}
-
-export async function getHourlyReportCounts(): Promise<{ counts: number[]; nowHour: number }> {
-  const now = new Date();
-  const nowHour = kstHour(now);
-  try {
-    const start = kstStartOfDayUtc(now);
-    // SQL GROUP BY로 집계 — 행 전체 fetch 대신 DB에서 바로 시간대별 카운트.
-    // 라벨이 "시간대별 제보량" 이므로 kind='report' 필드만 카운트.
-    //
-    // 시간대 변환 주의: Prisma 의 DateTime 은 TIMESTAMP(3) (without TZ).
-    // Postgres 에서 naive timestamp 에 `AT TIME ZONE 'Asia/Seoul'` 를 단독 적용하면
-    // 컬럼값을 "이미 Asia/Seoul 시간"이라 해석해 잘못된 hour 가 나온다.
-    // 우리는 createdAt 을 UTC 로 저장하므로 먼저 'UTC' 로 마킹(naive→timestamptz)한 뒤
-    // 'Asia/Seoul' 로 변환(timestamptz→naive in KST)하고 hour 추출.
-    const rows = await prisma.$queryRaw<Array<{ h: number; cnt: bigint }>>`
-      SELECT EXTRACT(
-               HOUR FROM ("createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')
-             )::int AS h,
-             COUNT(*)::bigint AS cnt
-      FROM "feeds"
-      WHERE "createdAt" >= ${start}
-        AND "kind" = 'report'
-      GROUP BY h
-    `;
-    const counts = new Array<number>(24).fill(0);
-    for (const r of rows) {
-      const h = Number(r.h);
-      if (h >= 0 && h < 24) counts[h] = Number(r.cnt);
-    }
-    return { counts, nowHour };
-  } catch (err) {
-    console.error('[getHourlyReportCounts]', err);
-    return { counts: new Array<number>(24).fill(0), nowHour: kstHour(new Date()) };
-  }
-}
+/* ------------------------------------------------------------------ */
+/* feeds                                                               */
+/* ------------------------------------------------------------------ */
 
 /**
  * 통합 피드 조회 — cursor 기반 페이지네이션.
- * - kind 미지정 : 모든 종류
- * - cursor (ISO timestamp of last item's createdAt) 다음 페이지 시작점
- * - 반환: { items, nextCursor }
+ * 일반 커뮤니티 글만 다룸 (페스타 제보는 제거됨).
  */
 export interface FeedPage {
   items: FeedPost[];
@@ -210,7 +110,6 @@ export interface FeedPage {
 }
 
 export async function getFeedPage(opts: {
-  kind?: FeedKind;
   cursor?: string | null;
   limit?: number;
   authorId?: string;
@@ -219,14 +118,12 @@ export async function getFeedPage(opts: {
   try {
     const rows = await prisma.feed.findMany({
       where: {
-        ...(opts.kind ? { kind: opts.kind } : {}),
         ...(opts.authorId ? { authorId: opts.authorId } : {}),
         ...(opts.cursor ? { createdAt: { lt: new Date(opts.cursor) } } : {}),
       },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       include: {
-        place: { select: { name: true } },
         author: { select: { name: true } },
       },
     });
@@ -248,9 +145,9 @@ export async function getFeedPage(opts: {
   }
 }
 
-/** 편의 — 첫 페이지만 받고 싶을 때. 기존 getFeedPosts 대체. */
-export async function getFeedPosts(limit = 30, kind?: FeedKind): Promise<FeedPost[]> {
-  const { items } = await getFeedPage({ limit, kind });
+/** 편의 — 첫 페이지만 받고 싶을 때. */
+export async function getFeedPosts(limit = 30): Promise<FeedPost[]> {
+  const { items } = await getFeedPage({ limit });
   return items;
 }
 
@@ -258,6 +155,10 @@ function asImages(v: unknown): string[] {
   if (Array.isArray(v)) return v.filter((u): u is string => typeof u === 'string' && u.length > 0);
   return [];
 }
+
+/* ------------------------------------------------------------------ */
+/* trades                                                              */
+/* ------------------------------------------------------------------ */
 
 export async function getTrades(filter: 'all' | TradeType = 'all', limit = 60): Promise<Trade[]> {
   try {
@@ -273,7 +174,6 @@ export async function getTrades(filter: 'all' | TradeType = 'all', limit = 60): 
 
     // 거래글별 "1:1 채팅 중인 사용자 수" 집계 (메시지 개수 아님).
     // 작성자에게 메시지를 한 번이라도 보낸 unique senderId 의 개수.
-    // 작성자 본인이 답장으로 보낸 메시지는 제외 → 순수하게 "관심을 보인 사람 수".
     const ids = rows.map((r) => r.id);
     let chatCounts: Record<number, number> = {};
     if (ids.length > 0) {
@@ -353,8 +253,114 @@ export async function getTradeById(id: number): Promise<TradeDetail | null> {
   }
 }
 
-export async function getMyFeeds(userId: string, limit = 30, kind?: FeedKind): Promise<FeedPost[]> {
-  const { items } = await getFeedPage({ authorId: userId, kind, limit });
+/* ------------------------------------------------------------------ */
+/* my cards (UserCard 테이블)                                          */
+/* ------------------------------------------------------------------ */
+
+export interface MyCardRow {
+  id: number;
+  cardId: string | null;
+  ocrSetCode: string | null;
+  ocrCardNumber: string | null;
+  nickname: string | null;
+  memo: string | null;
+  gradeEstimate: string | null;
+  centeringScore: number | null;
+  photoUrl: string | null;
+  createdAt: string;
+}
+
+export async function getMyCards(userId: string, limit = 100): Promise<MyCardRow[]> {
+  try {
+    const rows = await prisma.userCard.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 200),
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      cardId: r.cardId,
+      ocrSetCode: r.ocrSetCode,
+      ocrCardNumber: r.ocrCardNumber,
+      nickname: r.nickname,
+      memo: r.memo,
+      gradeEstimate: r.gradeEstimate,
+      centeringScore: r.centeringScore,
+      photoUrl: r.photoUrl,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  } catch (err) {
+    console.error('[getMyCards]', err);
+    return [];
+  }
+}
+
+/**
+ * 내 카드 + 각 카드의 최근 시세 스냅샷 (있으면) 결합.
+ * 대시보드 포트폴리오 가치 계산용. 없는 카드는 price=0 으로 채워서 반환.
+ */
+export interface MyCardWithPrice extends MyCardRow {
+  latestPrice: number;
+  /** 최근 7개 스냅샷 평균값들 (오래된 → 최신). 데이터 부족 시 빈 배열. */
+  trend: number[];
+}
+
+export async function getMyCardsWithPrices(
+  userId: string,
+  limit = 100,
+): Promise<MyCardWithPrice[]> {
+  const cards = await getMyCards(userId, limit);
+  if (cards.length === 0) return [];
+
+  const cardIds = Array.from(
+    new Set(cards.map((c) => c.cardId).filter((id): id is string => Boolean(id))),
+  );
+  if (cardIds.length === 0) {
+    return cards.map((c) => ({ ...c, latestPrice: 0, trend: [] }));
+  }
+
+  // 카드별 최근 7건 시세 스냅샷
+  let snapshots: Array<{ cardId: string; avg: number; fetchedAt: Date }> = [];
+  try {
+    snapshots = await prisma.cardPriceSnapshot.findMany({
+      where: { cardId: { in: cardIds } },
+      orderBy: { fetchedAt: 'desc' },
+      take: cardIds.length * 7,
+      select: { cardId: true, avg: true, fetchedAt: true },
+    });
+  } catch (err) {
+    console.error('[getMyCardsWithPrices] snapshot 조회 실패', err);
+  }
+
+  const byCard = new Map<string, Array<{ avg: number; fetchedAt: Date }>>();
+  for (const s of snapshots) {
+    const arr = byCard.get(s.cardId) ?? [];
+    arr.push({ avg: s.avg, fetchedAt: s.fetchedAt });
+    byCard.set(s.cardId, arr);
+  }
+
+  return cards.map((c) => {
+    if (!c.cardId) return { ...c, latestPrice: 0, trend: [] };
+    const list = byCard.get(c.cardId) ?? [];
+    if (list.length === 0) return { ...c, latestPrice: 0, trend: [] };
+    // findMany 가 desc 정렬이라 첫 번째가 최신
+    const latest = list[0].avg;
+    const trend = list.slice(0, 7).map((s) => s.avg).reverse();
+    return { ...c, latestPrice: latest, trend };
+  });
+}
+
+export async function countMyCards(userId: string): Promise<number> {
+  try {
+    return await prisma.userCard.count({ where: { userId } });
+  } catch (err) {
+    console.error('[countMyCards]', err);
+    return 0;
+  }
+}
+
+export async function getMyFeeds(userId: string, limit = 30): Promise<FeedPost[]> {
+  const { items } = await getFeedPage({ authorId: userId, limit });
   return items;
 }
 
@@ -381,18 +387,6 @@ export async function getMyTrades(userId: string, limit = 30): Promise<Trade[]> 
   }
 }
 
-export async function getMyReports(userId: string, limit = 30): Promise<FeedItem[]> {
-  const { items } = await getFeedPage({ authorId: userId, kind: 'report', limit });
-  return items.map((p) => ({
-    id: p.id,
-    place: p.place ?? '알 수 없음',
-    level: (p.level ?? 'normal') as CongestionLevel,
-    text: p.text,
-    time: p.time,
-    user: p.user,
-  }));
-}
-
 export async function getMyBookmarks(
   userId: string,
   limit = 30,
@@ -404,7 +398,7 @@ export async function getMyBookmarks(
       take: limit,
       include: {
         trade: { include: { place: { select: { name: true } } } },
-        feed: { include: { place: { select: { name: true } } } },
+        feed: true,
       },
     });
     const trades: Trade[] = [];
@@ -514,19 +508,3 @@ export async function getActiveHeroBanners(): Promise<HeroSlideRow[]> {
     return [];
   }
 }
-
-export const getTodayReportCount = unstable_cache(
-  async (): Promise<number> => {
-    try {
-      const start = kstStartOfDayUtc();
-      return await prisma.feed.count({
-        where: { kind: 'report', createdAt: { gte: start } },
-      });
-    } catch (err) {
-      console.error('[getTodayReportCount]', err);
-      return 0;
-    }
-  },
-  ['today-report-count'],
-  { revalidate: 60, tags: ['feeds'] },
-);

@@ -176,11 +176,11 @@ a{color:inherit;text-decoration:none;}
 .harrow.l{left:8px;} .harrow.r{right:8px;}
 
 /* ── QUICK GRID ── */
-.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+.quick-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;
   margin:0 var(--gap) var(--cg);}
-.qi{background:var(--white);padding:12px 4px 10px;
-  display:flex;flex-direction:column;align-items:center;gap:6px;
-  font-family:var(--f1);font-size:12px;letter-spacing:.5px;cursor:pointer;
+.qi{background:var(--white);padding:10px 2px 8px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  font-family:var(--f1);font-size:10px;letter-spacing:.3px;cursor:pointer;
   box-shadow:
     -3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
     inset 0 3px 0 rgba(255,255,255,.9),inset 0 -4px 0 rgba(0,0,0,.2),
@@ -189,7 +189,7 @@ a{color:inherit;text-decoration:none;}
 .qi:active{transform:translate(3px,3px);
   box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
     2px 2px 0 var(--ink);}
-.qi-icon{width:40px;height:40px;display:grid;place-items:center;font-size:28px;
+.qi-icon{width:36px;height:36px;display:grid;place-items:center;font-size:22px;
   box-shadow:
     -2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
     inset 0 2px 0 rgba(255,255,255,.5),inset 0 -3px 0 rgba(0,0,0,.3);}
@@ -1815,3 +1815,276 @@ a{color:inherit;text-decoration:none;}
   .shop-card:hover,
   .shop-item:hover{transform:translate(-1px,-1px);transition:transform 150ms steps(4);}
 }
+
+/* ════════════════════════════════════════════
+   CardVault — 5탭 디자인 시스템 (Phase 3 추가)
+   기존 픽셀 토큰(--ink/--yel/--red 등)과 호환
+   ════════════════════════════════════════════ */
+:root {
+  /* CardVault 추가 팔레트 */
+  --gold:#FFD23F;  --gold-lt:#FFE987; --gold-dk:#B88400;
+  --pnk:#EC4899;   --pnk-lt:#F9A8D4;  --pnk-dk:#831843;
+  --teal:#0D9488;
+  --bg3:#C9BD8A;
+  /* Rarity */
+  --r-common:#6B7490; --r-uncommon:#22C55E; --r-rare:#3A5BD9;
+  --r-sr:#7C3AED; --r-hr:#EC4899; --r-secret:#FFD23F;
+  /* PSA grade tones */
+  --psa10:#FFD700; --psa9:#C0C0C0; --psa8:#CD7F32; --psa7:#94A3B8;
+}
+
+/* ── CV: SECTION HEADER (어두운 px 보더) ── */
+.cv-sect{margin:0 var(--gap) var(--cg);}
+.cv-sect-hd{display:flex;align-items:center;justify-content:space-between;
+  padding:7px 12px;margin-bottom:var(--cg);
+  background:var(--ink);color:var(--yel);
+  font-family:var(--f1);font-size:11px;letter-spacing:1px;
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 2px 0 var(--ink2),inset 0 -2px 0 #000,5px 5px 0 var(--gold-dk);}
+.cv-sect-hd h2{margin:0;font:inherit;letter-spacing:inherit;}
+.cv-more{font-family:var(--f1);font-size:8px;color:var(--pap2);cursor:pointer;}
+
+/* ── CV: PORTFOLIO HERO (홈/프로필) ── */
+.cv-port{margin:var(--gap) var(--gap) var(--cg);padding:18px;
+  background:linear-gradient(135deg,#0F172A,#1E293B);color:var(--white);
+  box-shadow:-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
+    inset 0 4px 0 rgba(255,255,255,.07),inset 0 -4px 0 rgba(0,0,0,.4),7px 7px 0 var(--ink);}
+.cv-port-lbl{font-family:var(--f1);font-size:8px;color:rgba(255,255,255,.4);
+  letter-spacing:1px;margin-bottom:8px;}
+.cv-port-val{font-family:var(--f1);font-size:26px;color:var(--gold);letter-spacing:-1px;
+  text-shadow:3px 3px 0 rgba(0,0,0,.4);margin-bottom:6px;}
+.cv-port-sub{display:flex;align-items:center;gap:10px;}
+.cv-port-delta{font-family:var(--f1);font-size:10px;letter-spacing:.5px;}
+.cv-port-delta.up{color:var(--grn);}
+.cv-port-delta.dn{color:var(--red);}
+.cv-port-since{font-family:var(--f1);font-size:8px;color:rgba(255,255,255,.3);}
+.cv-mini-bars{display:flex;gap:3px;height:36px;align-items:flex-end;margin-top:14px;}
+.cv-mini-bar{flex:1;background:rgba(255,210,63,.35);}
+.cv-mini-bar.last{background:var(--gold);
+  box-shadow:-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),
+    inset 0 2px 0 var(--gold-lt);}
+.cv-mini-axis{display:flex;justify-content:space-between;margin-top:5px;
+  font-family:var(--f1);font-size:7px;color:rgba(255,255,255,.25);letter-spacing:.3px;}
+
+/* ── CV: STAT ROW (카드 3개 가로) ── */
+.cv-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  margin:0 var(--gap) var(--cg);}
+.cv-stat-card{background:var(--white);padding:12px 8px;text-align:center;
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.9),inset 0 -4px 0 rgba(0,0,0,.16),5px 5px 0 var(--ink);}
+.cv-stat-n{font-family:var(--f1);font-size:18px;color:var(--ink);letter-spacing:-1px;}
+.cv-stat-n.gold{color:var(--gold-dk);text-shadow:1px 1px 0 var(--ink);}
+.cv-stat-l{font-family:var(--f1);font-size:8px;color:var(--ink3);
+  margin-top:6px;letter-spacing:.3px;}
+
+/* ── CV: GAME DISTRIBUTION BARS ── */
+.cv-dist{background:var(--white);padding:14px;
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.15),5px 5px 0 var(--ink);}
+.cv-dist-row{margin-bottom:10px;}
+.cv-dist-row:last-child{margin-bottom:0;}
+.cv-dist-top{display:flex;justify-content:space-between;margin-bottom:4px;}
+.cv-dist-name{font-family:var(--f1);font-size:9px;letter-spacing:.3px;}
+.cv-dist-pct{font-family:var(--f1);font-size:9px;color:var(--ink3);letter-spacing:.3px;}
+.cv-dist-track{height:9px;background:var(--pap3);
+  box-shadow:-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink);}
+.cv-dist-fill{height:100%;box-shadow:inset 0 2px 0 rgba(255,255,255,.3);}
+
+/* ── CV: CARD IMG (이모지 + 게임색 그라데이션) ── */
+.cv-card-img{position:relative;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--ink2);
+  box-shadow:inset 0 3px 0 rgba(0,0,0,.4),inset 0 -3px 0 rgba(255,255,255,.08);}
+.cv-card-img::before{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 2px,transparent 2px 4px);}
+.cv-card-em{font-size:36px;z-index:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));}
+.cv-card-name{position:absolute;bottom:6px;left:6px;right:6px;
+  font-family:var(--f1);font-size:7px;color:rgba(255,255,255,.7);
+  letter-spacing:.3px;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ── CV: RARITY / GRADE BADGES ── */
+.cv-rar{display:inline-flex;align-items:center;padding:3px 7px;
+  font-family:var(--f1);font-size:8px;letter-spacing:.5px;
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    2px 2px 0 var(--ink);}
+.cv-rar-C {background:var(--r-common);color:var(--white);}
+.cv-rar-U {background:var(--r-uncommon);color:var(--ink);}
+.cv-rar-R {background:var(--r-rare);color:var(--white);}
+.cv-rar-SR{background:var(--r-sr);color:var(--white);}
+.cv-rar-HR{background:var(--r-hr);color:var(--white);}
+.cv-rar-S {background:var(--r-secret);color:var(--ink);}
+
+.cv-grade{display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;
+  font-family:var(--f1);font-size:11px;font-weight:900;
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 2px 0 rgba(255,255,255,.4),inset 0 -2px 0 rgba(0,0,0,.3),3px 3px 0 var(--ink);}
+.cv-g10{background:var(--psa10);color:var(--ink);}
+.cv-g9 {background:var(--psa9); color:var(--ink);}
+.cv-g8 {background:var(--psa8); color:var(--white);}
+.cv-g7 {background:var(--psa7); color:var(--ink);}
+
+/* ── CV: TAG (게임/거래유형) ── */
+.cv-tag{display:inline-flex;align-items:center;padding:3px 7px;
+  font-family:var(--f1);font-size:8px;letter-spacing:.5px;
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    2px 2px 0 var(--ink);}
+.cv-tag-game{background:var(--ink);color:var(--gold);}
+.cv-tag-sell{background:var(--red);color:var(--white);}
+.cv-tag-buy{background:var(--blu);color:var(--white);}
+.cv-tag-trade{background:var(--teal);color:var(--white);}
+.cv-tag-graded{background:var(--gold);color:var(--ink);}
+
+/* ── CV: COLLECTION GRID (3열) ── */
+.cv-coll-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  margin:0 var(--gap) var(--cg);}
+.cv-coll-item{background:var(--white);cursor:pointer;
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.18),5px 5px 0 var(--ink);
+  transition:transform .05s steps(1),box-shadow .05s steps(1);}
+.cv-coll-item:active{transform:translate(3px,3px);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    2px 2px 0 var(--ink);}
+.cv-coll-item .cv-card-img{height:110px;}
+.cv-coll-info{padding:7px 7px 9px;}
+.cv-coll-name{font-family:var(--f1);font-size:8px;letter-spacing:.3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;}
+.cv-coll-meta{display:flex;align-items:center;justify-content:space-between;gap:4px;}
+.cv-price{font-family:var(--f1);font-size:8px;color:var(--grn-dk);letter-spacing:.3px;
+  margin-top:5px;}
+
+/* ── CV: LIST CARD (가로 행) ── */
+.cv-list-card{background:var(--white);padding:12px 14px;margin-bottom:var(--cg);
+  display:flex;gap:12px;align-items:flex-start;cursor:pointer;
+  box-shadow:-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.85),inset 0 -4px 0 rgba(0,0,0,.18),6px 6px 0 var(--ink);}
+.cv-list-thumb{width:52px;height:72px;flex-shrink:0;
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink);}
+.cv-lc-body{flex:1;min-width:0;}
+.cv-lc-title{font-family:var(--f1);font-size:10px;letter-spacing:.5px;
+  line-height:1.6;margin-bottom:6px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cv-lc-sub{font-family:var(--f1);font-size:8px;color:var(--ink3);
+  letter-spacing:.3px;margin-bottom:6px;}
+.cv-lc-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+
+/* ── CV: SUMMARY STRIP (컬렉션 상단 3분할 바) ── */
+.cv-strip{display:flex;margin:0 var(--gap) var(--cg);}
+.cv-strip-cell{flex:1;padding:9px 8px;text-align:center;
+  font-family:var(--f1);font-size:9px;letter-spacing:.5px;
+  box-shadow:0 -3px 0 var(--ink),0 3px 0 var(--ink);}
+.cv-strip-cell:not(:last-child){border-right:3px solid var(--ink);}
+.cv-strip-cell:first-child{box-shadow:-3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink);}
+.cv-strip-cell:last-child{box-shadow:3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink);}
+.cv-strip-a{background:var(--ink);color:var(--gold);}
+.cv-strip-b{background:var(--gold);color:var(--ink);}
+.cv-strip-c{background:var(--pur);color:var(--white);}
+
+/* ── CV: SEARCH BAR ── */
+.cv-search{display:flex;align-items:center;background:var(--white);padding:0 12px;
+  margin:0 var(--gap) var(--cg);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 3px 3px 0 rgba(0,0,0,.07);}
+.cv-search input{flex:1;border:none;outline:none;background:transparent;
+  font-family:var(--f2);font-size:13px;padding:10px 8px;color:var(--ink);}
+
+/* ── CV: CHIP ROW (가로 스크롤) ── */
+.cv-chip-row{display:flex;gap:6px;overflow-x:auto;padding:0 var(--gap);
+  margin-bottom:8px;scrollbar-width:none;}
+.cv-chip-row::-webkit-scrollbar{display:none;}
+.cv-chip{flex-shrink:0;padding:6px 9px;background:var(--white);cursor:pointer;
+  font-family:var(--f1);font-size:8px;letter-spacing:.3px;
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    inset 0 2px 0 rgba(255,255,255,.85),inset 0 -2px 0 rgba(0,0,0,.15),3px 3px 0 var(--ink);}
+.cv-chip.on{background:var(--gold);transform:translate(2px,2px);
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    inset 0 2px 0 var(--gold-lt),inset 0 -2px 0 var(--gold-dk),1px 1px 0 var(--ink);}
+
+/* ── CV: TOOLBAR (정렬 + 뷰토글) ── */
+.cv-toolbar{display:flex;align-items:center;gap:8px;margin:0 var(--gap) var(--cg);}
+.cv-sort-btn,.cv-view-btn{padding:6px 9px;font-family:var(--f1);font-size:8px;
+  letter-spacing:.3px;cursor:pointer;background:var(--white);color:var(--ink);
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    2px 2px 0 var(--ink);}
+.cv-sort-btn.on,.cv-view-btn.on{background:var(--ink);color:var(--gold);}
+.cv-view-btn{width:28px;height:28px;font-size:13px;padding:0;display:grid;place-items:center;}
+
+/* ── CV: BINDER (3열 소형 카드) ── */
+.cv-binder{background:var(--pap3);padding:12px 8px;margin:0 var(--gap) var(--cg);
+  box-shadow:-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.3),inset 0 -3px 0 rgba(0,0,0,.2),6px 6px 0 var(--ink);}
+.cv-binder-hd{font-family:var(--f1);font-size:9px;color:var(--ink);
+  letter-spacing:.5px;margin-bottom:10px;text-align:center;}
+.cv-binder-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;}
+.cv-binder-item{cursor:pointer;background:var(--white);
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    inset 0 1px 0 rgba(255,255,255,.9),3px 3px 0 var(--ink);}
+.cv-binder-img{height:90px;display:flex;align-items:center;justify-content:center;font-size:28px;}
+.cv-binder-name{font-family:var(--f1);font-size:7px;letter-spacing:.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;}
+.cv-binder-info{padding:4px 5px;border-top:2px solid var(--ink);}
+
+/* ── CV: ALBUM (게임별 가로 스크롤 섹션) ── */
+.cv-album-sect{margin-bottom:20px;}
+.cv-album-hd{display:flex;align-items:center;gap:8px;margin:0 var(--gap) 8px;
+  padding:6px 10px;color:var(--white);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    4px 4px 0 var(--ink);}
+.cv-album-name{font-family:var(--f1);font-size:10px;letter-spacing:1px;flex:1;}
+.cv-album-cnt{font-family:var(--f1);font-size:9px;color:rgba(255,255,255,.7);}
+.cv-album-row{display:flex;gap:8px;overflow-x:auto;padding:0 var(--gap) 4px;
+  scrollbar-width:none;}
+.cv-album-row::-webkit-scrollbar{display:none;}
+.cv-album-tile{flex-shrink:0;width:80px;cursor:pointer;
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    3px 3px 0 var(--ink);}
+.cv-album-img{height:110px;display:flex;align-items:center;justify-content:center;font-size:32px;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.05),inset 0 -2px 0 rgba(0,0,0,.3);}
+.cv-album-meta{padding:6px 5px;background:var(--white);border-top:2px solid var(--ink);}
+
+/* ── CV: QUICK MENU (대시보드 4버튼) ── */
+.cv-quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  margin:0 var(--gap) var(--cg);}
+.cv-quick-btn{background:var(--white);padding:14px 12px;
+  display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none;color:var(--ink);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 2px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.15),4px 4px 0 var(--ink);
+  transition:transform .05s steps(1),box-shadow .05s steps(1);}
+.cv-quick-btn:active{transform:translate(2px,2px);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    2px 2px 0 var(--ink);}
+.cv-quick-icon{width:38px;height:38px;display:grid;place-items:center;
+  font-size:18px;flex-shrink:0;color:var(--white);
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    inset 0 2px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25);}
+.cv-quick-lbl{font-family:var(--f1);font-size:9px;letter-spacing:.3px;line-height:1.5;}
+
+/* ── CV: SUB-SEGMENTED (커뮤니티 피드/마켓) ── */
+.cv-subseg{display:flex;background:var(--ink);padding:3px;gap:3px;
+  margin:0 var(--gap) var(--cg);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 2px 0 #000,4px 4px 0 var(--ink);}
+.cv-subseg button{flex:1;padding:9px 0;text-align:center;
+  font-family:var(--f1);font-size:9px;letter-spacing:.5px;
+  background:var(--ink2);color:var(--pap3);cursor:pointer;border:none;}
+.cv-subseg button.on{background:var(--gold);color:var(--ink);
+  box-shadow:inset 0 2px 0 var(--gold-lt),inset 0 -2px 0 var(--gold-dk);}
+
+/* ── CV: PROFILE HERO (어두운 배경 + 골드 + 아바타) ── */
+.cv-profile-hero{margin:var(--gap) var(--gap) var(--cg);padding:18px;
+  background:linear-gradient(135deg,#0F172A,#1E293B);color:var(--white);
+  box-shadow:-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
+    inset 0 4px 0 rgba(255,255,255,.08),inset 0 -4px 0 rgba(0,0,0,.4),7px 7px 0 var(--ink);}
+.cv-profile-top{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.cv-profile-avatar{width:60px;height:60px;background:var(--gold);
+  display:grid;place-items:center;font-size:30px;flex-shrink:0;
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.2),4px 4px 0 var(--ink);}
+.cv-profile-name{font-family:var(--f1);font-size:13px;color:var(--white);letter-spacing:1px;}
+.cv-profile-title{font-family:var(--f1);font-size:9px;color:var(--gold);
+  margin-top:6px;letter-spacing:.5px;}
+
+/* ── CV: EMPTY STATE ── */
+.cv-empty{text-align:center;padding:40px 20px;font-family:var(--f1);font-size:10px;
+  color:var(--ink3);letter-spacing:.5px;line-height:2;}

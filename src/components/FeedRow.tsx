@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { BookmarkButton } from './BookmarkButton';
 import { ComposedAvatar } from './ComposedAvatar';
-import { CongBadge } from './ui/CongBadge';
 import { isAvatarId } from '@/lib/avatars';
 import type { FeedPost } from '@/lib/types';
 
@@ -19,7 +18,6 @@ function formatAbsolute(iso: string): string {
 }
 
 export function FeedRow({ post }: { post: FeedPost }) {
-  const isReport = post.kind === 'report';
   const hasPixelAvatar = isAvatarId(post.user);
   const [expanded, setExpanded] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
@@ -84,17 +82,11 @@ export function FeedRow({ post }: { post: FeedPost }) {
       <div className="fi-body">
         <div className="fi-top">
           <span
-            className={`tag ${isReport ? 'tag-report' : 'tag-feed'}`}
+            className="tag tag-feed"
             style={{ fontSize: 9, padding: '2px 7px' }}
           >
-            {isReport ? '📢 제보' : '🗣 일반'}
+            🗣 커뮤니티
           </span>
-          {post.place && (
-            <span className="tag tag-place" style={{ fontSize: 9, padding: '2px 6px' }}>
-              📍 {post.place}
-            </span>
-          )}
-          {isReport && post.level && <CongBadge level={post.level} size="small" />}
         </div>
         <div className="fi-text">{post.text}</div>
         {/* 사진은 상세 펼쳤을 때만 노출. 클릭 시 lightbox 로 전체 보기. */}

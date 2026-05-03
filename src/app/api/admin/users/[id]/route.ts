@@ -37,13 +37,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (!u) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   // 활동 카운트 (병렬 집계)
-  const [feedTotal, feedReports, tradeCount, ticketCount, sentMsg, recvMsg] = await Promise.all([
+  const [feedTotal, tradeCount, ticketCount, sentMsg, recvMsg, cardCount] = await Promise.all([
     prisma.feed.count({ where: { authorId: id } }),
-    prisma.feed.count({ where: { authorId: id, kind: 'report' } }),
     prisma.trade.count({ where: { authorId: id } }),
     prisma.oripaTicket.count({ where: { drawnById: id } }),
     prisma.message.count({ where: { senderId: id } }),
     prisma.message.count({ where: { receiverId: id } }),
+    prisma.userCard.count({ where: { userId: id } }),
   ]);
 
   return NextResponse.json({
@@ -51,11 +51,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       ...u,
       counts: {
         feedTotal,
-        feedReports,
         tradeCount,
         ticketCount,
         sentMsg,
         recvMsg,
+        cardCount,
       },
     },
   });

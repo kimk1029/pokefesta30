@@ -17,76 +17,74 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  name        String
-  email       String?
-  avatar      String   @default("🐣")
-  rating      Int      @default(4)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  avatar    String   @default("🐣")
+  rating    Int      @default(4)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // profile / inventory (클라이언트 로컬스토리지 대체)
-  points           Int      @default(0)
+  points           Int       @default(0)
   /// 마지막 출석체크 시각. KST 일자 비교용. null = 아직 출석 한 번도 안 함.
   lastCheckInAt    DateTime?
   /// 연속 출석 일수. 3 의 배수에 도달할 때 보너스 지급.
-  streakCount      Int      @default(0)
-  avatarId         String   @default("bulbasaur")
-  backgroundId    String   @default("default")
-  frameId          String   @default("none")
-  ownedAvatars     String[] @default(["bulbasaur","charmander","squirtle"])
-  ownedBackgrounds String[] @default(["default"])
-  ownedFrames      String[] @default(["none"])
+  streakCount      Int       @default(0)
+  avatarId         String    @default("bulbasaur")
+  backgroundId     String    @default("default")
+  frameId          String    @default("none")
+  ownedAvatars     String[]  @default(["bulbasaur", "charmander", "squirtle"])
+  ownedBackgrounds String[]  @default(["default"])
+  ownedFrames      String[]  @default(["none"])
 
-  trades    Trade[]
-  feeds     Feed[]
-  bookmarks Bookmark[]
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
+  trades           Trade[]
+  feeds            Feed[]
+  bookmarks        Bookmark[]
+  sentMessages     Message[]     @relation("SentMessages")
+  receivedMessages Message[]     @relation("ReceivedMessages")
   oripaTickets     OripaTicket[]
+  userCards        UserCard[]
 
   @@map("users")
 }
 
+/// 거래 시 만남 장소 (지하철역 등). 페스타 혼잡도 추적은 제거됨.
 model Place {
-  id             String    @id
-  name           String
-  emoji          String
-  bg             String
-  level          String    @default("empty")
-  count          Int       @default(0)
-  lastReportAt   DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id        String   @id
+  name      String
+  emoji     String
+  bg        String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   trades Trade[]
-  feeds  Feed[]
 
   @@map("places")
 }
 
 model Trade {
-  id          Int      @id @default(autoincrement())
-  placeId     String
-  place       Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
-  type        String   // 'buy' | 'sell'
-  title       String
-  body        String   @default("")
-  price       String   @default("제안")
-  status      String   @default("open") // 'open' | 'reserved' | 'done' | 'cancelled'
-  authorId    String?
-  author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  authorEmoji      String @default("익명")
-  authorBgId       String @default("default")
-  authorFrameId    String @default("none")
-  kakaoId     String?
-  bumpCount   Int      @default(0)
-  bumpedAt    DateTime?
-  images      Json?    // 첨부 사진 URL 배열 (Vercel Blob URL)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            Int       @id @default(autoincrement())
+  placeId       String
+  place         Place     @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  type          String // 'buy' | 'sell'
+  title         String
+  body          String    @default("")
+  price         String    @default("제안")
+  status        String    @default("open") // 'open' | 'reserved' | 'done' | 'cancelled'
+  authorId      String?
+  author        User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorEmoji   String    @default("익명")
+  authorBgId    String    @default("default")
+  authorFrameId String    @default("none")
+  kakaoId       String?
+  bumpCount     Int       @default(0)
+  bumpedAt      DateTime?
+  images        Json? // 첨부 사진 URL 배열 (Vercel Blob URL)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  bookmarks   Bookmark[]
+  bookmarks Bookmark[]
 
   @@index([bumpedAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
@@ -95,43 +93,37 @@ model Trade {
   @@map("trades")
 }
 
-/// 통합 피드 — 일반 잡담("general") + 혼잡도 제보("report") 를 한 테이블에서 관리.
-/// kind='report' 인 경우 level 필수, 저장 시 places.level/count/lastReportAt 갱신.
+/// 커뮤니티 피드 — 자유 게시글. (페스타 혼잡도 제보는 제거됨)
 model Feed {
-  id          Int      @id @default(autoincrement())
-  kind        String   @default("general") // 'general' | 'report'
-  level       String?                      // kind='report' 일 때만 의미 ('empty'|'normal'|'busy'|'full')
-  placeId     String?
-  place       Place?   @relation(fields: [placeId], references: [id], onDelete: SetNull)
-  text        String
-  authorId    String?
-  author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  authorEmoji     String  @default("🐣")
-  authorBgId      String  @default("default")
-  authorFrameId   String  @default("none")
+  id            Int      @id @default(autoincrement())
+  text          String
+  authorId      String?
+  author        User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorEmoji   String   @default("🐣")
+  authorBgId    String   @default("default")
+  authorFrameId String   @default("none")
   /// 첨부 사진 URL 배열 (Vercel Blob URL). 상세 펼침 시에만 노출.
-  images      Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  images        Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  bookmarks   Bookmark[]
+  bookmarks Bookmark[]
 
   @@index([createdAt(sort: Desc)])
-  @@index([kind, createdAt(sort: Desc)])
   @@map("feeds")
 }
 
 /// 쪽지 (채팅 아닌 비동기 메시지). 웹소켓 없이 폴링 기반.
 model Message {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   tradeId    Int?
   senderId   String
-  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  sender     User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   receiverId String
-  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  receiver   User      @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
   text       String
   readAt     DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([receiverId, readAt])
   @@index([senderId, receiverId, createdAt])
@@ -143,20 +135,20 @@ model Message {
 /// packId 별로 (index 0..99) 쌍은 유일. 첫 GET 시 없으면 자동 시드.
 /// pull 은 updateMany(where drawn:false) 로 원자적 처리 → 경쟁 시 한 명만 성공.
 model OripaTicket {
-  id         Int      @id @default(autoincrement())
-  packId     String
-  index      Int
-  drawn      Boolean  @default(false)
-  grade      String?  // 'S' | 'A' | 'B' | 'C'
-  prizeName  String?
-  prizeEmoji String?
+  id            Int       @id @default(autoincrement())
+  packId        String
+  index         Int
+  drawn         Boolean   @default(false)
+  grade         String? // 'S' | 'A' | 'B' | 'C'
+  prizeName     String?
+  prizeEmoji    String?
   prizeImageUrl String?
-  drawnById  String?
-  drawnBy    User?    @relation(fields: [drawnById], references: [id], onDelete: SetNull)
-  drawnByName String?
-  drawnAt    DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  drawnById     String?
+  drawnBy       User?     @relation(fields: [drawnById], references: [id], onDelete: SetNull)
+  drawnByName   String?
+  drawnAt       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@unique([packId, index])
   @@index([packId, drawn])
@@ -167,11 +159,11 @@ model OripaTicket {
 /// prizes 는 [{grade, name, emoji, weight, bg?}] 배열 JSON.
 model OripaPack {
   id           String   @id
-  tier         String   // 'normal' | 'rare' | 'premium' | 기타 자유
+  tier         String // 'normal' | 'rare' | 'premium' | 기타 자유
   emoji        String
   name         String
   desc         String
-  price        Int      // 1회 뽑기당 포인트
+  price        Int // 1회 뽑기당 포인트
   ticketsCount Int      @default(100)
   prizes       Json
   active       Boolean  @default(true)
@@ -226,14 +218,14 @@ model PageView {
 ///   'reward'     — 무료충전소 광고 시청 보상 지급
 model AdEvent {
   id        Int      @id @default(autoincrement())
-  kind      String   // 'impression' | 'reward'
-  network   String   // 'adsense' | 'adfit' | 'house' | 'offerwall'
-  slotId    String   // FeedAdRow index 또는 free-charge slot id
-  userId    String?  // 로그인 사용자만
+  kind      String // 'impression' | 'reward'
+  network   String // 'adsense' | 'adfit' | 'house' | 'offerwall'
+  slotId    String // FeedAdRow index 또는 free-charge slot id
+  userId    String? // 로그인 사용자만
   reward    Int      @default(0) // reward 시 지급된 포인트
   ip        String?
   ua        String?
-  day       DateTime @db.Date     // 일별 집계용
+  day       DateTime @db.Date // 일별 집계용
   createdAt DateTime @default(now())
 
   @@index([kind, day])
@@ -241,6 +233,35 @@ model AdEvent {
   @@index([userId, kind, day])
   @@index([createdAt])
   @@map("ad_events")
+}
+
+/// 사용자가 그레이딩/아카이빙한 본인 카드.
+/// cardId 는 CARDS_CATALOG 의 id (예: 'magikarp-holo'). 미매칭 카드는 cardId=null + ocrSetCode/ocrCardNumber 로 식별.
+/// gradeEstimate / centeringScore 는 모의 그레이딩 결과 스냅샷 (PSA 등급 추정).
+model UserCard {
+  id             Int      @id @default(autoincrement())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// CARDS_CATALOG id. 매칭 못한 카드는 null.
+  cardId         String?
+  /// 매칭 실패 시 보조 — OCR 로 추출한 raw 식별자.
+  ocrSetCode     String?
+  ocrCardNumber  String?
+  /// 사용자가 직접 적은 별칭/메모.
+  nickname       String?
+  memo           String?
+  /// 모의 그레이딩 결과 — "PSA 9 (Mint)" 등 라벨 그대로.
+  gradeEstimate  String?
+  /// 0..100 중심도 점수 (가까운 쪽 비율, 50이면 완벽). worstCloser 그대로 저장.
+  centeringScore Float?
+  /// 업로드한 카드 사진 URL (Vercel Blob).
+  photoUrl       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([cardId])
+  @@map("user_cards")
 }
 
 /// 카드 시세 스냅샷 — eBay Browse API 결과 캐시 + 히스토리 차트용.
@@ -264,26 +285,26 @@ model CardPriceSnapshot {
 /// visualType='emoji' 면 visualValue 가 단일 이모지/문자, 'image' 면 정적 경로 또는 URL.
 /// onClick: null | 'stamp-rally' | 'oripa' (특수 액션 라우팅)
 model HeroBanner {
-  id           Int      @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   /// 정렬 키. 작을수록 먼저 노출.
-  sortOrder    Int      @default(0)
+  sortOrder   Int      @default(0)
   /// 슬라이드 배경 클래스 — 'slide-a' | 'slide-b' | 'slide-c' | 'slide-d'
-  slideClass   String   @default("slide-a")
-  badge        String
+  slideClass  String   @default("slide-a")
+  badge       String
   /// 줄바꿈은 \n 으로 입력
-  title        String
+  title       String
   /// 줄바꿈은 \n 으로 입력
-  sub          String
-  ctaHint      String?
+  sub         String
+  ctaHint     String?
   /// 'emoji' | 'image'
-  visualType   String   @default("emoji")
+  visualType  String   @default("emoji")
   /// emoji: '💬' 같은 단일 글자, image: '/promo/foo.png'
-  visualValue  String   @default("✨")
+  visualValue String   @default("✨")
   /// null | 'stamp-rally' | 'oripa'
-  onClick      String?
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  onClick     String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([active, sortOrder])
   @@map("hero_banners")

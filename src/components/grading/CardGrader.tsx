@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CardMatchPanel } from './CardMatchPanel';
 import { recognizeCard, type CardOcrResult } from './cardOcr';
 import { detectCardOuterPureJs } from './pureCardDetect';
 
@@ -526,6 +527,13 @@ export function CardGrader() {
             </div>
           )}
           {ocrResult && <OcrResultCard r={ocrResult} />}
+
+          {/* OCR 결과를 카탈로그에 매칭해 시세/차트 표시 + 내 카드에 저장 */}
+          <CardMatchPanel
+            ocr={ocrResult}
+            gradeLabel={result?.band.label ?? null}
+            centeringScore={result?.worstCloser ?? null}
+          />
 
           {/* 결과 */}
           {result && <ResultCard r={result} />}

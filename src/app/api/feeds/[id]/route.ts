@@ -21,15 +21,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const id = parseId(params.id);
   if (id === null) return NextResponse.json({ error: 'invalid id' }, { status: 400 });
 
-  const row = await prisma.feed.findUnique({
-    where: { id },
-    include: { place: { select: { id: true, name: true } } },
-  });
+  const row = await prisma.feed.findUnique({ where: { id } });
   if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 });
   return NextResponse.json({ data: row });
 }
 
-/** PATCH /api/feeds/:id — body: { text?, placeId? } (auth required) */
+/** PATCH /api/feeds/:id — body: { text? } (auth required) */
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   if (!(await requireAuth())) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const id = parseId(params.id);
@@ -41,16 +38,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   } catch {
     return NextResponse.json({ error: 'invalid json' }, { status: 400 });
   }
-  const { text, placeId } = (body ?? {}) as { text?: string; placeId?: string | null };
+  const { text } = (body ?? {}) as { text?: string };
 
   const data: Prisma.FeedUpdateInput = {};
   if (typeof text === 'string') {
     const trimmed = text.trim();
     if (!trimmed) return NextResponse.json({ error: 'text empty' }, { status: 400 });
     data.text = trimmed;
-  }
-  if (placeId !== undefined) {
-    data.place = placeId ? { connect: { id: placeId } } : { disconnect: true };
   }
 
   try {

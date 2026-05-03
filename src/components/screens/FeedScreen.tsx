@@ -5,23 +5,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FeedAdRow } from '@/components/FeedAdRow';
 import { FeedRow } from '@/components/FeedRow';
 import { AppBar } from '@/components/ui/AppBar';
-import { Segmented } from '@/components/ui/Segmented';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
-import type { FeedKind, FeedPost } from '@/lib/types';
-
-type Filter = 'all' | FeedKind;
+import type { FeedPost } from '@/lib/types';
 
 /** 광고 노출 정책 — 4번째 글마다 광고 1개 (전체 ∞)
  *  네트워크는 FeedAdRow 안에서 alternate (slot0=AdFit, slot1+=AdSense). */
 const AD_FIRST_AT = 4;
 const AD_INTERVAL = 4;
-
-const FILTERS: ReadonlyArray<{ id: Filter; label: string }> = [
-  { id: 'all', label: '전체' },
-  { id: 'general', label: '일반' },
-  { id: 'report', label: '제보' },
-];
 
 interface Props {
   initialPosts: FeedPost[];
@@ -29,45 +20,11 @@ interface Props {
 }
 
 export function FeedScreen({ initialPosts, initialCursor }: Props) {
-  const [filter, setFilter] = useState<Filter>('all');
   const [posts, setPosts] = useState<FeedPost[]>(initialPosts);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-  // 첫 마운트엔 SSR initialPosts 가 이미 있어서 fetch 생략 — filter 가 바뀔 때만 실행
-  const isFirstFilterRun = useRef(true);
-
-  /** 필터 변경 시 초기 페이지 다시 fetch — 사용자에게 "교체 중" 시각 피드백 줌 */
-  useEffect(() => {
-    if (isFirstFilterRun.current) {
-      isFirstFilterRun.current = false;
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setPosts([]); // 즉시 비워서 스피너가 명확히 보이도록
-    setCursor(null);
-    const qs = new URLSearchParams();
-    if (filter !== 'all') qs.set('kind', filter);
-    qs.set('limit', '20');
-    fetch(`/api/feeds?${qs.toString()}`, { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((data: { items: FeedPost[]; nextCursor: string | null }) => {
-        if (cancelled) return;
-        setPosts(data.items);
-        setCursor(data.nextCursor);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : '불러오기 실패');
-      })
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [filter]);
 
   /** 다음 페이지 로드 */
   const loadMore = useCallback(async () => {
@@ -75,7 +32,6 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
     setLoading(true);
     try {
       const qs = new URLSearchParams();
-      if (filter !== 'all') qs.set('kind', filter);
       qs.set('cursor', cursor);
       qs.set('limit', '20');
       const r = await fetch(`/api/feeds?${qs.toString()}`, { cache: 'no-store' });
@@ -87,7 +43,7 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [cursor, filter, loading]);
+  }, [cursor, loading]);
 
   /** IntersectionObserver 로 센티널이 보이면 다음 페이지 */
   useEffect(() => {
@@ -117,10 +73,8 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
 
       <div style={{ height: 14 }} />
 
-      <Segmented items={FILTERS} value={filter} onChange={setFilter} />
-
       <div className="sect">
-        <SectionTitle title="타임라인" right={<span className="more">최신순 · {posts.length}건</span>} />
+        <SectionTitle title="커뮤니티" right={<span className="more">최신순 · {posts.length}건</span>} />
         {loading && posts.length === 0 ? (
           <div
             style={{
@@ -154,7 +108,7 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
           (() => {
             let adIndex = 0;
             return posts.flatMap((p, i) => {
-              const row = <FeedRow key={`${p.kind}-${p.id}`} post={p} />;
+              const row = <FeedRow key={`feed-${p.id}`} post={p} />;
               const pos = i + 1;
               const isAdSlot =
                 pos >= AD_FIRST_AT &&
