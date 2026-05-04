@@ -6,3 +6,7 @@ out
 .env.*.local
 .DS_Store
 *.tsbuildinfo
+
+# React Native (Expo) — 별도 git repo로 관리
+mobile/
+

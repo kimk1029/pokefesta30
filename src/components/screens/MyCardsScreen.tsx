@@ -96,6 +96,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
 
   const totalVal = filtered.reduce((s, c) => s + c.price, 0);
   const gradedN = filtered.filter((c) => c.gradeNum !== null).length;
+  const memoN = filtered.filter((c) => Boolean(c.src.memo)).length;
 
   const onDelete = (id: number) => {
     if (pending) return;
@@ -121,7 +122,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
         showBack
         backHref="/"
         right={
-          <Link href="/cards/grading" className="appbar-right" aria-label="카드 추가">
+          <Link href="/cards/add" className="appbar-right" aria-label="카드 추가">
             ＋
           </Link>
         }
@@ -132,7 +133,10 @@ export function MyCardsScreen({ cards: initial }: Props) {
       <div className="cv-strip">
         <div className="cv-strip-cell cv-strip-a">총 {filtered.length}장</div>
         <div className="cv-strip-cell cv-strip-b">${fmtUsd(totalVal)}</div>
-        <div className="cv-strip-cell cv-strip-c">{gradedN}건 그레이딩</div>
+        <div className="cv-strip-cell cv-strip-c">그레이딩 {gradedN}</div>
+      </div>
+      <div className="cv-archive-line">
+        📚 아카이브 · 메모 {memoN}건 · 미식별 {filtered.filter((c) => !c.catalog).length}장
       </div>
 
       {/* Search */}
@@ -226,8 +230,8 @@ export function MyCardsScreen({ cards: initial }: Props) {
         <div className="cv-empty">
           저장된 카드가 없어요
           <br />
-          <Link href="/cards/grading" style={{ color: 'var(--ink)', textDecoration: 'underline' }}>
-            ＋ 그레이딩으로 추가
+          <Link href="/cards/add" style={{ color: 'var(--ink)', textDecoration: 'underline' }}>
+            ＋ 카드 추가하기
           </Link>
         </div>
       ) : view === 'grid' ? (
@@ -254,11 +258,13 @@ function GridView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
         <div key={c.src.id} className="cv-coll-item">
           <Link href={detailHref(c)} style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
             <CardImg card={c} h={110} />
+            {c.src.memo && <div className="cv-coll-noteflag" title={c.src.memo}>📝</div>}
           </Link>
           <div className="cv-coll-info">
             <div className="cv-coll-name" title={c.name}>
               {c.name}
             </div>
+            <div className="cv-coll-date">{fmtDate(c.src.createdAt)}</div>
             <div className="cv-coll-meta">
               <span className={`cv-rar cv-rar-${c.rar}`}>{c.rar}</span>
               {c.gradeNum !== null && <GradeBadge g={c.gradeNum} />}
@@ -307,6 +313,8 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
               {c.src.gradeEstimate ?? '미그레이딩'}
               {c.src.ocrSetCode ? ` · ${c.src.ocrSetCode}` : ''}
               {c.src.ocrCardNumber ? ` ${c.src.ocrCardNumber}` : ''}
+              {' · '}
+              <span style={{ color: 'var(--ink3)' }}>아카이빙 {fmtDate(c.src.createdAt)}</span>
             </div>
             <div className="cv-lc-row">
               <span className={`cv-rar cv-rar-${c.rar}`}>{c.rar}</span>
@@ -315,6 +323,11 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
               </span>
               {c.gradeNum !== null && <span className="cv-tag cv-tag-graded">PSA {c.gradeNum}</span>}
             </div>
+            {c.src.memo && (
+              <div className="cv-lc-memo">
+                📝 {c.src.memo}
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
               {c.price > 0 ? (
                 <span style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--grn-dk)', letterSpacing: 0.3 }}>
@@ -479,6 +492,14 @@ function gameAccent(g: string): string {
 function fmtUsd(v: number): string {
   if (!Number.isFinite(v) || v <= 0) return '0';
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+function fmtDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}.${mm}.${dd}`;
 }
 
 function parsePsa(label: string | null | undefined): number | null {

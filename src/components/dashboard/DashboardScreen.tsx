@@ -40,6 +40,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn }: Props) {
   const stats = summarize(display);
   const series = build12wSeries(stats.totalVal, stats.deltaPct);
   const topCard = stats.topCard;
+  const recent = display.slice(0, 6); // cards 는 서버에서 createdAt desc 정렬
 
   // 게임별 분포 — 카탈로그가 없는 카드는 "기타" 로
   const distMap = new Map<string, number>();
@@ -68,15 +69,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn }: Props) {
             </span>
             <span className="cv-port-since">지난 주 대비</span>
           </div>
-          <div className="cv-mini-bars">
-            {series.map((v, i) => (
-              <div
-                key={i}
-                className={`cv-mini-bar${i === series.length - 1 ? ' last' : ''}`}
-                style={{ height: `${v}%` }}
-              />
-            ))}
-          </div>
+          <PortfolioLineChart series={series} />
           <div className="cv-mini-axis">
             <span>12주 전</span>
             <span>6주 전</span>
@@ -159,15 +152,49 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn }: Props) {
         </div>
       )}
 
+      {isLoggedIn && recent.length > 0 && (
+        <div className="cv-sect">
+          <div className="cv-sect-hd">
+            <h2>최근 아카이빙</h2>
+            <Link href="/my/cards" className="cv-more">
+              전체 보기 ▶
+            </Link>
+          </div>
+          <div className="cv-recent-row">
+            {recent.map((c) => (
+              <Link
+                key={c.id}
+                href={c.cardId ? `/cards/search?id=${encodeURIComponent(c.cardId)}` : '/my/cards'}
+                className="cv-recent-tile"
+              >
+                <div
+                  className="cv-recent-thumb"
+                  style={{
+                    background: c.catalog
+                      ? `linear-gradient(160deg,${GAME_COLORS[gameOf(c.catalog)] ?? '#1E293B'}33,var(--ink2))`
+                      : 'var(--ink2)',
+                  }}
+                >
+                  {c.catalog?.emoji ?? '🃏'}
+                </div>
+                <div className="cv-recent-name" title={c.nickname || c.catalog?.name || '내 카드'}>
+                  {c.nickname || c.catalog?.name || '내 카드'}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="cv-sect">
         <div className="cv-sect-hd">
           <h2>빠른 메뉴</h2>
         </div>
         <div className="cv-quick">
-          <QuickBtn href="/cards/grading" emoji="📷" label="카드 스캔·등록" bg="var(--grn)" />
+          <QuickBtn href="/cards/add" emoji="＋" label="카드 추가하기" bg="var(--gold)" />
+          <QuickBtn href="/my/cards" emoji="📚" label="내 컬렉션" bg="var(--grn)" />
           <QuickBtn href="/cards" emoji="📊" label="시세 확인" bg="var(--blu)" />
           <QuickBtn href="/trade" emoji="🤝" label="마켓 보기" bg="var(--orn)" />
-          <QuickBtn href="/cards/grading" emoji="🏆" label="그레이딩" bg="var(--pur)" />
         </div>
       </div>
 
@@ -245,6 +272,61 @@ function GuestHero() {
 function fmtUsd(v: number): string {
   if (!Number.isFinite(v) || v <= 0) return '0';
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+/**
+ * 12주 시세 시퀀스를 SVG 꺾은선으로 그린다.
+ * series 는 0..100 범위 정규화된 값. width/height 는 viewBox 좌표계.
+ */
+function PortfolioLineChart({ series }: { series: number[] }) {
+  const W = 100;
+  const H = 36;
+  const PAD_X = 2;
+  const PAD_Y = 3;
+  const innerW = W - PAD_X * 2;
+  const innerH = H - PAD_Y * 2;
+  const n = series.length;
+  if (n < 2) return <div style={{ height: H }} />;
+
+  const points = series.map((v, i) => {
+    const x = PAD_X + (i / (n - 1)) * innerW;
+    const y = PAD_Y + (1 - v / 100) * innerH;
+    return [x, y] as const;
+  });
+
+  const linePath = points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`).join(' ');
+  const areaPath = `${linePath} L${points[n - 1][0].toFixed(2)} ${(H - PAD_Y).toFixed(2)} L${points[0][0].toFixed(2)} ${(H - PAD_Y).toFixed(2)} Z`;
+  const last = points[n - 1];
+
+  return (
+    <svg
+      className="cv-mini-chart"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <path d={areaPath} fill="rgba(255,210,63,.18)" />
+      <path
+        d={linePath}
+        fill="none"
+        stroke="var(--gold)"
+        strokeWidth="1.4"
+        strokeLinejoin="miter"
+        strokeLinecap="square"
+      />
+      {points.map(([x, y], i) => (
+        <rect
+          key={i}
+          x={x - 0.7}
+          y={y - 0.7}
+          width="1.4"
+          height="1.4"
+          fill={i === n - 1 ? 'var(--gold)' : 'rgba(255,210,63,.6)'}
+        />
+      ))}
+      <rect x={last[0] - 1.4} y={last[1] - 1.4} width="2.8" height="2.8" fill="var(--gold)" stroke="var(--ink)" strokeWidth="0.6" />
+    </svg>
+  );
 }
 
 /**
