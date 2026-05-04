@@ -131,7 +131,7 @@ export function CardGrader() {
           setOuter(detected);
           setInner(shrinkQuad(detected, 0.045));
         } else {
-          setErr('외곽 자동 검출 실패 — 단색 배경 사진이 좋아요. 핸들로 직접 조정해도 됩니다.');
+          setErr('외곽 자동 검출 실패 — 핸들로 4모서리를 카드에 맞춰 끌어 보거나, 그대로 OCR 시도(전체 이미지) 가능합니다.');
         }
       } catch (e) {
         setErr(e instanceof Error ? e.message : '검출 실패');

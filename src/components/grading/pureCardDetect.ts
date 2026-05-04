@@ -43,32 +43,32 @@ export function detectCardOuterPureJs(img: HTMLImageElement): Quad | null {
   const consensus = detectByConsensus(pixels, gray, w, h);
   if (consensus) {
     const sc = scoreQuad(consensus, w, h);
-    if (sc > 0.2) candidates.push({ quad: consensus, score: sc, tag: 'consensus' });
+    if (sc > 0.08) candidates.push({ quad: consensus, score: sc, tag: 'consensus' });
   }
 
   // 2~ — 단일 신호 backup
   const fgBbox = detectByForegroundBbox(pixels, w, h);
   if (fgBbox) {
     const sc = scoreQuad(fgBbox, w, h);
-    if (sc > 0.2) candidates.push({ quad: fgBbox, score: sc, tag: 'fgbbox' });
+    if (sc > 0.08) candidates.push({ quad: fgBbox, score: sc, tag: 'fgbbox' });
   }
 
   const colorQuad = detectByColor(pixels, w, h);
   if (colorQuad) {
     const sc = scoreQuad(colorQuad, w, h);
-    if (sc > 0.2) candidates.push({ quad: colorQuad, score: sc, tag: 'color' });
+    if (sc > 0.08) candidates.push({ quad: colorQuad, score: sc, tag: 'color' });
   }
 
   const blobQuad = detectByLargestBlob(pixels, w, h);
   if (blobQuad) {
     const sc = scoreQuad(blobQuad, w, h);
-    if (sc > 0.2) candidates.push({ quad: blobQuad, score: sc, tag: 'blob' });
+    if (sc > 0.08) candidates.push({ quad: blobQuad, score: sc, tag: 'blob' });
   }
 
   const houghQuad = detectByHough(gray, w, h);
   if (houghQuad) {
     const sc = scoreQuad(houghQuad, w, h);
-    if (sc > 0.2) candidates.push({ quad: houghQuad, score: sc, tag: 'hough' });
+    if (sc > 0.08) candidates.push({ quad: houghQuad, score: sc, tag: 'hough' });
   }
 
   if (candidates.length === 0) return null;

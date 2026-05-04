@@ -15,6 +15,13 @@ interface TesseractGlobal {
     langs?: string,
     options?: {
       logger?: (m: { status: string; progress?: number }) => void;
+      /**
+       * Page Segmentation Mode. 카드 하단처럼 흩어진 짧은 텍스트는 11(sparse).
+       * 단일 줄이면 7. 자세한 정의: https://github.com/tesseract-ocr/tesseract/blob/main/src/api/baseapi.cpp PageSegMode.
+       */
+      tessedit_pageseg_mode?: string | number;
+      /** 인식 가능한 글자 화이트리스트. 카드 코드는 대소문자 + 숫자 + 슬래시/하이픈/점/공백. */
+      tessedit_char_whitelist?: string;
     },
   ) => Promise<{
     data: {

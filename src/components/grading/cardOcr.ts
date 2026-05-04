@@ -1,9 +1,13 @@
 /**
  * 카드 OCR — 사진 + 외곽 quad 가 주어지면 카드 영역만 잘라 Tesseract.js 로 텍스트 추출 후
- * 카드 번호 / HP / 이름 후보 등으로 파싱.
+ * 카드 번호 / 세트코드 / 일러스트레이터 등으로 파싱.
  *
- * Perspective 보정은 하지 않음 — 사용자가 정면 촬영을 안내받음. bbox 크롭만 수행해도
- * 약간의 사다리꼴은 Tesseract 가 처리.
+ * 인식률을 높이는 전처리(중요):
+ *   1. 큰 캔버스로 리사이즈 (max side 2400px) — 작은 텍스트 디테일 보존
+ *   2. 하단 스트립을 그레이스케일 + 콘트라스트 스트레치 + 2x 업스케일 → Tesseract 가 좋아하는
+ *      "검정 글자/흰 배경 + 큰 폰트" 형태로 변환
+ *   3. PSM 11 (sparse text) + 영문/숫자/슬래시/하이픈/점 화이트리스트 — 카드 좌하단 코드 +
+ *      우하단 카드번호 같은 "흩어진 작은 텍스트" 인식에 최적
  */
 
 import { loadTesseract } from './tesseractLoader';
@@ -66,13 +70,23 @@ export async function recognizeCard(
   opts.onProgress?.({ phase: 'load-script', label: '스크립트 다운로드' });
   const T = await loadTesseract();
 
-  // 카드 영역 크롭 + 리사이즈
-  const fullCanvas = cropToBboxAndResize(img, outerQuad, 1500);
-  const canvas = region === 'bottom' ? cropBottomStrip(fullCanvas, 0.15) : fullCanvas;
+  // 카드 영역 크롭 + 리사이즈 — 디테일 보존을 위해 큰 캔버스(2400)
+  const fullCanvas = cropToBboxAndResize(img, outerQuad, 2400);
+
+  // 하단 모드면: 하단 12% 스트립 → 전처리(그레이/콘트라스트/2x 업스케일) 적용
+  // 전체 모드면: 그대로 사용 (전처리 안 함 — 카드 일러스트 색상 정보가 OCR 외 용도로 필요할 수도)
+  const stripRaw = region === 'bottom' ? cropBottomStrip(fullCanvas, 0.12) : fullCanvas;
+  const canvas = region === 'bottom' ? preprocessForOcr(stripRaw) : stripRaw;
 
   opts.onProgress?.({ phase: 'recognize', progress: 0, label: '텍스트 인식 준비…' });
 
   const ret = await T.recognize(canvas, langs, {
+    // Pokemon 카드 하단처럼 짧은 텍스트가 좌/우/여러 줄에 흩어져 있는 경우엔 PSM 11(sparse)이
+    // 기본값(PSM 3, auto)보다 훨씬 잘 잡아냄. 전체 이미지(region='full') 일 때도 sparse 가 안전.
+    tessedit_pageseg_mode: 11,
+    // 카드에 등장 가능한 글자만 — 영문 대소문자 + 숫자 + 슬래시/하이픈/점/공백 + 콜론
+    tessedit_char_whitelist:
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/-.: ',
     logger: (m) => {
       // m.status: 'loading tesseract core' | 'initializing tesseract' | 'loading language traineddata' |
       //           'initializing api' | 'recognizing text' 등
@@ -144,6 +158,92 @@ function cropBottomStrip(src: HTMLCanvasElement, ratio: number): HTMLCanvasEleme
   if (!ctx) return src;
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(src, 0, src.height - stripH, src.width, stripH, 0, 0, src.width, stripH);
+  return out;
+}
+
+/**
+ * Tesseract 가 잘 읽도록 캔버스 전처리:
+ *   1. 그레이스케일
+ *   2. 콘트라스트 스트레치 — 1, 99 percentile 을 0/255 로 매핑 (히스토그램 균등화 비슷한 효과)
+ *   3. 2x 업스케일(nearest neighbor) — 작은 글자를 ~30px+ 로 키워서 인식률 ↑
+ *
+ * 리턴 캔버스는 흑백 단색 (R=G=B), Tesseract LSTM 모델이 좋아하는 입력 형태.
+ */
+function preprocessForOcr(src: HTMLCanvasElement): HTMLCanvasElement {
+  const sw = src.width;
+  const sh = src.height;
+  const sctx = src.getContext('2d', { willReadFrequently: true });
+  if (!sctx) return src;
+  const sd = sctx.getImageData(0, 0, sw, sh).data;
+
+  // 1) 그레이스케일 + 명도 히스토그램
+  const gray = new Uint8Array(sw * sh);
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < sw * sh; i++) {
+    const r = sd[i * 4];
+    const g = sd[i * 4 + 1];
+    const b = sd[i * 4 + 2];
+    const v = ((r * 299 + g * 587 + b * 114) / 1000) | 0;
+    gray[i] = v;
+    hist[v]++;
+  }
+
+  // 2) 1, 99 percentile 찾기 (극단값에 영향 안 받게)
+  const total = sw * sh;
+  let lo = 0;
+  let hi = 255;
+  let acc = 0;
+  for (let v = 0; v < 256; v++) {
+    acc += hist[v];
+    if (acc > total * 0.01) {
+      lo = v;
+      break;
+    }
+  }
+  acc = 0;
+  for (let v = 255; v >= 0; v--) {
+    acc += hist[v];
+    if (acc > total * 0.01) {
+      hi = v;
+      break;
+    }
+  }
+  // 콘트라스트가 너무 낮으면 스트레치 안 하기 (전부 까맣게/하얗게 되는 거 방지)
+  if (hi - lo < 30) {
+    lo = 0;
+    hi = 255;
+  }
+  const range = hi - lo;
+
+  // 3) 2x 업스케일 + 콘트라스트 스트레치 (한 패스)
+  const SCALE = 2;
+  const dw = sw * SCALE;
+  const dh = sh * SCALE;
+  const out = document.createElement('canvas');
+  out.width = dw;
+  out.height = dh;
+  const octx = out.getContext('2d');
+  if (!octx) return src;
+  const od = octx.createImageData(dw, dh);
+  const dout = od.data;
+
+  for (let y = 0; y < dh; y++) {
+    const srcY = (y / SCALE) | 0;
+    for (let x = 0; x < dw; x++) {
+      const srcX = (x / SCALE) | 0;
+      const v0 = gray[srcY * sw + srcX];
+      let v = ((v0 - lo) / range) * 255;
+      if (v < 0) v = 0;
+      else if (v > 255) v = 255;
+      const di = (y * dw + x) * 4;
+      const vi = v | 0;
+      dout[di] = vi;
+      dout[di + 1] = vi;
+      dout[di + 2] = vi;
+      dout[di + 3] = 255;
+    }
+  }
+  octx.putImageData(od, 0, 0);
   return out;
 }
 
