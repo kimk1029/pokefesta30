@@ -5,6 +5,7 @@ import { PointChipLive } from '@/components/LivePointsPill';
 import { LogoutButton } from '@/components/LogoutButton';
 import { MessagesInboxLink } from '@/components/MessagesInboxLink';
 import { ProfileAvatarClient } from '@/components/ProfileAvatarClient';
+import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -155,6 +156,7 @@ export function MyScreen({ session, level, cardCount, tradeCount, savedCount }: 
       {/* 설정 */}
       <div className="sect">
         <SectionTitle title="설정" />
+        <ThemeSettingsItem />
         {SETTINGS.map((it) =>
           it.href ? (
             <Link key={it.lb} href={it.href} className="my-item">

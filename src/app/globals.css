@@ -2215,3 +2215,127 @@ a{color:inherit;text-decoration:none;}
   box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
     2px 2px 0 var(--ink),inset 0 3px 0 var(--gold-lt),inset 0 -3px 0 var(--gold-dk);}
 .cv-manual-submit:disabled{opacity:.6;cursor:not-allowed;}
+
+/* ============================================================
+ * THEMES
+ *   pokemon : 현재 (포켓볼 + 잉어킹)
+ *   default : 픽셀 유지, 포켓볼/도트 → 노랑 픽셀 마크 + "+" 버튼
+ *   minimal : default 와 동일 구조, 액센트만 틸로 변형 (포켓몬 색 제거)
+ *
+ * 부트스트랩 스크립트가 hydration 전에 <html data-theme="..."> 를 박아둠.
+ * 따라서 attribute selector 는 첫 페인트부터 작동.
+ * ========================================================== */
+
+/* PixelBall variant 토글 — 기본은 pokemon SVG 만 보임 */
+.ball-themed > .ball-pixel{display:none;}
+[data-theme="default"] .ball-themed > .ball-pokemon,
+[data-theme="minimal"] .ball-themed > .ball-pokemon{display:none;}
+[data-theme="default"] .ball-themed > .ball-pixel,
+[data-theme="minimal"] .ball-themed > .ball-pixel{display:block;color:var(--yel);}
+[data-theme="minimal"] .ball-themed > .ball-pixel{color:var(--teal);}
+
+/* ── FAB (탭바 중앙 버튼) ─────────────────────── */
+
+/* default 테마 — 노란 사각, "+" 십자 */
+[data-theme="default"] .fab-circle{
+  border-radius:0;
+  background:var(--yel);
+  box-shadow:
+    inset 0 4px 0 var(--yel-lt),inset 0 -4px 0 var(--yel-dk),
+    5px 5px 0 var(--ink);
+}
+[data-theme="default"] .fab-circle::before{
+  width:22px;height:5px;
+  background:var(--ink);
+  border:0;border-radius:0;
+  box-shadow:none;
+}
+[data-theme="default"] .fab-circle::after{
+  content:'';position:absolute;top:50%;left:50%;
+  width:5px;height:22px;
+  background:var(--ink);
+  transform:translate(-50%,-50%);
+  z-index:2;
+}
+[data-theme="default"] .fab-circle:active{
+  transform:translate(3px,3px);
+  box-shadow:
+    inset 0 4px 0 var(--yel-lt),inset 0 -4px 0 var(--yel-dk),
+    2px 2px 0 var(--ink);
+}
+[data-theme="default"] .fab-circle.fab-click:active{
+  box-shadow:
+    inset 0 4px 0 var(--yel-lt),inset 0 -4px 0 var(--yel-dk),
+    5px 5px 0 var(--ink);
+}
+
+/* minimal 테마 — default 와 같은 사각 + "+" 모양, 색만 틸 */
+[data-theme="minimal"] .fab-circle{
+  border-radius:0;
+  background:var(--teal);
+  box-shadow:
+    inset 0 4px 0 #2DC1B7,inset 0 -4px 0 #07574F,
+    5px 5px 0 var(--ink);
+}
+[data-theme="minimal"] .fab-circle::before{
+  width:22px;height:5px;
+  background:var(--paper);
+  border:0;border-radius:0;
+  box-shadow:none;
+}
+[data-theme="minimal"] .fab-circle::after{
+  content:'';position:absolute;top:50%;left:50%;
+  width:5px;height:22px;
+  background:var(--paper);
+  transform:translate(-50%,-50%);
+  z-index:2;
+}
+[data-theme="minimal"] .fab-circle:active{
+  transform:translate(3px,3px);
+  box-shadow:
+    inset 0 4px 0 #2DC1B7,inset 0 -4px 0 #07574F,
+    2px 2px 0 var(--ink);
+}
+[data-theme="minimal"] .fab-circle.fab-click:active{
+  box-shadow:
+    inset 0 4px 0 #2DC1B7,inset 0 -4px 0 #07574F,
+    5px 5px 0 var(--ink);
+}
+[data-theme="minimal"] .fab-tab span{color:var(--teal);}
+
+/* ── 테마 픽커 모달 ─────────────────────── */
+.theme-pick-grid{display:flex;flex-direction:column;gap:8px;}
+.theme-pick-tile{
+  display:flex;align-items:center;gap:12px;padding:10px 12px;cursor:pointer;
+  background:var(--white);font-family:var(--f1);text-align:left;
+  border:0;width:100%;
+  box-shadow:
+    -2px 0 0 var(--ink),2px 0 0 var(--ink),
+    0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    inset 0 2px 0 rgba(255,255,255,.85),inset 0 -2px 0 rgba(0,0,0,.1),
+    3px 3px 0 var(--ink);
+}
+.theme-pick-tile:active{
+  transform:translate(3px,3px);
+  box-shadow:
+    -2px 0 0 var(--ink),2px 0 0 var(--ink),
+    0 -2px 0 var(--ink),0 2px 0 var(--ink);
+}
+.theme-pick-tile.active{
+  background:var(--yel);
+  box-shadow:
+    -2px 0 0 var(--ink),2px 0 0 var(--ink),
+    0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    inset 0 2px 0 var(--yel-lt),inset 0 -2px 0 var(--yel-dk),
+    3px 3px 0 var(--ink);
+}
+.theme-pick-tile .tp-swatch{
+  width:34px;height:34px;flex-shrink:0;display:grid;place-items:center;
+  position:relative;
+  box-shadow:
+    -1px 0 0 var(--ink),1px 0 0 var(--ink),
+    0 -1px 0 var(--ink),0 1px 0 var(--ink);
+}
+.theme-pick-tile .tp-name{font-size:11px;letter-spacing:0.5px;color:var(--ink);}
+.theme-pick-tile .tp-desc{font-size:8px;color:var(--ink3);margin-top:3px;letter-spacing:0.3px;}
+.theme-pick-tile.active .tp-desc{color:var(--ink2);}

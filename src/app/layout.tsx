@@ -18,32 +18,32 @@ const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.poke-30.com';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: '포케페스타30 — 팬 커뮤니티',
-    template: '%s · 포케페스타30 (팬 프로젝트)',
+    default: '포케페스타30 — 포켓몬 TCG 커뮤니티',
+    template: '%s · 포케페스타30',
   },
   description:
-    '포켓몬 팬이 만든 커뮤니티 — 사용자 제보 기반 매장 혼잡도 정보, 카드 거래, 오리파.',
+    '포켓몬 TCG 카드 거래·시세 확인 + 30주년 행사 현장 상황 공유. 트레이너들을 위한 커뮤니티.',
   keywords: [
-    '포켓몬 팬커뮤니티', '포켓몬 카드 거래', '포켓몬 카드',
-    '카드 시세', '오리파', '팬 프로젝트',
+    '포켓몬 TCG', '포켓몬 카드 거래', '포켓몬 카드 시세',
+    '포켓몬 30주년', '포켓몬 페스타', '카드 시세 검색',
   ],
-  applicationName: '포케페스타30 (팬 프로젝트)',
-  authors: [{ name: 'pokefesta30 fans' }],
+  applicationName: '포케페스타30',
+  authors: [{ name: 'pokefesta30' }],
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
     url: SITE_URL,
-    siteName: '포케페스타30 (팬 프로젝트)',
-    title: '포케페스타30 — 팬 커뮤니티',
+    siteName: '포케페스타30 — 포켓몬 TCG 커뮤니티',
+    title: '포케페스타30 — 포켓몬 TCG 커뮤니티',
     description:
-      '팬 프로젝트 · 매장 혼잡도 사용자 제보 · 카드 거래 · 오리파',
+      'TCG 카드 거래 · 카드 시세 검색 · 행사 현장 정보 공유',
     images: [{ url: '/icon.svg', width: 512, height: 512 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '포케페스타30 (팬 프로젝트)',
-    description: '팬 커뮤니티 · 매장 혼잡도 사용자 제보',
+    title: '포케페스타30 — 포켓몬 TCG 커뮤니티',
+    description: 'TCG 카드 거래 · 시세 · 행사 정보 공유',
     images: ['/icon.svg'],
   },
   robots: {
@@ -77,6 +77,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link
           href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap"
           rel="stylesheet"
+        />
+        {/* 테마 부트스트랩 — hydration 전에 동기 실행, FOUC 방지 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('pokefesta-theme');if(t==='pokemon'||t==='default'||t==='minimal')document.documentElement.setAttribute('data-theme',t);else document.documentElement.setAttribute('data-theme','pokemon');}catch(e){document.documentElement.setAttribute('data-theme','pokemon');}})();`,
+          }}
         />
       </head>
       <body>
