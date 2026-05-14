@@ -54,6 +54,33 @@ export function snkrdunkApparelUrl(apparelId: number): string {
   return `${SNKRDUNK_ORIGIN}/apparels/${apparelId}`;
 }
 
+/**
+ * 스니다 응답의 일본어 상대시간/단위/라벨을 한국어로 변환.
+ *   "16分前"   → "16분 전"
+ *   "1時間前"  → "1시간 전"
+ *   "1日前"    → "1일 전"
+ *   "1週間前"  → "1주 전"
+ *   "1ヶ月前"  → "1개월 전"
+ *   "1年前"    → "1년 전"
+ *   "1個"      → "1개"
+ *   "中古"     → "중고"
+ *   "新品"     → "새상품"
+ */
+export function localizeSnkrdunkText(value: string | null | undefined): string {
+  if (!value) return '';
+  let v = String(value);
+  v = v.replace(/(\d+)\s*分前/g, '$1분 전');
+  v = v.replace(/(\d+)\s*時間前/g, '$1시간 전');
+  v = v.replace(/(\d+)\s*日前/g, '$1일 전');
+  v = v.replace(/(\d+)\s*週間前/g, '$1주 전');
+  v = v.replace(/(\d+)\s*ヶ月前/g, '$1개월 전');
+  v = v.replace(/(\d+)\s*年前/g, '$1년 전');
+  v = v.replace(/(\d+)\s*個/g, '$1개');
+  v = v.replace(/中古/g, '중고');
+  v = v.replace(/新品/g, '새상품');
+  return v;
+}
+
 async function fetchJson<T>(path: string): Promise<T | null> {
   const url = `${SNKRDUNK_ORIGIN}${path}`;
   try {
