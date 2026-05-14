@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Linking, ScrollView, View, Text } from 'react-native';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
@@ -12,6 +12,7 @@ import {
   fetchSnkrdunkApparel,
   fetchSnkrdunkSalesChart,
   fetchSnkrdunkSalesHistory,
+  localizeSnkrdunkText,
   snkrdunkApparelUrl,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
@@ -28,10 +29,31 @@ function fmtDateShort(ms: number): string {
   const d = new Date(ms);
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}.${m}.${day}`;
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${yy}.${m}.${day}`;
 }
 
-function Chart({ points, width = 320, height = 140 }: {
+function fmtYenCompact(n: number): string {
+  if (n >= 1_000_000) return `¥${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `¥${Math.round(n / 1000)}K`;
+  return `¥${n.toLocaleString('en-US')}`;
+}
+
+function niceTicks(min: number, max: number, n = 4): number[] {
+  if (!(max > min)) return [min];
+  const range = max - min;
+  const rough = range / (n - 1);
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  const lo = Math.floor(min / step) * step;
+  const hi = Math.ceil(max / step) * step;
+  const out: number[] = [];
+  for (let v = lo; v <= hi + step / 2; v += step) out.push(v);
+  return out;
+}
+
+function Chart({ points, width = 320, height = 180 }: {
   points: Array<[number, number]>;
   width?: number;
   height?: number;
@@ -45,43 +67,100 @@ function Chart({ points, width = 320, height = 140 }: {
       </View>
     );
   }
+  const PAD_L = 50;
+  const PAD_R = 10;
+  const PAD_T = 14;
+  const PAD_B = 28;
+  const innerW = width - PAD_L - PAD_R;
+  const innerH = height - PAD_T - PAD_B;
+
   const xs = points.map((p) => p[0]);
   const ys = points.map((p) => p[1]);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
+  const dataMinY = Math.min(...ys);
+  const dataMaxY = Math.max(...ys);
+  const yTicks = niceTicks(dataMinY, dataMaxY, 4);
+  const minY = yTicks[0];
+  const maxY = yTicks[yTicks.length - 1];
   const rangeY = maxY - minY || 1;
   const minX = xs[0];
   const maxX = xs[xs.length - 1];
   const rangeX = maxX - minX || 1;
-  const xOf = (v: number) => ((v - minX) / rangeX) * width;
-  const yOf = (v: number) => height - ((v - minY) / rangeY) * (height - 12) - 6;
+  const xOf = (v: number) => PAD_L + ((v - minX) / rangeX) * innerW;
+  const yOf = (v: number) => PAD_T + (1 - (v - minY) / rangeY) * innerH;
   const linePath = points
     .map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(p[0]).toFixed(1)},${yOf(p[1]).toFixed(1)}`)
     .join(' ');
   const areaPath =
-    linePath + ` L${xOf(maxX).toFixed(1)},${height} L${xOf(minX).toFixed(1)},${height} Z`;
+    linePath +
+    ` L${xOf(maxX).toFixed(1)},${(PAD_T + innerH).toFixed(1)} L${xOf(minX).toFixed(1)},${(
+      PAD_T + innerH
+    ).toFixed(1)} Z`;
   const trendUp = ys[ys.length - 1] >= ys[0];
   const lineColor = trendUp ? colors.red : colors.blu;
   const areaColor = trendUp ? 'rgba(230,57,70,0.18)' : 'rgba(58,91,217,0.18)';
+  const xTickValues = [0, 1 / 3, 2 / 3, 1].map((t) => minX + t * rangeX);
 
   return (
     <View>
       <View style={{ width: '100%', backgroundColor: colors.pap2 }}>
         <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+          {/* Y grid + labels */}
+          {yTicks.map((v) => {
+            const y = yOf(v);
+            return (
+              <React.Fragment key={`y-${v}`}>
+                <Line x1={PAD_L} y1={y} x2={width - PAD_R} y2={y} stroke="rgba(0,0,0,0.08)" strokeWidth={1} />
+                <SvgText x={PAD_L - 6} y={y + 3} textAnchor="end" fontSize={7} fill={colors.ink3}>
+                  {fmtYenCompact(v)}
+                </SvgText>
+              </React.Fragment>
+            );
+          })}
+
+          {/* X labels */}
+          {xTickValues.map((tv, i) => {
+            const x = xOf(tv);
+            return (
+              <React.Fragment key={`x-${i}`}>
+                <Line
+                  x1={x}
+                  y1={PAD_T + innerH}
+                  x2={x}
+                  y2={PAD_T + innerH + 3}
+                  stroke="rgba(0,0,0,0.3)"
+                  strokeWidth={1}
+                />
+                <SvgText
+                  x={x}
+                  y={PAD_T + innerH + 12}
+                  textAnchor={i === 0 ? 'start' : i === xTickValues.length - 1 ? 'end' : 'middle'}
+                  fontSize={7}
+                  fill={colors.ink3}
+                >
+                  {fmtDateShort(tv)}
+                </SvgText>
+              </React.Fragment>
+            );
+          })}
+
           <Path d={areaPath} fill={areaColor} />
           <Path d={linePath} stroke={lineColor} strokeWidth={1.5} fill="none" />
           <Circle cx={xOf(maxX)} cy={yOf(ys[ys.length - 1])} r={3} fill={lineColor} />
+
+          <SvgText x={PAD_L} y={PAD_T - 4} textAnchor="start" fontSize={7} fill={colors.ink3}>
+            가격 (JPY)
+          </SvgText>
+          <SvgText x={width - PAD_R} y={height - 4} textAnchor="end" fontSize={7} fill={colors.ink3}>
+            거래일
+          </SvgText>
         </Svg>
       </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
         <PixelText variant="pixel" size={8} color={colors.ink3}>
-          {fmtDateShort(minX)}
+          기간: {fmtDateShort(minX)} ~ {fmtDateShort(maxX)} · {points.length}회
         </PixelText>
         <PixelText variant="pixel" size={8} color={colors.ink3}>
-          최저 ¥{minY.toLocaleString('ja-JP')} · 최고 ¥{maxY.toLocaleString('ja-JP')}
-        </PixelText>
-        <PixelText variant="pixel" size={8} color={colors.ink3}>
-          {fmtDateShort(maxX)}
+          최저 ¥{dataMinY.toLocaleString('ja-JP')} · 최고 ¥{dataMaxY.toLocaleString('ja-JP')}
         </PixelText>
       </View>
     </View>
@@ -248,8 +327,12 @@ export default function SnkrdunkDetail() {
                 <View style={{ paddingHorizontal: 14, paddingVertical: 6 }}>
                   {history && history.history.length > 0 ? (
                     history.history.slice(0, 20).map((h, i, arr) => {
-                      const subParts = [h.label, h.size, h.condition].filter(Boolean);
-                      const condBadge = h.condition || h.label;
+                      const date = localizeSnkrdunkText(h.date);
+                      const size = localizeSnkrdunkText(h.size);
+                      const label = localizeSnkrdunkText(h.label);
+                      const condition = h.condition;
+                      const subParts = [label, size, condition].filter(Boolean);
+                      const condBadge = condition || label;
                       return (
                         <View
                           key={i}
@@ -266,7 +349,7 @@ export default function SnkrdunkDetail() {
                               {fmtYen(h.price)}
                             </PixelText>
                             <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginTop: 3 }}>
-                              {h.date}
+                              {date}
                               {subParts.length ? ` · ${subParts.join(' · ')}` : ''}
                             </PixelText>
                           </View>
