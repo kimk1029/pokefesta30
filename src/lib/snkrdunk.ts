@@ -11,11 +11,13 @@
 const SNKRDUNK_ORIGIN = 'https://snkrdunk.com';
 const REVALIDATE_SEC = 600;
 
-const COMMON_HEADERS: HeadersInit = {
+const SNKRDUNK_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+const COMMON_HEADERS: Record<string, string> = {
   Accept: 'application/json',
   'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
-  'User-Agent':
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'User-Agent': SNKRDUNK_USER_AGENT,
 };
 
 export interface SnkrdunkApparel {
@@ -159,4 +161,69 @@ export async function fetchSnkrdunkSalesChart(
   const main = await fetchJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart`);
   if (main && main.points && main.points.length > 0) return main;
   return fetchJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart/used`);
+}
+
+export interface SnkrdunkSearchResult {
+  apparelId: number;
+  name: string;
+  imageUrl: string | null;
+  priceText: string;
+}
+
+/** SNKRDUNK 검색 — JSON API가 공개되지 않아 SSR HTML을 파싱해서 결과를 반환. */
+export async function fetchSnkrdunkSearch(query: string): Promise<SnkrdunkSearchResult[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const url = `${SNKRDUNK_ORIGIN}/search?keywords=${encodeURIComponent(q)}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'text/html',
+        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
+        'User-Agent': SNKRDUNK_USER_AGENT,
+      },
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    return parseSnkrdunkSearchHtml(html);
+  } catch (err) {
+    console.error('[snkrdunk] search failed', err);
+    return [];
+  }
+}
+
+const SEARCH_ITEM_RE =
+  /<a[^>]*href="https:\/\/snkrdunk\.com\/apparels\/(\d+)"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/g;
+
+/** HTML 파서 — 검색 결과 카드를 추출. */
+export function parseSnkrdunkSearchHtml(html: string): SnkrdunkSearchResult[] {
+  const seen = new Set<number>();
+  const out: SnkrdunkSearchResult[] = [];
+  let m: RegExpExecArray | null;
+  // RegExp 상태가 모듈 간 공유되지 않도록 매번 새로 생성
+  const re = new RegExp(SEARCH_ITEM_RE.source, SEARCH_ITEM_RE.flags);
+  while ((m = re.exec(html)) !== null) {
+    const id = Number(m[1]);
+    if (!Number.isInteger(id) || seen.has(id)) continue;
+    seen.add(id);
+    const ariaLabel = decodeHtmlEntities(m[2]);
+    // aria-label 형태: "{name} - ¥{price}"
+    const sepIdx = ariaLabel.lastIndexOf(' - ¥');
+    const name = sepIdx > 0 ? ariaLabel.slice(0, sepIdx).trim() : ariaLabel.trim();
+    const priceText = sepIdx > 0 ? `¥${ariaLabel.slice(sepIdx + 4).trim()}` : '';
+    out.push({ apparelId: id, name, imageUrl: m[3] || null, priceText });
+    if (out.length >= 40) break;
+  }
+  return out;
+}
+
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
 }

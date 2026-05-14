@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { SnkrdunkSearchBar } from '@/components/SnkrdunkSearchBar';
 import {
   fetchSnkrdunkApparel,
   fetchSnkrdunkSalesChart,
@@ -153,6 +154,8 @@ export default async function Page() {
           </div>
         </div>
       </div>
+
+      <SnkrdunkSearchBar />
 
       <div className="sect">
         <SectionTitle title="추천 6종" right={<span className="more">{rows.length}종</span>} />
