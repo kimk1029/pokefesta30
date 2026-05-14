@@ -21,7 +21,7 @@ import {
 } from '@/services/snkrdunk';
 
 const SNKR_CAT_BG: Record<SnkrdunkCardSeed['category'], string> = {
-  박스: colors.blu,
+  SAR: colors.orn,
   프로모: colors.pur,
   SR: colors.red,
   원피스: colors.grnDk,

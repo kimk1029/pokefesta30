@@ -27,7 +27,9 @@ interface RawApparel {
   localizedName?: string;
   primaryMedia?: { imageUrl?: string };
   minPrice?: number;
+  usedMinPrice?: number;
   listingCountText?: string;
+  usedListingCountText?: string;
 }
 
 export async function fetchSnkrdunkApparel(apparelId: number): Promise<SnkrdunkApparel | null> {
@@ -42,12 +44,18 @@ export async function fetchSnkrdunkApparel(apparelId: number): Promise<SnkrdunkA
     });
     if (!res.ok) return null;
     const raw: RawApparel = await res.json();
+    // 싱글카드는 신품 시장이 없고 중고만 거래됨. 박스/팩은 반대.
+    const newMin = raw.minPrice ?? 0;
+    const usedMin = raw.usedMinPrice ?? 0;
+    const useUsed = newMin <= 0 && usedMin > 0;
     return {
       id: raw.id,
       localizedName: raw.localizedName ?? raw.name ?? '',
       imageUrl: raw.primaryMedia?.imageUrl ?? null,
-      minPrice: raw.minPrice ?? 0,
-      listingCountText: raw.listingCountText ?? '',
+      minPrice: useUsed ? usedMin : newMin,
+      listingCountText: useUsed
+        ? (raw.usedListingCountText ?? '')
+        : (raw.listingCountText ?? ''),
     };
   } catch {
     return null;
@@ -61,12 +69,12 @@ export function snkrdunkApparelUrl(apparelId: number): string {
 export interface SnkrdunkCardSeed {
   apparelId: number;
   shortName: string;
-  category: '박스' | '프로모' | 'SR' | '원피스';
+  category: 'SAR' | '프로모' | 'SR' | '원피스';
 }
 
 export const SNKRDUNK_FEATURED_CARDS: SnkrdunkCardSeed[] = [
-  { apparelId: 111467, shortName: '트리플렛비트 BOX', category: '박스' },
-  { apparelId: 101885, shortName: 'VSTAR 유니버스 BOX', category: '박스' },
+  { apparelId: 128117, shortName: '리자몽ex SAR (151)', category: 'SAR' },
+  { apparelId: 103079, shortName: '리자몽VSTAR SAR', category: 'SAR' },
   { apparelId: 100090, shortName: '피카츄 뭉크展 프로모', category: '프로모' },
   { apparelId: 106796, shortName: 'Nagaba × 피카츄 프로모', category: '프로모' },
   { apparelId: 104636, shortName: '게코우가 & 조로아크 GX SR', category: 'SR' },
