@@ -37,6 +37,8 @@ export interface SnkrdunkSaleEntry {
   date: string;
   size: string;
   condition: string;
+  /** "中古" 등 거래 라벨. 싱글카드 응답에만 옴. */
+  label: string;
 }
 
 export interface SnkrdunkSalesHistory {
@@ -116,12 +118,18 @@ export async function fetchSnkrdunkSalesHistory(
   apparelId: number,
 ): Promise<SnkrdunkSalesHistory | null> {
   if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
-  return fetchJson<SnkrdunkSalesHistory>(`/v1/apparels/${apparelId}/sales-history`);
+  // 싱글카드는 size_id/page/per_page 가 필수, 박스도 이 형태에서 정상 응답.
+  return fetchJson<SnkrdunkSalesHistory>(
+    `/v1/apparels/${apparelId}/sales-history?size_id=0&page=1&per_page=20`,
+  );
 }
 
 export async function fetchSnkrdunkSalesChart(
   apparelId: number,
 ): Promise<SnkrdunkSalesChart | null> {
   if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
-  return fetchJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart`);
+  // 박스/팩: /sales-chart. 싱글카드: /sales-chart/used. 둘 다 시도해서 데이터 있는 쪽 반환.
+  const main = await fetchJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart`);
+  if (main && main.points && main.points.length > 0) return main;
+  return fetchJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart/used`);
 }

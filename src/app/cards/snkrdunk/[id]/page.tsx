@@ -265,38 +265,57 @@ export default async function Page({ params }: PageProps) {
           }}
         >
           {salesHistory && salesHistory.history.length > 0 ? (
-            salesHistory.history.slice(0, 20).map((h, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 0',
-                  borderBottom:
-                    i < Math.min(salesHistory.history.length, 20) - 1 ? '2px solid var(--bg3)' : 'none',
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink)', letterSpacing: 0.3 }}>
-                    {fmtYen(h.price)}
+            salesHistory.history.slice(0, 20).map((h, i) => {
+              const subParts = [h.label, h.size, h.condition].filter(Boolean);
+              const condBadge = h.condition || h.label;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 0',
+                    borderBottom:
+                      i < Math.min(salesHistory.history.length, 20) - 1 ? '2px solid var(--bg3)' : 'none',
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink)', letterSpacing: 0.3 }}>
+                      {fmtYen(h.price)}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: 'var(--f1)',
+                        fontSize: 8,
+                        color: 'var(--ink3)',
+                        letterSpacing: 0.3,
+                        marginTop: 3,
+                      }}
+                    >
+                      {h.date}
+                      {subParts.length ? ` · ${subParts.join(' · ')}` : ''}
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--f1)',
-                      fontSize: 8,
-                      color: 'var(--ink3)',
-                      letterSpacing: 0.3,
-                      marginTop: 3,
-                    }}
-                  >
-                    {h.date}
-                    {h.size ? ` · ${h.size}` : ''}
-                    {h.condition ? ` · ${h.condition}` : ''}
-                  </div>
+                  {condBadge ? (
+                    <span
+                      style={{
+                        fontFamily: 'var(--f1)',
+                        fontSize: 8,
+                        padding: '3px 6px',
+                        background: 'var(--pap2)',
+                        color: 'var(--ink)',
+                        letterSpacing: 0.3,
+                        boxShadow:
+                          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                      }}
+                    >
+                      {condBadge}
+                    </span>
+                  ) : null}
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div
               style={{
