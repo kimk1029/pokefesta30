@@ -5,7 +5,6 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import {
   fetchSnkrdunkApparel,
   fetchSnkrdunkSalesChart,
-  snkrdunkApparelUrl,
   type SnkrdunkApparel,
   type SnkrdunkSalesChart,
 } from '@/lib/snkrdunk';
@@ -166,7 +165,12 @@ export default async function Page() {
           const last30 = chart ? chart.points.slice(-30) : [];
 
           return (
-            <div key={seed.apparelId} className="shop-card" style={{ cursor: 'default' }}>
+            <Link
+              key={seed.apparelId}
+              href={`/cards/snkrdunk/${seed.apparelId}`}
+              className="shop-card"
+              style={{ textDecoration: 'none', color: 'inherit' }}
+            >
               <div
                 className="sh-icon"
                 style={{
@@ -230,27 +234,8 @@ export default async function Page() {
                 <div style={{ marginTop: 8 }}>
                   <Sparkline points={last30} width={140} height={36} />
                 </div>
-                <div style={{ marginTop: 6 }}>
-                  <Link
-                    href={snkrdunkApparelUrl(seed.apparelId)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontFamily: 'var(--f1)',
-                      fontSize: 8,
-                      color: 'var(--blu)',
-                      letterSpacing: 0.3,
-                      textDecoration: 'none',
-                    }}
-                  >
-                    스니다에서 보기 ↗
-                  </Link>
-                </div>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>

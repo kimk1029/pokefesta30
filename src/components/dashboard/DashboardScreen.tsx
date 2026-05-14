@@ -510,11 +510,9 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [] }: Props
               const bg = SNKR_CAT_BG[r.category];
               const priceText = r.minPrice > 0 ? `¥${r.minPrice.toLocaleString('ja-JP')}` : '—';
               return (
-                <a
+                <Link
                   key={r.apparelId}
-                  href={`https://snkrdunk.com/apparels/${r.apparelId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`/cards/snkrdunk/${r.apparelId}`}
                   style={{
                     flexShrink: 0, width: 124, cursor: 'pointer', textDecoration: 'none', color: 'inherit',
                     background: 'var(--white)',
@@ -556,7 +554,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [] }: Props
                       </div>
                     )}
                   </div>
-                </a>
+                </Link>
               );
             })}
           </div>
