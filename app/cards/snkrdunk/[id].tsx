@@ -9,10 +9,13 @@ import { PixelPress } from '@/components/cv/PixelPress';
 import { SectHd } from '@/components/cv/SectHd';
 import { colors } from '@/theme/tokens';
 import {
+  downsamplePricePoints,
   fetchSnkrdunkApparel,
   fetchSnkrdunkSalesChart,
   fetchSnkrdunkSalesHistory,
   localizeSnkrdunkText,
+  priceDownsampleUnit,
+  priceUnitLabelKo,
   snkrdunkApparelUrl,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
@@ -53,8 +56,16 @@ function niceTicks(min: number, max: number, n = 4): number[] {
   return out;
 }
 
-function Chart({ points, width = 320, height = 180 }: {
+function Chart({
+  points,
+  unitLabel,
+  rawCount,
+  width = 320,
+  height = 180,
+}: {
   points: Array<[number, number]>;
+  unitLabel: string;
+  rawCount: number;
   width?: number;
   height?: number;
 }) {
@@ -157,7 +168,7 @@ function Chart({ points, width = 320, height = 180 }: {
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
         <PixelText variant="pixel" size={8} color={colors.ink3}>
-          기간: {fmtDateShort(minX)} ~ {fmtDateShort(maxX)} · {points.length}회
+          기간: {fmtDateShort(minX)} ~ {fmtDateShort(maxX)} · {unitLabel} · 거래 {rawCount}건
         </PixelText>
         <PixelText variant="pixel" size={8} color={colors.ink3}>
           최저 ¥{dataMinY.toLocaleString('ja-JP')} · 최고 ¥{dataMaxY.toLocaleString('ja-JP')}
@@ -202,7 +213,14 @@ export default function SnkrdunkDetail() {
 
   const displayName = seed?.shortName ?? apparel?.localizedName ?? '카드 정보';
   const allPoints = chart?.points ?? [];
-  const points = allPoints.length > 90 ? allPoints.slice(-90) : allPoints;
+  const downsampleUnit = priceDownsampleUnit(allPoints);
+  const points = downsamplePricePoints(allPoints);
+  const unitLabel =
+    downsampleUnit === 'monthly' ? '월 평균' : downsampleUnit === 'weekly' ? '주 평균' : '거래 단위';
+  const sectionMore =
+    downsampleUnit === 'raw'
+      ? `최근 ${points.length}건`
+      : `${points.length}${priceUnitLabelKo(downsampleUnit)} 평균`;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
@@ -305,12 +323,12 @@ export default function SnkrdunkDetail() {
 
             {/* Chart */}
             <View style={{ marginHorizontal: 14 }}>
-              <SectHd title="시세 차트" more={`최근 ${points.length}건`} />
+              <SectHd title="시세 차트" more={sectionMore} />
             </View>
             <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
               <PixelFrame bg={colors.white}>
                 <View style={{ padding: 14 }}>
-                  <Chart points={points} />
+                  <Chart points={points} unitLabel={unitLabel} rawCount={allPoints.length} />
                 </View>
               </PixelFrame>
             </View>

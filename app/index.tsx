@@ -14,6 +14,7 @@ import { RARS, gameColors, fmt, priceLabel, type Game, type Rarity } from '@/dat
 import { useCollection } from '@/lib/collection';
 import {
   fetchSnkrdunkApparel,
+  fetchSnkrdunkBrowse,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
   type SnkrdunkCardSeed,
@@ -26,9 +27,38 @@ const SNKR_CAT_BG: Record<SnkrdunkCardSeed['category'], string> = {
   원피스: colors.grnDk,
 };
 
+interface SnkrDisplaySeed {
+  apparelId: number;
+  shortName: string;
+  category: SnkrdunkCardSeed['category'] | null;
+}
+
 interface SnkrRow {
-  seed: SnkrdunkCardSeed;
+  seed: SnkrDisplaySeed;
   data: SnkrdunkApparel | null;
+}
+
+const FEATURED_BY_ID = new Map(SNKRDUNK_FEATURED_CARDS.map((s) => [s.apparelId, s]));
+
+function inferSnkrCategory(name: string): SnkrdunkCardSeed['category'] | null {
+  if (/プロモ|PROMO/i.test(name)) return '프로모';
+  if (/\bSAR\b/.test(name)) return 'SAR';
+  if (/\bSR\b/.test(name)) return 'SR';
+  return null;
+}
+
+function shortenSnkrName(name: string): string {
+  const cut = name.split(/[|｜]/)[0].trim();
+  return cut.length > 22 ? cut.slice(0, 21) + '…' : cut;
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 const POINTS = 1280;
@@ -80,8 +110,28 @@ export default function Home() {
   useEffect(() => {
     let alive = true;
     (async () => {
+      // 검색 HTML 풀에서 6장을 매번 다르게 픽. 실패하면 큐레이션된 시드로 폴백.
+      const pool = await fetchSnkrdunkBrowse(1);
+      const seeds: SnkrDisplaySeed[] =
+        pool.length > 0
+          ? shuffle(pool)
+              .slice(0, 6)
+              .map((r) => {
+                const curated = FEATURED_BY_ID.get(r.apparelId);
+                return curated
+                  ? { apparelId: r.apparelId, shortName: curated.shortName, category: curated.category }
+                  : {
+                      apparelId: r.apparelId,
+                      shortName: shortenSnkrName(r.name),
+                      category: inferSnkrCategory(r.name),
+                    };
+              })
+          : shuffle(SNKRDUNK_FEATURED_CARDS)
+              .slice(0, 6)
+              .map((s) => ({ apparelId: s.apparelId, shortName: s.shortName, category: s.category }));
+
       const rows = await Promise.all(
-        SNKRDUNK_FEATURED_CARDS.map(async (seed) => ({
+        seeds.map(async (seed) => ({
           seed,
           data: await fetchSnkrdunkApparel(seed.apparelId),
         })),
@@ -641,7 +691,11 @@ export default function Home() {
         {snkrRows.length > 0 && (
           <>
             <View style={{ marginHorizontal: 14 }}>
-              <SectHd title="🇯🇵 일본 시세 (스니다)" />
+              <SectHd
+                title="🇯🇵 일본 시세 (스니다)"
+                more="전체보기 →"
+                onMore={() => router.push('/cards/snkrdunk/all' as never)}
+              />
             </View>
             <ScrollView
               horizontal
@@ -650,7 +704,7 @@ export default function Home() {
               style={{ marginBottom: 12 }}
             >
               {snkrRows.map(({ seed, data }) => {
-                const bg = SNKR_CAT_BG[seed.category];
+                const bg = seed.category ? SNKR_CAT_BG[seed.category] : colors.ink2;
                 const priceText =
                   data && data.minPrice > 0 ? `¥${data.minPrice.toLocaleString('ja-JP')}` : '—';
                 return (
@@ -686,21 +740,23 @@ export default function Home() {
                             borderTopWidth: 3,
                           }}
                         >
-                          <View
-                            style={{
-                              alignSelf: 'flex-start',
-                              backgroundColor: bg,
-                              paddingHorizontal: 4,
-                              paddingVertical: 2,
-                              borderColor: colors.ink,
-                              borderWidth: 1,
-                              marginBottom: 5,
-                            }}
-                          >
-                            <PixelText variant="pixel" size={8} color={colors.white}>
-                              {seed.category}
-                            </PixelText>
-                          </View>
+                          {seed.category ? (
+                            <View
+                              style={{
+                                alignSelf: 'flex-start',
+                                backgroundColor: bg,
+                                paddingHorizontal: 4,
+                                paddingVertical: 2,
+                                borderColor: colors.ink,
+                                borderWidth: 1,
+                                marginBottom: 5,
+                              }}
+                            >
+                              <PixelText variant="pixel" size={8} color={colors.white}>
+                                {seed.category}
+                              </PixelText>
+                            </View>
+                          ) : null}
                           <PixelText
                             variant="pixel"
                             size={9}

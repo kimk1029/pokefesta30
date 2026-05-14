@@ -146,3 +146,124 @@ export const SNKRDUNK_FEATURED_CARDS: SnkrdunkCardSeed[] = [
   { apparelId: 104636, shortName: '게코우가 & 조로아크 GX SR', category: 'SR' },
   { apparelId: 108050, shortName: '루피 P-033 (점프 부록)', category: '원피스' },
 ];
+
+// ────────────────────────────────────────────────────────────
+// 브라우즈 / 검색 (HTML 스크래핑)
+// ────────────────────────────────────────────────────────────
+export interface SnkrdunkSearchResult {
+  apparelId: number;
+  name: string;
+  imageUrl: string | null;
+  priceText: string;
+}
+
+const SEARCH_ITEM_RE =
+  /<a[^>]*href="https:\/\/snkrdunk\.com\/apparels\/(\d+)"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/g;
+
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function parseSnkrdunkSearchHtml(html: string): SnkrdunkSearchResult[] {
+  const seen = new Set<number>();
+  const out: SnkrdunkSearchResult[] = [];
+  let m: RegExpExecArray | null;
+  const re = new RegExp(SEARCH_ITEM_RE.source, SEARCH_ITEM_RE.flags);
+  while ((m = re.exec(html)) !== null) {
+    const id = Number(m[1]);
+    if (!Number.isInteger(id) || seen.has(id)) continue;
+    seen.add(id);
+    const ariaLabel = decodeHtmlEntities(m[2]);
+    const sepIdx = ariaLabel.lastIndexOf(' - ¥');
+    const name = sepIdx > 0 ? ariaLabel.slice(0, sepIdx).trim() : ariaLabel.trim();
+    const priceText = sepIdx > 0 ? `¥${ariaLabel.slice(sepIdx + 4).trim()}` : '';
+    out.push({ apparelId: id, name, imageUrl: m[3] || null, priceText });
+    if (out.length >= 40) break;
+  }
+  return out;
+}
+
+export const SNKRDUNK_BROWSE_KEYWORD = 'ポケモンカード';
+
+export async function fetchSnkrdunkBrowse(page = 1): Promise<SnkrdunkSearchResult[]> {
+  const p = Number.isInteger(page) && page > 1 ? `&page=${page}` : '';
+  const url = `${SNKRDUNK_ORIGIN}/search?keywords=${encodeURIComponent(SNKRDUNK_BROWSE_KEYWORD)}${p}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'text/html',
+        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
+      },
+      signal: abortAfter(10000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    return parseSnkrdunkSearchHtml(html);
+  } catch {
+    return [];
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// 차트 다운샘플링 (긴 기간을 한 화면에 보여주기 위해 주/월 평균)
+// ────────────────────────────────────────────────────────────
+export type PriceDownsampleUnit = 'raw' | 'weekly' | 'monthly';
+
+const _DAY_MS = 86_400_000;
+
+function pickDownsampleUnit(spanMs: number): PriceDownsampleUnit {
+  if (spanMs > 365 * _DAY_MS) return 'monthly';
+  if (spanMs > 60 * _DAY_MS) return 'weekly';
+  return 'raw';
+}
+
+export function priceDownsampleUnit(
+  points: Array<[number, number]>,
+): PriceDownsampleUnit {
+  if (points.length < 2) return 'raw';
+  let min = points[0][0];
+  let max = points[0][0];
+  for (const [t] of points) {
+    if (t < min) min = t;
+    if (t > max) max = t;
+  }
+  return pickDownsampleUnit(max - min);
+}
+
+export function priceUnitLabelKo(unit: PriceDownsampleUnit): string {
+  if (unit === 'monthly') return '월';
+  if (unit === 'weekly') return '주';
+  return '건';
+}
+
+export function downsamplePricePoints(
+  points: Array<[number, number]>,
+): Array<[number, number]> {
+  if (points.length < 2) return points.slice();
+  const sorted = [...points].sort((a, b) => a[0] - b[0]);
+  const spanMs = sorted[sorted.length - 1][0] - sorted[0][0];
+  const WEEK = 7 * _DAY_MS;
+  const MONTH = 30 * _DAY_MS;
+  const unit = pickDownsampleUnit(spanMs);
+  if (unit === 'raw') return sorted;
+  const bucket = unit === 'monthly' ? MONTH : WEEK;
+  const map = new Map<number, { sum: number; n: number }>();
+  for (const [ts, price] of sorted) {
+    const key = Math.floor(ts / bucket) * bucket;
+    const b = map.get(key);
+    if (b) {
+      b.sum += price;
+      b.n += 1;
+    } else {
+      map.set(key, { sum: price, n: 1 });
+    }
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([key, b]) => [key, Math.round(b.sum / b.n)] as [number, number]);
+}
