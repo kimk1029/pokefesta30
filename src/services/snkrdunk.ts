@@ -66,6 +66,59 @@ export function snkrdunkApparelUrl(apparelId: number): string {
   return `${SNKRDUNK_ORIGIN}/apparels/${apparelId}`;
 }
 
+export interface SnkrdunkSaleEntry {
+  price: number;
+  date: string;
+  size: string;
+  condition: string;
+}
+
+export interface SnkrdunkSalesHistory {
+  history: SnkrdunkSaleEntry[];
+}
+
+export interface SnkrdunkSalesChart {
+  points: Array<[number, number]>;
+}
+
+export async function fetchSnkrdunkSalesHistory(
+  apparelId: number,
+): Promise<SnkrdunkSalesHistory | null> {
+  if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
+  try {
+    const res = await fetch(`${SNKRDUNK_ORIGIN}/v1/apparels/${apparelId}/sales-history`, {
+      headers: {
+        Accept: 'application/json',
+        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
+      },
+      signal: abortAfter(8000),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as SnkrdunkSalesHistory;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchSnkrdunkSalesChart(
+  apparelId: number,
+): Promise<SnkrdunkSalesChart | null> {
+  if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
+  try {
+    const res = await fetch(`${SNKRDUNK_ORIGIN}/v1/apparels/${apparelId}/sales-chart`, {
+      headers: {
+        Accept: 'application/json',
+        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
+      },
+      signal: abortAfter(8000),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as SnkrdunkSalesChart;
+  } catch {
+    return null;
+  }
+}
+
 export interface SnkrdunkCardSeed {
   apparelId: number;
   shortName: string;

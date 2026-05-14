@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, Linking, ScrollView, View, Pressable, Text } from 'react-native';
+import { Image, ScrollView, View, Pressable, Text } from 'react-native';
 import { router } from 'expo-router';
 import { AppBar, ABtn } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
@@ -14,7 +14,6 @@ import { RARS, gameColors, fmt, priceLabel, type Game, type Rarity } from '@/dat
 import { useCollection } from '@/lib/collection';
 import {
   fetchSnkrdunkApparel,
-  snkrdunkApparelUrl,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
   type SnkrdunkCardSeed,
@@ -657,7 +656,7 @@ export default function Home() {
                 return (
                   <View key={seed.apparelId} style={{ width: 128 }}>
                     <PixelPress
-                      onPress={() => Linking.openURL(snkrdunkApparelUrl(seed.apparelId))}
+                      onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
                       innerStyle={{ borderTopWidth: 4, borderTopColor: bg }}
                     >
                       <View>
