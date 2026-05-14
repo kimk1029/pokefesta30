@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "포케페스타30",
+    "slug": "pokefesta30",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "pokefesta30",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#E8DFB8",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pokefesta30.app"
+    },
+    "android": {
+      "package": "com.pokefesta30.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#E8DFB8"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "react-native-document-scanner-plugin",
+        {
+          "cameraPermission": "카드를 스캔하려면 카메라 접근이 필요합니다."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
