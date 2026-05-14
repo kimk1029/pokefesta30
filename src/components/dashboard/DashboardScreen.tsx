@@ -9,11 +9,28 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
 import type { MyCardWithPrice } from '@/lib/queries';
 
+export interface SnkrdunkRow {
+  apparelId: number;
+  shortName: string;
+  category: '박스' | '프로모' | 'SR' | '원피스';
+  imageUrl: string | null;
+  minPrice: number;
+  listingCountText: string;
+}
+
 interface Props {
   cards: MyCardWithPrice[];
   heroBanners?: HeroSlideData[];
   isLoggedIn: boolean;
+  snkrdunkRows?: SnkrdunkRow[];
 }
+
+const SNKR_CAT_BG: Record<SnkrdunkRow['category'], string> = {
+  박스: 'var(--blu)',
+  프로모: 'var(--pur)',
+  SR: 'var(--red)',
+  원피스: 'var(--grn-dk)',
+};
 
 type Rarity = 'C' | 'U' | 'R' | 'SR' | 'HR' | 'S';
 
@@ -78,7 +95,7 @@ function fmt(n: number): string {
   return Math.round(n).toLocaleString();
 }
 
-export function DashboardScreen({ cards, heroBanners }: Props) {
+export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [] }: Props) {
   const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '3M'>('1M');
   const [activeGame, setActiveGame] = useState<string>('전체');
 
@@ -477,6 +494,71 @@ export function DashboardScreen({ cards, heroBanners }: Props) {
                 </div>
               </Link>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ SNKRDUNK JP PRICES ═══ */}
+      {snkrdunkRows.length > 0 && (
+        <div className="sect">
+          <div className="sect-hd">
+            <h2>🇯🇵 일본 시세 (스니다)</h2>
+            <Link href="/cards/snkrdunk" className="more">전체 ▶</Link>
+          </div>
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
+            {snkrdunkRows.map((r) => {
+              const bg = SNKR_CAT_BG[r.category];
+              const priceText = r.minPrice > 0 ? `¥${r.minPrice.toLocaleString('ja-JP')}` : '—';
+              return (
+                <a
+                  key={r.apparelId}
+                  href={`https://snkrdunk.com/apparels/${r.apparelId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    flexShrink: 0, width: 124, cursor: 'pointer', textDecoration: 'none', color: 'inherit',
+                    background: 'var(--white)',
+                    boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.7),5px 5px 0 var(--ink)',
+                    borderTop: `4px solid ${bg}`,
+                  }}
+                >
+                  <div style={{
+                    height: 92, background: 'var(--pap2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                  }}>
+                    {r.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={r.imageUrl}
+                        alt={r.shortName}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 32 }}>🃏</span>
+                    )}
+                  </div>
+                  <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
+                    <div style={{
+                      fontFamily: 'var(--f1)', fontSize: 8, padding: '2px 4px', display: 'inline-block',
+                      background: bg, color: 'var(--white)', letterSpacing: 0.3, marginBottom: 5,
+                      boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                    }}>{r.category}</div>
+                    <div style={{
+                      fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: 4,
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>{r.shortName}</div>
+                    <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--red)', letterSpacing: 0.3 }}>
+                      {priceText}
+                    </div>
+                    {r.listingCountText && (
+                      <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 3, letterSpacing: 0.3 }}>
+                        매물 {r.listingCountText}건
+                      </div>
+                    )}
+                  </div>
+                </a>
+              );
+            })}
           </div>
         </div>
       )}
