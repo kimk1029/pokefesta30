@@ -4,15 +4,28 @@ import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { SnkrdunkSearchBar } from '@/components/SnkrdunkSearchBar';
 import {
+  downsamplePricePoints,
   fetchSnkrdunkApparel,
+  fetchSnkrdunkBrowse,
   fetchSnkrdunkSalesChart,
   type SnkrdunkApparel,
   type SnkrdunkSalesChart,
+  type SnkrdunkSearchResult,
 } from '@/lib/snkrdunk';
 import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCards';
 
+// 추천 6장은 요청마다 다른 카드가 나오도록 페이지 캐시를 끔.
+// 개별 snkrdunk fetch 는 fetch 레이어에서 revalidate 캐싱되므로 비용 부담은 작음.
+export const dynamic = 'force-dynamic';
+
+interface DisplaySeed {
+  apparelId: number;
+  shortName: string;
+  category: SnkrdunkCardSeed['category'] | null;
+}
+
 interface CardRow {
-  seed: SnkrdunkCardSeed;
+  seed: DisplaySeed;
   apparel: SnkrdunkApparel | null;
   chart: SnkrdunkSalesChart | null;
 }
@@ -24,9 +37,45 @@ const CATEGORY_BG: Record<SnkrdunkCardSeed['category'], string> = {
   원피스: 'var(--grn-dk)',
 };
 
+const FEATURED_BY_ID = new Map(SNKRDUNK_FEATURED_CARDS.map((s) => [s.apparelId, s]));
+
 function fmtYen(n: number): string {
   if (!n) return '—';
   return `¥${n.toLocaleString('ja-JP')}`;
+}
+
+/** 검색 결과 name 에서 SAR/SR/AR/プロモ 등 카테고리 라벨을 추측. 없으면 null. */
+function inferCategory(name: string): SnkrdunkCardSeed['category'] | null {
+  if (/プロモ|PROMO/i.test(name)) return '프로모';
+  if (/\bSAR\b/.test(name)) return 'SAR';
+  if (/\bSR\b/.test(name)) return 'SR';
+  return null;
+}
+
+/** "리자몽ex SAR (151) | ポケモンカードゲーム" 같은 긴 이름을 카드 라벨용으로 단축. */
+function shortenName(name: string): string {
+  const cut = name.split(/[|｜]/)[0].trim();
+  return cut.length > 28 ? cut.slice(0, 27) + '…' : cut;
+}
+
+function shuffleInPlace<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function searchToSeed(r: SnkrdunkSearchResult): DisplaySeed {
+  const curated = FEATURED_BY_ID.get(r.apparelId);
+  if (curated) {
+    return { apparelId: r.apparelId, shortName: curated.shortName, category: curated.category };
+  }
+  return {
+    apparelId: r.apparelId,
+    shortName: shortenName(r.name),
+    category: inferCategory(r.name),
+  };
 }
 
 function Sparkline({
@@ -93,9 +142,22 @@ function Sparkline({
   );
 }
 
+async function pickRandomSeeds(): Promise<DisplaySeed[]> {
+  const pool = await fetchSnkrdunkBrowse(1);
+  if (pool.length > 0) {
+    const shuffled = shuffleInPlace(pool.slice());
+    return shuffled.slice(0, 6).map(searchToSeed);
+  }
+  // browse 실패 시 폴백: 큐레이션된 시드를 사용
+  return shuffleInPlace(SNKRDUNK_FEATURED_CARDS.slice())
+    .slice(0, 6)
+    .map((s) => ({ apparelId: s.apparelId, shortName: s.shortName, category: s.category }));
+}
+
 export default async function Page() {
+  const seeds = await pickRandomSeeds();
   const rows: CardRow[] = await Promise.all(
-    SNKRDUNK_FEATURED_CARDS.map(async (seed) => {
+    seeds.map(async (seed) => {
       const [apparel, chart] = await Promise.all([
         fetchSnkrdunkApparel(seed.apparelId),
         fetchSnkrdunkSalesChart(seed.apparelId),
@@ -158,14 +220,22 @@ export default async function Page() {
       <SnkrdunkSearchBar />
 
       <div className="sect">
-        <SectionTitle title="추천 6종" right={<span className="more">{rows.length}종</span>} />
+        <SectionTitle
+          title="추천 6종"
+          right={
+            <Link href="/cards/snkrdunk/all" className="more" style={{ textDecoration: 'none' }}>
+              전체보기 →
+            </Link>
+          }
+        />
         {rows.map(({ seed, apparel, chart }) => {
-          const bg = CATEGORY_BG[seed.category];
+          const bg = seed.category ? CATEGORY_BG[seed.category] : 'var(--ink2)';
           const priceText = apparel ? fmtYen(apparel.minPrice) : '—';
           const listingText = apparel?.listingCountText
             ? `매물 ${apparel.listingCountText}건`
             : '데이터 없음';
-          const last30 = chart ? chart.points.slice(-30) : [];
+          // 다운샘플링 후 마지막 ~30 포인트만 사용 (스파크라인 폭 제한).
+          const sparkPoints = chart ? downsamplePricePoints(chart.points).slice(-30) : [];
 
           return (
             <Link
@@ -196,20 +266,22 @@ export default async function Page() {
               </div>
               <div className="sh-main">
                 <div className="sh-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span
-                    style={{
-                      fontFamily: 'var(--f1)',
-                      fontSize: 8,
-                      padding: '2px 5px',
-                      background: bg,
-                      color: 'var(--white)',
-                      letterSpacing: 0.5,
-                      boxShadow:
-                        '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-                    }}
-                  >
-                    {seed.category}
-                  </span>
+                  {seed.category && (
+                    <span
+                      style={{
+                        fontFamily: 'var(--f1)',
+                        fontSize: 8,
+                        padding: '2px 5px',
+                        background: bg,
+                        color: 'var(--white)',
+                        letterSpacing: 0.5,
+                        boxShadow:
+                          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                      }}
+                    >
+                      {seed.category}
+                    </span>
+                  )}
                   {seed.shortName}
                 </div>
                 <div
@@ -235,7 +307,7 @@ export default async function Page() {
                   {listingText}
                 </div>
                 <div style={{ marginTop: 8 }}>
-                  <Sparkline points={last30} width={140} height={36} />
+                  <Sparkline points={sparkPoints} width={140} height={36} />
                 </div>
               </div>
             </Link>

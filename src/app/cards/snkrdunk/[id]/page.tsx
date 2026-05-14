@@ -3,10 +3,13 @@ import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import {
+  downsamplePricePoints,
   fetchSnkrdunkApparel,
   fetchSnkrdunkSalesChart,
   fetchSnkrdunkSalesHistory,
   localizeSnkrdunkText,
+  priceDownsampleUnit,
+  priceUnitLabelKo,
   snkrdunkApparelUrl,
 } from '@/lib/snkrdunk';
 import { SNKRDUNK_FEATURED_CARDS } from '@/lib/snkrdunkCards';
@@ -51,10 +54,14 @@ function niceTicks(min: number, max: number, n = 4): number[] {
 
 function PriceChart({
   points,
+  unitLabel,
+  rawCount,
   width = 320,
   height = 180,
 }: {
   points: Array<[number, number]>;
+  unitLabel: string;
+  rawCount: number;
   width?: number;
   height?: number;
 }) {
@@ -203,7 +210,7 @@ function PriceChart({
         }}
       >
         <span>
-          기간: {fmtDateShort(minX)} ~ {fmtDateShort(maxX)} · {points.length}회
+          기간: {fmtDateShort(minX)} ~ {fmtDateShort(maxX)} · {unitLabel} · 거래 {rawCount}건
         </span>
         <span>
           최저 ¥{dataMinY.toLocaleString('ja-JP')} · 최고 ¥{dataMaxY.toLocaleString('ja-JP')}
@@ -227,8 +234,16 @@ export default async function Page({ params }: PageProps) {
 
   const displayName = seed?.shortName ?? apparel.localizedName;
   const allPoints = salesChart?.points ?? [];
-  // 차트가 너무 빽빽해지지 않도록 마지막 90개로 슬라이스
-  const points = allPoints.length > 90 ? allPoints.slice(-90) : allPoints;
+  // 더 긴 기간을 한 화면에 보여주기 위해 기간 길이에 따라 주/월 평균으로 다운샘플링.
+  // 짧은 데이터(≤60일)는 원본 그대로.
+  const unit = priceDownsampleUnit(allPoints);
+  const points = downsamplePricePoints(allPoints);
+  const unitLabel =
+    unit === 'monthly' ? '월 평균' : unit === 'weekly' ? '주 평균' : '거래 단위';
+  const sectionMore =
+    unit === 'raw'
+      ? `최근 ${points.length}건`
+      : `${points.length}${priceUnitLabelKo(unit)} 평균`;
 
   return (
     <>
@@ -342,7 +357,7 @@ export default async function Page({ params }: PageProps) {
       <div className="sect">
         <div className="sect-hd">
           <h2>시세 차트</h2>
-          <span className="more">최근 {points.length}건</span>
+          <span className="more">{sectionMore}</span>
         </div>
         <div
           style={{
@@ -352,7 +367,7 @@ export default async function Page({ params }: PageProps) {
               '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)',
           }}
         >
-          <PriceChart points={points} />
+          <PriceChart points={points} unitLabel={unitLabel} rawCount={allPoints.length} />
         </div>
       </div>
 

@@ -171,10 +171,14 @@ export interface SnkrdunkSearchResult {
 }
 
 /** SNKRDUNK 검색 — JSON API가 공개되지 않아 SSR HTML을 파싱해서 결과를 반환. */
-export async function fetchSnkrdunkSearch(query: string): Promise<SnkrdunkSearchResult[]> {
+export async function fetchSnkrdunkSearch(
+  query: string,
+  page = 1,
+): Promise<SnkrdunkSearchResult[]> {
   const q = query.trim();
   if (!q) return [];
-  const url = `${SNKRDUNK_ORIGIN}/search?keywords=${encodeURIComponent(q)}`;
+  const p = Number.isInteger(page) && page > 1 ? `&page=${page}` : '';
+  const url = `${SNKRDUNK_ORIGIN}/search?keywords=${encodeURIComponent(q)}${p}`;
   try {
     const res = await fetch(url, {
       headers: {
@@ -192,6 +196,81 @@ export async function fetchSnkrdunkSearch(query: string): Promise<SnkrdunkSearch
     console.error('[snkrdunk] search failed', err);
     return [];
   }
+}
+
+/**
+ * 추천/전체 목록용 카드 풀. 전용 API가 없어 검색 HTML을 일본어 키워드로 스크래핑.
+ * page=1 부터 시작, 결과 없으면 빈 배열 → 호출자가 페이지네이션 종료 신호로 사용.
+ */
+export const SNKRDUNK_BROWSE_KEYWORD = 'ポケモンカード';
+
+export async function fetchSnkrdunkBrowse(page = 1): Promise<SnkrdunkSearchResult[]> {
+  return fetchSnkrdunkSearch(SNKRDUNK_BROWSE_KEYWORD, page);
+}
+
+/**
+ * 거래 포인트를 시간 버킷으로 평균내어 다운샘플링.
+ * 데이터 기간에 따라 적응형 — 짧으면 원본, 수개월이면 주별, 1년 이상이면 월별.
+ *
+ * 입력 포인트는 [ms, price]. 출력은 버킷 시작 시각으로 정렬된 동일 형식.
+ */
+export type PriceDownsampleUnit = 'raw' | 'weekly' | 'monthly';
+
+const _DAY_MS = 86_400_000;
+
+function pickDownsampleUnit(spanMs: number): PriceDownsampleUnit {
+  if (spanMs > 365 * _DAY_MS) return 'monthly';
+  if (spanMs > 60 * _DAY_MS) return 'weekly';
+  return 'raw';
+}
+
+/** rawPoints 의 시간 범위로 결정되는 단위. 차트 캡션/툴팁용. */
+export function priceDownsampleUnit(
+  points: Array<[number, number]>,
+): PriceDownsampleUnit {
+  if (points.length < 2) return 'raw';
+  let min = points[0][0];
+  let max = points[0][0];
+  for (const [t] of points) {
+    if (t < min) min = t;
+    if (t > max) max = t;
+  }
+  return pickDownsampleUnit(max - min);
+}
+
+/** UI 표시용 한국어 단위 라벨. */
+export function priceUnitLabelKo(unit: PriceDownsampleUnit): string {
+  if (unit === 'monthly') return '월';
+  if (unit === 'weekly') return '주';
+  return '건';
+}
+
+export function downsamplePricePoints(
+  points: Array<[number, number]>,
+): Array<[number, number]> {
+  if (points.length < 2) return points.slice();
+  const sorted = [...points].sort((a, b) => a[0] - b[0]);
+  const spanMs = sorted[sorted.length - 1][0] - sorted[0][0];
+  const WEEK = 7 * _DAY_MS;
+  const MONTH = 30 * _DAY_MS;
+  const unit = pickDownsampleUnit(spanMs);
+  if (unit === 'raw') return sorted;
+  const bucket = unit === 'monthly' ? MONTH : WEEK;
+
+  const map = new Map<number, { sum: number; n: number }>();
+  for (const [ts, price] of sorted) {
+    const key = Math.floor(ts / bucket) * bucket;
+    const b = map.get(key);
+    if (b) {
+      b.sum += price;
+      b.n += 1;
+    } else {
+      map.set(key, { sum: price, n: 1 });
+    }
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([key, b]) => [key, Math.round(b.sum / b.n)] as [number, number]);
 }
 
 const SEARCH_ITEM_RE =
