@@ -18,7 +18,7 @@ interface CardRow {
 }
 
 const CATEGORY_BG: Record<SnkrdunkCardSeed['category'], string> = {
-  박스: 'var(--blu)',
+  SAR: 'var(--orn)',
   프로모: 'var(--pur)',
   SR: 'var(--red)',
   원피스: 'var(--grn-dk)',

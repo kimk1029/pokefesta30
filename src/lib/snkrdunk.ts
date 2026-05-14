@@ -77,10 +77,13 @@ interface RawApparel {
   localizedName?: string;
   primaryMedia?: { imageUrl?: string };
   minPrice?: number;
+  usedMinPrice?: number;
   regularPrice?: number;
   displayPrice?: string;
   listingCount?: number;
+  usedListingCount?: number;
   listingCountText?: string;
+  usedListingCountText?: string;
   releasedAt?: string;
   productNumber?: string;
 }
@@ -89,16 +92,21 @@ export async function fetchSnkrdunkApparel(apparelId: number): Promise<SnkrdunkA
   if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
   const raw = await fetchJson<RawApparel>(`/v1/apparels/${apparelId}`);
   if (!raw) return null;
+  // 싱글카드는 신품(minPrice) 시장이 없고 중고(usedMinPrice)만 있음. 박스/팩은 반대.
+  // 활성 쪽을 통합 필드에 노출.
+  const newMin = raw.minPrice ?? 0;
+  const usedMin = raw.usedMinPrice ?? 0;
+  const useUsed = newMin <= 0 && usedMin > 0;
   return {
     id: raw.id,
     name: raw.name ?? '',
     localizedName: raw.localizedName ?? raw.name ?? '',
     imageUrl: raw.primaryMedia?.imageUrl ?? null,
-    minPrice: raw.minPrice ?? 0,
+    minPrice: useUsed ? usedMin : newMin,
     regularPrice: raw.regularPrice ?? 0,
     displayPrice: raw.displayPrice ?? '',
-    listingCount: raw.listingCount ?? 0,
-    listingCountText: raw.listingCountText ?? '',
+    listingCount: useUsed ? (raw.usedListingCount ?? 0) : (raw.listingCount ?? 0),
+    listingCountText: useUsed ? (raw.usedListingCountText ?? '') : (raw.listingCountText ?? ''),
     releasedAt: raw.releasedAt ?? null,
     productNumber: raw.productNumber ?? '',
   };

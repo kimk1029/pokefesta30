@@ -12,7 +12,7 @@ import type { MyCardWithPrice } from '@/lib/queries';
 export interface SnkrdunkRow {
   apparelId: number;
   shortName: string;
-  category: '박스' | '프로모' | 'SR' | '원피스';
+  category: 'SAR' | '프로모' | 'SR' | '원피스';
   imageUrl: string | null;
   minPrice: number;
   listingCountText: string;
@@ -26,7 +26,7 @@ interface Props {
 }
 
 const SNKR_CAT_BG: Record<SnkrdunkRow['category'], string> = {
-  박스: 'var(--blu)',
+  SAR: 'var(--orn)',
   프로모: 'var(--pur)',
   SR: 'var(--red)',
   원피스: 'var(--grn-dk)',
