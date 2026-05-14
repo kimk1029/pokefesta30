@@ -247,29 +247,48 @@ export default function SnkrdunkDetail() {
               <PixelFrame bg={colors.white}>
                 <View style={{ paddingHorizontal: 14, paddingVertical: 6 }}>
                   {history && history.history.length > 0 ? (
-                    history.history.slice(0, 20).map((h, i, arr) => (
-                      <View
-                        key={i}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          paddingVertical: 10,
-                          borderBottomWidth: i < arr.length - 1 ? 2 : 0,
-                          borderBottomColor: colors.pap3,
-                        }}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <PixelText variant="pixel" size={11} color={colors.ink}>
-                            {fmtYen(h.price)}
-                          </PixelText>
-                          <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginTop: 3 }}>
-                            {h.date}
-                            {h.size ? ` · ${h.size}` : ''}
-                            {h.condition ? ` · ${h.condition}` : ''}
-                          </PixelText>
+                    history.history.slice(0, 20).map((h, i, arr) => {
+                      const subParts = [h.label, h.size, h.condition].filter(Boolean);
+                      const condBadge = h.condition || h.label;
+                      return (
+                        <View
+                          key={i}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingVertical: 10,
+                            borderBottomWidth: i < arr.length - 1 ? 2 : 0,
+                            borderBottomColor: colors.pap3,
+                          }}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <PixelText variant="pixel" size={11} color={colors.ink}>
+                              {fmtYen(h.price)}
+                            </PixelText>
+                            <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginTop: 3 }}>
+                              {h.date}
+                              {subParts.length ? ` · ${subParts.join(' · ')}` : ''}
+                            </PixelText>
+                          </View>
+                          {condBadge ? (
+                            <View
+                              style={{
+                                backgroundColor: colors.pap2,
+                                paddingHorizontal: 6,
+                                paddingVertical: 3,
+                                borderColor: colors.ink,
+                                borderWidth: 1,
+                                marginLeft: 8,
+                              }}
+                            >
+                              <PixelText variant="pixel" size={8} color={colors.ink}>
+                                {condBadge}
+                              </PixelText>
+                            </View>
+                          ) : null}
                         </View>
-                      </View>
-                    ))
+                      );
+                    })
                   ) : (
                     <View style={{ padding: 20, alignItems: 'center' }}>
                       <PixelText variant="pixel" size={9} color={colors.ink3}>

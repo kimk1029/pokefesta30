@@ -71,6 +71,7 @@ export interface SnkrdunkSaleEntry {
   date: string;
   size: string;
   condition: string;
+  label: string;
 }
 
 export interface SnkrdunkSalesHistory {
@@ -81,12 +82,9 @@ export interface SnkrdunkSalesChart {
   points: Array<[number, number]>;
 }
 
-export async function fetchSnkrdunkSalesHistory(
-  apparelId: number,
-): Promise<SnkrdunkSalesHistory | null> {
-  if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
+async function getJson<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${SNKRDUNK_ORIGIN}/v1/apparels/${apparelId}/sales-history`, {
+    const res = await fetch(`${SNKRDUNK_ORIGIN}${path}`, {
       headers: {
         Accept: 'application/json',
         'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
@@ -94,29 +92,28 @@ export async function fetchSnkrdunkSalesHistory(
       signal: abortAfter(8000),
     });
     if (!res.ok) return null;
-    return (await res.json()) as SnkrdunkSalesHistory;
+    return (await res.json()) as T;
   } catch {
     return null;
   }
+}
+
+export async function fetchSnkrdunkSalesHistory(
+  apparelId: number,
+): Promise<SnkrdunkSalesHistory | null> {
+  if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
+  return getJson<SnkrdunkSalesHistory>(
+    `/v1/apparels/${apparelId}/sales-history?size_id=0&page=1&per_page=20`,
+  );
 }
 
 export async function fetchSnkrdunkSalesChart(
   apparelId: number,
 ): Promise<SnkrdunkSalesChart | null> {
   if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
-  try {
-    const res = await fetch(`${SNKRDUNK_ORIGIN}/v1/apparels/${apparelId}/sales-chart`, {
-      headers: {
-        Accept: 'application/json',
-        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
-      },
-      signal: abortAfter(8000),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as SnkrdunkSalesChart;
-  } catch {
-    return null;
-  }
+  const main = await getJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart`);
+  if (main && main.points && main.points.length > 0) return main;
+  return getJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart/used`);
 }
 
 export interface SnkrdunkCardSeed {
