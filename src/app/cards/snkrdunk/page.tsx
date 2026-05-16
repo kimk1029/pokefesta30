@@ -172,7 +172,7 @@ export default async function Page() {
   return (
     <>
       <StatusBar />
-      <AppBar title="스니다 시세" showBack backHref="/" />
+      <AppBar title="스니덩크 시세" showBack backHref="/" />
 
       <div style={{ height: 14 }} />
 

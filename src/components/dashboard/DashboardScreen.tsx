@@ -9,10 +9,12 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
 import type { MyCardWithPrice } from '@/lib/queries';
 
+export type SnkrdunkCategory = 'SAR' | '프로모' | 'SR' | '원피스';
+
 export interface SnkrdunkRow {
   apparelId: number;
   shortName: string;
-  category: 'SAR' | '프로모' | 'SR' | '원피스';
+  category: SnkrdunkCategory | null;
   imageUrl: string | null;
   minPrice: number;
   listingCountText: string;
@@ -25,12 +27,13 @@ interface Props {
   snkrdunkRows?: SnkrdunkRow[];
 }
 
-const SNKR_CAT_BG: Record<SnkrdunkRow['category'], string> = {
+const SNKR_CAT_BG: Record<SnkrdunkCategory, string> = {
   SAR: 'var(--orn)',
   프로모: 'var(--pur)',
   SR: 'var(--red)',
   원피스: 'var(--grn-dk)',
 };
+const SNKR_FALLBACK_BG = 'var(--ink2)';
 
 type Rarity = 'C' | 'U' | 'R' | 'SR' | 'HR' | 'S';
 
@@ -502,12 +505,12 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [] }: Props
       {snkrdunkRows.length > 0 && (
         <div className="sect">
           <div className="sect-hd">
-            <h2>🇯🇵 일본 시세 (스니다)</h2>
+            <h2>🔥 인기 카드들</h2>
             <Link href="/cards/snkrdunk" className="more">전체 ▶</Link>
           </div>
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
             {snkrdunkRows.map((r) => {
-              const bg = SNKR_CAT_BG[r.category];
+              const bg = r.category ? SNKR_CAT_BG[r.category] : SNKR_FALLBACK_BG;
               const priceText = r.minPrice > 0 ? `¥${r.minPrice.toLocaleString('ja-JP')}` : '—';
               return (
                 <Link
@@ -535,12 +538,19 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [] }: Props
                       <span style={{ fontSize: 32 }}>🃏</span>
                     )}
                   </div>
-                  <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
-                    <div style={{
-                      fontFamily: 'var(--f1)', fontSize: 8, padding: '2px 4px', display: 'inline-block',
-                      background: bg, color: 'var(--white)', letterSpacing: 0.3, marginBottom: 5,
-                      boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-                    }}>{r.category}</div>
+                  <div style={{
+                    padding: '7px 8px 9px', borderTop: '3px solid var(--ink)',
+                    display: 'flex', flexDirection: 'column',
+                  }}>
+                    <div style={{ minHeight: 16, marginBottom: 5 }}>
+                      {r.category ? (
+                        <span style={{
+                          fontFamily: 'var(--f1)', fontSize: 8, padding: '2px 4px', display: 'inline-block',
+                          background: bg, color: 'var(--white)', letterSpacing: 0.3,
+                          boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                        }}>{r.category}</span>
+                      ) : null}
+                    </div>
                     <div style={{
                       fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: 4,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -548,11 +558,12 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [] }: Props
                     <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--red)', letterSpacing: 0.3 }}>
                       {priceText}
                     </div>
-                    {r.listingCountText && (
-                      <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 3, letterSpacing: 0.3 }}>
-                        매물 {r.listingCountText}건
-                      </div>
-                    )}
+                    <div style={{
+                      fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)',
+                      marginTop: 3, letterSpacing: 0.3, minHeight: 11,
+                    }}>
+                      {r.listingCountText ? `매물 ${r.listingCountText}건` : ''}
+                    </div>
                   </div>
                 </Link>
               );

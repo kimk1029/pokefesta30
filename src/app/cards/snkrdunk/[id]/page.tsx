@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
 import {
   downsamplePricePoints,
   fetchSnkrdunkApparel,
@@ -264,29 +265,7 @@ export default async function Page({ params }: PageProps) {
             '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)',
         }}
       >
-        <div
-          style={{
-            width: 96,
-            height: 96,
-            flexShrink: 0,
-            background: 'var(--pap2)',
-            display: 'grid',
-            placeItems: 'center',
-            overflow: 'hidden',
-            boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)',
-          }}
-        >
-          {apparel.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={apparel.imageUrl}
-              alt={displayName}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            <span style={{ fontSize: 36 }}>🃏</span>
-          )}
-        </div>
+        <SnkrdunkImageZoom src={apparel.imageUrl ?? null} alt={displayName} />
         <div style={{ flex: 1, minWidth: 0 }}>
           {seed && (
             <span
@@ -328,7 +307,7 @@ export default async function Page({ params }: PageProps) {
         </div>
       </div>
 
-      {/* 스니다 바로가기 버튼 */}
+      {/* 스니덩크 바로가기 버튼 */}
       <a
         href={snkrdunkApparelUrl(apparelId)}
         target="_blank"
@@ -350,7 +329,7 @@ export default async function Page({ params }: PageProps) {
             '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--yel-dk)',
         }}
       >
-        <span>🇯🇵 스니다에서 구매·확인 ↗</span>
+        <span>🇯🇵 스니덩크에서 구매·확인 ↗</span>
       </a>
 
       {/* Sales chart */}
@@ -371,7 +350,7 @@ export default async function Page({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Recent transactions */}
+      {/* Recent transactions — log style, one row per entry */}
       <div className="sect">
         <div className="sect-hd">
           <h2>최근 거래내역</h2>
@@ -379,65 +358,72 @@ export default async function Page({ params }: PageProps) {
         </div>
         <div
           style={{
-            background: 'var(--white)',
-            padding: '6px 14px',
+            background: 'var(--ink2)',
+            padding: '6px 10px',
             boxShadow:
-              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)',
+              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
           }}
         >
           {salesHistory && salesHistory.history.length > 0 ? (
-            salesHistory.history.slice(0, 20).map((h, i) => {
+            salesHistory.history.slice(0, 20).map((h, i, arr) => {
               const date = localizeSnkrdunkText(h.date);
-              const size = localizeSnkrdunkText(h.size);
               const label = localizeSnkrdunkText(h.label);
-              const condition = h.condition; // PSA10 등은 한글 번역 불필요
-              const subParts = [label, size, condition].filter(Boolean);
-              const condBadge = condition || label;
+              const condition = h.condition;
+              const badge = condition || label || '일반';
+              const isPsa = /PSA\s*\d+/i.test(badge);
               return (
                 <div
                   key={i}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 0',
+                    gap: 8,
+                    padding: '6px 0',
                     borderBottom:
-                      i < Math.min(salesHistory.history.length, 20) - 1 ? '2px solid var(--bg3)' : 'none',
+                      i < arr.length - 1 ? '1px solid rgba(255,255,255,.08)' : 'none',
                   }}
                 >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink)', letterSpacing: 0.3 }}>
-                      {fmtYen(h.price)}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: 'var(--f1)',
-                        fontSize: 8,
-                        color: 'var(--ink3)',
-                        letterSpacing: 0.3,
-                        marginTop: 3,
-                      }}
-                    >
-                      {date}
-                      {subParts.length ? ` · ${subParts.join(' · ')}` : ''}
-                    </div>
-                  </div>
-                  {condBadge ? (
-                    <span
-                      style={{
-                        fontFamily: 'var(--f1)',
-                        fontSize: 8,
-                        padding: '3px 6px',
-                        background: 'var(--pap2)',
-                        color: 'var(--ink)',
-                        letterSpacing: 0.3,
-                        boxShadow:
-                          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-                      }}
-                    >
-                      {condBadge}
-                    </span>
-                  ) : null}
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      minWidth: 56,
+                      textAlign: 'center',
+                      fontFamily: 'var(--f1)',
+                      fontSize: 8,
+                      padding: '2px 5px',
+                      background: isPsa ? 'var(--gold)' : 'rgba(255,255,255,.12)',
+                      color: isPsa ? 'var(--ink)' : 'var(--white)',
+                      letterSpacing: 0.3,
+                      border: isPsa ? '1px solid var(--ink)' : '1px solid rgba(255,255,255,.18)',
+                    }}
+                  >
+                    {badge}
+                  </span>
+                  <span
+                    style={{
+                      flex: 1,
+                      fontFamily: 'var(--f1)',
+                      fontSize: 10,
+                      color: 'var(--gold)',
+                      letterSpacing: 0.3,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {fmtYen(h.price)}
+                  </span>
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      fontFamily: 'var(--f1)',
+                      fontSize: 8,
+                      color: 'rgba(255,255,255,.55)',
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    {date}
+                  </span>
                 </div>
               );
             })
@@ -447,7 +433,7 @@ export default async function Page({ params }: PageProps) {
                 padding: '20px 0',
                 fontFamily: 'var(--f1)',
                 fontSize: 9,
-                color: 'var(--ink3)',
+                color: 'rgba(255,255,255,.55)',
                 textAlign: 'center',
                 letterSpacing: 0.3,
               }}

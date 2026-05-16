@@ -75,7 +75,7 @@ export function SnkrdunkSearchBar() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="카드명을 일본어로 검색 (예: リザードン)"
-          aria-label="스니다 검색"
+          aria-label="스니덩크 검색"
           style={{
             position: 'absolute',
             right: 44,

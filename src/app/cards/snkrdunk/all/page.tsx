@@ -80,7 +80,7 @@ export default function Page() {
   return (
     <>
       <StatusBar />
-      <AppBar title="스니다 전체 시세" showBack backHref="/cards/snkrdunk" />
+      <AppBar title="스니덩크 전체 시세" showBack backHref="/cards/snkrdunk" />
 
       <div style={{ height: 14 }} />
 
