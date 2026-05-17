@@ -24,6 +24,31 @@ function fmtYen(n: number): string {
   return `¥${n.toLocaleString('ja-JP')}`;
 }
 
+/**
+ * 거래내역에서 PSA10 / 무등급(non-PSA) 의 최근 5건 평균을 계산.
+ * 입력은 API 응답 그대로 (보통 최신순). PSA10 판정은 condition 우선, 없으면 label.
+ */
+function pickRecentAverage(
+  history: ReadonlyArray<{ price: number; condition?: string; label?: string }>,
+  predicate: (badge: string) => boolean,
+  limit = 5,
+): { avg: number; count: number } {
+  const picked: number[] = [];
+  for (const h of history) {
+    const badge = (h.condition || h.label || '').trim();
+    if (!predicate(badge)) continue;
+    if (typeof h.price !== 'number' || h.price <= 0) continue;
+    picked.push(h.price);
+    if (picked.length >= limit) break;
+  }
+  if (picked.length === 0) return { avg: 0, count: 0 };
+  const sum = picked.reduce((a, b) => a + b, 0);
+  return { avg: Math.round(sum / picked.length), count: picked.length };
+}
+
+const PSA_GRADE_RE = /PSA\s*\d+/i;
+const PSA10_RE = /PSA\s*10\b/i;
+
 function fmtDateShort(ms: number): string {
   const d = new Date(ms);
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -246,6 +271,10 @@ export default async function Page({ params }: PageProps) {
       ? `최근 ${points.length}건`
       : `${points.length}${priceUnitLabelKo(unit)} 평균`;
 
+  const history = salesHistory?.history ?? [];
+  const rawAvg = pickRecentAverage(history, (b) => !PSA_GRADE_RE.test(b));
+  const psa10Avg = pickRecentAverage(history, (b) => PSA10_RE.test(b));
+
   return (
     <>
       <StatusBar />
@@ -295,15 +324,74 @@ export default async function Page({ params }: PageProps) {
           >
             {displayName}
           </div>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 14, color: 'var(--red)', letterSpacing: 0.3 }}>
-            {fmtYen(apparel.minPrice)}
-          </div>
-          {apparel.listingCountText && (
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 4, letterSpacing: 0.3 }}>
-              매물 {apparel.listingCountText}건
-              {apparel.productNumber ? ` · ${apparel.productNumber}` : ''}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 6,
+              marginTop: 2,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontFamily: 'var(--f1)',
+                  fontSize: 7,
+                  color: 'var(--ink3)',
+                  letterSpacing: 0.5,
+                  marginBottom: 2,
+                }}
+              >
+                일반 평균 {rawAvg.count > 0 ? `(최근 ${rawAvg.count}건)` : ''}
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--f1)',
+                  fontSize: 13,
+                  color: 'var(--red)',
+                  letterSpacing: 0.3,
+                }}
+              >
+                {fmtYen(rawAvg.avg)}
+              </div>
             </div>
-          )}
+            <div>
+              <div
+                style={{
+                  fontFamily: 'var(--f1)',
+                  fontSize: 7,
+                  color: 'var(--ink3)',
+                  letterSpacing: 0.5,
+                  marginBottom: 2,
+                }}
+              >
+                PSA10 평균 {psa10Avg.count > 0 ? `(최근 ${psa10Avg.count}건)` : ''}
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--f1)',
+                  fontSize: 13,
+                  color: psa10Avg.avg > 0 ? 'var(--gold-dk, var(--orn))' : 'var(--ink3)',
+                  letterSpacing: 0.3,
+                }}
+              >
+                {fmtYen(psa10Avg.avg)}
+              </div>
+            </div>
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--f1)',
+              fontSize: 8,
+              color: 'var(--ink3)',
+              marginTop: 6,
+              letterSpacing: 0.3,
+            }}
+          >
+            최저매물 {fmtYen(apparel.minPrice)}
+            {apparel.listingCountText ? ` · 매물 ${apparel.listingCountText}건` : ''}
+            {apparel.productNumber ? ` · ${apparel.productNumber}` : ''}
+          </div>
         </div>
       </div>
 

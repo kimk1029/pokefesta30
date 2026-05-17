@@ -14,9 +14,8 @@ import {
 } from '@/lib/snkrdunk';
 import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCards';
 
-// 추천 6장은 요청마다 다른 카드가 나오도록 페이지 캐시를 끔.
-// 개별 snkrdunk fetch 는 fetch 레이어에서 revalidate 캐싱되므로 비용 부담은 작음.
-export const dynamic = 'force-dynamic';
+// 추천 6장은 전체보기 리스트의 상단 6장과 동일해야 하므로 browse 순서를 그대로 사용.
+// fetch 레이어의 revalidate 캐싱(=10분)에 따라간다.
 
 interface DisplaySeed {
   apparelId: number;
@@ -56,14 +55,6 @@ function inferCategory(name: string): SnkrdunkCardSeed['category'] | null {
 function shortenName(name: string): string {
   const cut = name.split(/[|｜]/)[0].trim();
   return cut.length > 28 ? cut.slice(0, 27) + '…' : cut;
-}
-
-function shuffleInPlace<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
 }
 
 function searchToSeed(r: SnkrdunkSearchResult): DisplaySeed {
@@ -142,20 +133,21 @@ function Sparkline({
   );
 }
 
-async function pickRandomSeeds(): Promise<DisplaySeed[]> {
+async function pickFeaturedSeeds(): Promise<DisplaySeed[]> {
   const pool = await fetchSnkrdunkBrowse(1);
   if (pool.length > 0) {
-    const shuffled = shuffleInPlace(pool.slice());
-    return shuffled.slice(0, 6).map(searchToSeed);
+    return pool.slice(0, 6).map(searchToSeed);
   }
-  // browse 실패 시 폴백: 큐레이션된 시드를 사용
-  return shuffleInPlace(SNKRDUNK_FEATURED_CARDS.slice())
-    .slice(0, 6)
-    .map((s) => ({ apparelId: s.apparelId, shortName: s.shortName, category: s.category }));
+  // browse 실패 시 폴백: 큐레이션된 시드의 상위 6장
+  return SNKRDUNK_FEATURED_CARDS.slice(0, 6).map((s) => ({
+    apparelId: s.apparelId,
+    shortName: s.shortName,
+    category: s.category,
+  }));
 }
 
 export default async function Page() {
-  const seeds = await pickRandomSeeds();
+  const seeds = await pickFeaturedSeeds();
   const rows: CardRow[] = await Promise.all(
     seeds.map(async (seed) => {
       const [apparel, chart] = await Promise.all([
