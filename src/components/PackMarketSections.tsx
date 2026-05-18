@@ -152,7 +152,7 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
       >
         {hit.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={hit.imageUrl} alt={hit.shortName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={hit.imageUrl} alt={hit.koName || hit.shortName} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} />
         ) : (
           <span style={{ fontSize: 36 }}>CARD</span>
         )}
@@ -161,10 +161,28 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
         <div
           style={{
             fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: 5,
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            minHeight: 28,
+            lineHeight: 1.45,
           }}
         >
-          {hit.shortName}
+          {hit.koName || hit.shortName}
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--f1)',
+            fontSize: 7,
+            color: 'var(--ink3)',
+            marginBottom: 5,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {hit.name}
         </div>
         <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--red)', letterSpacing: 0.3 }}>
           {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '시세 없음'}

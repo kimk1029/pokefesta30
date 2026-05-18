@@ -182,6 +182,37 @@ const MAP_EN: Record<string, string> = Object.fromEntries(
 const MAP_JA: Record<string, string> = Object.fromEntries(
   ALL.filter((t) => t.ja).map((t) => [t.ko.toLowerCase(), t.ja!]),
 );
+const JA_TO_KO: Array<[string, string]> = ALL
+  .filter((t) => t.ja)
+  .map((t) => [t.ja!, t.ko] as [string, string])
+  .sort((a, b) => b[0].length - a[0].length);
+
+const CARD_NAME_PHRASES: Array<[RegExp, string]> = [
+  [/ポケモンカードゲーム/g, '포켓몬 카드 게임'],
+  [/強化拡張パック/g, '강화 확장팩'],
+  [/ハイクラスパック/g, '하이클래스팩'],
+  [/拡張パック/g, '확장팩'],
+  [/デッキビルドBOX/g, '덱 빌드 BOX'],
+  [/ポケモンセンターセット/g, '포켓몬센터 세트'],
+  [/スカーレット&バイオレット/g, '스칼렛&바이올렛'],
+  [/スカーレット＆バイオレット/g, '스칼렛&바이올렛'],
+  [/テラスタルフェスex/g, '테라스탈 페스티벌 ex'],
+  [/メガブレイブ/g, '메가브레이브'],
+  [/バトルパートナーズ/g, '배틀 파트너즈'],
+  [/超電ブレイカー/g, '슈퍼일렉트릭 브레이커'],
+  [/楽園ドラゴーナ/g, '낙원 드라고나'],
+  [/ステラミラクル/g, '스텔라 미라클'],
+  [/ナイトワンダラー/g, '나이트 원더러'],
+  [/クリムゾンヘイズ/g, '크림슨 헤이즈'],
+  [/マスターボールミラー/g, '마스터볼 미러'],
+  [/モンスターボールミラー/g, '몬스터볼 미러'],
+  [/シュリンクなし/g, '슈링크 없음'],
+  [/ボックス/g, '박스'],
+  [/パック/g, '팩'],
+  [/ゲーム/g, '게임'],
+  [/エラー版/g, '에러판'],
+  [/の/g, '의'],
+];
 
 export type TranslateTarget = 'en' | 'ja';
 
@@ -198,4 +229,27 @@ export function translate(text: string, target: TranslateTarget): string {
     .split(/\s+/)
     .map((tok) => map[tok.toLowerCase()] ?? tok)
     .join(' ');
+}
+
+export function translateKnownCardNameToKo(name: string): string {
+  if (!name) return name;
+  let out = name;
+  for (const [from, to] of CARD_NAME_PHRASES) {
+    out = out.replace(from, to);
+  }
+  for (const [from, to] of JA_TO_KO) {
+    out = out.split(from).join(to);
+  }
+  return out
+    .replace(/[（]/g, '(')
+    .replace(/[）]/g, ')')
+    .replace(/[「]/g, '"')
+    .replace(/[」]/g, '"')
+    .replace(/([가-힣])([A-Z]{1,4}\b)/g, '$1 $2')
+    .replace(/(ex|EX)([가-힣])/g, '$1 $2')
+    .replace(/"([^)]+)"([가-힣])/g, '"$1" $2')
+    .replace(/(팩|BOX|세트)"/g, '$1 "')
+    .replace(/"(박스|팩|세트)/g, '" $1')
+    .replace(/\s+/g, ' ')
+    .trim();
 }

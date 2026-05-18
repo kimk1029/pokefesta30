@@ -13,6 +13,7 @@ import {
   priceUnitLabelKo,
   snkrdunkApparelUrl,
 } from '@/lib/snkrdunk';
+import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { SNKRDUNK_FEATURED_CARDS } from '@/lib/snkrdunkCards';
 
 interface PageProps {
@@ -259,6 +260,7 @@ export default async function Page({ params }: PageProps) {
   if (!apparel) notFound();
 
   const displayName = seed?.shortName ?? apparel.localizedName;
+  const koDisplayName = translateKnownCardNameToKo(apparel.localizedName);
   const allPoints = salesChart?.points ?? [];
   // 더 긴 기간을 한 화면에 보여주기 위해 기간 길이에 따라 주/월 평균으로 다운샘플링.
   // 짧은 데이터(≤60일)는 원본 그대로.
@@ -322,7 +324,19 @@ export default async function Page({ params }: PageProps) {
               lineHeight: 1.4,
             }}
           >
-            {displayName}
+            {koDisplayName}
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--f1)',
+              fontSize: 8,
+              color: 'var(--ink3)',
+              letterSpacing: 0.2,
+              marginBottom: 6,
+              lineHeight: 1.45,
+            }}
+          >
+            {apparel.localizedName}
           </div>
           <div
             style={{

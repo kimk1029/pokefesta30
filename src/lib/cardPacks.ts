@@ -31,6 +31,8 @@ export interface CardPackMeta {
   releasedAt?: string;
   /** snkrdunk 검색 키워드 — `hits` 가 비어있을 때 자동 채움 */
   searchQuery: string;
+  /** snkrdunk apparel group id — 박스별 전체 수록 싱글카드 목록 조회에 사용 */
+  apparelGroupId?: number;
   /** 큐레이션된 카드 (apparelId 알면 박아둠) */
   hits: CardPackHit[];
 }
@@ -49,6 +51,7 @@ export const CARD_PACKS: CardPackMeta[] = [
     bg: '#E63946',
     releasedAt: '2026-03-14',
     searchQuery: 'メガブレイブ',
+    apparelGroupId: 3045,
     hits: [
     { apparelId: 663637, label: "リーリエの決心 SAR [M1L 091/063](拡張パック…" },
     { apparelId: 628146, label: "ポケモンカードゲームMEGA 拡張パック「メガブレイブ」ボックス" },
@@ -72,6 +75,7 @@ export const CARD_PACKS: CardPackMeta[] = [
     bg: '#3A5BD9',
     releasedAt: '2026-01-24',
     searchQuery: 'バトルパートナーズ',
+    apparelGroupId: 2455,
     hits: [
     { apparelId: 485638, label: "ナンジャモのカイデン P [SV-P 232](プロモーション…" },
     { apparelId: 484952, label: "ポケモンカードゲーム スカーレット&バイオレット 拡張パック「…" },
@@ -95,6 +99,7 @@ export const CARD_PACKS: CardPackMeta[] = [
     bg: '#7C3AED',
     releasedAt: '2025-01-24',
     searchQuery: 'テラスタルフェスティバル',
+    apparelGroupId: 2295,
     hits: [
     { apparelId: 424297, label: "ポケモンカードゲーム スカーレット&バイオレット ハイクラスパ…" },
     { apparelId: 471633, label: "ブラッキー :マスターボールミラー [SV8a 092/187…" },
@@ -118,6 +123,7 @@ export const CARD_PACKS: CardPackMeta[] = [
     bg: '#FFD23F',
     releasedAt: '2024-10-18',
     searchQuery: '超電ブレイカー',
+    apparelGroupId: 2081,
     hits: [
     { apparelId: 418741, label: "レアコイル AR [SV8 112/106](拡張パック「超電…" },
     { apparelId: 395189, label: "ポケモンカードゲーム スカーレット&バイオレット 拡張パック「…" },
@@ -141,6 +147,7 @@ export const CARD_PACKS: CardPackMeta[] = [
     bg: '#22C55E',
     releasedAt: '2024-09-13',
     searchQuery: '楽園ドラゴーナ',
+    apparelGroupId: 1884,
     hits: [
     { apparelId: 358115, label: "ラティアスex SAR [SV7a 087/064](強化拡張…" },
     { apparelId: 358116, label: "アローラナッシーex SAR [SV7a 089/064](強…" },
@@ -164,6 +171,7 @@ export const CARD_PACKS: CardPackMeta[] = [
     bg: '#0D9488',
     releasedAt: '2024-07-19',
     searchQuery: 'ステラミラクル',
+    apparelGroupId: 1469,
     hits: [
     { apparelId: 567444, label: "【シュリンクなし】 ポケモンカードゲーム スカーレット&バイオ…" },
     { apparelId: 320348, label: "タロ SR [SV7 124/102](拡張パック「ステラミラ…" },
@@ -187,6 +195,7 @@ export const CARD_PACKS: CardPackMeta[] = [
     bg: '#1B2E89',
     releasedAt: '2024-06-07',
     searchQuery: 'ナイトワンダラー',
+    apparelGroupId: 1162,
     hits: [
     { apparelId: 261657, label: "ポケモンカードゲーム スカーレット&バイオレット 強化拡張パッ…" },
     { apparelId: 261658, label: "ポケモンカードゲーム スカーレット&バイオレット 強化拡張パッ…" },
@@ -210,6 +219,7 @@ export const CARD_PACKS: CardPackMeta[] = [
     bg: '#F97316',
     releasedAt: '2024-03-22',
     searchQuery: 'クリムゾンヘイズ',
+    apparelGroupId: 739,
     hits: [
     { apparelId: 204134, label: "ポケモンカードゲーム スカーレット&バイオレット 強化拡張パッ…" },
     { apparelId: 224087, label: "ゲッコウガex SAR [SV5a 090/066](強化拡張…" },

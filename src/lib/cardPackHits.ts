@@ -11,8 +11,11 @@
  * 제한해 단일 요청에서 snkrdunk 서버를 과도하게 두드리지 않게 한다.
  */
 import { CARD_PACKS, type CardPackMeta, getCardPack } from './cardPacks';
+import { translateKnownCardNameToKo } from './cardTranslate';
 import {
+  fetchAllSnkrdunkApparelGroup,
   fetchSnkrdunkApparel,
+  fetchSnkrdunkApparelGroup,
   fetchSnkrdunkSalesHistory,
   fetchSnkrdunkSearch,
   localizeSnkrdunkText,
@@ -23,6 +26,7 @@ import {
 export interface PackHitCard {
   apparelId: number;
   name: string;
+  koName: string;
   itemKind: SnkrdunkItemKind;
   /** UI에 노출할 짧은 한국어/일본어 라벨. snkrdunk 응답에서 정리. */
   shortName: string;
@@ -45,6 +49,9 @@ export interface PackWithHits {
   emoji: string;
   bg: string;
   releasedAt?: string;
+  boxImageUrl: string | null;
+  boxName: string | null;
+  boxKoName: string | null;
   hits: PackHitCard[];
 }
 
@@ -61,6 +68,7 @@ function toHitCard(a: SnkrdunkApparel, override?: string): PackHitCard {
   return {
     apparelId: a.id,
     name: a.localizedName || a.name,
+    koName: translateKnownCardNameToKo(a.localizedName || a.name),
     itemKind: a.itemKind,
     shortName: override ?? shortenName(a.localizedName || a.name),
     imageUrl: a.imageUrl,
@@ -149,6 +157,30 @@ async function resolveSearchFill(
   return hydrated.filter((x): x is PackHitCard => x !== null).slice(0, need);
 }
 
+async function resolveGroupSingles(pack: CardPackMeta, limit: number): Promise<PackHitCard[]> {
+  if (!pack.apparelGroupId) return [];
+  const items = await fetchAllSnkrdunkApparelGroup(pack.apparelGroupId, {
+    apparelCategoryId: 25,
+    maxItems: Math.max(limit, 100),
+  });
+  return items
+    .filter((a) => a.minPrice > 0)
+    .map((a) => toHitCard(a))
+    .slice(0, limit);
+}
+
+async function resolveGroupBoxes(pack: CardPackMeta): Promise<PackHitCard[]> {
+  if (!pack.apparelGroupId) return [];
+  const page = await fetchSnkrdunkApparelGroup(pack.apparelGroupId, {
+    apparelCategoryId: 14,
+    page: 1,
+    perPage: 10,
+  });
+  return (page?.apparels ?? [])
+    .filter((a) => a.minPrice > 0)
+    .map((a) => toHitCard(a));
+}
+
 export async function getPackWithHits(
   code: string,
   limit: number = DEFAULT_LIMIT,
@@ -157,14 +189,22 @@ export async function getPackWithHits(
   const pack = getCardPack(code);
   if (!pack) return null;
 
-  const curated = await resolveCurated(pack);
-  const seen = new Set<number>(curated.map((c) => c.apparelId));
-  const need = Math.max(0, limit - curated.length);
-  const filled = need > 0 ? await resolveSearchFill(pack, seen, need) : [];
-  const hits = [...curated, ...filled];
+  const groupedSingles = await resolveGroupSingles(pack, limit);
+  const groupedBoxes = await resolveGroupBoxes(pack);
+  const grouped = [...groupedSingles, ...groupedBoxes];
+  const hits = grouped.length > 0
+    ? grouped
+    : await (async () => {
+      const curated = await resolveCurated(pack);
+      const seen = new Set<number>(curated.map((c) => c.apparelId));
+      const need = Math.max(0, limit - curated.length);
+      const filled = need > 0 ? await resolveSearchFill(pack, seen, need) : [];
+      return [...curated, ...filled];
+    })();
   const enriched = opts.includeSales
     ? await mapWithLimit(hits, CONCURRENCY, withLatestSale)
     : hits;
+  const box = groupedBoxes[0] ?? enriched.find((h) => h.itemKind === 'box') ?? null;
 
   return {
     code: pack.code,
@@ -173,6 +213,9 @@ export async function getPackWithHits(
     emoji: pack.emoji,
     bg: pack.bg,
     releasedAt: pack.releasedAt,
+    boxImageUrl: box?.imageUrl ?? null,
+    boxName: box?.name ?? null,
+    boxKoName: box?.koName ?? null,
     hits: enriched,
   };
 }

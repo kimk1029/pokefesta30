@@ -55,6 +55,11 @@ export interface SnkrdunkSalesChart {
   rangeKeys: Array<{ key: string; text: string; enabled: boolean }>;
 }
 
+export interface SnkrdunkApparelGroupPage {
+  apparels: SnkrdunkApparel[];
+  apparelsCount: number;
+}
+
 export function snkrdunkApparelUrl(apparelId: number): string {
   return `${SNKRDUNK_ORIGIN}/apparels/${apparelId}`;
 }
@@ -123,6 +128,15 @@ interface RawApparel {
   releasedAt?: string;
   productNumber?: string;
   categories?: Array<{ name?: string; localizedName?: string }>;
+  totalListingCount?: number;
+  totalListingCountText?: string;
+  totalOfferCount?: number;
+  totalOfferCountText?: string;
+}
+
+interface RawApparelGroupPage {
+  apparels?: RawApparel[];
+  apparelsCount?: number;
 }
 
 function classifySnkrdunkItem(raw: RawApparel): SnkrdunkItemKind {
@@ -168,6 +182,74 @@ export async function fetchSnkrdunkApparel(apparelId: number): Promise<SnkrdunkA
     releasedAt: raw.releasedAt ?? null,
     productNumber: raw.productNumber ?? '',
   };
+}
+
+function toSnkrdunkApparel(raw: RawApparel, itemKind?: SnkrdunkItemKind): SnkrdunkApparel {
+  const newMin = raw.minPrice ?? 0;
+  const usedMin = raw.usedMinPrice ?? 0;
+  const useUsed = newMin <= 0 && usedMin > 0;
+  const totalListingCount = raw.totalListingCount ?? raw.listingCount ?? 0;
+  const totalListingCountText = raw.totalListingCountText ?? raw.listingCountText ?? '';
+
+  return {
+    id: raw.id,
+    name: raw.name ?? '',
+    localizedName: raw.localizedName ?? raw.name ?? '',
+    imageUrl: raw.primaryMedia?.imageUrl ?? null,
+    itemKind: itemKind ?? classifySnkrdunkItem(raw),
+    minPrice: useUsed ? usedMin : newMin,
+    regularPrice: raw.regularPrice ?? 0,
+    displayPrice: raw.displayPrice ?? '',
+    listingCount: useUsed ? (raw.usedListingCount ?? totalListingCount) : totalListingCount,
+    listingCountText: useUsed ? (raw.usedListingCountText ?? totalListingCountText) : totalListingCountText,
+    releasedAt: raw.releasedAt ?? null,
+    productNumber: raw.productNumber ?? '',
+  };
+}
+
+export async function fetchSnkrdunkApparelGroup(
+  groupId: number,
+  opts: { apparelCategoryId: 25 | 14; page?: number; perPage?: number },
+): Promise<SnkrdunkApparelGroupPage | null> {
+  if (!Number.isInteger(groupId) || groupId <= 0) return null;
+  const page = Number.isInteger(opts.page) && opts.page && opts.page > 0 ? opts.page : 1;
+  const perPage = Number.isInteger(opts.perPage) && opts.perPage ? Math.min(Math.max(opts.perPage, 1), 100) : 100;
+  const raw = await fetchJson<RawApparelGroupPage>(
+    `/v1/apparel-groups/${groupId}?page=${page}&perPage=${perPage}&apparelCategoryId=${opts.apparelCategoryId}`,
+  );
+  if (!raw) return null;
+  return {
+    apparels: (raw.apparels ?? []).map((a) => toSnkrdunkApparel(a, opts.apparelCategoryId === 25 ? 'single' : 'box')),
+    apparelsCount: raw.apparelsCount ?? 0,
+  };
+}
+
+export async function fetchAllSnkrdunkApparelGroup(
+  groupId: number,
+  opts: { apparelCategoryId: 25 | 14; maxItems?: number },
+): Promise<SnkrdunkApparel[]> {
+  const perPage = 100;
+  const first = await fetchSnkrdunkApparelGroup(groupId, {
+    apparelCategoryId: opts.apparelCategoryId,
+    page: 1,
+    perPage,
+  });
+  if (!first) return [];
+  const maxItems = opts.maxItems ?? 600;
+  const total = Math.min(first.apparelsCount, maxItems);
+  const pages = Math.ceil(total / perPage);
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, pages - 1) }, (_, i) => (
+      fetchSnkrdunkApparelGroup(groupId, {
+        apparelCategoryId: opts.apparelCategoryId,
+        page: i + 2,
+        perPage,
+      })
+    )),
+  );
+  return [first, ...rest]
+    .flatMap((p) => p?.apparels ?? [])
+    .slice(0, total);
 }
 
 export async function fetchSnkrdunkSalesHistory(

@@ -2,13 +2,34 @@ import Link from 'next/link';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { CARD_PACKS } from '@/lib/cardPacks';
+import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
+import { fetchSnkrdunkApparelGroup } from '@/lib/snkrdunk';
 
 export const metadata = {
   title: '가격탐색 · CardVault',
   description: '포켓몬 카드 박스를 선택하고 해당 박스의 싱글카드 시세를 확인하세요.',
 };
 
-export default function PackExplorerPage() {
+export default async function PackExplorerPage() {
+  const packs = await Promise.all(
+    CARD_PACKS.map(async (pack) => {
+      const box = pack.apparelGroupId
+        ? (await fetchSnkrdunkApparelGroup(pack.apparelGroupId, {
+          apparelCategoryId: 14,
+          page: 1,
+          perPage: 1,
+        }))?.apparels?.[0]
+        : null;
+      return {
+        ...pack,
+        boxName: box?.localizedName ?? pack.searchQuery,
+        boxKoName: box?.localizedName ? translateKnownCardNameToKo(box.localizedName) : pack.name,
+        boxImageUrl: box?.imageUrl ?? null,
+        boxPrice: box?.minPrice ?? 0,
+      };
+    }),
+  );
+
   return (
     <>
       <StatusBar />
@@ -34,7 +55,7 @@ export default function PackExplorerPage() {
 
       <div className="sect">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {CARD_PACKS.map((pack) => (
+          {packs.map((pack) => (
             <Link
               key={pack.code}
               href={`/cards/packs/${pack.code}`}
@@ -52,8 +73,8 @@ export default function PackExplorerPage() {
             >
               <div
                 style={{
-                  width: 44,
-                  height: 44,
+                  width: 64,
+                  height: 64,
                   display: 'grid',
                   placeItems: 'center',
                   flexShrink: 0,
@@ -62,9 +83,15 @@ export default function PackExplorerPage() {
                   fontSize: 20,
                   boxShadow:
                     '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.35),3px 3px 0 var(--ink)',
+                  overflow: 'hidden',
                 }}
               >
-                {pack.emoji}
+                {pack.boxImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={pack.boxImageUrl} alt={pack.boxKoName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  pack.emoji
+                )}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
@@ -78,8 +105,13 @@ export default function PackExplorerPage() {
                 >
                   {pack.name}
                 </div>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 5, letterSpacing: 0.3 }}>
-                  {pack.releasedAt ? `${pack.releasedAt} 출시` : '출시일 확인 중'}
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 5, lineHeight: 1.45 }}>
+                  {pack.boxKoName}
+                  <br />
+                  {pack.boxName}
+                </div>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--red)', marginTop: 5, letterSpacing: 0.3 }}>
+                  {pack.boxPrice > 0 ? `박스 ¥${pack.boxPrice.toLocaleString('ja-JP')}` : pack.releasedAt ? `${pack.releasedAt} 출시` : '출시일 확인 중'}
                 </div>
               </div>
               <div style={{ fontFamily: 'var(--f1)', fontSize: 14, color: 'var(--ink3)' }}>›</div>

@@ -12,7 +12,7 @@ interface Params {
 
 export default async function PackDetailPage({ params }: Params) {
   const { code } = await params;
-  const pack = await getPackWithHits(code, 30, { includeSales: true });
+  const pack = await getPackWithHits(code, 600);
   if (!pack) notFound();
 
   const cards = pack.hits.filter((hit) => hit.itemKind === 'single');
@@ -33,9 +33,35 @@ export default async function PackDetailPage({ params }: Params) {
               '-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.45),inset 0 -3px 0 rgba(0,0,0,.25),6px 6px 0 var(--ink)',
           }}
         >
-          <div style={{ fontSize: 38 }}>{pack.emoji}</div>
+          <div
+            style={{
+              width: 74,
+              height: 74,
+              background: 'rgba(255,255,255,.16)',
+              display: 'grid',
+              placeItems: 'center',
+              flexShrink: 0,
+              overflow: 'hidden',
+              boxShadow:
+                '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.3)',
+            }}
+          >
+            {pack.boxImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={pack.boxImageUrl} alt={pack.boxKoName ?? pack.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ fontSize: 38 }}>{pack.emoji}</span>
+            )}
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: 'var(--f1)', fontSize: 13, letterSpacing: 0.5 }}>{pack.name}</div>
+            {pack.boxName ? (
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 8, opacity: 0.78, marginTop: 5, lineHeight: 1.45 }}>
+                {pack.boxKoName}
+                <br />
+                {pack.boxName}
+              </div>
+            ) : null}
             <div style={{ fontFamily: 'var(--f1)', fontSize: 9, opacity: 0.85, marginTop: 6, letterSpacing: 0.3 }}>
               {pack.releasedAt ? `${pack.releasedAt} 출시 · ` : ''}싱글카드 {cards.length}개
             </div>
