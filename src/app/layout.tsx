@@ -30,6 +30,15 @@ export const metadata: Metadata = {
   applicationName: '포케페스타30',
   authors: [{ name: 'pokefesta30' }],
   alternates: { canonical: '/' },
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [
+      { url: '/app-icon.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [{ url: '/app-icon.png', sizes: '512x512', type: 'image/png' }],
+    shortcut: ['/app-icon.png'],
+  },
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
@@ -38,13 +47,13 @@ export const metadata: Metadata = {
     title: '포케페스타30 — 포켓몬 TCG 커뮤니티',
     description:
       'TCG 카드 거래 · 카드 시세 검색 · 행사 현장 정보 공유',
-    images: [{ url: '/icon.svg', width: 512, height: 512 }],
+    images: [{ url: '/app-icon.png', width: 512, height: 512 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: '포케페스타30 — 포켓몬 TCG 커뮤니티',
     description: 'TCG 카드 거래 · 시세 · 행사 정보 공유',
-    images: ['/icon.svg'],
+    images: ['/app-icon.png'],
   },
   robots: {
     index: true,
