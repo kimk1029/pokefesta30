@@ -10,6 +10,7 @@ import {
 } from '@expo-google-fonts/press-start-2p';
 import { PhoneShell } from '@/components/PhoneShell';
 import { ChromeProvider } from '@/components/ChromeContext';
+import { PriceModeProvider } from '@/lib/priceMode';
 import { colors } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -37,9 +38,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ChromeProvider>
-        <PhoneShell>
-          <Slot />
-        </PhoneShell>
+        <PriceModeProvider>
+          <PhoneShell>
+            <Slot />
+          </PhoneShell>
+        </PriceModeProvider>
       </ChromeProvider>
     </SafeAreaProvider>
   );

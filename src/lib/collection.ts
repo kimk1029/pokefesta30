@@ -55,6 +55,21 @@ export function removeCard(id: number): CardItem[] {
   return next;
 }
 
+/** Patch fields on an existing card by id. Returns the updated collection.
+ *  No-op when no card matches. */
+export function updateCard(id: number, patch: Partial<CardItem>): CardItem[] {
+  const list = loadCollection();
+  let changed = false;
+  const next = list.map((c) => {
+    if (c.id !== id) return c;
+    changed = true;
+    return { ...c, ...patch };
+  });
+  if (!changed) return list;
+  saveCollection(next);
+  return next;
+}
+
 /**
  * Tiny pub-sub so any open screen refreshes the second the collection
  * mutates — useFocusEffect alone misses the case where two tabs share a

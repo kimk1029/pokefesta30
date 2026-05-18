@@ -443,8 +443,9 @@ function CandidateRow({
   const setInfo = lookupPokemonSet(candidate.setCode);
   const packName = setInfo?.name ?? candidate.setName ?? '';
 
-  // Price — JP first (per user request), then KR / EU / NA fallback.
+  // Price — snkrdunk JPY first (when matched), then TCGdex multi-region.
   const ps = candidate.priceSummary;
+  const snkr = candidate.snkrdunk;
   const priceLines: Array<{ label: string; text: string; emph?: boolean }> = [];
   if (ps?.byRegion) {
     if (typeof ps.byRegion.jpy === 'number')
@@ -466,7 +467,10 @@ function CandidateRow({
     });
   }
 
-  const thumb = candidate.imageLarge ?? candidate.imageSmall ?? candidate.imageUrl ?? null;
+  // Image: snkrdunk match wins (server already overwrote imageLarge but we
+  // also accept a raw snkr.imageUrl just in case).
+  const thumb =
+    snkr?.imageUrl ?? candidate.imageLarge ?? candidate.imageSmall ?? candidate.imageUrl ?? null;
 
   return (
     <PixelPress
@@ -480,6 +484,25 @@ function CandidateRow({
           <CardArt uri={thumb} emojiSize={28} />
         </View>
         <View style={{ flex: 1 }}>
+          {/* Snkrdunk source badge — visible when the displayed image/price
+              came from snkrdunk. */}
+          {snkr ? (
+            <View
+              style={{
+                alignSelf: 'flex-start',
+                backgroundColor: colors.ink,
+                paddingHorizontal: 5,
+                paddingVertical: 2,
+                marginBottom: 5,
+                borderColor: colors.gold,
+                borderWidth: 1,
+              }}
+            >
+              <PixelText variant="pixel" size={8} color={colors.gold}>
+                🇯🇵 스니덩크 매칭{snkr.cacheHit ? ' · 캐시' : ''}
+              </PixelText>
+            </View>
+          ) : null}
           {/* Line 1 — 한글이름(일본이름) */}
           <PixelText variant="ko" size={13} weight="bold" color={colors.ink}>
             {koName}
@@ -532,29 +555,53 @@ function CandidateRow({
 function candidateToCard(c: ScanCandidate): CardItem {
   // Best-effort mapping for the existing collection model (CardItem). All
   // enrichment now lives on the candidate itself (server merged TCGdex +
-  // local DB), so this is a straight read-through.
+  // local DB + snkrdunk), so this is a straight read-through.
   const sample = CARDS[0];
   const [num] = (c.number ?? '').split('/');
-  // Prefer JPY (per user request — JP-market price), then KRW, then USD/EUR
-  // converted upstream. Falls back to legacy candidate.price.marketPrice
-  // (numeric) when priceSummary is absent.
-  const price =
-    c.priceSummary?.byRegion?.jpy ??
-    c.priceSummary?.byRegion?.krw ??
-    (typeof c.price?.marketPrice === 'number' ? c.price.marketPrice : 0) ??
-    0;
+  // snkrdunk JPY wins (it's the explicit user-requested source for price),
+  // then TCGdex multi-region JPY, then KRW, then legacy marketPrice.
+  const snkrJpy = typeof c.snkrdunk?.priceJpy === 'number' ? c.snkrdunk.priceJpy : null;
+  const tcgJpy = c.priceSummary?.byRegion?.jpy ?? null;
+  const tcgKrw = c.priceSummary?.byRegion?.krw ?? null;
+  const legacyPrice = typeof c.price?.marketPrice === 'number' ? c.price.marketPrice : 0;
+  let price = 0;
+  let priceCurrency: CardItem['priceCurrency'] = 'KRW';
+  if (snkrJpy && snkrJpy > 0) {
+    price = snkrJpy;
+    priceCurrency = 'JPY';
+  } else if (tcgJpy && tcgJpy > 0) {
+    price = tcgJpy;
+    priceCurrency = 'JPY';
+  } else if (tcgKrw && tcgKrw > 0) {
+    price = tcgKrw;
+    priceCurrency = 'KRW';
+  } else {
+    price = legacyPrice;
+    priceCurrency = c.price?.currency === 'JPY' ? 'JPY' : 'KRW';
+  }
+  // Clean name — snkrdunk's localizedName is long (e.g. "ピカチュウ P [M-P 020]
+  // (プロモカードパック「マクドナルド ハッピーセット2025」)"). Prefer nameJa /
+  // localName, else trim at the first '[' or '(' so the AppBar / list row
+  // doesn't wrap or overflow.
+  const cleanName = c.localName
+    ?? c.nameJa
+    ?? (c.name ?? '').split(/[\[(（【]/)[0].trim()
+    ?? c.name
+    ?? '카드';
   return {
     id: Date.now(),
-    name: c.localName ?? c.name,
+    name: cleanName,
     set: c.setName ?? '-',
     num: num || '-',
     game: '포켓몬',
     rar: (c.rarity as CardItem['rar']) ?? sample.rar,
     grade: null,
     price,
+    priceCurrency,
     trend: [price],
     emoji: '🃏',
     owned: true,
-    imageUrl: c.imageLarge ?? c.imageSmall ?? c.imageUrl,
+    imageUrl: c.snkrdunk?.imageUrl ?? c.imageLarge ?? c.imageSmall ?? c.imageUrl,
+    snkrdunkApparelId: c.snkrdunk?.apparelId,
   };
 }

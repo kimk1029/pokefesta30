@@ -1,6 +1,9 @@
 export type Rarity = 'C' | 'U' | 'R' | 'SR' | 'HR' | 'S';
 export type Game = '포켓몬' | '유희왕' | '원피스' | 'MTG' | '스포츠' | '기타';
 
+export type PriceCurrency = 'KRW' | 'JPY';
+export type PriceMode = 'single' | 'psa10';
+
 export interface CardItem {
   id: number;
   name: string;
@@ -9,13 +12,25 @@ export interface CardItem {
   game: Game;
   rar: Rarity;
   grade: number | null;
+  /** Backwards-compat displayed price. Mirrors `priceSingle` for snkrdunk-
+   *  matched cards so legacy views keep working. */
   price: number;
+  /** Median of recent un-graded transactions on snkrdunk (raw card price). */
+  priceSingle?: number;
+  /** Median of recent PSA-10 transactions on snkrdunk. */
+  pricePsa10?: number;
+  /** Currency of `price` / `priceSingle` / `pricePsa10`. Default 'KRW' for
+   *  legacy entries. Snkrdunk-matched cards are JPY. */
+  priceCurrency?: PriceCurrency;
   trend: number[];
   emoji: string;
   owned: boolean;
   /** Card art URL — TCGdex high-res when available, else the user's own
    *  scan capture. Optional so existing seed cards still work emoji-only. */
   imageUrl?: string;
+  /** When set, the card was matched against snkrdunk during scan — used to
+   *  fetch live price + sales history on the detail screen. */
+  snkrdunkApparelId?: number;
 }
 
 export interface MarketItem {
@@ -105,8 +120,70 @@ export function fmt(n: number): string {
 
 /** Display-formatted price. Cards that couldn't be priced (TCGdex miss +
  *  no local DB row) end up with price=0 — show that as "시세 미확인" rather
- *  than "₩0" which reads as "free" / dummy data. */
-export function priceLabel(price: number): string {
+ *  than "₩0" / "¥0" which reads as "free" / dummy data.
+ *
+ *  Snkrdunk-matched cards persist JPY values; legacy cards remain KRW. The
+ *  optional currency arg respects that so we don't render "₩3,000" for a
+ *  card that's actually ¥3,000. */
+export function priceLabel(price: number, currency: PriceCurrency = 'KRW'): string {
   if (!price || price <= 0) return '시세 미확인';
+  if (currency === 'JPY') return `¥${price.toLocaleString('ja-JP')}`;
   return `₩${fmt(price)}`;
+}
+
+/** Strip snkrdunk-style suffixes ("[M-P 020](プロモカードパック…)") and other
+ *  bracketed/parenthetical noise so the card title shows only the actual
+ *  name. Also drops the trailing single-letter PROMO tag ("ピカチュウ P"
+ *  → "ピカチュウ") while leaving multi-letter rarity words like SR/SAR/ex
+ *  alone. Safe to run on any string — returns the original when nothing
+ *  to strip. */
+export function displayCardName(name: string | null | undefined): string {
+  if (!name) return '';
+  let head = String(name).split(/[\[(（【]/)[0].trim();
+  // Strip a trailing single uppercase letter ("P" PROMO tag etc) preceded
+  // by whitespace. Multi-letter tags (SR/SAR/AR/EX) are left intact.
+  head = head.replace(/\s+[A-Z]$/, '').trim();
+  return head || String(name).trim();
+}
+
+/** Infer the price currency for legacy cards saved before `priceCurrency`
+ *  existed. Falls back to KRW only when there's no snkrdunk signal at all. */
+export function inferCardCurrency(card: CardItem): PriceCurrency {
+  if (card.priceCurrency) return card.priceCurrency;
+  if (card.snkrdunkApparelId) return 'JPY';
+  if (card.imageUrl && /snkrdunk\.com/i.test(card.imageUrl)) return 'JPY';
+  // Names like "ピカチュウ P [M-P 020]" / "(プロモカードパック…)" are JP-sourced.
+  if (typeof card.name === 'string' && /\[[A-Za-z]+-P\b|プロモ|プロモカード/i.test(card.name)) {
+    return 'JPY';
+  }
+  return 'KRW';
+}
+
+/** Rough JPY → KRW factor used for portfolio aggregation. Real FX moves
+ *  but at this app's "approximate collection value" granularity a
+ *  hand-picked constant is fine; refine once we have a quotes source. */
+export const JPY_TO_KRW = 10;
+
+/** Convert any price+currency pair to KRW for aggregation. KRW values are
+ *  passed through unchanged. */
+export function toKrw(price: number, currency: PriceCurrency = 'KRW'): number {
+  if (!price || price <= 0) return 0;
+  if (currency === 'JPY') return Math.round(price * JPY_TO_KRW);
+  return price;
+}
+
+/** Pick the displayed price for a card under the given mode. Legacy cards
+ *  without per-mode prices fall back to `card.price`. PSA10 with no data
+ *  shows the single price (we don't have a graded sample to show). */
+export function cardPrice(card: CardItem, mode: PriceMode = 'single'): number {
+  if (mode === 'psa10') {
+    if (typeof card.pricePsa10 === 'number' && card.pricePsa10 > 0) return card.pricePsa10;
+  }
+  if (typeof card.priceSingle === 'number' && card.priceSingle > 0) return card.priceSingle;
+  return card.price ?? 0;
+}
+
+/** Card-aware wrapper — uses inferred currency for legacy entries. */
+export function cardKrw(card: CardItem, mode: PriceMode = 'single'): number {
+  return toKrw(cardPrice(card, mode), inferCardCurrency(card));
 }

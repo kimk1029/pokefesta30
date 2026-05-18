@@ -123,6 +123,102 @@ export async function fetchSnkrdunkSalesHistory(
   );
 }
 
+/** Two market segments we surface on the price tab:
+ *   - 'single' = un-graded "raw" cards (most users hold these)
+ *   - 'psa10'  = PSA-10 graded copies, typically a multi-x premium
+ *  Mode toggles in the UI just swap which segment's median we display. */
+export type PriceMode = 'single' | 'psa10';
+
+/** True when the sales history has at least one PSA-10 graded transaction.
+ *  Used to decide whether the singles/PSA10 toggle should be shown — packs
+ *  and boxes never have PSA grades and hiding the toggle there avoids a
+ *  useless control. */
+export function hasPsa10Transactions(
+  history: SnkrdunkSalesHistory | null | undefined,
+): boolean {
+  return (history?.history ?? []).some((h) => /^PSA\s*10$/i.test((h.condition ?? '').trim()));
+}
+
+/** Parse snkrdunk's relative-date strings ("3時間前", "1日前", "2025/05/10",
+ *  "어제" after localization etc) into an absolute millisecond timestamp.
+ *  Returns null when the format isn't recognized. */
+export function parseSnkrdunkDate(text: string | null | undefined, now = Date.now()): number | null {
+  if (!text) return null;
+  const s = String(text).trim();
+  let m: RegExpMatchArray | null;
+  m = s.match(/^(\d+)\s*分前/);
+  if (m) return now - Number(m[1]) * 60_000;
+  m = s.match(/^(\d+)\s*時間前/);
+  if (m) return now - Number(m[1]) * 3_600_000;
+  m = s.match(/^(\d+)\s*日前/);
+  if (m) return now - Number(m[1]) * 86_400_000;
+  m = s.match(/^(\d+)\s*週間前/);
+  if (m) return now - Number(m[1]) * 7 * 86_400_000;
+  m = s.match(/^(\d+)\s*ヶ月前/);
+  if (m) return now - Number(m[1]) * 30 * 86_400_000;
+  m = s.match(/^(\d+)\s*年前/);
+  if (m) return now - Number(m[1]) * 365 * 86_400_000;
+  if (/^어제|^昨日/.test(s)) return now - 86_400_000;
+  if (/^오늘|^今日/.test(s)) return now;
+  // ISO-ish: "2025/05/10" or "2025-05-10" — accept with optional time
+  m = s.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (m) {
+    const t = Date.parse(`${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}T00:00:00`);
+    if (Number.isFinite(t)) return t;
+  }
+  return null;
+}
+
+/** Convert sales history into `[ms, price]` pairs filtered by mode, sorted
+ *  oldest→newest. Used to derive chart points when the sales-chart endpoint
+ *  is empty (common for newer cards), and to split a single chart into two
+ *  series (singles vs PSA10). */
+export function salesHistoryToPoints(
+  history: SnkrdunkSalesHistory | null | undefined,
+  mode: PriceMode,
+): Array<[number, number]> {
+  const now = Date.now();
+  const filtered = (history?.history ?? []).filter((h) => inSegment(h.condition, mode));
+  const points: Array<[number, number]> = [];
+  for (const h of filtered) {
+    const t = parseSnkrdunkDate(h.date, now);
+    const p = Number(h.price);
+    if (t != null && Number.isFinite(p) && p > 0) points.push([t, p]);
+  }
+  return points.sort((a, b) => a[0] - b[0]);
+}
+
+function inSegment(condition: string | null | undefined, mode: PriceMode): boolean {
+  const c = (condition ?? '').trim();
+  if (mode === 'psa10') return /^PSA\s*10$/i.test(c);
+  // single = anything that ISN'T a PSA-graded sale. "A" / "B" / "中古" /
+  // 新品 / empty all qualify.
+  return !/PSA\s*\d+/i.test(c);
+}
+
+/** Median price of the most recent N transactions in the given segment.
+ *  Median (not mean) so a single outlier sale doesn't drag the typical
+ *  price upward. Returns null when there's no usable history — caller
+ *  falls back to apparel.minPrice. */
+export function recentTransactionMedian(
+  history: SnkrdunkSalesHistory | null | undefined,
+  mode: PriceMode = 'single',
+  n = 5,
+): number | null {
+  const filtered = (history?.history ?? [])
+    .filter((h) => inSegment(h.condition, mode))
+    .slice(0, n);
+  const sorted = filtered
+    .map((h) => Number(h.price))
+    .filter((p) => Number.isFinite(p) && p > 0)
+    .sort((a, b) => a - b);
+  if (sorted.length === 0) return null;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
+    : sorted[mid];
+}
+
 export async function fetchSnkrdunkSalesChart(
   apparelId: number,
 ): Promise<SnkrdunkSalesChart | null> {
@@ -207,6 +303,77 @@ export async function fetchSnkrdunkBrowse(page = 1): Promise<SnkrdunkSearchResul
   } catch {
     return [];
   }
+}
+
+/** Free-text search — used to recover an apparelId for legacy collection
+ *  cards that were saved before we persisted snkrdunkApparelId. */
+export async function searchSnkrdunkByQuery(query: string): Promise<SnkrdunkSearchResult[]> {
+  if (!query || !query.trim()) return [];
+  const url = `${SNKRDUNK_ORIGIN}/search?keywords=${encodeURIComponent(query.trim())}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'text/html',
+        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
+      },
+      signal: abortAfter(10000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    return parseSnkrdunkSearchHtml(html);
+  } catch {
+    return [];
+  }
+}
+
+/** Find the snkrdunk apparelId for a stored collection card. We need a
+ *  CONFIDENT match — naive name-only search returns sibling prints (a
+ *  different ピカチュウ for example), and overwriting the price with the
+ *  wrong card is worse than not refreshing at all.
+ *
+ *  Strategy:
+ *    1. Parse setCode + cardNumber from the card's snkrdunk image URL
+ *       (`pkmn-tcg-{SET}-{NUM}-…webp`) or the saved set+num fields.
+ *    2. Search snkrdunk with "name + SET + NUM" — the exact format that
+ *       appears in apparel titles (e.g. "ピカチュウ P [M-P 020]").
+ *    3. Require the result name to contain both setCode and cardNumber.
+ *    4. Return null when no result meets that bar.
+ */
+export async function recoverSnkrdunkApparelId(card: {
+  name?: string;
+  set?: string;
+  num?: string;
+  imageUrl?: string;
+}): Promise<number | null> {
+  const baseName = (card.name ?? '').split(/[\[(（【]/)[0].replace(/\s+[A-Z]$/, '').trim();
+  // Extract setCode + cardNumber, preferring the image URL (most reliable
+  // since the file naming is server-side and consistent).
+  let setCode = '';
+  let num = '';
+  const urlMatch = (card.imageUrl ?? '').match(/pkmn-tcg-([A-Za-z]+(?:-[A-Za-z]+)?)-(\d+)/i);
+  if (urlMatch) {
+    setCode = urlMatch[1].toUpperCase();
+    num = urlMatch[2];
+  } else if (card.set && card.num) {
+    setCode = card.set.replace(/^(세트|Set)\s*/i, '').trim().toUpperCase();
+    num = String(card.num).split('/')[0].replace(/^0+(?=\d)/, '');
+  }
+  if (!setCode || !num) return null;
+  const num3 = num.padStart(3, '0');
+  const queries = [
+    baseName ? `${baseName} ${setCode} ${num3}` : '',
+    `${setCode} ${num3}`,
+  ].filter(Boolean);
+  // setCode separators in titles can be '-' / ' '; num may or may not be zero-padded.
+  const setEscaped = setCode.replace(/-/g, '[-\\s]?');
+  const numEscaped = num.replace(/^0+(?=\d)/, '').replace(/(\d)/g, '0?$1');
+  const matchRe = new RegExp(`${setEscaped}\\s*[-_ ]?\\s*${numEscaped}\\b`, 'i');
+  for (const q of queries) {
+    const results = await searchSnkrdunkByQuery(q);
+    const best = results.find((r) => matchRe.test(r.name));
+    if (best?.apparelId) return best.apparelId;
+  }
+  return null;
 }
 
 // ────────────────────────────────────────────────────────────

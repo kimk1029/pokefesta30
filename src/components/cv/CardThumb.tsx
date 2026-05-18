@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { PixelText } from '../PixelText';
-import { gameColors, type CardItem } from '@/data/cardvault';
+import { displayCardName, gameColors, type CardItem } from '@/data/cardvault';
 
 interface Props {
   card: CardItem;
@@ -48,7 +48,7 @@ export function CardThumb({
             numberOfLines={1}
             style={{ textAlign: 'center', letterSpacing: 0.5 }}
           >
-            {card.name}
+            {displayCardName(card.name)}
           </PixelText>
         </View>
       ) : null}

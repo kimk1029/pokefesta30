@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Image, Linking, ScrollView, View, Text } from 'react-native';
-import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
+import { useEffect, useState } from 'react';
+import { Image, Linking, Modal, Pressable, ScrollView, View, Text } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { SectHd } from '@/components/cv/SectHd';
+import { SnkrdunkPriceChart } from '@/components/cv/SnkrdunkPriceChart';
 import { colors } from '@/theme/tokens';
 import {
   downsamplePricePoints,
@@ -28,155 +28,30 @@ function fmtYen(n: number): string {
   return `¥${n.toLocaleString('ja-JP')}`;
 }
 
-function fmtDateShort(ms: number): string {
-  const d = new Date(ms);
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const yy = String(d.getFullYear()).slice(-2);
-  return `${yy}.${m}.${day}`;
-}
-
-function fmtYenCompact(n: number): string {
-  if (n >= 1_000_000) return `¥${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `¥${Math.round(n / 1000)}K`;
-  return `¥${n.toLocaleString('en-US')}`;
-}
-
-function niceTicks(min: number, max: number, n = 4): number[] {
-  if (!(max > min)) return [min];
-  const range = max - min;
-  const rough = range / (n - 1);
-  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
-  const norm = rough / mag;
-  const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
-  const lo = Math.floor(min / step) * step;
-  const hi = Math.ceil(max / step) * step;
-  const out: number[] = [];
-  for (let v = lo; v <= hi + step / 2; v += step) out.push(v);
-  return out;
-}
-
-function Chart({
-  points,
-  unitLabel,
-  rawCount,
-  width = 320,
-  height = 180,
-}: {
-  points: Array<[number, number]>;
-  unitLabel: string;
-  rawCount: number;
-  width?: number;
-  height?: number;
-}) {
-  if (points.length < 2) {
-    return (
-      <View style={{ height, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.pap2 }}>
-        <PixelText variant="pixel" size={9} color={colors.ink3}>
-          시세 이력이 부족합니다
-        </PixelText>
-      </View>
-    );
+/**
+ * PSA10 / 무등급(non-PSA) 의 최근 5건 평균을 계산.
+ * 입력은 API 응답 순서(보통 최신순) 그대로 — condition 우선, 없으면 label 로 판정.
+ */
+function pickRecentAverage(
+  history: ReadonlyArray<{ price: number; condition?: string; label?: string }>,
+  predicate: (badge: string) => boolean,
+  limit = 5,
+): { avg: number; count: number } {
+  const picked: number[] = [];
+  for (const h of history) {
+    const badge = (h.condition || h.label || '').trim();
+    if (!predicate(badge)) continue;
+    if (typeof h.price !== 'number' || h.price <= 0) continue;
+    picked.push(h.price);
+    if (picked.length >= limit) break;
   }
-  const PAD_L = 50;
-  const PAD_R = 10;
-  const PAD_T = 14;
-  const PAD_B = 28;
-  const innerW = width - PAD_L - PAD_R;
-  const innerH = height - PAD_T - PAD_B;
-
-  const xs = points.map((p) => p[0]);
-  const ys = points.map((p) => p[1]);
-  const dataMinY = Math.min(...ys);
-  const dataMaxY = Math.max(...ys);
-  const yTicks = niceTicks(dataMinY, dataMaxY, 4);
-  const minY = yTicks[0];
-  const maxY = yTicks[yTicks.length - 1];
-  const rangeY = maxY - minY || 1;
-  const minX = xs[0];
-  const maxX = xs[xs.length - 1];
-  const rangeX = maxX - minX || 1;
-  const xOf = (v: number) => PAD_L + ((v - minX) / rangeX) * innerW;
-  const yOf = (v: number) => PAD_T + (1 - (v - minY) / rangeY) * innerH;
-  const linePath = points
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(p[0]).toFixed(1)},${yOf(p[1]).toFixed(1)}`)
-    .join(' ');
-  const areaPath =
-    linePath +
-    ` L${xOf(maxX).toFixed(1)},${(PAD_T + innerH).toFixed(1)} L${xOf(minX).toFixed(1)},${(
-      PAD_T + innerH
-    ).toFixed(1)} Z`;
-  const trendUp = ys[ys.length - 1] >= ys[0];
-  const lineColor = trendUp ? colors.red : colors.blu;
-  const areaColor = trendUp ? 'rgba(230,57,70,0.18)' : 'rgba(58,91,217,0.18)';
-  const xTickValues = [0, 1 / 3, 2 / 3, 1].map((t) => minX + t * rangeX);
-
-  return (
-    <View>
-      <View style={{ width: '100%', backgroundColor: colors.pap2 }}>
-        <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-          {/* Y grid + labels */}
-          {yTicks.map((v) => {
-            const y = yOf(v);
-            return (
-              <React.Fragment key={`y-${v}`}>
-                <Line x1={PAD_L} y1={y} x2={width - PAD_R} y2={y} stroke="rgba(0,0,0,0.08)" strokeWidth={1} />
-                <SvgText x={PAD_L - 6} y={y + 3} textAnchor="end" fontSize={7} fill={colors.ink3}>
-                  {fmtYenCompact(v)}
-                </SvgText>
-              </React.Fragment>
-            );
-          })}
-
-          {/* X labels */}
-          {xTickValues.map((tv, i) => {
-            const x = xOf(tv);
-            return (
-              <React.Fragment key={`x-${i}`}>
-                <Line
-                  x1={x}
-                  y1={PAD_T + innerH}
-                  x2={x}
-                  y2={PAD_T + innerH + 3}
-                  stroke="rgba(0,0,0,0.3)"
-                  strokeWidth={1}
-                />
-                <SvgText
-                  x={x}
-                  y={PAD_T + innerH + 12}
-                  textAnchor={i === 0 ? 'start' : i === xTickValues.length - 1 ? 'end' : 'middle'}
-                  fontSize={7}
-                  fill={colors.ink3}
-                >
-                  {fmtDateShort(tv)}
-                </SvgText>
-              </React.Fragment>
-            );
-          })}
-
-          <Path d={areaPath} fill={areaColor} />
-          <Path d={linePath} stroke={lineColor} strokeWidth={1.5} fill="none" />
-          <Circle cx={xOf(maxX)} cy={yOf(ys[ys.length - 1])} r={3} fill={lineColor} />
-
-          <SvgText x={PAD_L} y={PAD_T - 4} textAnchor="start" fontSize={7} fill={colors.ink3}>
-            가격 (JPY)
-          </SvgText>
-          <SvgText x={width - PAD_R} y={height - 4} textAnchor="end" fontSize={7} fill={colors.ink3}>
-            거래일
-          </SvgText>
-        </Svg>
-      </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-        <PixelText variant="pixel" size={8} color={colors.ink3}>
-          기간: {fmtDateShort(minX)} ~ {fmtDateShort(maxX)} · {unitLabel} · 거래 {rawCount}건
-        </PixelText>
-        <PixelText variant="pixel" size={8} color={colors.ink3}>
-          최저 ¥{dataMinY.toLocaleString('ja-JP')} · 최고 ¥{dataMaxY.toLocaleString('ja-JP')}
-        </PixelText>
-      </View>
-    </View>
-  );
+  if (picked.length === 0) return { avg: 0, count: 0 };
+  const sum = picked.reduce((a, b) => a + b, 0);
+  return { avg: Math.round(sum / picked.length), count: picked.length };
 }
+
+const PSA_GRADE_RE = /PSA\s*\d+/i;
+const PSA10_RE = /PSA\s*10\b/i;
 
 export default function SnkrdunkDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -187,6 +62,7 @@ export default function SnkrdunkDetail() {
   const [history, setHistory] = useState<SnkrdunkSalesHistory | null>(null);
   const [chart, setChart] = useState<SnkrdunkSalesChart | null>(null);
   const [loading, setLoading] = useState(true);
+  const [zoomOpen, setZoomOpen] = useState(false);
 
   useEffect(() => {
     if (!Number.isInteger(apparelId) || apparelId <= 0) {
@@ -222,6 +98,10 @@ export default function SnkrdunkDetail() {
       ? `최근 ${points.length}건`
       : `${points.length}${priceUnitLabelKo(downsampleUnit)} 평균`;
 
+  const historyList = history?.history ?? [];
+  const rawAvg = pickRecentAverage(historyList, (b) => !PSA_GRADE_RE.test(b));
+  const psa10Avg = pickRecentAverage(historyList, (b) => PSA10_RE.test(b));
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <AppBar onBack={() => router.back()} title="시세 상세" />
@@ -248,7 +128,10 @@ export default function SnkrdunkDetail() {
             <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
               <PixelFrame bg={colors.white}>
                 <View style={{ padding: 14, flexDirection: 'row', gap: 14 }}>
-                  <View
+                  <Pressable
+                    onPress={() => {
+                      if (apparel.imageUrl) setZoomOpen(true);
+                    }}
                     style={{
                       width: 88,
                       height: 88,
@@ -269,7 +152,7 @@ export default function SnkrdunkDetail() {
                     ) : (
                       <Text style={{ fontSize: 28 }}>🃏</Text>
                     )}
-                  </View>
+                  </Pressable>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     {seed ? (
                       <View
@@ -291,14 +174,32 @@ export default function SnkrdunkDetail() {
                     <PixelText variant="pixel" size={10} numberOfLines={3} style={{ lineHeight: 14, marginBottom: 6 }}>
                       {displayName}
                     </PixelText>
-                    <PixelText variant="pixel" size={14} color={colors.red}>
-                      {fmtYen(apparel.minPrice)}
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
+                      <View style={{ flex: 1 }}>
+                        <PixelText variant="pixel" size={7} color={colors.ink3} style={{ marginBottom: 2 }}>
+                          {rawAvg.count > 0 ? `싱글 평균 (최근 ${rawAvg.count}건)` : '싱글 평균'}
+                        </PixelText>
+                        <PixelText variant="pixel" size={13} color={colors.red}>
+                          {fmtYen(rawAvg.avg)}
+                        </PixelText>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <PixelText variant="pixel" size={7} color={colors.ink3} style={{ marginBottom: 2 }}>
+                          {psa10Avg.count > 0 ? `PSA10 평균 (최근 ${psa10Avg.count}건)` : 'PSA10 평균'}
+                        </PixelText>
+                        <PixelText
+                          variant="pixel"
+                          size={13}
+                          color={psa10Avg.avg > 0 ? colors.orn : colors.ink3}
+                        >
+                          {fmtYen(psa10Avg.avg)}
+                        </PixelText>
+                      </View>
+                    </View>
+                    <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginTop: 6 }}>
+                      {`최저매물 ${fmtYen(apparel.minPrice)}`}
+                      {apparel.listingCountText ? ` · 매물 ${apparel.listingCountText}건` : ''}
                     </PixelText>
-                    {apparel.listingCountText ? (
-                      <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginTop: 4 }}>
-                        매물 {apparel.listingCountText}건
-                      </PixelText>
-                    ) : null}
                   </View>
                 </View>
               </PixelFrame>
@@ -315,7 +216,7 @@ export default function SnkrdunkDetail() {
                   }}
                 >
                   <PixelText variant="pixel" size={11} color={colors.gold}>
-                    🇯🇵 스니다에서 구매·확인 ↗
+                    🇯🇵 스니덩크에서 구매·확인 ↗
                   </PixelText>
                 </View>
               </PixelPress>
@@ -328,12 +229,12 @@ export default function SnkrdunkDetail() {
             <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
               <PixelFrame bg={colors.white}>
                 <View style={{ padding: 14 }}>
-                  <Chart points={points} unitLabel={unitLabel} rawCount={allPoints.length} />
+                  <SnkrdunkPriceChart points={points} unitLabel={unitLabel} rawCount={allPoints.length} />
                 </View>
               </PixelFrame>
             </View>
 
-            {/* Recent transactions */}
+            {/* Recent transactions — log style */}
             <View style={{ marginHorizontal: 14 }}>
               <SectHd
                 title="최근 거래내역"
@@ -341,58 +242,60 @@ export default function SnkrdunkDetail() {
               />
             </View>
             <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
-              <PixelFrame bg={colors.white}>
-                <View style={{ paddingHorizontal: 14, paddingVertical: 6 }}>
+              <PixelFrame bg={colors.ink2}>
+                <View style={{ paddingHorizontal: 10, paddingTop: 8, paddingBottom: 10, overflow: 'hidden' }}>
                   {history && history.history.length > 0 ? (
                     history.history.slice(0, 20).map((h, i, arr) => {
                       const date = localizeSnkrdunkText(h.date);
-                      const size = localizeSnkrdunkText(h.size);
                       const label = localizeSnkrdunkText(h.label);
                       const condition = h.condition;
-                      const subParts = [label, size, condition].filter(Boolean);
-                      const condBadge = condition || label;
+                      const badge = condition || label || '일반';
+                      const isPsa = /PSA\s*\d+/i.test(badge);
                       return (
                         <View
                           key={i}
                           style={{
                             flexDirection: 'row',
                             alignItems: 'center',
-                            paddingVertical: 10,
-                            borderBottomWidth: i < arr.length - 1 ? 2 : 0,
-                            borderBottomColor: colors.pap3,
+                            paddingVertical: 6,
+                            borderBottomWidth: i < arr.length - 1 ? 1 : 0,
+                            borderBottomColor: 'rgba(255,255,255,0.08)',
                           }}
                         >
-                          <View style={{ flex: 1 }}>
-                            <PixelText variant="pixel" size={11} color={colors.ink}>
-                              {fmtYen(h.price)}
-                            </PixelText>
-                            <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginTop: 3 }}>
-                              {date}
-                              {subParts.length ? ` · ${subParts.join(' · ')}` : ''}
+                          <View
+                            style={{
+                              minWidth: 56,
+                              paddingHorizontal: 5,
+                              paddingVertical: 2,
+                              backgroundColor: isPsa ? colors.gold : 'rgba(255,255,255,0.12)',
+                              borderColor: isPsa ? colors.ink : 'rgba(255,255,255,0.18)',
+                              borderWidth: 1,
+                              marginRight: 8,
+                              alignItems: 'center',
+                            }}
+                          >
+                            <PixelText variant="pixel" size={8} color={isPsa ? colors.ink : colors.white}>
+                              {badge}
                             </PixelText>
                           </View>
-                          {condBadge ? (
-                            <View
-                              style={{
-                                backgroundColor: colors.pap2,
-                                paddingHorizontal: 6,
-                                paddingVertical: 3,
-                                borderColor: colors.ink,
-                                borderWidth: 1,
-                                marginLeft: 8,
-                              }}
-                            >
-                              <PixelText variant="pixel" size={8} color={colors.ink}>
-                                {condBadge}
-                              </PixelText>
-                            </View>
-                          ) : null}
+                          <PixelText
+                            variant="pixel"
+                            size={10}
+                            color={colors.gold}
+                            numberOfLines={1}
+                            style={{ flex: 1 }}
+                          >
+                            {fmtYen(h.price)}
+                          </PixelText>
+                          <PixelText variant="pixel" size={8} color="rgba(255,255,255,0.55)">
+                            {date}
+                          </PixelText>
                         </View>
                       );
                     })
                   ) : (
                     <View style={{ padding: 20, alignItems: 'center' }}>
-                      <PixelText variant="pixel" size={9} color={colors.ink3}>
+                      <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.55)">
                         거래내역이 없습니다
                       </PixelText>
                     </View>
@@ -409,6 +312,28 @@ export default function SnkrdunkDetail() {
           </>
         )}
       </ScrollView>
+      <Modal
+        visible={zoomOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setZoomOpen(false)}
+      >
+        <Pressable
+          onPress={() => setZoomOpen(false)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 }}
+        >
+          {apparel?.imageUrl ? (
+            <Image
+              source={{ uri: apparel.imageUrl }}
+              style={{ width: '100%', height: '80%' }}
+              resizeMode="contain"
+            />
+          ) : null}
+          <View style={{ position: 'absolute', top: 40, right: 20, backgroundColor: colors.ink, paddingHorizontal: 10, paddingVertical: 6, borderColor: colors.gold, borderWidth: 2 }}>
+            <PixelText variant="pixel" size={11} color={colors.gold}>✕ 닫기</PixelText>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

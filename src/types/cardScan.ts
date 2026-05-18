@@ -2,6 +2,7 @@ export type ScanCandidateSource =
   | 'tcgdex'
   | 'tcgdex-exact'
   | 'tcgdex-search'
+  | 'snkrdunk-match'
   | 'pokemon_tcg_api'
   | 'internal'
   | 'unknown';
@@ -29,6 +30,16 @@ export interface PriceSummary {
   byRegion?: PriceByRegion;
 }
 
+export interface SnkrdunkMatch {
+  apparelId: number;
+  imageUrl: string | null;
+  priceJpy: number | null;
+  priceText: string;
+  localizedName?: string;
+  listingCountText?: string;
+  cacheHit?: boolean;
+}
+
 export interface ScanCandidate {
   id: string;
   source: ScanCandidateSource;
@@ -53,6 +64,9 @@ export interface ScanCandidate {
   price?: ScanPrice;
   /** Multi-region pricing from TCGdex (cardmarket EUR, FX-derived JPY/KRW). */
   priceSummary?: PriceSummary | null;
+  /** Snkrdunk match — when present, image + JP price come from snkrdunk and
+   *  override TCGdex art / pricing in the UI. */
+  snkrdunk?: SnkrdunkMatch | null;
 }
 
 export interface ScanExtracted {
@@ -73,6 +87,8 @@ export interface CardScanResponse {
   usedAi?: boolean;
   extracted?: ScanExtracted;
   candidates: ScanCandidate[];
+  /** Top-level snkrdunk match — same data as each candidate.snkrdunk. */
+  snkrdunk?: SnkrdunkMatch | null;
   needsUserSelection: boolean;
   message?: string;
 }

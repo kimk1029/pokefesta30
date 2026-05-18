@@ -265,27 +265,44 @@ function itemToCard(state: ItemState, _cap: CapturedCard): CardItem | null {
   if (!c || !state.scan?.success) return null;
   const sample = CARDS[0];
   const [num] = (c.number ?? '').split('/');
-  // Same JP-first preference as Row — what the user sees in the row is what
-  // gets persisted as `price` in the collection.
-  const priceFromBR =
-    c.priceSummary?.byRegion?.jpy ??
-    c.priceSummary?.byRegion?.krw ??
-    null;
-  const priceFromLegacy =
-    typeof c.price?.marketPrice === 'number' ? c.price.marketPrice : 0;
-  const price = priceFromBR ?? priceFromLegacy ?? 0;
+  const snkrJpy = typeof c.snkrdunk?.priceJpy === 'number' ? c.snkrdunk.priceJpy : null;
+  const tcgJpy = c.priceSummary?.byRegion?.jpy ?? null;
+  const tcgKrw = c.priceSummary?.byRegion?.krw ?? null;
+  const legacyPrice = typeof c.price?.marketPrice === 'number' ? c.price.marketPrice : 0;
+  let price = 0;
+  let priceCurrency: CardItem['priceCurrency'] = 'KRW';
+  if (snkrJpy && snkrJpy > 0) {
+    price = snkrJpy;
+    priceCurrency = 'JPY';
+  } else if (tcgJpy && tcgJpy > 0) {
+    price = tcgJpy;
+    priceCurrency = 'JPY';
+  } else if (tcgKrw && tcgKrw > 0) {
+    price = tcgKrw;
+    priceCurrency = 'KRW';
+  } else {
+    price = legacyPrice;
+    priceCurrency = c.price?.currency === 'JPY' ? 'JPY' : 'KRW';
+  }
+  const cleanName = c.localName
+    ?? c.nameJa
+    ?? (c.name ?? '').split(/[\[(（【]/)[0].trim()
+    ?? c.name
+    ?? '카드';
   return {
     id: Date.now() + Math.floor(Math.random() * 100000),
-    name: c.localName ?? c.name,
+    name: cleanName,
     set: c.setName ?? '-',
     num: num || '-',
     game: '포켓몬',
     rar: (c.rarity as CardItem['rar']) ?? sample.rar,
     grade: null,
     price,
+    priceCurrency,
     trend: [price],
     emoji: '🃏',
     owned: true,
-    imageUrl: c.imageLarge ?? c.imageSmall ?? c.imageUrl,
+    imageUrl: c.snkrdunk?.imageUrl ?? c.imageLarge ?? c.imageSmall ?? c.imageUrl,
+    snkrdunkApparelId: c.snkrdunk?.apparelId,
   };
 }

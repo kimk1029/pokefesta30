@@ -14,7 +14,7 @@ import { ScanPreview } from '@/components/cv/ScanPreview';
 import { BatchScanPreview } from '@/components/cv/BatchScanPreview';
 import { useChrome } from '@/components/ChromeContext';
 import { colors } from '@/theme/tokens';
-import { CARDS, GAMES, fmt, priceLabel, type CardItem, type Game, type Rarity } from '@/data/cardvault';
+import { CARDS, GAMES, fmt, priceLabel, displayCardName, inferCardCurrency, type CardItem, type Game, type Rarity } from '@/data/cardvault';
 import { addCards } from '@/lib/collection';
 import type { GuideRect, ScanLanguage } from '@/types/cardScan';
 
@@ -153,7 +153,7 @@ export default function ScanScreen() {
                     <CardThumb card={c} height={60} emojiSize={22} showLabel={false} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <PixelText variant="ko" size={12} weight="bold">{c.name}</PixelText>
+                    <PixelText variant="ko" size={12} weight="bold">{displayCardName(c.name)}</PixelText>
                     <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 3 }}>
                       {c.set} · {c.num}
                     </PixelText>
@@ -163,7 +163,7 @@ export default function ScanScreen() {
                       color={c.price > 0 ? colors.grnDk : colors.ink3}
                       style={{ marginTop: 3 }}
                     >
-                      {priceLabel(c.price)}
+                      {priceLabel(c.price, inferCardCurrency(c))}
                     </PixelText>
                   </View>
                   <RarBadge rar={c.rar} />
@@ -455,7 +455,7 @@ export default function ScanScreen() {
                   ✓ 인식 완료!
                 </PixelText>
                 <PixelText variant="pixel" size={12} style={{ marginBottom: 5, lineHeight: 18 }}>
-                  {found.name}
+                  {displayCardName(found.name)}
                 </PixelText>
                 <PixelText variant="pixel" size={9} color={colors.ink3} style={{ lineHeight: 16 }}>
                   {found.set} · {found.num}
@@ -469,7 +469,7 @@ export default function ScanScreen() {
                     size={10}
                     color={found.price > 0 ? colors.grnDk : colors.ink3}
                   >
-                    {priceLabel(found.price)}
+                    {priceLabel(found.price, inferCardCurrency(found))}
                   </PixelText>
                 </View>
               </View>

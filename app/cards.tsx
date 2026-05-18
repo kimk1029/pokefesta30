@@ -10,7 +10,8 @@ import { GradeBadge } from '@/components/cv/GradeBadge';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { colors } from '@/theme/tokens';
-import { GAMES, RARS, gameColors, fmt, priceLabel, type Game, type Rarity } from '@/data/cardvault';
+import { GAMES, RARS, gameColors, fmt, priceLabel, displayCardName, inferCardCurrency, cardKrw, cardPrice, type Game, type Rarity } from '@/data/cardvault';
+import { usePriceMode } from '@/lib/priceMode';
 import { useCollection } from '@/lib/collection';
 
 type View4 = 'grid' | 'list' | 'binder' | 'album';
@@ -30,10 +31,11 @@ export default function Cards() {
       (rarFilter === '전체' || c.rar === rarFilter) &&
       (c.name.includes(search) || c.game.includes(search) || c.set.includes(search)),
   );
-  if (sortBy === 'price') filtered = [...filtered].sort((a, b) => b.price - a.price);
+  const { mode: priceMode } = usePriceMode();
+  if (sortBy === 'price') filtered = [...filtered].sort((a, b) => cardKrw(b, priceMode) - cardKrw(a, priceMode));
   if (sortBy === 'grade') filtered = [...filtered].sort((a, b) => (b.grade ?? 0) - (a.grade ?? 0));
 
-  const totalVal = owned.reduce((a, c) => a + c.price, 0);
+  const totalVal = owned.reduce((a, c) => a + cardKrw(c, priceMode), 0);
   const gradedCnt = owned.filter((c) => c.grade != null).length;
 
   return (
@@ -224,7 +226,7 @@ export default function Cards() {
                     <CardThumb card={card} height={150} emojiSize={44} />
                     <View style={{ paddingHorizontal: 10, paddingVertical: 10, borderTopWidth: 3, borderTopColor: colors.ink }}>
                       <PixelText variant="pixel" size={10} numberOfLines={1} style={{ marginBottom: 6 }}>
-                        {card.name}
+                        {displayCardName(card.name)}
                       </PixelText>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <RarBadge rar={card.rar} size={9} px={6} py={3} />
@@ -232,7 +234,7 @@ export default function Cards() {
                         {card.grade ? <GradeBadge g={card.grade} size={24} /> : null}
                       </View>
                       <PixelText variant="pixel" size={11} color={colors.grnDk} style={{ marginTop: 6 }}>
-                        {priceLabel(card.price)}
+                        {priceLabel(cardPrice(card, priceMode), inferCardCurrency(card))}
                       </PixelText>
                     </View>
                   </View>
@@ -263,7 +265,7 @@ export default function Cards() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <PixelText variant="pixel" size={11} style={{ marginBottom: 6 }}>
-                      {card.name}
+                      {displayCardName(card.name)}
                     </PixelText>
                     <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginBottom: 6 }}>
                       {card.set} · {card.num}
@@ -300,7 +302,7 @@ export default function Cards() {
                       ) : null}
                     </View>
                     <PixelText variant="pixel" size={11} color={colors.grnDk} style={{ marginTop: 5 }}>
-                      {priceLabel(card.price)}
+                      {priceLabel(cardPrice(card, priceMode), inferCardCurrency(card))}
                     </PixelText>
                   </View>
                 </View>
@@ -356,7 +358,7 @@ export default function Cards() {
                       }}
                     >
                       <PixelText variant="pixel" size={6} numberOfLines={1} style={{ flex: 1 }}>
-                        {card.name}
+                        {displayCardName(card.name)}
                       </PixelText>
                       {card.grade ? (
                         <PixelText variant="pixel" size={6} color={colors.goldDk}>
@@ -429,10 +431,10 @@ export default function Cards() {
                           </View>
                           <View style={{ padding: 5, borderTopColor: colors.ink, borderTopWidth: 2 }}>
                             <PixelText variant="pixel" size={8} numberOfLines={1} style={{ marginBottom: 4 }}>
-                              {card.name}
+                              {displayCardName(card.name)}
                             </PixelText>
                             <PixelText variant="pixel" size={9} color={colors.grnDk}>
-                              {priceLabel(card.price)}
+                              {priceLabel(cardPrice(card, priceMode), inferCardCurrency(card))}
                             </PixelText>
                           </View>
                         </View>
