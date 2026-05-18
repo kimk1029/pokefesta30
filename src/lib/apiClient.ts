@@ -10,7 +10,7 @@
  */
 import { getSessionCookieHeader } from './session';
 
-const DEFAULT_BASE = 'https://tcgbreaker.vercel.app';
+const DEFAULT_BASE = 'http://localhost:3000';
 
 export function getWebBaseUrl(): string {
   const v = process.env.EXPO_PUBLIC_WEB_BASE_URL;

@@ -5,6 +5,12 @@
  * 모바일이 자체 mock 으로 폴백할 수 있도록 [[ApiError]] 를 그대로 던진다.
  */
 import { api } from './apiClient';
+import { CARD_PACKS, getCardPack, type CardPackMeta } from '@/data/cardPacks';
+import {
+  fetchAllSnkrdunkApparelGroup,
+  fetchSnkrdunkApparelGroup,
+  type SnkrdunkApparel,
+} from '@/services/snkrdunk';
 
 export type TradeType = 'buy' | 'sell';
 export type TradeStatus = 'open' | 'reserved' | 'done' | 'cancelled';
@@ -185,12 +191,65 @@ export interface PackWithHits {
   hits: PackHitCard[];
 }
 
-export function fetchAllPacksWithHits(limit = 12): Promise<PackWithHits[]> {
-  return api<{ data: PackWithHits[] }>(`/api/card-packs?withHits=1&limit=${limit}`, { auth: false }).then((r) => r.data);
+export async function fetchAllPacksWithHits(limit = 12): Promise<PackWithHits[]> {
+  const out: PackWithHits[] = [];
+  for (const pack of CARD_PACKS) {
+    out.push(await resolvePack(pack, limit));
+  }
+  return out;
 }
 
-export function fetchPackHits(code: string, limit = 30): Promise<PackWithHits | null> {
-  return api<{ data: PackWithHits }>(`/api/card-packs/${encodeURIComponent(code)}?limit=${limit}`, { auth: false })
-    .then((r) => r.data)
-    .catch(() => null);
+export async function fetchPackHits(code: string, limit = 30): Promise<PackWithHits | null> {
+  const pack = getCardPack(code);
+  if (!pack) return null;
+  return resolvePack(pack, limit);
+}
+
+async function resolvePack(pack: CardPackMeta, limit: number): Promise<PackWithHits> {
+  const [singles, boxesPage] = await Promise.all([
+    fetchAllSnkrdunkApparelGroup(pack.apparelGroupId, {
+      apparelCategoryId: 25,
+      maxItems: Math.max(limit, 100),
+    }),
+    fetchSnkrdunkApparelGroup(pack.apparelGroupId, {
+      apparelCategoryId: 14,
+      page: 1,
+      perPage: 10,
+    }),
+  ]);
+  const hits = singles.filter((a) => a.minPrice > 0).slice(0, limit).map(toHitCard);
+  const box = (boxesPage?.apparels ?? []).find((a) => a.minPrice > 0) ?? boxesPage?.apparels?.[0] ?? null;
+  return {
+    code: pack.code,
+    name: pack.name,
+    shortName: pack.shortName,
+    emoji: pack.emoji,
+    bg: pack.bg,
+    releasedAt: pack.releasedAt,
+    boxImageUrl: box?.imageUrl ?? null,
+    boxName: box?.localizedName ?? null,
+    boxKoName: box?.localizedName ?? null,
+    hits,
+  };
+}
+
+function toHitCard(a: SnkrdunkApparel): PackHitCard {
+  return {
+    apparelId: a.id,
+    name: a.localizedName || a.name,
+    koName: a.localizedName || a.name,
+    shortName: shortenName(a.localizedName || a.name),
+    itemKind: a.itemKind,
+    imageUrl: a.imageUrl,
+    minPrice: a.minPrice,
+    displayPrice: a.displayPrice,
+    listingCount: a.listingCount,
+    listingCountText: a.listingCountText,
+    productNumber: a.productNumber,
+  };
+}
+
+function shortenName(name: string): string {
+  const cut = name.split(/[|｜]/)[0].trim();
+  return cut.length > 22 ? `${cut.slice(0, 21)}…` : cut;
 }
