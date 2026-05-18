@@ -10,15 +10,20 @@ import { Chip } from '@/components/cv/Chip';
 import { RarBadge } from '@/components/cv/RarBadge';
 import { GradeBadge } from '@/components/cv/GradeBadge';
 import { colors } from '@/theme/tokens';
-import { RARS, gameColors, fmt, priceLabel, type Game, type Rarity } from '@/data/cardvault';
-import { useCollection } from '@/lib/collection';
+import { RARS, gameColors, fmt, priceLabel, displayCardName, inferCardCurrency, cardKrw, cardPrice, type Game, type Rarity } from '@/data/cardvault';
+import { updateCard, useCollection } from '@/lib/collection';
+import { usePriceMode } from '@/lib/priceMode';
 import {
   fetchSnkrdunkApparel,
   fetchSnkrdunkBrowse,
+  fetchSnkrdunkSalesHistory,
+  recentTransactionMedian,
+  recoverSnkrdunkApparelId,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
   type SnkrdunkCardSeed,
 } from '@/services/snkrdunk';
+import { fetchAllPacksWithHits, type PackWithHits } from '@/lib/myApi';
 
 const SNKR_CAT_BG: Record<SnkrdunkCardSeed['category'], string> = {
   SAR: colors.orn,
@@ -84,11 +89,20 @@ export default function Home() {
   const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '3M'>('1M');
   const [activeGame, setActiveGame] = useState<string>('전체');
   const owned = useCollection();
-  const totalVal = owned.reduce((a, c) => a + c.price, 0);
+  const { mode: globalPriceMode, toggle: togglePriceMode } = usePriceMode();
+  // Force singles when no card in the collection has any PSA10 data —
+  // the toggle isn't shown in that case but we still want totals to use
+  // singles consistently.
+  const hasAnyPsa10 = owned.some((c) => (c.pricePsa10 ?? 0) > 0);
+  const priceMode = hasAnyPsa10 ? globalPriceMode : 'single';
+  // Portfolio totals always in KRW — JPY entries (snkrdunk-matched cards)
+  // are converted via toKrw() so they don't get summed at face value. The
+  // global priceMode picks singles vs PSA-10 medians per card.
+  const totalVal = owned.reduce((a, c) => a + cardKrw(c, priceMode), 0);
   const prevVal = Math.round(totalVal * 0.88);
   const changePct = prevVal > 0 ? Math.round(((totalVal - prevVal) / prevVal) * 100) : 0;
   const graded = owned.filter((c) => c.grade != null);
-  const topCards = [...owned].sort((a, b) => b.price - a.price).slice(0, 3);
+  const topCards = [...owned].sort((a, b) => cardKrw(b, priceMode) - cardKrw(a, priceMode)).slice(0, 3);
 
   const rarDist = RARS.map((r) => ({ r, n: owned.filter((c) => c.rar === r).length })).filter(
     (x) => x.n > 0,
@@ -99,12 +113,76 @@ export default function Home() {
   const gameDist = presentGames.map((g) => ({
     g,
     n: owned.filter((c) => c.game === g).length,
-    val: owned.filter((c) => c.game === g).reduce((a, c) => a + c.price, 0),
+    val: owned.filter((c) => c.game === g).reduce((a, c) => a + cardKrw(c, priceMode), 0),
   }));
 
   const chartData = CHARTS[chartPeriod];
   const chartMax = Math.max(...chartData);
   const gradedPct = owned.length > 0 ? Math.round((graded.length / owned.length) * 100) : 0;
+
+  // Background refresh: for every owned card with a snkrdunkApparelId (or
+  // a recoverable signal — imageUrl / promo name pattern), fetch the latest
+  // snkrdunk min price and rewrite the stored price. Without this, the
+  // portfolio total drifts away from market value because cards keep the
+  // price that was current when they were scanned. Recovery uses the
+  // precise setCode+number match in recoverSnkrdunkApparelId — sibling
+  // prints can't sneak in.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const tasks = owned.map(async (c) => {
+        if (!alive) return;
+        let apparelId = c.snkrdunkApparelId ?? null;
+        const looksLikeSnkr =
+          apparelId != null ||
+          (c.imageUrl && /snkrdunk\.com/i.test(c.imageUrl)) ||
+          /\[[A-Za-z]+-P\b|プロモ/.test(c.name ?? '');
+        if (!looksLikeSnkr) return;
+        if (!apparelId) {
+          apparelId = await recoverSnkrdunkApparelId({
+            name: c.name,
+            set: c.set,
+            num: c.num,
+            imageUrl: c.imageUrl,
+          });
+        }
+        if (!apparelId) return;
+        const [apparel, history] = await Promise.all([
+          fetchSnkrdunkApparel(apparelId),
+          fetchSnkrdunkSalesHistory(apparelId),
+        ]);
+        if (!alive) return;
+        // Same logic as detail: store BOTH segment medians so the home
+        // portfolio total can flip between singles and PSA10 instantly
+        // without re-fetching every card.
+        const singleP = recentTransactionMedian(history, 'single') ?? apparel?.minPrice ?? 0;
+        const psa10P = recentTransactionMedian(history, 'psa10') ?? 0;
+        if (singleP <= 0 && psa10P <= 0) return;
+        const needsUpdate =
+          (singleP > 0 && c.priceSingle !== singleP) ||
+          (psa10P > 0 && c.pricePsa10 !== psa10P) ||
+          c.priceCurrency !== 'JPY' ||
+          c.snkrdunkApparelId !== apparelId;
+        if (!needsUpdate) return;
+        const patch: Partial<typeof c> = {
+          priceCurrency: 'JPY',
+          snkrdunkApparelId: apparelId,
+        };
+        if (singleP > 0) {
+          patch.priceSingle = singleP;
+          patch.price = singleP;
+          patch.trend = [singleP];
+        }
+        if (psa10P > 0) patch.pricePsa10 = psa10P;
+        updateCard(c.id, patch);
+      });
+      await Promise.allSettled(tasks);
+    })();
+    return () => { alive = false; };
+    // Owned changes drive a re-sync; the price-comparison guards prevent
+    // an infinite update loop after the first pass converges.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [owned.length]);
 
   const [snkrRows, setSnkrRows] = useState<SnkrRow[]>([]);
   useEffect(() => {
@@ -137,6 +215,23 @@ export default function Home() {
         })),
       );
       if (alive) setSnkrRows(rows);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // 팩별 힛카드 — /api/card-packs 호출. 웹 베이스 URL 미설정 / 오프라인 시 빈 배열.
+  const [packs, setPacks] = useState<PackWithHits[]>([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await fetchAllPacksWithHits(12);
+        if (alive) setPacks(data);
+      } catch {
+        if (alive) setPacks([]);
+      }
     })();
     return () => {
       alive = false;
@@ -185,14 +280,44 @@ export default function Home() {
             />
           ))}
 
-          <PixelText
-            variant="pixel"
-            size={9}
-            color="rgba(255,255,255,0.35)"
-            style={{ letterSpacing: 2, marginBottom: 8 }}
-          >
-            TOTAL PORTFOLIO
-          </PixelText>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <PixelText
+              variant="pixel"
+              size={9}
+              color="rgba(255,255,255,0.35)"
+              style={{ letterSpacing: 2 }}
+            >
+              TOTAL PORTFOLIO{hasAnyPsa10 ? ` · ${priceMode === 'psa10' ? 'PSA10' : '싱글'}` : ''}
+            </PixelText>
+            {/* Singles / PSA10 toggle — only shown when at least one
+                owned card has PSA10 sales data. Tapping flips the global
+                mode so every card price + portfolio total flips together. */}
+            {hasAnyPsa10 ? (
+              <Pressable
+                onPress={togglePriceMode}
+                style={{ flexDirection: 'row', borderColor: 'rgba(255,210,63,0.6)', borderWidth: 1 }}
+              >
+                {(['single', 'psa10'] as const).map((m) => (
+                  <View
+                    key={m}
+                    style={{
+                      paddingHorizontal: 7,
+                      paddingVertical: 3,
+                      backgroundColor: priceMode === m ? colors.gold : 'transparent',
+                    }}
+                  >
+                    <PixelText
+                      variant="pixel"
+                      size={8}
+                      color={priceMode === m ? colors.ink : 'rgba(255,210,63,0.85)'}
+                    >
+                      {m === 'single' ? '싱글' : 'PSA10'}
+                    </PixelText>
+                  </View>
+                ))}
+              </Pressable>
+            ) : null}
+          </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16 }}>
             <PixelText
@@ -441,9 +566,123 @@ export default function Home() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 14, marginBottom: 12 }}>
           <Block label="컬렉션 가치" value={`₩${fmt(totalVal)}`} sub={`▲ +${changePct}% 지난주`} color={colors.goldDk} icon="💰" />
           <Block label="그레이딩률" value={`${gradedPct}%`} sub={`${graded.length} / ${owned.length}장`} color={colors.pur} icon="🏆" />
-          <Block label="최고가 카드" value={`₩${fmt(topCards[0]?.price ?? 0)}`} sub={topCards[0]?.name} color={colors.grnDk} icon="🎯" />
+          <Block label="최고가 카드" value={`₩${fmt(topCards[0] ? cardKrw(topCards[0], priceMode) : 0)}`} sub={topCards[0] ? displayCardName(topCards[0].name) : undefined} color={colors.grnDk} icon="🎯" />
           <Block label="이번주 거래" value={`${TRADES}건`} sub="+45P 포인트 획득" color={colors.blu} icon="🤝" onPress={() => router.push('/feed' as never)} />
         </View>
+
+        {/* Section: 인기 카드들 (snkrdunk) */}
+        {snkrRows.length > 0 && (
+          <>
+            <View style={{ marginHorizontal: 14 }}>
+              <SectHd
+                title="🔥 인기 카드들"
+                more="전체보기 →"
+                onMore={() => router.push('/cards/snkrdunk/all' as never)}
+              />
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 14, gap: 8 }}
+              style={{ marginBottom: 12 }}
+            >
+              {snkrRows.map(({ seed, data }) => {
+                const bg = seed.category ? SNKR_CAT_BG[seed.category] : colors.ink2;
+                const priceText =
+                  data && data.minPrice > 0 ? `¥${data.minPrice.toLocaleString('ja-JP')}` : '—';
+                return (
+                  <View key={seed.apparelId} style={{ width: 128 }}>
+                    <PixelPress
+                      onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
+                      innerStyle={{ borderTopWidth: 4, borderTopColor: bg, height: 196 }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <View
+                          style={{
+                            height: 92,
+                            backgroundColor: colors.pap2,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {data?.imageUrl ? (
+                            <Image
+                              source={{ uri: data.imageUrl }}
+                              style={{ width: '100%', height: '100%' }}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <Text style={{ fontSize: 28 }}>🃏</Text>
+                          )}
+                        </View>
+                        <View
+                          style={{
+                            padding: 8,
+                            borderTopColor: colors.ink,
+                            borderTopWidth: 3,
+                            flex: 1,
+                          }}
+                        >
+                          <View style={{ height: 18, marginBottom: 4 }}>
+                            {seed.category ? (
+                              <View
+                                style={{
+                                  alignSelf: 'flex-start',
+                                  backgroundColor: bg,
+                                  paddingHorizontal: 4,
+                                  paddingVertical: 2,
+                                  borderColor: colors.ink,
+                                  borderWidth: 1,
+                                }}
+                              >
+                                <PixelText variant="pixel" size={8} color={colors.white}>
+                                  {seed.category}
+                                </PixelText>
+                              </View>
+                            ) : null}
+                          </View>
+                          <PixelText
+                            variant="pixel"
+                            size={9}
+                            numberOfLines={1}
+                            style={{ marginBottom: 4 }}
+                          >
+                            {seed.shortName}
+                          </PixelText>
+                          <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
+                            {priceText}
+                          </PixelText>
+                          <PixelText
+                            variant="pixel"
+                            size={8}
+                            color={colors.ink3}
+                            numberOfLines={1}
+                            style={{ marginTop: 'auto' }}
+                          >
+                            {data?.listingCountText ? `매물 ${data.listingCountText}건` : ' '}
+                          </PixelText>
+                        </View>
+                      </View>
+                    </PixelPress>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </>
+        )}
+
+        {/* Section: 팩별 힛카드 */}
+        {packs.length > 0 ? (
+          <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
+            <SectHd title={`📦 팩별 힛카드 · ${packs.length}팩`} />
+            <View style={{ gap: 14 }}>
+              {packs.map((pack) => (
+                <PackHitsRow key={pack.code} pack={pack} />
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         {/* Section: 희귀도 분포 */}
         <View style={{ marginHorizontal: 14 }}>
@@ -626,20 +865,39 @@ export default function Home() {
           })}
         </View>
 
-        {/* Section: TOP 3 */}
+        {/* Section: TOP 3 — always 3 fixed-size slots so 1-card collections
+            still get a podium look. Empty slots render as a placeholder so
+            container width + height stay uniform across the row. */}
         <View style={{ marginHorizontal: 14 }}>
           <SectHd title="TOP 3 고가 카드" more="전체 ▶" onMore={() => router.push('/cards' as never)} />
         </View>
         <View style={{ flexDirection: 'row', marginHorizontal: 14, gap: 8, marginBottom: 12 }}>
-          {topCards.map((card, i) => {
+          {[0, 1, 2].map((i) => {
+            const card = topCards[i];
             const podium = i === 0 ? colors.gold : i === 1 ? '#C0C0C0' : '#CD7F32';
+            if (!card) {
+              return (
+                <View key={`empty-${i}`} style={{ flex: 1 }}>
+                  <PixelFrame borderWidth={3} hi={null} lo={null}>
+                    <View style={{ height: 196, borderTopWidth: 4, borderTopColor: 'rgba(0,0,0,0.15)', alignItems: 'center', justifyContent: 'center', padding: 8 }}>
+                      <PixelText variant="pixel" size={20} color={colors.pap3}>
+                        #{i + 1}
+                      </PixelText>
+                      <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 10, textAlign: 'center' }}>
+                        비어있음
+                      </PixelText>
+                    </View>
+                  </PixelFrame>
+                </View>
+              );
+            }
             return (
               <View key={card.id} style={{ flex: 1 }}>
                 <PixelPress
                   onPress={() => router.push(`/cards/${card.id}` as never)}
-                  innerStyle={{ borderTopWidth: 4, borderTopColor: podium }}
+                  innerStyle={{ borderTopWidth: 4, borderTopColor: podium, height: 196 }}
                 >
-                  <View>
+                  <View style={{ flex: 1 }}>
                     <View
                       style={{
                         height: 130,
@@ -647,9 +905,18 @@ export default function Home() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         position: 'relative',
+                        overflow: 'hidden',
                       }}
                     >
-                      <Text style={{ fontSize: 36 }}>{card.emoji}</Text>
+                      {card.imageUrl ? (
+                        <Image
+                          source={{ uri: card.imageUrl }}
+                          style={{ width: '100%', height: '100%' }}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <Text style={{ fontSize: 36 }}>{card.emoji}</Text>
+                      )}
                       <View
                         style={{
                           position: 'absolute',
@@ -672,12 +939,12 @@ export default function Home() {
                         </View>
                       ) : null}
                     </View>
-                    <View style={{ padding: 8, borderTopColor: colors.ink, borderTopWidth: 3 }}>
+                    <View style={{ padding: 8, borderTopColor: colors.ink, borderTopWidth: 3, flex: 1 }}>
                       <PixelText variant="pixel" size={9} numberOfLines={1} style={{ marginBottom: 5 }}>
-                        {card.name}
+                        {displayCardName(card.name)}
                       </PixelText>
                       <PixelText variant="pixel" size={10} color={colors.grnDk} numberOfLines={1}>
-                        {priceLabel(card.price)}
+                        {priceLabel(cardPrice(card, priceMode), inferCardCurrency(card))}
                       </PixelText>
                     </View>
                   </View>
@@ -686,108 +953,6 @@ export default function Home() {
             );
           })}
         </View>
-
-        {/* Section: 일본 시세 (스니다) */}
-        {snkrRows.length > 0 && (
-          <>
-            <View style={{ marginHorizontal: 14 }}>
-              <SectHd
-                title="🇯🇵 일본 시세 (스니다)"
-                more="전체보기 →"
-                onMore={() => router.push('/cards/snkrdunk/all' as never)}
-              />
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 14, gap: 8 }}
-              style={{ marginBottom: 12 }}
-            >
-              {snkrRows.map(({ seed, data }) => {
-                const bg = seed.category ? SNKR_CAT_BG[seed.category] : colors.ink2;
-                const priceText =
-                  data && data.minPrice > 0 ? `¥${data.minPrice.toLocaleString('ja-JP')}` : '—';
-                return (
-                  <View key={seed.apparelId} style={{ width: 128 }}>
-                    <PixelPress
-                      onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
-                      innerStyle={{ borderTopWidth: 4, borderTopColor: bg }}
-                    >
-                      <View>
-                        <View
-                          style={{
-                            height: 92,
-                            backgroundColor: colors.pap2,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {data?.imageUrl ? (
-                            <Image
-                              source={{ uri: data.imageUrl }}
-                              style={{ width: '100%', height: '100%' }}
-                              resizeMode="cover"
-                            />
-                          ) : (
-                            <Text style={{ fontSize: 28 }}>🃏</Text>
-                          )}
-                        </View>
-                        <View
-                          style={{
-                            padding: 8,
-                            borderTopColor: colors.ink,
-                            borderTopWidth: 3,
-                          }}
-                        >
-                          {seed.category ? (
-                            <View
-                              style={{
-                                alignSelf: 'flex-start',
-                                backgroundColor: bg,
-                                paddingHorizontal: 4,
-                                paddingVertical: 2,
-                                borderColor: colors.ink,
-                                borderWidth: 1,
-                                marginBottom: 5,
-                              }}
-                            >
-                              <PixelText variant="pixel" size={8} color={colors.white}>
-                                {seed.category}
-                              </PixelText>
-                            </View>
-                          ) : null}
-                          <PixelText
-                            variant="pixel"
-                            size={9}
-                            numberOfLines={1}
-                            style={{ marginBottom: 4 }}
-                          >
-                            {seed.shortName}
-                          </PixelText>
-                          <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
-                            {priceText}
-                          </PixelText>
-                          {data?.listingCountText ? (
-                            <PixelText
-                              variant="pixel"
-                              size={8}
-                              color={colors.ink3}
-                              numberOfLines={1}
-                              style={{ marginTop: 3 }}
-                            >
-                              매물 {data.listingCountText}건
-                            </PixelText>
-                          ) : null}
-                        </View>
-                      </View>
-                    </PixelPress>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          </>
-        )}
 
         {/* Section: 최근 활동 */}
         <View style={{ marginHorizontal: 14 }}>
@@ -947,3 +1112,88 @@ function QuickBtn({ icon, label, bg, href }: { icon: string; label: string; bg: 
     </View>
   );
 }
+
+function PackHitsRow({ pack }: { pack: PackWithHits }) {
+  return (
+    <View>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          backgroundColor: pack.bg,
+          borderColor: colors.ink,
+          borderWidth: 3,
+          marginBottom: 8,
+        }}
+      >
+        <Text style={{ fontSize: 18 }}>{pack.emoji}</Text>
+        <PixelText variant="pixel" size={11} color={colors.white} style={{ flex: 1, letterSpacing: 0.5 }} numberOfLines={1}>
+          {pack.shortName}
+        </PixelText>
+        {pack.releasedAt ? (
+          <PixelText variant="pixel" size={8} color={colors.white} style={{ opacity: 0.85 }}>
+            {pack.releasedAt.slice(0, 7).replace('-', '.')}
+          </PixelText>
+        ) : null}
+        <Pressable onPress={() => router.push(`/cards/packs/${pack.code}` as never)}>
+          <PixelText variant="pixel" size={8} color={colors.white} style={{ textDecorationLine: 'underline' }}>
+            전체 ▶
+          </PixelText>
+        </Pressable>
+      </View>
+      {pack.hits.length === 0 ? (
+        <View style={{ paddingVertical: 18, backgroundColor: colors.white, borderColor: colors.ink, borderWidth: 3, alignItems: 'center' }}>
+          <PixelText variant="pixel" size={9} color={colors.ink3}>매물 확인 중…</PixelText>
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8 }}
+        >
+          {pack.hits.map((hit) => (
+            <View key={hit.apparelId} style={{ width: 124 }}>
+              <PixelPress
+                onPress={() => router.push(`/cards/snkrdunk/${hit.apparelId}` as never)}
+                innerStyle={{ borderTopWidth: 4, borderTopColor: pack.bg, height: 196 }}
+              >
+                <View style={{ flex: 1 }}>
+                  <View
+                    style={{
+                      height: 92,
+                      backgroundColor: colors.pap2,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {hit.imageUrl ? (
+                      <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <Text style={{ fontSize: 28 }}>🃏</Text>
+                    )}
+                  </View>
+                  <View style={{ padding: 8, borderTopColor: colors.ink, borderTopWidth: 3, flex: 1 }}>
+                    <PixelText variant="pixel" size={9} numberOfLines={1} style={{ marginBottom: 6 }}>
+                      {hit.shortName}
+                    </PixelText>
+                    <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
+                      {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '—'}
+                    </PixelText>
+                    <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 'auto' }}>
+                      {hit.listingCountText ? `매물 ${hit.listingCountText}건` : ' '}
+                    </PixelText>
+                  </View>
+                </View>
+              </PixelPress>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
