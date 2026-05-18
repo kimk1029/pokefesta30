@@ -1,7 +1,6 @@
 import { getServerSession } from 'next-auth';
-import { DashboardScreen, type SnkrdunkRow, type SnkrdunkCategory, type PackRow } from '@/components/dashboard/DashboardScreen';
+import { DashboardScreen, type SnkrdunkRow, type SnkrdunkCategory } from '@/components/dashboard/DashboardScreen';
 import { authOptions } from '@/lib/auth';
-import { getAllPacksWithHits } from '@/lib/cardPackHits';
 import { getActiveHeroBanners, getMyCardsWithPrices } from '@/lib/queries';
 import { fetchSnkrdunkApparel, fetchSnkrdunkBrowse, type SnkrdunkSearchResult } from '@/lib/snkrdunk';
 import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCards';
@@ -67,7 +66,7 @@ export default async function Page() {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id ?? null;
 
-  const [cards, heroBanners, snkrdunkRows, packs] = await Promise.all([
+  const [cards, heroBanners, snkrdunkRows] = await Promise.all([
     userId ? getMyCardsWithPrices(userId, 100) : Promise.resolve([]),
     getActiveHeroBanners(),
     (async (): Promise<SnkrdunkRow[]> => {
@@ -86,28 +85,6 @@ export default async function Page() {
         }),
       );
     })(),
-    // 팩별 힛카드 — 팩당 12장, 8팩. snkrdunk fetch 가 캐시되므로 두 번째 로드는 빠름.
-    (async (): Promise<PackRow[]> => {
-      const raw = await getAllPacksWithHits(18);
-      return raw.map((p) => ({
-        code: p.code, name: p.name, shortName: p.shortName, emoji: p.emoji, bg: p.bg,
-        releasedAt: p.releasedAt,
-        hits: p.hits.filter((h) => h.itemKind === 'single').slice(0, 12).map((h) => ({
-          apparelId: h.apparelId,
-          shortName: h.shortName,
-          imageUrl: h.imageUrl,
-          minPrice: h.minPrice,
-          listingCountText: h.listingCountText,
-        })),
-        boxes: p.hits.filter((h) => h.itemKind === 'box').map((h) => ({
-          apparelId: h.apparelId,
-          shortName: h.shortName,
-          imageUrl: h.imageUrl,
-          minPrice: h.minPrice,
-          listingCountText: h.listingCountText,
-        })),
-      }));
-    })(),
   ]);
 
   return (
@@ -116,7 +93,6 @@ export default async function Page() {
       heroBanners={heroBanners}
       isLoggedIn={Boolean(userId)}
       snkrdunkRows={snkrdunkRows}
-      packs={packs}
     />
   );
 }

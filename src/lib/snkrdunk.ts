@@ -175,9 +175,19 @@ export async function fetchSnkrdunkSalesHistory(
 ): Promise<SnkrdunkSalesHistory | null> {
   if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
   // 싱글카드는 size_id/page/per_page 가 필수, 박스도 이 형태에서 정상 응답.
-  return fetchJson<SnkrdunkSalesHistory>(
+  const data = await fetchJson<SnkrdunkSalesHistory>(
     `/v1/apparels/${apparelId}/sales-history?size_id=0&page=1&per_page=20`,
   );
+  if (!data) return null;
+  return { ...data, history: data.history.filter(isSingleUnitSale) };
+}
+
+function isSingleUnitSale(entry: SnkrdunkSaleEntry): boolean {
+  const size = entry.size.trim();
+  if (!size) return true;
+  if (/^1\s*(個|枚)$/.test(size)) return true;
+  if (/^\d+\s*(個|枚)$/.test(size)) return false;
+  return true;
 }
 
 export async function fetchSnkrdunkSalesChart(

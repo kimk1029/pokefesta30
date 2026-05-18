@@ -592,21 +592,6 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
         </div>
       )}
 
-      {/* ═══ 팩별 힛카드 ═══ */}
-      {packs.length > 0 && (
-        <div className="sect">
-          <div className="sect-hd">
-            <h2>📦 팩별 힛카드</h2>
-            <span className="more">{packs.length}팩</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {packs.map((pack) => (
-              <PackHitsSectionBlock key={pack.code} pack={pack} />
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ═══ ACTIVITY LOG ═══ */}
       <div className="sect">
         <div className="sect-hd"><h2>최근 활동</h2></div>
@@ -641,8 +626,8 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
           {[
             { icon: '📷', lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
+            { icon: '¥', lb: '가격탐색', bg: 'var(--gold)', href: '/cards/packs' },
             { icon: '🏷', lb: '마켓', bg: 'var(--orn)', href: '/feed' },
-            { icon: '🏆', lb: '그레이딩', bg: 'var(--pur)', href: '/cards/grading' },
             { icon: '📦', lb: '컬렉션', bg: 'var(--blu)', href: '/my/cards' },
           ].map(({ icon, lb, bg, href }) => (
             <Link

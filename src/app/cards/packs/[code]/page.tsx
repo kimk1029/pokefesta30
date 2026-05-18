@@ -21,7 +21,7 @@ export default async function PackDetailPage({ params }: Params) {
   return (
     <>
       <StatusBar />
-      <AppBar title={pack.shortName} showBack backHref="/" />
+      <AppBar title={pack.shortName} showBack backHref="/cards/packs" />
 
       {/* Pack header */}
       <div className="sect">
@@ -37,7 +37,7 @@ export default async function PackDetailPage({ params }: Params) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: 'var(--f1)', fontSize: 13, letterSpacing: 0.5 }}>{pack.name}</div>
             <div style={{ fontFamily: 'var(--f1)', fontSize: 9, opacity: 0.85, marginTop: 6, letterSpacing: 0.3 }}>
-              {pack.releasedAt ? `${pack.releasedAt} 출시 · ` : ''}싱글카드 {cards.length}개 · 상자/팩 {boxes.length}개
+              {pack.releasedAt ? `${pack.releasedAt} 출시 · ` : ''}싱글카드 {cards.length}개
             </div>
           </div>
         </div>

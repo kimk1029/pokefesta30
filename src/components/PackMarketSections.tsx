@@ -10,6 +10,7 @@ interface Props {
   packBg: string;
   cards: PackHitCard[];
   boxes: PackHitCard[];
+  showBoxes?: boolean;
 }
 
 const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
@@ -26,7 +27,7 @@ function sortItems(items: PackHitCard[], sort: SortKey): PackHitCard[] {
   });
 }
 
-export function PackMarketSections({ packBg, cards, boxes }: Props) {
+export function PackMarketSections({ packBg, cards, boxes, showBoxes = false }: Props) {
   const [cardSort, setCardSort] = useState<SortKey>('price-desc');
   const sortedCards = useMemo(() => sortItems(cards, cardSort), [cards, cardSort]);
   const sortedBoxes = useMemo(() => sortItems(boxes, 'price-desc'), [boxes]);
@@ -43,13 +44,15 @@ export function PackMarketSections({ packBg, cards, boxes }: Props) {
         emptyText="이 팩의 싱글카드 매물을 가져오지 못했어요."
       />
 
-      <MarketSection
-        title="상자/팩 매물"
-        count={boxes.length}
-        packBg={packBg}
-        items={sortedBoxes}
-        emptyText="상자/팩 매물을 가져오지 못했어요."
-      />
+      {showBoxes ? (
+        <MarketSection
+          title="상자/팩 매물"
+          count={boxes.length}
+          packBg={packBg}
+          items={sortedBoxes}
+          emptyText="상자/팩 매물을 가져오지 못했어요."
+        />
+      ) : null}
     </>
   );
 }
