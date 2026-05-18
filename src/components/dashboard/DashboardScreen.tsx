@@ -20,11 +20,30 @@ export interface SnkrdunkRow {
   listingCountText: string;
 }
 
+export interface PackHitCardRow {
+  apparelId: number;
+  shortName: string;
+  imageUrl: string | null;
+  minPrice: number;
+  listingCountText: string;
+}
+
+export interface PackRow {
+  code: string;
+  name: string;
+  shortName: string;
+  emoji: string;
+  bg: string;
+  releasedAt?: string;
+  hits: PackHitCardRow[];
+}
+
 interface Props {
   cards: MyCardWithPrice[];
   heroBanners?: HeroSlideData[];
   isLoggedIn: boolean;
   snkrdunkRows?: SnkrdunkRow[];
+  packs?: PackRow[];
 }
 
 const SNKR_CAT_BG: Record<SnkrdunkCategory, string> = {
@@ -98,7 +117,7 @@ function fmt(n: number): string {
   return Math.round(n).toLocaleString();
 }
 
-export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [] }: Props) {
+export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs = [] }: Props) {
   const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '3M'>('1M');
   const [activeGame, setActiveGame] = useState<string>('전체');
 
@@ -572,6 +591,21 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [] }: Props
         </div>
       )}
 
+      {/* ═══ 팩별 힛카드 ═══ */}
+      {packs.length > 0 && (
+        <div className="sect">
+          <div className="sect-hd">
+            <h2>📦 팩별 힛카드</h2>
+            <span className="more">{packs.length}팩</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {packs.map((pack) => (
+              <PackHitsSectionBlock key={pack.code} pack={pack} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ═══ ACTIVITY LOG ═══ */}
       <div className="sect">
         <div className="sect-hd"><h2>최근 활동</h2></div>
@@ -670,4 +704,92 @@ function Block({ label, value, sub, color, icon, href }: BlockProps) {
     return <Link href={href} style={baseStyle}>{inner}</Link>;
   }
   return <div style={baseStyle}>{inner}</div>;
+}
+
+function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
+  return (
+    <div>
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+          background: pack.bg, color: 'var(--white)',
+          boxShadow:
+            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.45),inset 0 -2px 0 rgba(0,0,0,.25),4px 4px 0 var(--ink)',
+          marginBottom: 8,
+        }}
+      >
+        <span style={{ fontSize: 18 }}>{pack.emoji}</span>
+        <span style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.5, flex: 1 }}>{pack.shortName}</span>
+        {pack.releasedAt ? (
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 8, opacity: 0.8, letterSpacing: 0.3 }}>
+            {pack.releasedAt.slice(0, 7).replace('-', '.')}
+          </span>
+        ) : null}
+        <Link
+          href={`/cards/packs/${pack.code}`}
+          style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--white)', letterSpacing: 0.3, textDecoration: 'underline' }}
+        >
+          전체 ▶
+        </Link>
+      </div>
+      {pack.hits.length === 0 ? (
+        <div
+          style={{
+            padding: 24, textAlign: 'center', background: 'var(--white)',
+            fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)',
+            boxShadow:
+              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
+          }}
+        >
+          매물 확인 중…
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
+          {pack.hits.map((hit) => (
+            <Link
+              key={hit.apparelId}
+              href={`/cards/snkrdunk/${hit.apparelId}`}
+              style={{
+                flexShrink: 0, width: 124, textDecoration: 'none', color: 'inherit',
+                background: 'var(--white)',
+                boxShadow:
+                  '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.7),5px 5px 0 var(--ink)',
+                borderTop: `4px solid ${pack.bg}`,
+              }}
+            >
+              <div
+                style={{
+                  height: 92, background: 'var(--pap2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                }}
+              >
+                {hit.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={hit.imageUrl} alt={hit.shortName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: 32 }}>🃏</span>
+                )}
+              </div>
+              <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
+                <div
+                  style={{
+                    fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: 4,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}
+                >
+                  {hit.shortName}
+                </div>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--red)', letterSpacing: 0.3 }}>
+                  {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '—'}
+                </div>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 3, letterSpacing: 0.3, minHeight: 11 }}>
+                  {hit.listingCountText ? `매물 ${hit.listingCountText}건` : ''}
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
