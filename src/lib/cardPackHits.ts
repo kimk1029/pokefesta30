@@ -13,13 +13,17 @@
 import { CARD_PACKS, type CardPackMeta, getCardPack } from './cardPacks';
 import {
   fetchSnkrdunkApparel,
+  fetchSnkrdunkSalesHistory,
   fetchSnkrdunkSearch,
+  localizeSnkrdunkText,
   type SnkrdunkApparel,
+  type SnkrdunkItemKind,
 } from './snkrdunk';
 
 export interface PackHitCard {
   apparelId: number;
   name: string;
+  itemKind: SnkrdunkItemKind;
   /** UI에 노출할 짧은 한국어/일본어 라벨. snkrdunk 응답에서 정리. */
   shortName: string;
   imageUrl: string | null;
@@ -29,6 +33,9 @@ export interface PackHitCard {
   listingCount: number;
   listingCountText: string;
   productNumber: string;
+  lastSalePrice: number;
+  lastSaleText: string;
+  lastSaleSort: number;
 }
 
 export interface PackWithHits {
@@ -54,6 +61,7 @@ function toHitCard(a: SnkrdunkApparel, override?: string): PackHitCard {
   return {
     apparelId: a.id,
     name: a.localizedName || a.name,
+    itemKind: a.itemKind,
     shortName: override ?? shortenName(a.localizedName || a.name),
     imageUrl: a.imageUrl,
     minPrice: a.minPrice,
@@ -61,6 +69,37 @@ function toHitCard(a: SnkrdunkApparel, override?: string): PackHitCard {
     listingCount: a.listingCount,
     listingCountText: a.listingCountText,
     productNumber: a.productNumber,
+    lastSalePrice: 0,
+    lastSaleText: '',
+    lastSaleSort: 0,
+  };
+}
+
+function saleRecencyScore(value: string): number {
+  const m = value.match(/(\d+)\s*(分前|時間前|日前|週間前|ヶ月前|年前)/);
+  if (!m) return 0;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return 0;
+  const unit = m[2];
+  const minutes =
+    unit === '分前' ? n :
+    unit === '時間前' ? n * 60 :
+    unit === '日前' ? n * 60 * 24 :
+    unit === '週間前' ? n * 60 * 24 * 7 :
+    unit === 'ヶ月前' ? n * 60 * 24 * 30 :
+    n * 60 * 24 * 365;
+  return Math.max(1, 10_000_000 - minutes);
+}
+
+async function withLatestSale(hit: PackHitCard): Promise<PackHitCard> {
+  const history = await fetchSnkrdunkSalesHistory(hit.apparelId);
+  const latest = history?.history?.[0];
+  if (!latest) return hit;
+  return {
+    ...hit,
+    lastSalePrice: latest.price,
+    lastSaleText: localizeSnkrdunkText(latest.date),
+    lastSaleSort: saleRecencyScore(latest.date),
   };
 }
 
@@ -113,6 +152,7 @@ async function resolveSearchFill(
 export async function getPackWithHits(
   code: string,
   limit: number = DEFAULT_LIMIT,
+  opts: { includeSales?: boolean } = {},
 ): Promise<PackWithHits | null> {
   const pack = getCardPack(code);
   if (!pack) return null;
@@ -121,6 +161,10 @@ export async function getPackWithHits(
   const seen = new Set<number>(curated.map((c) => c.apparelId));
   const need = Math.max(0, limit - curated.length);
   const filled = need > 0 ? await resolveSearchFill(pack, seen, need) : [];
+  const hits = [...curated, ...filled];
+  const enriched = opts.includeSales
+    ? await mapWithLimit(hits, CONCURRENCY, withLatestSale)
+    : hits;
 
   return {
     code: pack.code,
@@ -129,7 +173,7 @@ export async function getPackWithHits(
     emoji: pack.emoji,
     bg: pack.bg,
     releasedAt: pack.releasedAt,
-    hits: [...curated, ...filled],
+    hits: enriched,
   };
 }
 

@@ -88,11 +88,18 @@ export default async function Page() {
     })(),
     // 팩별 힛카드 — 팩당 12장, 8팩. snkrdunk fetch 가 캐시되므로 두 번째 로드는 빠름.
     (async (): Promise<PackRow[]> => {
-      const raw = await getAllPacksWithHits(12);
+      const raw = await getAllPacksWithHits(18);
       return raw.map((p) => ({
         code: p.code, name: p.name, shortName: p.shortName, emoji: p.emoji, bg: p.bg,
         releasedAt: p.releasedAt,
-        hits: p.hits.map((h) => ({
+        hits: p.hits.filter((h) => h.itemKind === 'single').slice(0, 12).map((h) => ({
+          apparelId: h.apparelId,
+          shortName: h.shortName,
+          imageUrl: h.imageUrl,
+          minPrice: h.minPrice,
+          listingCountText: h.listingCountText,
+        })),
+        boxes: p.hits.filter((h) => h.itemKind === 'box').map((h) => ({
           apparelId: h.apparelId,
           shortName: h.shortName,
           imageUrl: h.imageUrl,

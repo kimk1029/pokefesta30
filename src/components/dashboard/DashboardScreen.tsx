@@ -36,6 +36,7 @@ export interface PackRow {
   bg: string;
   releasedAt?: string;
   hits: PackHitCardRow[];
+  boxes?: PackHitCardRow[];
 }
 
 interface Props {
@@ -744,13 +745,20 @@ function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
           매물 확인 중…
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 10,
+            paddingBottom: 4,
+          }}
+        >
           {pack.hits.map((hit) => (
             <Link
               key={hit.apparelId}
               href={`/cards/snkrdunk/${hit.apparelId}`}
               style={{
-                flexShrink: 0, width: 124, textDecoration: 'none', color: 'inherit',
+                minWidth: 0, textDecoration: 'none', color: 'inherit',
                 background: 'var(--white)',
                 boxShadow:
                   '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.7),5px 5px 0 var(--ink)',

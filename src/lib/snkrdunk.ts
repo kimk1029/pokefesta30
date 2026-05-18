@@ -25,6 +25,7 @@ export interface SnkrdunkApparel {
   name: string;
   localizedName: string;
   imageUrl: string | null;
+  itemKind: SnkrdunkItemKind;
   minPrice: number;
   regularPrice: number;
   displayPrice: string;
@@ -33,6 +34,8 @@ export interface SnkrdunkApparel {
   releasedAt: string | null;
   productNumber: string;
 }
+
+export type SnkrdunkItemKind = 'single' | 'box';
 
 export interface SnkrdunkSaleEntry {
   price: number;
@@ -107,6 +110,8 @@ interface RawApparel {
   name?: string;
   localizedName?: string;
   primaryMedia?: { imageUrl?: string };
+  colorName?: string;
+  colorLocalizedName?: string;
   minPrice?: number;
   usedMinPrice?: number;
   regularPrice?: number;
@@ -117,6 +122,27 @@ interface RawApparel {
   usedListingCountText?: string;
   releasedAt?: string;
   productNumber?: string;
+  categories?: Array<{ name?: string; localizedName?: string }>;
+}
+
+function classifySnkrdunkItem(raw: RawApparel): SnkrdunkItemKind {
+  const names = [
+    raw.name,
+    raw.localizedName,
+    raw.productNumber,
+    raw.colorName,
+    raw.colorLocalizedName,
+    ...(raw.categories ?? []).flatMap((c) => [c.name, c.localizedName]),
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (/trading-card-single|シングルカード|single/i.test(names)) return 'single';
+  if (/ボックス|BOX|Box|デッキビルド|スターターセット|ポケモンセンターセット|シュリンク|trading_card/i.test(names)) {
+    return 'box';
+  }
+  if (raw.usedMinPrice && raw.usedMinPrice > 0 && (!raw.minPrice || raw.minPrice <= 0)) return 'single';
+  return 'box';
 }
 
 export async function fetchSnkrdunkApparel(apparelId: number): Promise<SnkrdunkApparel | null> {
@@ -133,6 +159,7 @@ export async function fetchSnkrdunkApparel(apparelId: number): Promise<SnkrdunkA
     name: raw.name ?? '',
     localizedName: raw.localizedName ?? raw.name ?? '',
     imageUrl: raw.primaryMedia?.imageUrl ?? null,
+    itemKind: classifySnkrdunkItem(raw),
     minPrice: useUsed ? usedMin : newMin,
     regularPrice: raw.regularPrice ?? 0,
     displayPrice: raw.displayPrice ?? '',
