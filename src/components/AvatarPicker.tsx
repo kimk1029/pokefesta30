@@ -147,7 +147,7 @@ export function AvatarPicker({ inv, onClose }: Props) {
                 )}
                 {isPending && (
                   <div className="avatar-tile-loading" aria-hidden>
-                    <span className="avatar-tile-spinner" />
+                    <span className="pf-pokeball-spinner avatar-tile-spinner" />
                   </div>
                 )}
               </button>

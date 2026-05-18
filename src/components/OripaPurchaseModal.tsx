@@ -260,35 +260,9 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
               <span
                 aria-hidden
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  border: '2px solid var(--ink)',
-                  background: `linear-gradient(to bottom,
-                    var(--red) 0,var(--red) 46%,
-                    var(--ink) 46%,var(--ink) 54%,
-                    var(--white) 54%,var(--white) 100%)`,
-                  position: 'relative',
-                  animation: 'pf-ball-spin 0.7s linear infinite',
-                  display: 'inline-block',
-                  verticalAlign: 'middle',
-                }}
-              >
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: 'var(--white)',
-                    border: '1.5px solid var(--ink)',
-                    transform: 'translate(-50%,-50%)',
-                  }}
-                />
-              </span>
+                className="pf-pokeball-spinner pf-pokeball-spinner--sm"
+                style={{ animationDuration: '0.7s', verticalAlign: 'middle' }}
+              />
               {paying ? '처리 중...' : '뽑기판 여는 중...'}
             </span>
           ) : insufficient ? (

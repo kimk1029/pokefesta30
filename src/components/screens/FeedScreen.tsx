@@ -177,30 +177,12 @@ function FeedSpinner() {
   return (
     <div
       aria-hidden
+      className="pf-pokeball-spinner"
       style={{
         width: 36,
         height: 36,
-        borderRadius: '50%',
-        border: '3px solid var(--ink)',
-        background:
-          'linear-gradient(to bottom,var(--red) 0,var(--red) 46%,var(--ink) 46%,var(--ink) 54%,var(--white) 54%,var(--white) 100%)',
         animation: 'pf-ball-spin 0.8s linear infinite',
-        position: 'relative',
       }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          width: 12,
-          height: 12,
-          borderRadius: '50%',
-          background: 'var(--white)',
-          border: '2px solid var(--ink)',
-          transform: 'translate(-50%,-50%)',
-        }}
-      />
-    </div>
+    />
   );
 }

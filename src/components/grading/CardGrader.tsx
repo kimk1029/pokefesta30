@@ -819,31 +819,13 @@ function Spinner() {
   return (
     <div
       aria-hidden
+      className="pf-pokeball-spinner"
       style={{
         width: 44,
         height: 44,
-        borderRadius: '50%',
-        border: '3px solid var(--ink)',
-        background:
-          'linear-gradient(to bottom,var(--red) 0,var(--red) 46%,var(--ink) 46%,var(--ink) 54%,var(--white) 54%,var(--white) 100%)',
         animation: 'pf-ball-spin 0.8s linear infinite',
-        position: 'relative',
       }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          width: 14,
-          height: 14,
-          borderRadius: '50%',
-          background: 'var(--white)',
-          border: '2px solid var(--ink)',
-          transform: 'translate(-50%,-50%)',
-        }}
-      />
-    </div>
+    />
   );
 }
 
@@ -852,16 +834,8 @@ function SpinnerSm() {
   return (
     <span
       aria-hidden
-      style={{
-        display: 'inline-block',
-        width: 12,
-        height: 12,
-        border: '2px solid currentColor',
-        borderTopColor: 'transparent',
-        borderRadius: '50%',
-        animation: 'pf-ball-spin 0.8s linear infinite',
-        verticalAlign: 'middle',
-      }}
+      className="pf-pokeball-spinner pf-pokeball-spinner--xs"
+      style={{ verticalAlign: 'middle' }}
     />
   );
 }
@@ -1195,4 +1169,3 @@ function ctrlBtn(bg: string): React.CSSProperties {
     cursor: 'pointer',
   };
 }
-

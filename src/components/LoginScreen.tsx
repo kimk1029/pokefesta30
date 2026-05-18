@@ -45,26 +45,13 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
         >
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
             <div
+              className="pf-pokeball-spinner"
               style={{
-                width: 56, height: 56, borderRadius: '50%', border: '3px solid var(--ink)',
-                background: `linear-gradient(to bottom,
-                  var(--red) 0,var(--red) 46%,
-                  var(--ink) 46%,var(--ink) 54%,
-                  var(--white) 54%,var(--white) 100%)`,
-                boxShadow: 'inset 0 4px 0 var(--red-lt),inset 0 -4px 0 rgba(0,0,0,.15)',
-                position: 'relative',
+                width: 56,
+                height: 56,
                 animation: 'pf-ball-spin 0.7s linear infinite',
               }}
-            >
-              <span
-                style={{
-                  position: 'absolute', top: '50%', left: '50%',
-                  width: 18, height: 18, borderRadius: '50%',
-                  background: 'var(--white)', border: '2px solid var(--ink)',
-                  transform: 'translate(-50%,-50%)',
-                }}
-              />
-            </div>
+            />
             <div style={{ color: 'var(--yel)', fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 1 }}>
               {pending === 'kakao' && '카카오 로그인 창 여는 중...'}
               {pending === 'naver' && '네이버 로그인 창 여는 중...'}
@@ -183,15 +170,8 @@ function Spin() {
   return (
     <span
       aria-hidden
-      style={{
-        display: 'inline-block',
-        width: 20,
-        height: 20,
-        borderRadius: '50%',
-        border: '2px solid currentColor',
-        borderTopColor: 'transparent',
-        animation: 'pf-ball-spin 0.6s linear infinite',
-      }}
+      className="pf-pokeball-spinner pf-pokeball-spinner--sm"
+      style={{ animationDuration: '0.6s' }}
     />
   );
 }

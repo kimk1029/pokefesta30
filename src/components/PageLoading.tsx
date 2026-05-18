@@ -96,15 +96,8 @@ export function PageLoading() {
           }}
         >
           <div
-            style={{
-              position: 'absolute',
-              inset: 5,
-              borderRadius: '50%',
-              border: '3px solid var(--ink)',
-              background:
-                'linear-gradient(to bottom,var(--red) 0,var(--red) 46%,var(--ink) 46%,var(--ink) 54%,var(--white) 54%,var(--white) 100%)',
-              animation: 'pf-ball-spin 1s linear infinite',
-            }}
+            className="pf-pokeball-spinner"
+            style={{ position: 'absolute', inset: 0, margin: 'auto', animationDuration: '1s' }}
           />
         </div>
       </div>
