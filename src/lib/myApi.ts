@@ -158,13 +158,18 @@ export function fetchInventory(): Promise<{ inventory: InventorySnapshot }> {
 export interface PackHitCard {
   apparelId: number;
   name: string;
+  koName?: string;
   shortName: string;
+  itemKind?: 'single' | 'box' | 'other';
   imageUrl: string | null;
   minPrice: number;
   displayPrice: string;
   listingCount: number;
   listingCountText: string;
   productNumber: string;
+  lastSalePrice?: number;
+  lastSaleText?: string;
+  lastSaleSort?: number;
 }
 
 export interface PackWithHits {
@@ -174,6 +179,9 @@ export interface PackWithHits {
   emoji: string;
   bg: string;
   releasedAt?: string;
+  boxImageUrl?: string | null;
+  boxName?: string | null;
+  boxKoName?: string | null;
   hits: PackHitCard[];
 }
 

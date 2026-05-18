@@ -1,460 +1,228 @@
-import { useState } from 'react';
-import { ScrollView, View, Pressable, TextInput, Text } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
-import { AppBar, ABtn } from '@/components/AppBar';
+import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
-import { CardThumb } from '@/components/cv/CardThumb';
-import { Chip } from '@/components/cv/Chip';
-import { RarBadge } from '@/components/cv/RarBadge';
-import { GradeBadge } from '@/components/cv/GradeBadge';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
+import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
+import { fetchAllPacksWithHits, type PackWithHits } from '@/lib/myApi';
+import { useAsync } from '@/lib/useAsync';
 import { colors } from '@/theme/tokens';
-import { GAMES, RARS, gameColors, fmt, priceLabel, displayCardName, inferCardCurrency, cardKrw, cardPrice, type Game, type Rarity } from '@/data/cardvault';
-import { usePriceMode } from '@/lib/priceMode';
-import { useCollection } from '@/lib/collection';
 
-type View4 = 'grid' | 'list' | 'binder' | 'album';
-type Sort = 'name' | 'price' | 'grade' | 'recent';
+type SortMode = 'default' | 'name' | 'price';
 
-export default function Cards() {
-  const [gameFilter, setGameFilter] = useState<string>('전체');
-  const [rarFilter, setRarFilter] = useState<string>('전체');
-  const [view, setView] = useState<View4>('grid');
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<Sort>('name');
-  const owned = useCollection();
-
-  let filtered = owned.filter(
-    (c) =>
-      (gameFilter === '전체' || c.game === gameFilter) &&
-      (rarFilter === '전체' || c.rar === rarFilter) &&
-      (c.name.includes(search) || c.game.includes(search) || c.set.includes(search)),
+export default function PriceInfoScreen() {
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<SortMode>('default');
+  const { data, loading, error, refresh } = useAsync<PackWithHits[]>(
+    () => fetchAllPacksWithHits(1),
+    [],
   );
-  const { mode: priceMode } = usePriceMode();
-  if (sortBy === 'price') filtered = [...filtered].sort((a, b) => cardKrw(b, priceMode) - cardKrw(a, priceMode));
-  if (sortBy === 'grade') filtered = [...filtered].sort((a, b) => (b.grade ?? 0) - (a.grade ?? 0));
 
-  const totalVal = owned.reduce((a, c) => a + cardKrw(c, priceMode), 0);
-  const gradedCnt = owned.filter((c) => c.grade != null).length;
+  const packs = data ?? [];
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let rows = q
+      ? packs.filter((p) =>
+          [p.name, p.shortName, p.boxKoName, p.boxName, p.code]
+            .filter(Boolean)
+            .some((v) => String(v).toLowerCase().includes(q)),
+        )
+      : packs;
+
+    if (sort === 'name') rows = [...rows].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    if (sort === 'price') {
+      rows = [...rows].sort((a, b) => packTopPrice(b) - packTopPrice(a));
+    }
+    return rows;
+  }, [packs, query, sort]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <AppBar title="내 컬렉션" right={<ABtn onPress={() => router.push('/scan' as never)}>+</ABtn>} />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 12, paddingBottom: 110 }}>
-        {/* Summary strip */}
-        <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
-          <PixelFrame borderWidth={3} hi={null} lo={null}>
-            <View style={{ flexDirection: 'row' }}>
-              {[
-                { txt: `총 ${owned.length}장`, bg: colors.ink, col: colors.gold },
-                { txt: `₩${fmt(totalVal)}`, bg: colors.goldDk, col: colors.ink },
-                { txt: `${gradedCnt}건 그레이딩`, bg: colors.pur, col: colors.white },
-              ].map((s, i) => (
-                <View
-                  key={s.txt}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 9,
-                    paddingHorizontal: 8,
-                    backgroundColor: s.bg,
-                    alignItems: 'center',
-                    borderRightWidth: i < 2 ? 3 : 0,
-                    borderRightColor: colors.ink,
-                  }}
-                >
-                  <PixelText variant="pixel" size={9} color={s.col}>
-                    {s.txt}
-                  </PixelText>
-                </View>
-              ))}
-            </View>
-          </PixelFrame>
-        </View>
-
-        {/* Search */}
-        <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
-          <PixelFrame>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 12,
-              }}
-            >
-              <PixelText variant="pixel" size={12} color={colors.ink3}>
-                🔍
+      <AppBar title="시세 정보" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
+        <View style={{ marginHorizontal: 14, marginTop: 14, marginBottom: 12 }}>
+          <PixelFrame bg={colors.white} borderWidth={3} shadow={5} hi={null} lo={null}>
+            <View style={{ padding: 14 }}>
+              <PixelText variant="pixel" size={12} color={colors.ink} style={{ letterSpacing: 0.8 }}>
+                포켓몬 카드 박스
               </PixelText>
-              <TextInput
-                value={search}
-                onChangeText={setSearch}
-                placeholder="카드명, 세트, 게임 검색..."
-                placeholderTextColor={colors.ink4}
-                style={{
-                  flex: 1,
-                  paddingHorizontal: 8,
-                  paddingVertical: 10,
-                  fontSize: 15,
-                  fontFamily: 'Galmuri11',
-                  color: colors.ink,
-                }}
-              />
+              <PixelText variant="ko" size={10} color={colors.ink3} style={{ marginTop: 7, lineHeight: 16 }}>
+                박스를 선택하면 해당 박스에 포함된 싱글카드 시세를 확인할 수 있습니다.
+              </PixelText>
             </View>
           </PixelFrame>
         </View>
 
-        {/* Game filter */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 14, gap: 6 }}
-          style={{ marginBottom: 8 }}
-        >
-          {GAMES.map((g) => {
-            const on = gameFilter === g;
-            return (
-              <Chip key={g} on={on} onPress={() => setGameFilter(g)} size={9} px={9} py={6}>
-                {g === '전체' ? 'ALL' : g}
-              </Chip>
-            );
-          })}
-        </ScrollView>
-
-        {/* Rarity filter */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 14, gap: 6 }}
-          style={{ marginBottom: 8 }}
-        >
-          {(['전체', ...RARS] as string[]).map((r) => {
-            const on = rarFilter === r;
-            return (
-              <Chip key={r} on={on} onPress={() => setRarFilter(r)} size={9} px={9} py={6}>
-                {r === '전체' ? 'ALL' : r}
-              </Chip>
-            );
-          })}
-        </ScrollView>
-
-        {/* Sort + View toggle */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            marginHorizontal: 14,
-            marginBottom: 12,
-          }}
-        >
-          <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap' }}>
-            {(
-              [
-                ['name', '이름'],
-                ['price', '가격'],
-                ['grade', '등급'],
-                ['recent', '최근'],
-              ] as const
-            ).map(([k, lb]) => {
-              const on = sortBy === k;
-              return (
-                <Pressable
-                  key={k}
-                  onPress={() => setSortBy(k as Sort)}
-                  style={{
-                    paddingHorizontal: 9,
-                    paddingVertical: 6,
-                    backgroundColor: on ? colors.ink : colors.white,
-                    borderColor: colors.ink,
-                    borderWidth: 2,
-                    marginRight: 4,
-                    marginBottom: 4,
-                  }}
-                >
-                  <PixelText variant="pixel" size={9} color={on ? colors.gold : colors.ink}>
-                    {lb}
-                  </PixelText>
-                </Pressable>
-              );
-            })}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 3 }}>
-            {(
-              [
-                ['grid', '⊞'],
-                ['list', '☰'],
-                ['binder', '📒'],
-                ['album', '🎞'],
-              ] as const
-            ).map(([v, icon]) => {
-              const on = view === v;
-              return (
-                <Pressable
-                  key={v}
-                  onPress={() => setView(v as View4)}
-                  style={{
-                    width: 28,
-                    height: 28,
-                    backgroundColor: on ? colors.ink : colors.white,
-                    borderColor: colors.ink,
-                    borderWidth: 2,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 14, color: on ? colors.gold : colors.ink }}>{icon}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+        <View style={styles.searchBox}>
+          <PixelText variant="pixel" size={13} color={colors.ink3}>🔍</PixelText>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="박스명, 팩명 검색..."
+            placeholderTextColor={colors.ink4}
+            style={styles.searchInput}
+          />
         </View>
 
-        {/* Views */}
-        {view === 'grid' && (
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              marginHorizontal: 14,
-              gap: 10,
-            }}
-          >
-            {filtered.map((card) => (
-              <View key={card.id} style={{ width: '47%' }}>
-                <PixelPress onPress={() => router.push(`/cards/${card.id}` as never)}>
-                  <View>
-                    <CardThumb card={card} height={150} emojiSize={44} />
-                    <View style={{ paddingHorizontal: 10, paddingVertical: 10, borderTopWidth: 3, borderTopColor: colors.ink }}>
-                      <PixelText variant="pixel" size={10} numberOfLines={1} style={{ marginBottom: 6 }}>
-                        {displayCardName(card.name)}
-                      </PixelText>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <RarBadge rar={card.rar} size={9} px={6} py={3} />
-                        <View style={{ flex: 1 }} />
-                        {card.grade ? <GradeBadge g={card.grade} size={24} /> : null}
-                      </View>
-                      <PixelText variant="pixel" size={11} color={colors.grnDk} style={{ marginTop: 6 }}>
-                        {priceLabel(cardPrice(card, priceMode), inferCardCurrency(card))}
-                      </PixelText>
-                    </View>
-                  </View>
-                </PixelPress>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {view === 'list' && (
-          <View style={{ marginHorizontal: 14 }}>
-            {filtered.map((card) => (
-              <PixelPress
-                key={card.id}
-                onPress={() => router.push(`/cards/${card.id}` as never)}
-                wrapStyle={{ marginBottom: 12 }}
-              >
-                <View
-                  style={{
-                    paddingHorizontal: 14,
-                    paddingVertical: 12,
-                    flexDirection: 'row',
-                    gap: 12,
-                  }}
-                >
-                  <View style={{ width: 52, height: 72, borderColor: colors.ink, borderWidth: 2 }}>
-                    <CardThumb card={card} height={68} emojiSize={26} showLabel={false} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <PixelText variant="pixel" size={11} style={{ marginBottom: 6 }}>
-                      {displayCardName(card.name)}
-                    </PixelText>
-                    <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginBottom: 6 }}>
-                      {card.set} · {card.num}
-                    </PixelText>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                      <RarBadge rar={card.rar} />
-                      <View
-                        style={{
-                          backgroundColor: gameColors[card.game],
-                          paddingHorizontal: 5,
-                          paddingVertical: 2,
-                          borderColor: colors.ink,
-                          borderWidth: 1,
-                        }}
-                      >
-                        <PixelText variant="pixel" size={8} color={colors.white}>
-                          {card.game}
-                        </PixelText>
-                      </View>
-                      {card.grade ? (
-                        <View
-                          style={{
-                            backgroundColor: colors.gold,
-                            paddingHorizontal: 5,
-                            paddingVertical: 2,
-                            borderColor: colors.ink,
-                            borderWidth: 1,
-                          }}
-                        >
-                          <PixelText variant="pixel" size={8} color={colors.ink}>
-                            PSA {card.grade}
-                          </PixelText>
-                        </View>
-                      ) : null}
-                    </View>
-                    <PixelText variant="pixel" size={11} color={colors.grnDk} style={{ marginTop: 5 }}>
-                      {priceLabel(cardPrice(card, priceMode), inferCardCurrency(card))}
-                    </PixelText>
-                  </View>
-                </View>
-              </PixelPress>
-            ))}
-          </View>
-        )}
-
-        {view === 'binder' && (
-          <View style={{ marginHorizontal: 14 }}>
-          <PixelFrame bg={colors.pap3} borderWidth={4} hi="rgba(255,255,255,0.3)" lo="rgba(0,0,0,0.2)" inner={3}>
-          <View style={{ padding: 12 }}>
-            <PixelText
-              variant="pixel"
-              size={10}
-              color={colors.ink}
-              style={{ textAlign: 'center', marginBottom: 10 }}
+        <View style={styles.sortRow}>
+          {([
+            ['default', '최신/추천'],
+            ['price', '가격 높은순'],
+            ['name', '이름순'],
+          ] as const).map(([key, label]) => (
+            <Pressable
+              key={key}
+              onPress={() => setSort(key)}
+              style={[styles.sortBtn, sort === key && styles.sortBtnOn]}
             >
-              📒 바인더 · {filtered.length}장
-            </PixelText>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-              {filtered.map((card) => (
-                <Pressable
-                  key={card.id}
-                  onPress={() => router.push(`/cards/${card.id}` as never)}
-                  style={{ width: '31.7%' }}
-                >
-                  <View
-                    style={{
-                      backgroundColor: colors.white,
-                      borderColor: colors.ink,
-                      borderWidth: 2,
-                    }}
-                  >
-                    <View
-                      style={{
-                        height: 90,
-                        backgroundColor: gameColors[card.game] + '55',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text style={{ fontSize: 28 }}>{card.emoji}</Text>
-                    </View>
-                    <View
-                      style={{
-                        padding: 4,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        borderTopColor: colors.ink,
-                        borderTopWidth: 2,
-                      }}
-                    >
-                      <PixelText variant="pixel" size={6} numberOfLines={1} style={{ flex: 1 }}>
-                        {displayCardName(card.name)}
-                      </PixelText>
-                      {card.grade ? (
-                        <PixelText variant="pixel" size={6} color={colors.goldDk}>
-                          P{card.grade}
-                        </PixelText>
-                      ) : null}
-                    </View>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-          </PixelFrame>
-          </View>
-        )}
+              <PixelText variant="pixel" size={9} color={sort === key ? colors.gold : colors.ink}>
+                {label}
+              </PixelText>
+            </Pressable>
+          ))}
+        </View>
 
-        {view === 'album' && (
-          <View style={{ marginHorizontal: 14, gap: 16 }}>
-            {GAMES.slice(1).map((g) => {
-              const cards = filtered.filter((c) => c.game === g);
-              if (!cards.length) return null;
-              return (
-                <View key={g}>
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      paddingHorizontal: 10,
-                      paddingVertical: 6,
-                      backgroundColor: gameColors[g as Game],
-                      borderColor: colors.ink,
-                      borderWidth: 3,
-                      marginBottom: 8,
-                    }}
-                  >
-                    <PixelText variant="pixel" size={11} color={colors.white} style={{ flex: 1, letterSpacing: 1 }}>
-                      {g}
-                    </PixelText>
-                    <PixelText variant="pixel" size={10} color="rgba(255,255,255,0.7)">
-                      {cards.length}장
-                    </PixelText>
-                  </View>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
-                  >
-                    {cards.map((card) => (
-                      <Pressable
-                        key={card.id}
-                        onPress={() => router.push(`/cards/${card.id}` as never)}
-                      >
-                        <View
-                          style={{
-                            width: 80,
-                            backgroundColor: colors.white,
-                            borderColor: colors.ink,
-                            borderWidth: 2,
-                          }}
-                        >
-                          <View
-                            style={{
-                              height: 110,
-                              backgroundColor: gameColors[card.game] + '66',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <Text style={{ fontSize: 32 }}>{card.emoji}</Text>
-                          </View>
-                          <View style={{ padding: 5, borderTopColor: colors.ink, borderTopWidth: 2 }}>
-                            <PixelText variant="pixel" size={8} numberOfLines={1} style={{ marginBottom: 4 }}>
-                              {displayCardName(card.name)}
-                            </PixelText>
-                            <PixelText variant="pixel" size={9} color={colors.grnDk}>
-                              {priceLabel(cardPrice(card, priceMode), inferCardCurrency(card))}
-                            </PixelText>
-                          </View>
-                        </View>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                </View>
-              );
-            })}
+        {loading && !data ? (
+          <LoadingState />
+        ) : error ? (
+          <View style={{ marginHorizontal: 14, marginTop: 6 }}>
+            <ErrorView error={error} onRetry={refresh} />
           </View>
-        )}
-
-        {filtered.length === 0 && (
-          <View style={{ paddingVertical: 30, alignItems: 'center' }}>
-            <PixelText variant="pixel" size={11} color={colors.ink3} style={{ textAlign: 'center', lineHeight: 22 }}>
-              카드가 없습니다{`\n`}+ 버튼으로 추가해보세요
-            </PixelText>
+        ) : visible.length === 0 ? (
+          <View style={{ marginHorizontal: 14, marginTop: 6 }}>
+            <EmptyState icon="📦" title="표시할 박스가 없어요" ctaLabel="다시 불러오기" onCtaPress={refresh} />
+          </View>
+        ) : (
+          <View style={{ marginHorizontal: 14, gap: 10 }}>
+            {visible.map((pack) => (
+              <PackRow key={pack.code} pack={pack} />
+            ))}
           </View>
         )}
       </ScrollView>
     </View>
   );
 }
+
+function PackRow({ pack }: { pack: PackWithHits }) {
+  const topPrice = packTopPrice(pack);
+  const firstHit = pack.hits[0] ?? null;
+  return (
+    <PixelPress
+      onPress={() => router.push(`/cards/packs/${pack.code}` as never)}
+      bg={colors.white}
+      borderWidth={3}
+      shadow={5}
+      hi={null}
+      lo={null}
+    >
+      <View style={styles.packRow}>
+        <View style={[styles.thumb, { backgroundColor: pack.bg }]}>
+          {pack.boxImageUrl ? (
+            <Image source={{ uri: pack.boxImageUrl }} style={styles.thumbImg} resizeMode="contain" />
+          ) : (
+            <Text style={{ fontSize: 24 }}>{pack.emoji}</Text>
+          )}
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <PixelText variant="ko" size={12} weight="bold" numberOfLines={1}>
+            {pack.name}
+          </PixelText>
+          <PixelText variant="ko" size={9} color={colors.ink3} style={{ marginTop: 5, lineHeight: 14 }} numberOfLines={2}>
+            {pack.boxKoName || pack.boxName || pack.shortName}
+          </PixelText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
+            <PricePill text={topPrice > 0 ? `대표 ¥${topPrice.toLocaleString('ja-JP')}` : '시세 확인 중'} />
+            {firstHit?.listingCountText ? <MetaPill text={`매물 ${firstHit.listingCountText}건`} /> : null}
+          </View>
+        </View>
+        <PixelText variant="pixel" size={14} color={colors.ink3}>›</PixelText>
+      </View>
+    </PixelPress>
+  );
+}
+
+function PricePill({ text }: { text: string }) {
+  return (
+    <View style={[styles.pill, { backgroundColor: colors.red }]}>
+      <PixelText variant="pixel" size={8} color={colors.white}>{text}</PixelText>
+    </View>
+  );
+}
+
+function MetaPill({ text }: { text: string }) {
+  return (
+    <View style={[styles.pill, { backgroundColor: colors.pap2 }]}>
+      <PixelText variant="pixel" size={8} color={colors.ink3}>{text}</PixelText>
+    </View>
+  );
+}
+
+function packTopPrice(pack: PackWithHits): number {
+  return Math.max(0, ...pack.hits.map((h) => h.minPrice || 0));
+}
+
+const styles = StyleSheet.create({
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 14,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    backgroundColor: colors.white,
+    borderColor: colors.ink,
+    borderWidth: 3,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 11,
+    fontSize: 14,
+    fontFamily: 'Galmuri11',
+    color: colors.ink,
+  },
+  sortRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginHorizontal: 14,
+    marginBottom: 12,
+  },
+  sortBtn: {
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    backgroundColor: colors.white,
+    borderColor: colors.ink,
+    borderWidth: 2,
+  },
+  sortBtnOn: {
+    backgroundColor: colors.ink,
+  },
+  packRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+  },
+  thumb: {
+    width: 68,
+    height: 68,
+    borderColor: colors.ink,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  thumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  pill: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderColor: colors.ink,
+    borderWidth: 1,
+  },
+});

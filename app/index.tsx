@@ -473,7 +473,7 @@ export default function Home() {
           <QuickBtn icon="📷" label="스캔" bg={colors.grn} href="/scan" />
           <QuickBtn icon="🏷" label="마켓" bg={colors.orn} href="/feed" />
           <QuickBtn icon="🏆" label="그레이딩" bg={colors.pur} href="/scan" />
-          <QuickBtn icon="📦" label="컬렉션" bg={colors.blu} href="/cards" />
+          <QuickBtn icon="📊" label="시세" bg={colors.blu} href="/cards" />
         </View>
 
         {/* XP / Level */}
@@ -869,7 +869,7 @@ export default function Home() {
             still get a podium look. Empty slots render as a placeholder so
             container width + height stay uniform across the row. */}
         <View style={{ marginHorizontal: 14 }}>
-          <SectHd title="TOP 3 고가 카드" more="전체 ▶" onMore={() => router.push('/cards' as never)} />
+          <SectHd title="TOP 3 고가 카드" more="전체 ▶" onMore={() => router.push('/my/cards' as never)} />
         </View>
         <View style={{ flexDirection: 'row', marginHorizontal: 14, gap: 8, marginBottom: 12 }}>
           {[0, 1, 2].map((i) => {
@@ -1196,4 +1196,3 @@ function PackHitsRow({ pack }: { pack: PackWithHits }) {
     </View>
   );
 }
-

@@ -96,7 +96,7 @@ export default function ScanScreen() {
       <AppBar
         onBack={() => {
           if (mode === 'choose') {
-            router.replace('/cards' as never);
+            router.replace('/my/cards' as never);
             return;
           }
           if (mode === 'batchResult' || mode === 'batch') {
@@ -179,7 +179,7 @@ export default function ScanScreen() {
             </PixelPress>
             <PixelPress
               wrapStyle={{ flex: 1 }}
-              onPress={() => router.push('/cards' as never)}
+              onPress={() => router.push('/my/cards' as never)}
               bg={colors.gold}
               hi={colors.goldLt}
               lo={colors.goldDk}
@@ -486,7 +486,7 @@ export default function ScanScreen() {
               </PixelPress>
               <PixelPress
                 wrapStyle={{ flex: 1 }}
-                onPress={() => router.push('/cards' as never)}
+                onPress={() => router.push('/my/cards' as never)}
                 bg={colors.gold}
                 hi={colors.goldLt}
                 lo={colors.goldDk}

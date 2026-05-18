@@ -18,7 +18,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: 'home', label: '홈', icon: 'home', href: '/' },
-  { id: 'collection', label: '컬렉션', icon: 'collection', href: '/cards' },
+  { id: 'collection', label: '시세', icon: 'collection', href: '/cards' },
   { id: 'fab', label: '스캔', href: '/scan', fab: true },
   { id: 'community', label: '커뮤니티', icon: 'community', href: '/feed' },
   { id: 'my', label: '마이', icon: 'my', href: '/my' },
