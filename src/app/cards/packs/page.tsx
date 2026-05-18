@@ -88,7 +88,7 @@ export default async function PackExplorerPage() {
               >
                 {pack.boxImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pack.boxImageUrl} alt={pack.boxKoName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={pack.boxImageUrl} alt={pack.boxKoName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 ) : (
                   pack.emoji
                 )}
