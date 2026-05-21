@@ -34,11 +34,17 @@ jobs:
     steps:
       - name: SSH & deploy server
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          # `.env` 는 .gitignore 라 git pull 로 안 옴. GitHub Secret 에
+          # `.env` 파일 내용 전체를 넣어두면 배포 시 server/.env 로 기록.
+          # 비워두면 Synology 에 이미 놓인 파일을 그대로 사용.
+          SERVER_ENV_CONTENT: ${{ secrets.SERVER_ENV }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          envs: SERVER_ENV_CONTENT
           script: |
             set -e
             export NVM_DIR="$HOME/.nvm"
@@ -49,14 +55,31 @@ jobs:
             git reset --hard origin/main
 
             cd server
+
+            # 1) .env 준비: SERVER_ENV secret 이 있으면 그걸로 덮어쓰기.
+            #    secret 이 비어있고 파일도 없으면 fail-fast.
+            if [ -n "${SERVER_ENV_CONTENT:-}" ]; then
+              printf '%s\n' "$SERVER_ENV_CONTENT" > .env
+              chmod 600 .env
+              echo "✓ server/.env 갱신 ($(wc -l < .env) lines)"
+            elif [ ! -f .env ]; then
+              echo "::error::server/.env 가 없고 SERVER_ENV secret 도 비어있습니다."
+              echo "::error::방법1) GitHub repo settings → Secrets 에 SERVER_ENV 추가 (로컬 server/.env 내용 전체)"
+              echo "::error::방법2) Synology 에 SSH 후 cp .env.example .env, 값 채우기"
+              exit 1
+            else
+              echo "✓ 기존 server/.env 사용"
+            fi
+
+            # 2) 의존성 + Prisma client (postinstall 이 server-local client 삭제 →
+            #    Node 모듈 해소가 root/node_modules 로 walk up. 그래서 root 도 설치 필요.)
             npm ci --prefer-offline --no-audit --no-fund
-
-            # prisma client 재생성 (스키마는 ../prisma/schema.prisma)
-            npm run prisma:generate
-
-            # ecosystem.config.cjs 가 단일 진실 소스. exec_mode 같은 구조 변경은
-            # reload 로는 안 잡혀서, 항상 delete → start 로 깨끗하게 재기동.
             cd /root/dev/pokefesta30
+            npm ci --prefer-offline --no-audit --no-fund
+            npx prisma generate
+
+            # 3) ecosystem.config.cjs 가 단일 진실 소스. exec_mode 같은 구조 변경은
+            #    reload 로는 안 잡혀서, 항상 delete → start 로 깨끗하게 재기동.
             pm2 delete pokefesta30-server >/dev/null 2>&1 || true
             pm2 start ecosystem.config.cjs --only pokefesta30-server
             pm2 save
