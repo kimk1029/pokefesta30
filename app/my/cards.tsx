@@ -9,16 +9,42 @@ import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
+import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { colors, space } from '@/theme/tokens';
 import { fetchMyCards, type MyCardRow } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
+import { isAuthenticated, subscribeSession } from '@/lib/session';
+import { useEffect } from 'react';
 
 type ViewMode = 'grid' | 'list';
 
+/** 로그인 상태를 반응형으로 구독 — 로그인 성공 시 자동으로 컬렉션 화면으로 전환. */
+function useAuthed(): boolean {
+  const [authed, setAuthed] = useState(() => isAuthenticated());
+  useEffect(() => {
+    return subscribeSession(() => setAuthed(isAuthenticated()));
+  }, []);
+  return authed;
+}
+
 export default function MyCardsScreen() {
+  const authed = useAuthed();
+
   const [view, setView] = useState<ViewMode>('grid');
   const [search, setSearch] = useState('');
-  const { data, loading, error, refresh } = useAsync<MyCardRow[]>(fetchMyCards);
+  const { data, loading, error, refresh } = useAsync<MyCardRow[]>(fetchMyCards, [authed]);
+
+  // 인라인 로그인 게이트 — 바텀 탭바는 PhoneShell 이 유지.
+  if (!authed) {
+    return (
+      <InlineLoginGate
+        title="내 컬렉션"
+        feature="내 컬렉션"
+        description="스캔·구매·거래한 카드와 시세를 한곳에서 관리하세요."
+        icon="📦"
+      />
+    );
+  }
 
   const cards = data ?? [];
 

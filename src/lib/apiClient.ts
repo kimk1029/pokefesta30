@@ -1,22 +1,25 @@
 /**
- * 웹 API (Next.js src/app/api/*) 호출용 클라이언트.
+ * Express 백엔드 (`server/`) 호출용 클라이언트.
  *
- * baseUrl 은 `EXPO_PUBLIC_WEB_BASE_URL` 환경 변수에서 가져온다.
- * (예: `https://pokefesta30.com` 또는 개발 시 `http://192.168.1.10:3000`)
+ * baseUrl 은 `EXPO_PUBLIC_API_BASE_URL` 환경 변수에서 가져온다.
+ * (예: `https://api.pokefesta30.com` 또는 개발 시 `http://192.168.1.10:3030`)
  *
- * 인증은 NextAuth 세션 쿠키 (`next-auth.session-token` 또는
- * `__Secure-next-auth.session-token`) 를 [[session]] 모듈이 관리한다.
- * 401 응답은 호출자가 빈 상태 UI 를 보여줄 수 있게 그대로 던진다.
+ * 인증은 `/auth/{provider}` 가 발급한 JWT 를 `Authorization: Bearer ...` 헤더로
+ * 첨부. [[session]] 모듈이 토큰을 관리.
  */
-import { getSessionCookieHeader } from './session';
+import { Platform } from 'react-native';
+import { getAuthHeader } from './session';
 
-const DEFAULT_BASE = 'http://localhost:3000';
+const DEFAULT_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:3030' : 'http://localhost:3030';
 
-export function getWebBaseUrl(): string {
-  const v = process.env.EXPO_PUBLIC_WEB_BASE_URL;
+export function getApiBaseUrl(): string {
+  const v = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (typeof v === 'string' && v.length > 0) return v.replace(/\/$/, '');
   return DEFAULT_BASE;
 }
+
+/** @deprecated 모바일은 더 이상 웹 도메인을 호출하지 않음. apiClient 가 직접 Express 를 호출. */
+export const getWebBaseUrl = getApiBaseUrl;
 
 export class ApiError extends Error {
   status: number;
@@ -31,20 +34,20 @@ export class ApiError extends Error {
 interface ApiOpts {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
-  /** 인증 쿠키 자동 첨부 여부. 기본 true. */
+  /** Bearer 자동 첨부 여부. 기본 true. */
   auth?: boolean;
   signal?: AbortSignal;
 }
 
 export async function api<T>(path: string, opts: ApiOpts = {}): Promise<T> {
-  const url = `${getWebBaseUrl()}${path}`;
+  const url = `${getApiBaseUrl()}${path}`;
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
   if (opts.auth !== false) {
-    const cookie = getSessionCookieHeader();
-    if (cookie) headers['Cookie'] = cookie;
+    const auth = getAuthHeader();
+    if (auth) headers['Authorization'] = auth;
   }
 
   let res: Response;

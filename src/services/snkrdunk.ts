@@ -103,15 +103,54 @@ export function snkrdunkApparelUrl(apparelId: number): string {
 export function localizeSnkrdunkText(value: string | null | undefined): string {
   if (!value) return '';
   let v = String(value);
+  // 일본식 날짜 → 점 표기
+  v = v.replace(/(\d{4})年(\d{1,2})月(\d{1,2})日/g, '$1.$2.$3');
+  v = v.replace(/(\d{1,2})月(\d{1,2})日/g, '$1.$2');
+  // 상대 시간
+  v = v.replace(/(\d+)\s*秒前/g, '$1초 전');
   v = v.replace(/(\d+)\s*分前/g, '$1분 전');
   v = v.replace(/(\d+)\s*時間前/g, '$1시간 전');
   v = v.replace(/(\d+)\s*日前/g, '$1일 전');
   v = v.replace(/(\d+)\s*週間前/g, '$1주 전');
   v = v.replace(/(\d+)\s*ヶ月前/g, '$1개월 전');
+  v = v.replace(/(\d+)\s*か月前/g, '$1개월 전');
   v = v.replace(/(\d+)\s*年前/g, '$1년 전');
+  v = v.replace(/たった今/g, '방금');
+  v = v.replace(/今日/g, '오늘');
+  v = v.replace(/昨日/g, '어제');
+  // 수량 단위
   v = v.replace(/(\d+)\s*個/g, '$1개');
+  v = v.replace(/(\d+)\s*枚/g, '$1장');
+  v = v.replace(/(\d+)\s*点/g, '$1점');
+  v = v.replace(/(\d+)\s*件/g, '$1건');
+  v = v.replace(/(\d+)\s*回/g, '$1회');
+  // 상태/라벨
   v = v.replace(/中古/g, '중고');
   v = v.replace(/新品/g, '새상품');
+  v = v.replace(/美品/g, '미품');
+  v = v.replace(/未開封/g, '미개봉');
+  v = v.replace(/開封済み/g, '개봉됨');
+  v = v.replace(/開封済/g, '개봉됨');
+  v = v.replace(/シュリンク付き/g, '슈링크 있음');
+  v = v.replace(/シュリンクあり/g, '슈링크 있음');
+  v = v.replace(/シュリンクなし/g, '슈링크 없음');
+  v = v.replace(/鑑定済み/g, '감정 완료');
+  v = v.replace(/鑑定品/g, '감정품');
+  v = v.replace(/通常版/g, '일반판');
+  v = v.replace(/プロモ/g, '프로모');
+  v = v.replace(/シングル/g, '싱글');
+  v = v.replace(/ボックス/g, '박스');
+  v = v.replace(/ハーフ/g, '하프');
+  v = v.replace(/状態/g, '상태');
+  v = v.replace(/良好/g, '양호');
+  v = v.replace(/折れ/g, '접힘');
+  v = v.replace(/擦れ/g, '긁힘');
+  v = v.replace(/キズあり/g, '흠집 있음');
+  v = v.replace(/キズなし/g, '흠집 없음');
+  v = v.replace(/最新/g, '최신');
+  v = v.replace(/発売/g, '발매');
+  v = v.replace(/送料込/g, '배송비 포함');
+  v = v.replace(/送料無料/g, '배송비 무료');
   return v;
 }
 

@@ -3,6 +3,7 @@
  * 실시간 데이터: /api/me/summary (인증 시) → 카드 보유 수, 거래/찜 글 수, 포인트, 레벨.
  * 미인증 시: 익명 더미 + 로그인 CTA.
  */
+import { useEffect, useState } from 'react';
 import { ScrollView, View, Text } from 'react-native';
 import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
@@ -10,10 +11,19 @@ import { PixelText } from '@/components/PixelText';
 import { SectHd } from '@/components/cv/SectHd';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
+import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { colors } from '@/theme/tokens';
 import { fetchMySummary, type MySummary } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
-import { isAuthenticated, setSession } from '@/lib/session';
+import { isAuthenticated, setSession, subscribeSession } from '@/lib/session';
+
+function useAuthed(): boolean {
+  const [authed, setAuthed] = useState(() => isAuthenticated());
+  useEffect(() => {
+    return subscribeSession(() => setAuthed(isAuthenticated()));
+  }, []);
+  return authed;
+}
 
 interface MenuItem {
   icon: string;
@@ -29,11 +39,23 @@ interface MenuSection {
 }
 
 export default function MyScreen() {
-  const authed = isAuthenticated();
+  const authed = useAuthed();
   const { data, error } = useAsync<MySummary>(
     fetchMySummary,
     [authed],
   );
+
+  // 인라인 로그인 게이트 — 바텀 탭바는 PhoneShell 이 유지.
+  if (!authed) {
+    return (
+      <InlineLoginGate
+        title="마이"
+        feature="마이페이지"
+        description="포인트·레벨·거래 활동을 한눈에 보세요."
+        icon="👤"
+      />
+    );
+  }
 
   const summary = data ?? null;
   const points = summary?.inventory.points ?? 0;

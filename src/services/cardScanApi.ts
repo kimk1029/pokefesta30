@@ -22,9 +22,9 @@ function deriveBaseUrl(): string {
     ?? (Constants.manifest2 as { extra?: { expoGo?: { developer?: { host?: string } } } } | null)?.extra?.expoGo?.developer?.host
     ?? '';
   // Embedded debug/release builds do not always expose Expo's hostUri. On a
-  // USB-connected Android device we map device localhost:3001 to the dev
-  // machine with `adb reverse tcp:3001 tcp:3001`.
-  if (!hostUri) return 'http://localhost:3001';
+  // USB-connected Android device we map device localhost:3030 to the dev
+  // machine with `adb reverse tcp:3030 tcp:3030`.
+  if (!hostUri) return 'http://localhost:3030';
   // Tunnel URLs already include scheme via .exp.direct (use https). LAN URLs use http.
   const isTunnel = /\.exp\.direct/.test(hostUri);
   const scheme = isTunnel ? 'https' : 'http';

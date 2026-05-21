@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, ScrollView, View, Pressable, Text } from 'react-native';
+import Svg, { Circle, Path, Polyline } from 'react-native-svg';
 import { router } from 'expo-router';
 import { AppBar, ABtn } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
@@ -10,6 +11,19 @@ import { Chip } from '@/components/cv/Chip';
 import { RarBadge } from '@/components/cv/RarBadge';
 import { GradeBadge } from '@/components/cv/GradeBadge';
 import { colors } from '@/theme/tokens';
+import { isAuthenticated, subscribeSession } from '@/lib/session';
+
+/** 로그인 상태를 반응형으로 구독. */
+function useAuthed(): boolean {
+  const [authed, setAuthed] = useState(() => isAuthenticated());
+  useEffect(() => {
+    const sync = () => setAuthed(isAuthenticated());
+    const unsub = subscribeSession(sync);
+    sync();
+    return unsub;
+  }, []);
+  return authed;
+}
 import { RARS, gameColors, fmt, priceLabel, displayCardName, inferCardCurrency, cardKrw, cardPrice, type Game, type Rarity } from '@/data/cardvault';
 import { updateCard, useCollection } from '@/lib/collection';
 import { usePriceMode } from '@/lib/priceMode';
@@ -23,7 +37,7 @@ import {
   type SnkrdunkApparel,
   type SnkrdunkCardSeed,
 } from '@/services/snkrdunk';
-import { fetchAllPacksWithHits, type PackWithHits } from '@/lib/myApi';
+// PackHitsRow 섹션 제거됨 — 웹 메인과 동일 구조로 정렬
 
 const SNKR_CAT_BG: Record<SnkrdunkCardSeed['category'], string> = {
   SAR: colors.orn,
@@ -72,11 +86,26 @@ const XP_CURRENT = 340;
 const XP_MAX = 500;
 const TRADES = 3;
 
-const CHARTS: Record<'1W' | '1M' | '3M', number[]> = {
-  '1W': [88, 90, 91, 89, 93, 96, 100],
-  '1M': [65, 68, 72, 70, 75, 78, 80, 82, 85, 83, 88, 90, 92, 95, 93, 97, 100],
-  '3M': [40, 45, 50, 48, 55, 60, 58, 62, 65, 68, 72, 75, 73, 78, 82, 85, 88, 90, 95, 100],
-};
+const PERIOD_DAYS: Record<'1W' | '1M' | '3M', number> = { '1W': 7, '1M': 30, '3M': 90 };
+
+/**
+ * 컬렉션 일별 종합 가격을 계산. 카드별 trend[](최근 N일 평균 시세)을 합산.
+ * trend 가 짧으면 latestPrice 로 채움. 오래된→최신 순서.
+ */
+function computeDailyTotals(cards: Array<{ latestPrice?: number; trend?: number[] }>, days: number): number[] {
+  if (days <= 0) return [];
+  const out = new Array(days).fill(0);
+  for (const c of cards) {
+    const t = Array.isArray(c.trend) ? c.trend : [];
+    const latest = c.latestPrice ?? 0;
+    for (let i = 0; i < days; i++) {
+      const tIdxFromEnd = days - 1 - i;
+      const tIdx = t.length - 1 - tIdxFromEnd;
+      out[i] += tIdx >= 0 && tIdx < t.length ? t[tIdx] : latest;
+    }
+  }
+  return out;
+}
 
 const ACTIVITY: { icon: string; c: string; txt: string; time: string; pt: string }[] = [
   { icon: '🔥', c: colors.grn, txt: '리자몽 EX 가격 ▲ +8%', time: '10분 전', pt: '+5P' },
@@ -86,9 +115,12 @@ const ACTIVITY: { icon: string; c: string; txt: string; time: string; pt: string
 ];
 
 export default function Home() {
+  const authed = useAuthed();
   const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '3M'>('1M');
   const [activeGame, setActiveGame] = useState<string>('전체');
-  const owned = useCollection();
+  // 관심 카드(favorite=true)는 포트폴리오 합계 / 차트 / 통계에서 제외.
+  const ownedAll = useCollection();
+  const owned = ownedAll.filter((c) => !c.favorite);
   const { mode: globalPriceMode, toggle: togglePriceMode } = usePriceMode();
   // Force singles when no card in the collection has any PSA10 data —
   // the toggle isn't shown in that case but we still want totals to use
@@ -116,8 +148,13 @@ export default function Home() {
     val: owned.filter((c) => c.game === g).reduce((a, c) => a + cardKrw(c, priceMode), 0),
   }));
 
-  const chartData = CHARTS[chartPeriod];
-  const chartMax = Math.max(...chartData);
+  // 컬렉션 일별 종합 가격 (오래된→최신). owned 카드의 KRW 환산 시세를 latestPrice 로 사용.
+  const periodDays = PERIOD_DAYS[chartPeriod];
+  const ownedForChart = owned.map((c) => ({
+    latestPrice: cardKrw(c, priceMode),
+    trend: Array.isArray(c.trend) ? c.trend : [],
+  }));
+  const chartData = computeDailyTotals(ownedForChart, periodDays);
   const gradedPct = owned.length > 0 ? Math.round((graded.length / owned.length) * 100) : 0;
 
   // Background refresh: for every owned card with a snkrdunkApparelId (or
@@ -221,23 +258,6 @@ export default function Home() {
     };
   }, []);
 
-  // 팩별 힛카드 — /api/card-packs 호출. 웹 베이스 URL 미설정 / 오프라인 시 빈 배열.
-  const [packs, setPacks] = useState<PackWithHits[]>([]);
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const data = await fetchAllPacksWithHits(12);
-        if (alive) setPacks(data);
-      } catch {
-        if (alive) setPacks([]);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <AppBar right={<ABtn onPress={() => router.push('/my' as never)}>👤</ABtn>} />
@@ -246,8 +266,9 @@ export default function Home() {
         contentContainerStyle={{ paddingTop: 12, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero */}
-        <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
+        {/* Hero — 미로그인 시 dim + 로그인 유도 오버레이 */}
+        <View style={{ marginHorizontal: 14, marginBottom: 12, position: 'relative' }}>
+        <View style={authed ? undefined : { opacity: 0.35 }} pointerEvents={authed ? 'auto' : 'none'}>
         <PixelFrame
           bg={colors.ink2}
           borderWidth={4}
@@ -352,47 +373,8 @@ export default function Home() {
             </View>
           </View>
 
-          {/* Chart */}
-          <View
-            style={{
-              flexDirection: 'row',
-              height: 60,
-              alignItems: 'flex-end',
-              borderBottomWidth: 1,
-              borderBottomColor: 'rgba(255,255,255,0.1)',
-              marginBottom: 6,
-            }}
-          >
-            {chartData.map((v, i) => {
-              const h = Math.round((v / chartMax) * 100);
-              const isLast = i === chartData.length - 1;
-              const isHigh = v === chartMax;
-              const bg = isLast
-                ? colors.gold
-                : isHigh
-                  ? 'rgba(255,210,63,0.6)'
-                  : 'rgba(255,210,63,0.2)';
-              return (
-                <View key={i} style={{ flex: 1, height: `${h}%`, minHeight: 4, marginHorizontal: 1, backgroundColor: bg }}>
-                  {isLast ? (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        top: -7,
-                        left: '50%',
-                        marginLeft: -3,
-                        width: 6,
-                        height: 6,
-                        backgroundColor: colors.gold,
-                        borderColor: colors.ink,
-                        borderWidth: 1,
-                      }}
-                    />
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
+          {/* Chart — 컬렉션 일별 종합 가격 꺾은선 */}
+          <PortfolioLineChart data={chartData} height={64} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.25)">
@@ -467,16 +449,58 @@ export default function Home() {
         </View>
         </PixelFrame>
         </View>
-
-        {/* Quick Actions (above XP) */}
-        <View style={{ flexDirection: 'row', gap: 8, marginHorizontal: 14, marginBottom: 12 }}>
-          <QuickBtn icon="📷" label="스캔" bg={colors.grn} href="/scan" />
-          <QuickBtn icon="🏷" label="마켓" bg={colors.orn} href="/feed" />
-          <QuickBtn icon="🏆" label="그레이딩" bg={colors.pur} href="/scan" />
-          <QuickBtn icon="📊" label="시세" bg={colors.blu} href="/cards" />
+        {!authed && (
+          <Pressable
+            onPress={() => router.push('/login' as never)}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 18,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: 'rgba(15,23,42,0.92)',
+                borderColor: colors.gold,
+                borderWidth: 3,
+                paddingHorizontal: 18,
+                paddingVertical: 14,
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <PixelText variant="pixel" size={9} color={colors.gold} style={{ letterSpacing: 0.5 }}>
+                🔒 PORTFOLIO LOCKED
+              </PixelText>
+              <PixelText variant="ko" size={12} weight="bold" color={colors.white} style={{ textAlign: 'center', lineHeight: 18 }}>
+                로그인하고 나의{'\n'}가치변동을 확인하세요
+              </PixelText>
+              <PixelText variant="pixel" size={9} color={colors.gold} style={{ marginTop: 4, letterSpacing: 0.5 }}>
+                👉 TAP TO LOGIN
+              </PixelText>
+            </View>
+          </Pressable>
+        )}
         </View>
 
-        {/* XP / Level */}
+        {/* Section: 바로가기 (Quick Actions) — 포트폴리오 바로 아래 */}
+        <View style={{ marginHorizontal: 14 }}>
+          <SectHd title="바로가기" />
+        </View>
+        <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 14, marginBottom: 12 }}>
+          <QuickBtn icon="📷" label="스캔" bg={colors.grn} href="/scan" />
+          <QuickBtn icon="¥" label="가격탐색" bg={colors.gold} href="/cards/packs" />
+          <QuickBtn icon="🏷" label="마켓" bg={colors.orn} href="/feed" />
+          <QuickBtn icon="📦" label="컬렉션" bg={colors.blu} href="/my/cards" />
+        </View>
+
+        {/* XP / Level — 로그인된 사용자만 표시 */}
+        {authed && (
         <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
           <PixelFrame bg={colors.white}>
             <View style={{ padding: 13 }}>
@@ -558,6 +582,7 @@ export default function Home() {
             </View>
           </PixelFrame>
         </View>
+        )}
 
         {/* Section: 핵심 지표 */}
         <View style={{ marginHorizontal: 14 }}>
@@ -570,7 +595,83 @@ export default function Home() {
           <Block label="이번주 거래" value={`${TRADES}건`} sub="+45P 포인트 획득" color={colors.blu} icon="🤝" onPress={() => router.push('/feed' as never)} />
         </View>
 
-        {/* Section: 인기 카드들 (snkrdunk) */}
+        {/* Section: 게임별 현황 */}
+        <View style={{ marginHorizontal: 14 }}>
+          <SectHd title="게임별 현황" />
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 14, gap: 6 }}
+          style={{ marginBottom: 10 }}
+        >
+          {(['전체', ...presentGames] as string[]).map((g) => {
+            const on = activeGame === g;
+            const bg = on ? colors.ink : g !== '전체' ? gameColors[g as Game] : colors.white;
+            const fg = on ? colors.gold : g !== '전체' ? colors.white : colors.ink;
+            return (
+              <Chip key={g} on={on} onPress={() => setActiveGame(g)} bg={bg} fg={fg} size={9} px={11} py={6}>
+                {g === '전체' ? 'ALL' : g}
+              </Chip>
+            );
+          })}
+        </ScrollView>
+
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 14, marginBottom: 12 }}>
+          {(activeGame === '전체' ? gameDist : gameDist.filter((x) => x.g === activeGame)).map(({ g, n, val }) => {
+            const pct = owned.length > 0 ? Math.round((n / owned.length) * 100) : 0;
+            const gGraded = owned.filter((c) => c.game === g && c.grade != null).length;
+            return (
+              <View key={g} style={{ width: '48%' }}>
+                <PixelFrame>
+                  <View
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 12,
+                      height: 138,
+                      borderTopWidth: 4,
+                      borderTopColor: gameColors[g],
+                    }}
+                  >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <PixelText variant="pixel" size={11} style={{ flex: 1 }}>
+                      {g}
+                    </PixelText>
+                    <PixelText variant="pixel" size={11} color={colors.ink3}>
+                      {pct}%
+                    </PixelText>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 4 }}>
+                    <PixelText variant="pixel" size={20} style={{ letterSpacing: -1 }}>
+                      {n}
+                    </PixelText>
+                    <PixelText variant="pixel" size={11} color={colors.ink3} style={{ marginLeft: 4 }}>
+                      장
+                    </PixelText>
+                  </View>
+                  <PixelText variant="pixel" size={11} color={colors.grnDk} style={{ marginBottom: 8 }}>
+                    ₩{fmt(val)}
+                  </PixelText>
+                  <View style={{ flexDirection: 'row', height: 8 }}>
+                    {RARS.map((r) => {
+                      const rn = owned.filter((c) => c.game === g && c.rar === r).length;
+                      if (!rn) return null;
+                      return <View key={r} style={{ flex: rn, backgroundColor: rarColor(r) }} />;
+                    })}
+                  </View>
+                  {gGraded > 0 ? (
+                    <PixelText variant="pixel" size={9} color={colors.goldDk} style={{ marginTop: 6 }}>
+                      🏆 그레이딩 {gGraded}건
+                    </PixelText>
+                  ) : null}
+                </View>
+                </PixelFrame>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Section: 🔥 인기 카드들 (snkrdunk) */}
         {snkrRows.length > 0 && (
           <>
             <View style={{ marginHorizontal: 14 }}>
@@ -671,288 +772,6 @@ export default function Home() {
             </ScrollView>
           </>
         )}
-
-        {/* Section: 팩별 힛카드 */}
-        {packs.length > 0 ? (
-          <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
-            <SectHd title={`📦 팩별 힛카드 · ${packs.length}팩`} />
-            <View style={{ gap: 14 }}>
-              {packs.map((pack) => (
-                <PackHitsRow key={pack.code} pack={pack} />
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        {/* Section: 희귀도 분포 */}
-        <View style={{ marginHorizontal: 14 }}>
-          <SectHd title="희귀도 분포" />
-        </View>
-        <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
-          <PixelFrame bg={colors.white}>
-            <View style={{ padding: 16 }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'flex-end',
-                  gap: 8,
-                  paddingBottom: 6,
-                  borderBottomWidth: 3,
-                  borderBottomColor: colors.pap3,
-                  marginBottom: 10,
-                  overflow: 'hidden',
-                }}
-              >
-                {rarDist.map(({ r, n }) => {
-                  const h = Math.round((n / rarMax) * 50) + 8;
-                  return (
-                    <View
-                      key={r}
-                      style={{
-                        flex: 1,
-                        alignItems: 'center',
-                      }}
-                    >
-                      <PixelText variant="pixel" size={9} style={{ marginBottom: 4 }}>
-                        {n}
-                      </PixelText>
-                      <View
-                        style={{
-                          width: '100%',
-                          height: 58,
-                          justifyContent: 'flex-end',
-                          marginBottom: 4,
-                        }}
-                      >
-                        <View
-                          style={{
-                            width: '100%',
-                            height: h,
-                            backgroundColor: rarColor(r),
-                            borderColor: colors.ink,
-                            borderWidth: 2,
-                          }}
-                        />
-                      </View>
-                      <RarBadge rar={r} />
-                    </View>
-                  );
-                })}
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <PixelText variant="pixel" size={9} color={colors.ink3} style={{ width: 56 }}>
-                  그레이딩
-                </PixelText>
-                <View
-                  style={{
-                    flex: 1,
-                    height: 16,
-                    backgroundColor: colors.pap3,
-                    borderColor: colors.ink,
-                    borderWidth: 2,
-                    position: 'relative',
-                  }}
-                >
-                  <View
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: `${gradedPct}%`,
-                      backgroundColor: colors.gold,
-                    }}
-                  />
-                  <View
-                    pointerEvents="none"
-                    style={{
-                      position: 'absolute',
-                      inset: 0 as never,
-                      top: 0,
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <PixelText variant="pixel" size={9}>
-                      {gradedPct}%
-                    </PixelText>
-                  </View>
-                </View>
-                <PixelText variant="pixel" size={10} color={colors.goldDk} style={{ width: 40, textAlign: 'right' }}>
-                  {graded.length}건
-                </PixelText>
-              </View>
-            </View>
-          </PixelFrame>
-        </View>
-
-        {/* Section: 게임별 현황 */}
-        <View style={{ marginHorizontal: 14 }}>
-          <SectHd title="게임별 현황" />
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 14, gap: 6 }}
-          style={{ marginBottom: 10 }}
-        >
-          {(['전체', ...presentGames] as string[]).map((g) => {
-            const on = activeGame === g;
-            const bg = on ? colors.ink : g !== '전체' ? gameColors[g as Game] : colors.white;
-            const fg = on ? colors.gold : g !== '전체' ? colors.white : colors.ink;
-            return (
-              <Chip key={g} on={on} onPress={() => setActiveGame(g)} bg={bg} fg={fg} size={9} px={11} py={6}>
-                {g === '전체' ? 'ALL' : g}
-              </Chip>
-            );
-          })}
-        </ScrollView>
-
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 14, marginBottom: 12 }}>
-          {(activeGame === '전체' ? gameDist : gameDist.filter((x) => x.g === activeGame)).map(({ g, n, val }) => {
-            const pct = owned.length > 0 ? Math.round((n / owned.length) * 100) : 0;
-            const gGraded = owned.filter((c) => c.game === g && c.grade != null).length;
-            return (
-              <View key={g} style={{ width: '48%' }}>
-                <PixelFrame>
-                  <View
-                    style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 12,
-                      height: 138,
-                      borderTopWidth: 4,
-                      borderTopColor: gameColors[g],
-                    }}
-                  >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <PixelText variant="pixel" size={11} style={{ flex: 1 }}>
-                      {g}
-                    </PixelText>
-                    <PixelText variant="pixel" size={11} color={colors.ink3}>
-                      {pct}%
-                    </PixelText>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 4 }}>
-                    <PixelText variant="pixel" size={20} style={{ letterSpacing: -1 }}>
-                      {n}
-                    </PixelText>
-                    <PixelText variant="pixel" size={11} color={colors.ink3} style={{ marginLeft: 4 }}>
-                      장
-                    </PixelText>
-                  </View>
-                  <PixelText variant="pixel" size={11} color={colors.grnDk} style={{ marginBottom: 8 }}>
-                    ₩{fmt(val)}
-                  </PixelText>
-                  <View style={{ flexDirection: 'row', height: 8 }}>
-                    {RARS.map((r) => {
-                      const rn = owned.filter((c) => c.game === g && c.rar === r).length;
-                      if (!rn) return null;
-                      return <View key={r} style={{ flex: rn, backgroundColor: rarColor(r) }} />;
-                    })}
-                  </View>
-                  {gGraded > 0 ? (
-                    <PixelText variant="pixel" size={9} color={colors.goldDk} style={{ marginTop: 6 }}>
-                      🏆 그레이딩 {gGraded}건
-                    </PixelText>
-                  ) : null}
-                </View>
-                </PixelFrame>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Section: TOP 3 — always 3 fixed-size slots so 1-card collections
-            still get a podium look. Empty slots render as a placeholder so
-            container width + height stay uniform across the row. */}
-        <View style={{ marginHorizontal: 14 }}>
-          <SectHd title="TOP 3 고가 카드" more="전체 ▶" onMore={() => router.push('/my/cards' as never)} />
-        </View>
-        <View style={{ flexDirection: 'row', marginHorizontal: 14, gap: 8, marginBottom: 12 }}>
-          {[0, 1, 2].map((i) => {
-            const card = topCards[i];
-            const podium = i === 0 ? colors.gold : i === 1 ? '#C0C0C0' : '#CD7F32';
-            if (!card) {
-              return (
-                <View key={`empty-${i}`} style={{ flex: 1 }}>
-                  <PixelFrame borderWidth={3} hi={null} lo={null}>
-                    <View style={{ height: 196, borderTopWidth: 4, borderTopColor: 'rgba(0,0,0,0.15)', alignItems: 'center', justifyContent: 'center', padding: 8 }}>
-                      <PixelText variant="pixel" size={20} color={colors.pap3}>
-                        #{i + 1}
-                      </PixelText>
-                      <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 10, textAlign: 'center' }}>
-                        비어있음
-                      </PixelText>
-                    </View>
-                  </PixelFrame>
-                </View>
-              );
-            }
-            return (
-              <View key={card.id} style={{ flex: 1 }}>
-                <PixelPress
-                  onPress={() => router.push(`/cards/${card.id}` as never)}
-                  innerStyle={{ borderTopWidth: 4, borderTopColor: podium, height: 196 }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <View
-                      style={{
-                        height: 130,
-                        backgroundColor: gameColors[card.game] + '88',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        position: 'relative',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {card.imageUrl ? (
-                        <Image
-                          source={{ uri: card.imageUrl }}
-                          style={{ width: '100%', height: '100%' }}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <Text style={{ fontSize: 36 }}>{card.emoji}</Text>
-                      )}
-                      <View
-                        style={{
-                          position: 'absolute',
-                          top: 6,
-                          left: 6,
-                          backgroundColor: podium,
-                          paddingHorizontal: 5,
-                          paddingVertical: 2,
-                          borderColor: colors.ink,
-                          borderWidth: 1,
-                        }}
-                      >
-                        <PixelText variant="pixel" size={10} color={colors.ink}>
-                          #{i + 1}
-                        </PixelText>
-                      </View>
-                      {card.grade ? (
-                        <View style={{ position: 'absolute', bottom: 6, right: 6 }}>
-                          <GradeBadge g={card.grade} size={24} />
-                        </View>
-                      ) : null}
-                    </View>
-                    <View style={{ padding: 8, borderTopColor: colors.ink, borderTopWidth: 3, flex: 1 }}>
-                      <PixelText variant="pixel" size={9} numberOfLines={1} style={{ marginBottom: 5 }}>
-                        {displayCardName(card.name)}
-                      </PixelText>
-                      <PixelText variant="pixel" size={10} color={colors.grnDk} numberOfLines={1}>
-                        {priceLabel(cardPrice(card, priceMode), inferCardCurrency(card))}
-                      </PixelText>
-                    </View>
-                  </View>
-                </PixelPress>
-              </View>
-            );
-          })}
-        </View>
 
         {/* Section: 최근 활동 */}
         <View style={{ marginHorizontal: 14 }}>
@@ -1113,86 +932,83 @@ function QuickBtn({ icon, label, bg, href }: { icon: string; label: string; bg: 
   );
 }
 
-function PackHitsRow({ pack }: { pack: PackWithHits }) {
-  return (
-    <View>
+
+
+/**
+ * 모바일 포트폴리오 라인차트 — 컬렉션 일별 종합 가격 꺾은선.
+ * react-native-svg 로 폴리라인 + 영역 채움. data: 오래된→최신.
+ */
+function PortfolioLineChart({ data, height = 60 }: { data: number[]; height?: number }) {
+  const [width, setWidth] = useState(0);
+
+  if (data.length < 2) {
+    return (
       <View
         style={{
-          flexDirection: 'row',
+          height,
           alignItems: 'center',
-          gap: 8,
-          paddingHorizontal: 12,
-          paddingVertical: 8,
-          backgroundColor: pack.bg,
-          borderColor: colors.ink,
-          borderWidth: 3,
-          marginBottom: 8,
+          justifyContent: 'center',
+          borderBottomWidth: 1,
+          borderBottomColor: 'rgba(255,255,255,0.1)',
         }}
       >
-        <Text style={{ fontSize: 18 }}>{pack.emoji}</Text>
-        <PixelText variant="pixel" size={11} color={colors.white} style={{ flex: 1, letterSpacing: 0.5 }} numberOfLines={1}>
-          {pack.shortName}
+        <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.35)">
+          시세 이력이 부족합니다
         </PixelText>
-        {pack.releasedAt ? (
-          <PixelText variant="pixel" size={8} color={colors.white} style={{ opacity: 0.85 }}>
-            {pack.releasedAt.slice(0, 7).replace('-', '.')}
-          </PixelText>
-        ) : null}
-        <Pressable onPress={() => router.push(`/cards/packs/${pack.code}` as never)}>
-          <PixelText variant="pixel" size={8} color={colors.white} style={{ textDecorationLine: 'underline' }}>
-            전체 ▶
-          </PixelText>
-        </Pressable>
       </View>
-      {pack.hits.length === 0 ? (
-        <View style={{ paddingVertical: 18, backgroundColor: colors.white, borderColor: colors.ink, borderWidth: 3, alignItems: 'center' }}>
-          <PixelText variant="pixel" size={9} color={colors.ink3}>매물 확인 중…</PixelText>
-        </View>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8 }}
-        >
-          {pack.hits.map((hit) => (
-            <View key={hit.apparelId} style={{ width: 124 }}>
-              <PixelPress
-                onPress={() => router.push(`/cards/snkrdunk/${hit.apparelId}` as never)}
-                innerStyle={{ borderTopWidth: 4, borderTopColor: pack.bg, height: 196 }}
-              >
-                <View style={{ flex: 1 }}>
-                  <View
-                    style={{
-                      height: 92,
-                      backgroundColor: colors.pap2,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {hit.imageUrl ? (
-                      <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                    ) : (
-                      <Text style={{ fontSize: 28 }}>🃏</Text>
-                    )}
-                  </View>
-                  <View style={{ padding: 8, borderTopColor: colors.ink, borderTopWidth: 3, flex: 1 }}>
-                    <PixelText variant="pixel" size={9} numberOfLines={1} style={{ marginBottom: 6 }}>
-                      {hit.shortName}
-                    </PixelText>
-                    <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
-                      {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '—'}
-                    </PixelText>
-                    <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 'auto' }}>
-                      {hit.listingCountText ? `매물 ${hit.listingCountText}건` : ' '}
-                    </PixelText>
-                  </View>
-                </View>
-              </PixelPress>
-            </View>
-          ))}
-        </ScrollView>
-      )}
+    );
+  }
+
+  const pad = 4;
+  const W = Math.max(width, 1);
+  const innerW = Math.max(W - pad * 2, 1);
+  const innerH = height - pad * 2;
+  const minV = Math.min(...data);
+  const maxV = Math.max(...data);
+  const range = maxV - minV || 1;
+  const stepX = innerW / (data.length - 1);
+  const xOf = (i: number) => pad + i * stepX;
+  const yOf = (v: number) => pad + innerH - ((v - minV) / range) * innerH;
+
+  const points = data.map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
+  const area = [
+    `M${pad},${pad + innerH}`,
+    ...data.map((v, i) => `L${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`),
+    `L${pad + innerW},${pad + innerH}`,
+    'Z',
+  ].join(' ');
+
+  const lastV = data[data.length - 1];
+  const lastX = xOf(data.length - 1);
+  const lastY = yOf(lastV);
+  const trendUp = lastV >= data[0];
+  const stroke = trendUp ? colors.gold : colors.red;
+  const fill = trendUp ? 'rgba(255,210,63,0.22)' : 'rgba(230,57,70,0.18)';
+
+  return (
+    <View
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      style={{
+        height,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
+        marginBottom: 6,
+      }}
+    >
+      {width > 0 ? (
+        <Svg width={width} height={height}>
+          <Path d={area} fill={fill} stroke="none" />
+          <Polyline
+            points={points}
+            fill="none"
+            stroke={stroke}
+            strokeWidth={1.8}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+          <Circle cx={lastX} cy={lastY} r={3.2} fill={stroke} stroke={colors.ink} strokeWidth={1} />
+        </Svg>
+      ) : null}
     </View>
   );
 }

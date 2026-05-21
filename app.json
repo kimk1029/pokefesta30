@@ -1,12 +1,14 @@
 {
   "expo": {
-    "name": "포케페스타30",
+    "name": "CardVault",
     "slug": "pokefesta30",
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "pokefesta30",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#E8DFB8",
       "resizeMode": "contain"
     },
@@ -17,12 +19,14 @@
     "android": {
       "package": "com.pokefesta30.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E8DFB8"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
       }
     },
     "web": {
       "bundler": "metro",
-      "output": "static"
+      "output": "static",
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",

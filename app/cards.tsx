@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
@@ -55,15 +55,19 @@ export default function PriceInfoScreen() {
           </PixelFrame>
         </View>
 
-        <View style={styles.searchBox}>
-          <PixelText variant="pixel" size={13} color={colors.ink3}>🔍</PixelText>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="박스명, 팩명 검색..."
-            placeholderTextColor={colors.ink4}
-            style={styles.searchInput}
-          />
+        <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
+          <PixelFrame bg={colors.white} borderWidth={3} shadow={4}>
+            <View style={styles.searchBox}>
+              <PixelText variant="pixel" size={13} color={colors.ink3}>🔍</PixelText>
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="박스명, 팩명 검색..."
+                placeholderTextColor={colors.ink4}
+                style={styles.searchInput}
+              />
+            </View>
+          </PixelFrame>
         </View>
 
         <View style={styles.sortRow}>
@@ -71,17 +75,27 @@ export default function PriceInfoScreen() {
             ['default', '최신/추천'],
             ['price', '가격 높은순'],
             ['name', '이름순'],
-          ] as const).map(([key, label]) => (
-            <Pressable
-              key={key}
-              onPress={() => setSort(key)}
-              style={[styles.sortBtn, sort === key && styles.sortBtnOn]}
-            >
-              <PixelText variant="pixel" size={9} color={sort === key ? colors.gold : colors.ink}>
-                {label}
-              </PixelText>
-            </Pressable>
-          ))}
+          ] as const).map(([key, label]) => {
+            const on = sort === key;
+            return (
+              <PixelPress
+                key={key}
+                onPress={() => setSort(key)}
+                bg={on ? colors.ink : colors.white}
+                borderWidth={3}
+                shadow={4}
+                hi={on ? null : 'rgba(255,255,255,0.95)'}
+                lo={on ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.32)'}
+                inner={3}
+              >
+                <View style={styles.sortBtnInner}>
+                  <PixelText variant="pixel" size={9} color={on ? colors.gold : colors.ink}>
+                    {label}
+                  </PixelText>
+                </View>
+              </PixelPress>
+            );
+          })}
         </View>
 
         {loading && !data ? (
@@ -121,9 +135,9 @@ function PackRow({ pack }: { pack: PackWithHits }) {
       <View style={styles.packRow}>
         <View style={[styles.thumb, { backgroundColor: pack.bg }]}>
           {pack.boxImageUrl ? (
-            <Image source={{ uri: pack.boxImageUrl }} style={styles.thumbImg} resizeMode="contain" />
+            <Image source={{ uri: pack.boxImageUrl }} style={styles.thumbImg} resizeMode="cover" />
           ) : (
-            <Text style={{ fontSize: 24 }}>{pack.emoji}</Text>
+            <Text style={{ fontSize: 34 }}>{pack.emoji}</Text>
           )}
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -169,12 +183,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginHorizontal: 14,
-    marginBottom: 10,
     paddingHorizontal: 12,
-    backgroundColor: colors.white,
-    borderColor: colors.ink,
-    borderWidth: 3,
   },
   searchInput: {
     flex: 1,
@@ -186,29 +195,25 @@ const styles = StyleSheet.create({
   sortRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginHorizontal: 14,
-    marginBottom: 12,
+    gap: 4,
+    marginLeft: 14,
+    marginRight: 18,
+    marginBottom: 16,
   },
-  sortBtn: {
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-    backgroundColor: colors.white,
-    borderColor: colors.ink,
-    borderWidth: 2,
-  },
-  sortBtnOn: {
-    backgroundColor: colors.ink,
+  sortBtnInner: {
+    paddingHorizontal: 11,
+    paddingVertical: 9,
   },
   packRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 12,
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
   },
   thumb: {
-    width: 68,
-    height: 68,
+    width: 96,
+    height: 96,
     borderColor: colors.ink,
     borderWidth: 2,
     alignItems: 'center',
@@ -216,8 +221,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   thumbImg: {
-    width: '100%',
-    height: '100%',
+    width: '108%',
+    height: '108%',
   },
   pill: {
     paddingHorizontal: 6,

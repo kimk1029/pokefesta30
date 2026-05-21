@@ -6,6 +6,7 @@
  */
 import { api } from './apiClient';
 import { CARD_PACKS, getCardPack, type CardPackMeta } from '@/data/cardPacks';
+import { localizeCardName } from './cardNameKo';
 import {
   fetchAllSnkrdunkApparelGroup,
   fetchSnkrdunkApparelGroup,
@@ -192,11 +193,7 @@ export interface PackWithHits {
 }
 
 export async function fetchAllPacksWithHits(limit = 12): Promise<PackWithHits[]> {
-  const out: PackWithHits[] = [];
-  for (const pack of CARD_PACKS) {
-    out.push(await resolvePack(pack, limit));
-  }
-  return out;
+  return runWithConcurrency(CARD_PACKS, 8, (pack) => resolvePack(pack, limit));
 }
 
 export async function fetchPackHits(code: string, limit = 30): Promise<PackWithHits | null> {
@@ -205,16 +202,41 @@ export async function fetchPackHits(code: string, limit = 30): Promise<PackWithH
   return resolvePack(pack, limit);
 }
 
+async function runWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  task: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (true) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      out[i] = await task(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
 async function resolvePack(pack: CardPackMeta, limit: number): Promise<PackWithHits> {
+  const singlesPerPage = Math.min(Math.max(limit * 4, 20), 100);
   const [singles, boxesPage] = await Promise.all([
-    fetchAllSnkrdunkApparelGroup(pack.apparelGroupId, {
-      apparelCategoryId: 25,
-      maxItems: Math.max(limit, 100),
-    }),
+    limit <= 12
+      ? fetchSnkrdunkApparelGroup(pack.apparelGroupId, {
+          apparelCategoryId: 25,
+          page: 1,
+          perPage: singlesPerPage,
+        }).then((p) => p?.apparels ?? [])
+      : fetchAllSnkrdunkApparelGroup(pack.apparelGroupId, {
+          apparelCategoryId: 25,
+          maxItems: Math.max(limit, 100),
+        }),
     fetchSnkrdunkApparelGroup(pack.apparelGroupId, {
       apparelCategoryId: 14,
       page: 1,
-      perPage: 10,
+      perPage: 5,
     }),
   ]);
   const hits = singles.filter((a) => a.minPrice > 0).slice(0, limit).map(toHitCard);
@@ -228,17 +250,19 @@ async function resolvePack(pack: CardPackMeta, limit: number): Promise<PackWithH
     releasedAt: pack.releasedAt,
     boxImageUrl: box?.imageUrl ?? null,
     boxName: box?.localizedName ?? null,
-    boxKoName: box?.localizedName ?? null,
+    boxKoName: box ? localizeCardName(box.localizedName) : null,
     hits,
   };
 }
 
 function toHitCard(a: SnkrdunkApparel): PackHitCard {
+  const jp = a.localizedName || a.name;
+  const ko = localizeCardName(jp);
   return {
     apparelId: a.id,
-    name: a.localizedName || a.name,
-    koName: a.localizedName || a.name,
-    shortName: shortenName(a.localizedName || a.name),
+    name: jp,
+    koName: ko,
+    shortName: shortenName(ko),
     itemKind: a.itemKind,
     imageUrl: a.imageUrl,
     minPrice: a.minPrice,

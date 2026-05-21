@@ -1,11 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
-import DocumentScanner from 'react-native-document-scanner-plugin';
 import { PixelText } from '@/components/PixelText';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { colors } from '@/theme/tokens';
 import type { GuideRect } from '@/types/cardScan';
+
+// react-native-document-scanner-plugin 은 네이티브 모듈이라 Expo Go 에서는 못 씀.
+// 모듈 로드 자체가 실패해도 다른 화면에 영향이 안 가도록 lazy require + try/catch.
+type ScannerModule = {
+  scanDocument: (opts: { croppedImageQuality?: number; maxNumDocuments?: number }) => Promise<{
+    scannedImages?: string[];
+    status?: string;
+  }>;
+};
+let DocumentScanner: ScannerModule | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  DocumentScanner = require('react-native-document-scanner-plugin').default;
+} catch {
+  DocumentScanner = null;
+}
 
 export interface CapturedCard {
   uri: string;
@@ -30,6 +45,10 @@ export function CardScanner({ onCancel, onCaptured, maxNumDocuments = 24 }: Prop
 
   const launch = async () => {
     setError(null);
+    if (!DocumentScanner) {
+      setError('카드 스캐너는 Expo Go 에서는 사용할 수 없어요. 개발 빌드(eas build --profile development) 가 필요합니다.');
+      return;
+    }
     try {
       const { scannedImages, status } = await DocumentScanner.scanDocument({
         croppedImageQuality: 95,

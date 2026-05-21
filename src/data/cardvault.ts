@@ -31,6 +31,8 @@ export interface CardItem {
   /** When set, the card was matched against snkrdunk during scan — used to
    *  fetch live price + sales history on the detail screen. */
   snkrdunkApparelId?: number;
+  /** 관심 카드 플래그. true 면 포트폴리오 합계에서 제외하고 /my/favorites 에 표시. */
+  favorite?: boolean;
 }
 
 export interface MarketItem {

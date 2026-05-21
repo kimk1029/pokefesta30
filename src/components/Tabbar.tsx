@@ -3,7 +3,7 @@ import { View, Pressable, StyleSheet, Animated, Easing } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { colors } from '@/theme/tokens';
 import { PixelText } from './PixelText';
-import { DotBall } from './DotBall';
+import { PokeballSpinner } from './PokeballSpinner';
 import { TabIcon, type TabIconName } from './TabIcon';
 
 type TabId = 'home' | 'collection' | 'fab' | 'community' | 'my';
@@ -101,6 +101,8 @@ interface FabProps {
 
 function FabTab({ on, label, href }: FabProps) {
   const spin = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+  const lift = useRef(new Animated.Value(0)).current;
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -109,14 +111,59 @@ function FabTab({ on, label, href }: FabProps) {
     };
   }, []);
 
+  // Squash → 크게 부풀어오름 → 스프링 복귀. 회전·살짝 점프와 병행해
+  // 단순한 spin 대비 훨씬 더 다이나믹.
   const onPress = () => {
     spin.setValue(0);
-    Animated.timing(spin, {
-      toValue: 1,
-      duration: 700,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => {
+    scale.setValue(1);
+    lift.setValue(0);
+    Animated.parallel([
+      Animated.sequence([
+        // 1) anticipation — 빠르게 살짝 눌림
+        Animated.timing(scale, {
+          toValue: 0.72,
+          duration: 90,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        // 2) action — 크게 부풀어오름 (back easing 으로 살짝 오버슛)
+        Animated.timing(scale, {
+          toValue: 1.5,
+          duration: 220,
+          easing: Easing.out(Easing.back(2.2)),
+          useNativeDriver: true,
+        }),
+        // 3) settle — 스프링으로 자연스러운 복귀
+        Animated.spring(scale, {
+          toValue: 1,
+          useNativeDriver: true,
+          friction: 4,
+          tension: 90,
+        }),
+      ]),
+      // 점프 — 위로 솟구쳤다 내려옴
+      Animated.sequence([
+        Animated.timing(lift, {
+          toValue: -16,
+          duration: 280,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.spring(lift, {
+          toValue: 0,
+          useNativeDriver: true,
+          friction: 4,
+          tension: 110,
+        }),
+      ]),
+      // 회전 — 2바퀴, 끝에 가속·감속 곡선
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: 780,
+        easing: Easing.bezier(0.12, 0.85, 0.25, 1),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
       if (isMounted.current) router.push(href as never);
     });
   };
@@ -125,8 +172,13 @@ function FabTab({ on, label, href }: FabProps) {
 
   return (
     <Pressable style={styles.tab} onPress={onPress}>
-      <Animated.View style={[styles.fabCircle, { transform: [{ rotate }] }]}>
-        <DotBall size={62} />
+      <Animated.View
+        style={[
+          styles.fabCircle,
+          { transform: [{ translateY: lift }, { scale }, { rotate }] },
+        ]}
+      >
+        <PokeballSpinner size={62} />
       </Animated.View>
       <PixelText
         variant="pixel"

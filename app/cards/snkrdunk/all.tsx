@@ -6,6 +6,7 @@ import { PixelText } from '@/components/PixelText';
 import { Chip } from '@/components/cv/Chip';
 import { colors } from '@/theme/tokens';
 import { fetchSnkrdunkBrowse, type SnkrdunkSearchResult } from '@/services/snkrdunk';
+import { localizeCardName } from '@/lib/cardNameKo';
 
 type SortKey = 'default' | 'priceDesc' | 'priceAsc' | 'name';
 
@@ -203,10 +204,20 @@ export default function SnkrdunkAll() {
             </View>
             <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
               <PixelText
-                variant="pixel"
-                size={9}
+                variant="ko"
+                size={10}
+                weight="bold"
                 numberOfLines={2}
                 style={{ lineHeight: 13 }}
+              >
+                {shortenName(localizeCardName(item.name))}
+              </PixelText>
+              <PixelText
+                variant="pixel"
+                size={7}
+                color={colors.ink3}
+                numberOfLines={1}
+                style={{ marginTop: 2 }}
               >
                 {shortenName(item.name)}
               </PixelText>

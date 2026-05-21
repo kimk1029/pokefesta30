@@ -1,6 +1,5 @@
 /**
- * /cards/packs/[code] — 팩별 힛카드 풀 그리드.
- * GET /api/card-packs/[code]?limit=30 호출.
+ * /cards/packs/[code] — 팩별 힛카드 풀 그리드 + 리스트 뷰 전환.
  */
 import { useMemo, useState } from 'react';
 import { ScrollView, View, Pressable, Image, Text } from 'react-native';
@@ -10,15 +9,17 @@ import { PixelText } from '@/components/PixelText';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
-import { fetchPackHits, type PackWithHits } from '@/lib/myApi';
+import { fetchPackHits, type PackHitCard, type PackWithHits } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 
 type SortMode = 'price' | 'listing' | 'name';
+type ViewMode = 'grid' | 'list';
 
 export default function PackDetailScreen() {
   const params = useLocalSearchParams<{ code: string }>();
   const code = params.code ?? '';
   const [sort, setSort] = useState<SortMode>('price');
+  const [view, setView] = useState<ViewMode>('grid');
   const { data, loading, error, refresh } = useAsync<PackWithHits | null>(
     () => fetchPackHits(code, 600),
     [code],
@@ -40,32 +41,93 @@ export default function PackDetailScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
-          {/* Pack header */}
+          {/* Pack header — 박스 이미지 + 정보 */}
           <View style={{ marginHorizontal: 14, marginTop: 14, marginBottom: 14 }}>
             <View
               style={{
                 flexDirection: 'row',
-                alignItems: 'center',
+                alignItems: 'stretch',
                 gap: 12,
-                padding: 14,
+                padding: 12,
                 backgroundColor: data.bg,
                 borderColor: colors.ink,
                 borderWidth: 3,
               }}
             >
-              <Text style={{ fontSize: 38 }}>{data.emoji}</Text>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <PixelText variant="pixel" size={13} color={colors.white} style={{ letterSpacing: 0.5 }} numberOfLines={2}>
-                  {data.name}
-                </PixelText>
-                <PixelText variant="pixel" size={9} color={colors.white} style={{ marginTop: 6, opacity: 0.85 }}>
-                  {data.releasedAt ? `${data.releasedAt} 출시 · ` : ''}가격 있는 카드 {data.hits.length}장
-                </PixelText>
+              {/* 박스 대표 이미지 */}
+              <View
+                style={{
+                  width: 110,
+                  height: 110,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(0,0,0,0.18)',
+                  borderColor: colors.ink,
+                  borderWidth: 2,
+                  overflow: 'hidden',
+                }}
+              >
+                {data.boxImageUrl ? (
+                  <Image
+                    source={{ uri: data.boxImageUrl }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={{ fontSize: 48 }}>{data.emoji}</Text>
+                )}
+              </View>
+              {/* 정보 */}
+              <View style={{ flex: 1, minWidth: 0, justifyContent: 'space-between', paddingVertical: 2 }}>
+                <View>
+                  <PixelText
+                    variant="ko"
+                    size={13}
+                    weight="bold"
+                    color={colors.white}
+                    style={{ letterSpacing: 0.5 }}
+                    numberOfLines={2}
+                  >
+                    {data.name}
+                  </PixelText>
+                  {data.boxKoName ? (
+                    <PixelText
+                      variant="ko"
+                      size={10}
+                      color={colors.white}
+                      style={{ marginTop: 4, opacity: 0.85, lineHeight: 14 }}
+                      numberOfLines={2}
+                    >
+                      {data.boxKoName}
+                    </PixelText>
+                  ) : null}
+                </View>
+                <View style={{ gap: 4 }}>
+                  {data.releasedAt ? (
+                    <PixelText variant="pixel" size={8} color={colors.white} style={{ opacity: 0.85, letterSpacing: 0.3 }} numberOfLines={1}>
+                      📅 {data.releasedAt} 출시
+                    </PixelText>
+                  ) : null}
+                  <PixelText variant="pixel" size={8} color={colors.white} style={{ opacity: 0.85, letterSpacing: 0.3 }} numberOfLines={1}>
+                    🎴 가격 있는 카드 {data.hits.length}장
+                  </PixelText>
+                </View>
               </View>
             </View>
           </View>
 
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: 14, marginBottom: 12 }}>
+          {/* Sort + view toggle */}
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: 4,
+              marginLeft: 14,
+              marginRight: 18,
+              marginBottom: 14,
+              alignItems: 'center',
+            }}
+          >
             {([
               ['price', '가격 높은순'],
               ['listing', '매물 많은순'],
@@ -73,30 +135,58 @@ export default function PackDetailScreen() {
             ] as const).map(([key, label]) => {
               const on = sort === key;
               return (
-                <Pressable
+                <PixelPress
                   key={key}
                   onPress={() => setSort(key)}
-                  style={{
-                    paddingHorizontal: 9,
-                    paddingVertical: 7,
-                    backgroundColor: on ? colors.ink : colors.white,
-                    borderColor: colors.ink,
-                    borderWidth: 2,
-                  }}
+                  bg={on ? colors.ink : colors.white}
+                  borderWidth={3}
+                  shadow={4}
+                  hi={on ? null : 'rgba(255,255,255,0.95)'}
+                  lo={on ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.32)'}
+                  inner={3}
                 >
-                  <PixelText variant="pixel" size={9} color={on ? colors.gold : colors.ink}>
-                    {label}
-                  </PixelText>
-                </Pressable>
+                  <View style={{ paddingHorizontal: 10, paddingVertical: 8 }}>
+                    <PixelText variant="pixel" size={9} color={on ? colors.gold : colors.ink}>
+                      {label}
+                    </PixelText>
+                  </View>
+                </PixelPress>
+              );
+            })}
+
+            <View style={{ flex: 1 }} />
+
+            {([
+              ['grid', '⊞'],
+              ['list', '☰'],
+            ] as const).map(([key, icon]) => {
+              const on = view === key;
+              return (
+                <PixelPress
+                  key={key}
+                  onPress={() => setView(key)}
+                  bg={on ? colors.ink : colors.white}
+                  borderWidth={3}
+                  shadow={4}
+                  hi={on ? null : 'rgba(255,255,255,0.95)'}
+                  lo={on ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.32)'}
+                  inner={3}
+                >
+                  <View style={{ paddingHorizontal: 9, paddingVertical: 6 }}>
+                    <PixelText variant="pixel" size={14} color={on ? colors.gold : colors.ink}>
+                      {icon}
+                    </PixelText>
+                  </View>
+                </PixelPress>
               );
             })}
           </View>
 
-          {/* Grid */}
+          {/* Body */}
           <View style={{ marginHorizontal: 14 }}>
             {data.hits.length === 0 ? (
               <EmptyState icon="📭" title="매물 정보를 가져오지 못했어요" ctaLabel="다시 시도" onCtaPress={refresh} />
-            ) : (
+            ) : view === 'grid' ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {cards.map((hit) => (
                   <View key={hit.apparelId} style={{ width: '31%' }}>
@@ -121,10 +211,13 @@ export default function PackDetailScreen() {
                           )}
                         </View>
                         <View style={{ padding: 8, borderTopColor: colors.ink, borderTopWidth: 3 }}>
-                          <PixelText variant="pixel" size={8} numberOfLines={2} style={{ marginBottom: 5, minHeight: 26 }}>
+                          <PixelText variant="ko" size={11} weight="bold" numberOfLines={2} style={{ minHeight: 30, lineHeight: 15 }}>
                             {hit.koName || hit.shortName}
                           </PixelText>
-                          <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
+                          <PixelText variant="pixel" size={7} color={colors.ink3} numberOfLines={1} style={{ marginTop: 2 }}>
+                            {hit.name}
+                          </PixelText>
+                          <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1} style={{ marginTop: 6 }}>
                             {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '시세 없음'}
                           </PixelText>
                           <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
@@ -136,11 +229,64 @@ export default function PackDetailScreen() {
                   </View>
                 ))}
               </View>
+            ) : (
+              <View style={{ gap: 8 }}>
+                {cards.map((hit) => (
+                  <ListRow key={hit.apparelId} hit={hit} accent={data.bg} />
+                ))}
+              </View>
             )}
           </View>
         </ScrollView>
       )}
     </View>
+  );
+}
+
+function ListRow({ hit, accent }: { hit: PackHitCard; accent: string }) {
+  return (
+    <PixelPress
+      onPress={() => router.push(`/cards/snkrdunk/${hit.apparelId}` as never)}
+      innerStyle={{ borderLeftWidth: 4, borderLeftColor: accent }}
+    >
+      <View style={{ flexDirection: 'row', gap: 12, padding: 10, alignItems: 'center' }}>
+        <View
+          style={{
+            width: 64,
+            height: 88,
+            backgroundColor: colors.pap2,
+            borderColor: colors.ink,
+            borderWidth: 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          {hit.imageUrl ? (
+            <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          ) : (
+            <Text style={{ fontSize: 24 }}>🃏</Text>
+          )}
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <PixelText variant="ko" size={12} weight="bold" numberOfLines={2}>
+            {hit.koName || hit.shortName}
+          </PixelText>
+          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
+            {hit.name}
+          </PixelText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+            <PixelText variant="pixel" size={11} color={colors.red}>
+              {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '시세 없음'}
+            </PixelText>
+            <PixelText variant="pixel" size={8} color={colors.ink3}>
+              {hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
+            </PixelText>
+          </View>
+        </View>
+        <PixelText variant="pixel" size={14} color={colors.ink3}>›</PixelText>
+      </View>
+    </PixelPress>
   );
 }
 

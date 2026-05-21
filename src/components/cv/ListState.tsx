@@ -2,19 +2,37 @@
  * Loading / Error / Empty 상태 컴포넌트.
  * /my/* 모든 리스트 페이지가 공유.
  */
-import { View, ActivityIndicator } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Animated, Easing } from 'react-native';
 import { router } from 'expo-router';
 import { ApiError } from '@/lib/apiClient';
 import { isAuthenticated } from '@/lib/session';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
+import { SmoothBall } from '@/components/SmoothBall';
 import { colors } from '@/theme/tokens';
 
 export function LoadingState() {
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [spin]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   return (
     <View style={{ paddingVertical: 60, alignItems: 'center' }}>
-      <ActivityIndicator color={colors.ink} />
+      <Animated.View style={{ transform: [{ rotate }] }}>
+        <SmoothBall size={48} />
+      </Animated.View>
       <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 12 }}>
         불러오는 중…
       </PixelText>
@@ -70,6 +88,17 @@ export function ErrorView({ error, onRetry }: ErrorProps) {
         desc="이 메뉴는 로그인 후 이용할 수 있습니다."
         ctaLabel="로그인 하러 가기"
         onCtaPress={() => router.push('/login' as never)}
+      />
+    );
+  }
+  if (status === 0) {
+    return (
+      <EmptyState
+        icon="📡"
+        title="서버에 연결할 수 없어요"
+        desc="네트워크 연결을 확인하거나 잠시 후 다시 시도해 주세요."
+        ctaLabel="다시 시도"
+        onCtaPress={onRetry}
       />
     );
   }
