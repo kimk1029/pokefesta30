@@ -1,0 +1,11 @@
+{
+  "extends": "next/core-web-vitals",
+  "ignorePatterns": [
+    "admin/**",
+    "mobile/**",
+    "server/**",
+    "prisma/generated/**",
+    ".next/**",
+    "node_modules/**"
+  ]
+}

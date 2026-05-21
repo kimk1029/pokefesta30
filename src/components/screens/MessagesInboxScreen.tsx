@@ -67,7 +67,7 @@ export function MessagesInboxScreen() {
           📭 주고받은 쪽지가 없어요
           <br />
           <span style={{ fontSize: 8, color: 'var(--ink3)' }}>
-            거래글에서 "1:1 쪽지 보내기" 로 시작해보세요
+            거래글에서 &ldquo;1:1 쪽지 보내기&rdquo; 로 시작해보세요
           </span>
         </div>
       ) : (
