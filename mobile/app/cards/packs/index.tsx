@@ -1,0 +1,278 @@
+/**
+ * /cards/packs — 가격탐색 박스 리스트.
+ *
+ * 웹 src/app/cards/packs/page.tsx 와 동등.
+ * CARD_PACKS 를 순회하며 각 팩의 apparel-group 박스 1건을 fetch (apparelCategoryId=14).
+ * 박스 이미지 + 한·일 이름 + 박스 가격을 카드 형태로 표시.
+ * 항목 클릭 시 /cards/packs/[code] 로 이동.
+ *
+ * 캐싱: 첫 진입 시 38팩 fetch 가 길어 매번 "불러오는 중" 으로 보임.
+ * 모듈 레벨 캐시에 결과를 보관, 화면 재진입 시 즉시 표시하고 TTL 지났을 때만
+ * 백그라운드에서 갱신.
+ */
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ScrollView, View, Image, Text } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { AppBar } from '@/components/AppBar';
+import { PixelText } from '@/components/PixelText';
+import { PixelPress } from '@/components/cv/PixelPress';
+import { PixelFrame } from '@/components/cv/PixelFrame';
+import { LoadingState, ErrorView } from '@/components/cv/ListState';
+import { colors } from '@/theme/tokens';
+import { CARD_PACKS, type CardPackMeta } from '@/data/cardPacks';
+import { fetchSnkrdunkApparelGroup } from '@/services/snkrdunk';
+import { localizeCardName } from '@/lib/cardNameKo';
+
+interface PackWithBox extends CardPackMeta {
+  boxName: string;
+  boxKoName: string;
+  boxImageUrl: string | null;
+  boxPrice: number;
+}
+
+// 5분 동안 캐시 신선함으로 간주 — 박스 시세는 분 단위로 급변하지 않음.
+const PACKS_TTL_MS = 5 * 60 * 1000;
+let packsCache: { data: PackWithBox[]; at: number } | null = null;
+let packsInFlight: Promise<PackWithBox[]> | null = null;
+
+async function loadAllPacksWithBox(): Promise<PackWithBox[]> {
+  // 부분 실패 허용 — 38개 팩 fetch 중 일부 실패해도 나머지는 표시.
+  // 8초 타임아웃으로 무한 대기 방지.
+  return Promise.all(
+    CARD_PACKS.map(async (pack) => {
+      const fallback: PackWithBox = {
+        ...pack,
+        boxName: pack.searchQuery,
+        boxKoName: pack.name,
+        boxImageUrl: null,
+        boxPrice: 0,
+      };
+      try {
+        const timer = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
+        const fetcher = fetchSnkrdunkApparelGroup(pack.apparelGroupId, {
+          apparelCategoryId: 14,
+          page: 1,
+          perPage: 1,
+        });
+        const r = await Promise.race([fetcher, timer]);
+        const box = r?.apparels?.[0] ?? null;
+        const localized = box?.localizedName ?? null;
+        return {
+          ...pack,
+          boxName: localized ?? pack.searchQuery,
+          boxKoName: localized ? localizeCardName(localized) : pack.name,
+          boxImageUrl: box?.imageUrl ?? null,
+          boxPrice: box?.minPrice ?? 0,
+        };
+      } catch {
+        return fallback;
+      }
+    }),
+  );
+}
+
+function fetchPacksOnce(): Promise<PackWithBox[]> {
+  if (packsInFlight) return packsInFlight;
+  packsInFlight = loadAllPacksWithBox()
+    .then((rows) => {
+      packsCache = { data: rows, at: Date.now() };
+      return rows;
+    })
+    .finally(() => {
+      packsInFlight = null;
+    });
+  return packsInFlight;
+}
+
+export default function PackExplorerScreen() {
+  // 캐시가 있으면 즉시 보여주고 (loading=false), 없으면 로딩 표시.
+  const [data, setData] = useState<PackWithBox[] | null>(packsCache?.data ?? null);
+  const [loading, setLoading] = useState<boolean>(!packsCache);
+  const [error, setError] = useState<Error | null>(null);
+  const tick = useRef(0);
+
+  const refresh = useCallback(() => {
+    const myTick = ++tick.current;
+    if (!packsCache) setLoading(true);
+    setError(null);
+    fetchPacksOnce()
+      .then((rows) => {
+        if (myTick !== tick.current) return;
+        setData(rows);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (myTick !== tick.current) return;
+        setError(err instanceof Error ? err : new Error(String(err)));
+      })
+      .finally(() => {
+        if (myTick !== tick.current) return;
+        setLoading(false);
+      });
+  }, []);
+
+  // 마운트: 캐시 없으면 fetch. 캐시 있으면 TTL 만료 시에만 백그라운드 갱신.
+  useEffect(() => {
+    if (!packsCache) {
+      refresh();
+    } else if (Date.now() - packsCache.at > PACKS_TTL_MS) {
+      refresh();
+    }
+    return () => {
+      tick.current++;
+    };
+  }, [refresh]);
+
+  // 포커스 재진입 시에는 캐시가 stale 할 때만 백그라운드 갱신 (로딩 화면 X).
+  useFocusEffect(
+    useCallback(() => {
+      if (packsCache && Date.now() - packsCache.at > PACKS_TTL_MS) {
+        refresh();
+      }
+    }, [refresh]),
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+      <AppBar onBack={() => router.back()} title="가격탐색" />
+      {loading && !data ? (
+        <LoadingState />
+      ) : error ? (
+        <View style={{ margin: 14 }}>
+          <ErrorView error={error} onRetry={refresh} />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
+          {/* 헤더 안내 — 입체 픽셀 프레임 */}
+          <View style={{ marginHorizontal: 14, marginTop: 14, marginBottom: 12 }}>
+            <PixelFrame bg={colors.white}>
+              <View style={{ padding: 14 }}>
+                <PixelText variant="ko" size={14} weight="bold" color={colors.ink}>
+                  포켓몬 카드 박스
+                </PixelText>
+                <PixelText
+                  variant="ko"
+                  size={11}
+                  color={colors.ink3}
+                  style={{ marginTop: 6, lineHeight: 16 }}
+                >
+                  박스를 선택하면 해당 박스의 싱글카드 시세가 표시됩니다.
+                </PixelText>
+              </View>
+            </PixelFrame>
+          </View>
+
+          {/* 박스 리스트 — 각 항목 입체 픽셀 버튼 */}
+          <View style={{ marginHorizontal: 14, gap: 12 }}>
+            {(data ?? []).map((pack) => (
+              <PixelPress
+                key={pack.code}
+                onPress={() => router.push(`/cards/packs/${pack.code}` as never)}
+                bg={colors.white}
+                borderWidth={4}
+                shadow={6}
+                hi="rgba(255,255,255,0.95)"
+                lo="rgba(0,0,0,0.25)"
+                inner={0}
+              >
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: 2,
+                  }}
+                >
+                  {/* 박스 이미지 — 패딩 50% 더 축소 (4→2), 이미지 더 큼 */}
+                  <View
+                    style={{
+                      width: 112,
+                      height: 112,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: pack.bg,
+                      borderColor: colors.ink,
+                      borderWidth: 2,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {pack.boxImageUrl ? (
+                      <Image
+                        source={{ uri: pack.boxImageUrl }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text style={{ fontSize: 44 }}>{pack.emoji}</Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0, paddingVertical: 2 }}>
+                    <PixelText
+                      variant="ko"
+                      size={13}
+                      weight="bold"
+                      color={colors.ink}
+                      numberOfLines={2}
+                    >
+                      {pack.name}
+                    </PixelText>
+                    {/* 한글 박스 이름 — fontWeight +1 (bold) */}
+                    <PixelText
+                      variant="ko"
+                      size={11}
+                      weight="bold"
+                      color={colors.ink3}
+                      style={{ marginTop: 4, lineHeight: 15, fontWeight: '700' }}
+                      numberOfLines={1}
+                    >
+                      {pack.boxKoName}
+                    </PixelText>
+                    {/* 일본어 원본명 — fontWeight -1 (얇게) */}
+                    <PixelText
+                      variant="ko"
+                      size={9}
+                      color={colors.ink3}
+                      style={{ lineHeight: 13, opacity: 0.6, fontWeight: '300' }}
+                      numberOfLines={1}
+                    >
+                      {pack.boxName}
+                    </PixelText>
+                    {/* 가격 — 빨강 컨테이너 (줄바꿈 금지) */}
+                    <View
+                      style={{
+                        alignSelf: 'flex-start',
+                        marginTop: 6,
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        backgroundColor: pack.boxPrice > 0 ? colors.red : colors.ink3,
+                        borderColor: colors.ink,
+                        borderWidth: 2,
+                      }}
+                    >
+                      <PixelText
+                        variant="pixel"
+                        size={9}
+                        color={colors.white}
+                        style={{ letterSpacing: 0.3 }}
+                        numberOfLines={1}
+                      >
+                        {pack.boxPrice > 0
+                          ? `¥${pack.boxPrice.toLocaleString('ja-JP')}`
+                          : pack.releasedAt
+                            ? `${pack.releasedAt} 출시`
+                            : '출시일 확인 중'}
+                      </PixelText>
+                    </View>
+                  </View>
+                  <PixelText variant="pixel" size={14} color={colors.ink3} style={{ paddingRight: 6 }}>
+                    ›
+                  </PixelText>
+                </View>
+              </PixelPress>
+            ))}
+          </View>
+        </ScrollView>
+      )}
+    </View>
+  );
+}

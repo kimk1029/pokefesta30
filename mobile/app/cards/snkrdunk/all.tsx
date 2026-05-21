@@ -1,0 +1,238 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, Pressable, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { AppBar } from '@/components/AppBar';
+import { PixelText } from '@/components/PixelText';
+import { Chip } from '@/components/cv/Chip';
+import { colors } from '@/theme/tokens';
+import { fetchSnkrdunkBrowse, type SnkrdunkSearchResult } from '@/services/snkrdunk';
+import { localizeCardName } from '@/lib/cardNameKo';
+
+type SortKey = 'default' | 'priceDesc' | 'priceAsc' | 'name';
+
+const SORT_LABELS: Record<SortKey, string> = {
+  default: '기본',
+  priceDesc: '가격↓',
+  priceAsc: '가격↑',
+  name: '이름',
+};
+
+const SORT_KEYS: SortKey[] = ['default', 'priceDesc', 'priceAsc', 'name'];
+
+function parsePrice(text: string): number {
+  if (!text) return 0;
+  const digits = text.replace(/[^\d]/g, '');
+  return digits ? Number(digits) : 0;
+}
+
+function shortenName(name: string): string {
+  const cut = name.split(/[|｜]/)[0].trim();
+  return cut.length > 40 ? cut.slice(0, 39) + '…' : cut;
+}
+
+export default function SnkrdunkAll() {
+  const [items, setItems] = useState<SnkrdunkSearchResult[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('default');
+  const seenRef = useRef<Set<number>>(new Set());
+
+  const loadPage = useCallback(async (p: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const results = await fetchSnkrdunkBrowse(p);
+      const fresh = results.filter((r) => !seenRef.current.has(r.apparelId));
+      fresh.forEach((r) => seenRef.current.add(r.apparelId));
+      if (fresh.length === 0) {
+        setDone(true);
+      } else {
+        setItems((prev) => [...prev, ...fresh]);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '불러오기 실패');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPage(1);
+  }, [loadPage]);
+
+  const onEndReached = useCallback(() => {
+    if (loading || done) return;
+    const next = page + 1;
+    setPage(next);
+    loadPage(next);
+  }, [loading, done, page, loadPage]);
+
+  const sortedItems = useMemo(() => {
+    if (sortKey === 'default') return items;
+    const copy = items.slice();
+    if (sortKey === 'priceDesc') {
+      copy.sort((a, b) => parsePrice(b.priceText) - parsePrice(a.priceText));
+    } else if (sortKey === 'priceAsc') {
+      copy.sort((a, b) => {
+        const ap = parsePrice(a.priceText);
+        const bp = parsePrice(b.priceText);
+        // 가격 0(미상) 항목은 뒤로
+        if (ap === 0 && bp !== 0) return 1;
+        if (bp === 0 && ap !== 0) return -1;
+        return ap - bp;
+      });
+    } else if (sortKey === 'name') {
+      copy.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    }
+    return copy;
+  }, [items, sortKey]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+      <AppBar onBack={() => router.back()} title="스니덩크 전체 시세" />
+
+      {/* Sort chips */}
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: 6,
+          paddingHorizontal: 14,
+          paddingTop: 10,
+          paddingBottom: 8,
+          backgroundColor: colors.paper,
+          borderBottomWidth: 3,
+          borderBottomColor: colors.ink,
+        }}
+      >
+        {SORT_KEYS.map((k) => {
+          const on = sortKey === k;
+          return (
+            <Chip
+              key={k}
+              on={on}
+              onPress={() => setSortKey(k)}
+              bg={on ? colors.ink : colors.white}
+              fg={on ? colors.gold : colors.ink}
+              size={9}
+              px={10}
+              py={5}
+            >
+              {SORT_LABELS[k]}
+            </Chip>
+          );
+        })}
+      </View>
+
+      <FlatList
+        data={sortedItems}
+        keyExtractor={(it) => String(it.apparelId)}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.5}
+        ItemSeparatorComponent={() => (
+          <View style={{ height: 1, backgroundColor: colors.pap3, marginHorizontal: 14 }} />
+        )}
+        ListFooterComponent={
+          <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+            {error ? (
+              <Pressable onPress={() => loadPage(page)}>
+                <PixelText variant="pixel" size={9} color={colors.red}>
+                  불러오기 오류: {error} · 재시도
+                </PixelText>
+              </Pressable>
+            ) : loading ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <ActivityIndicator size="small" color={colors.ink3} />
+                <PixelText variant="pixel" size={9} color={colors.ink3}>
+                  불러오는 중…
+                </PixelText>
+              </View>
+            ) : done ? (
+              <PixelText variant="pixel" size={9} color={colors.ink3}>
+                {sortedItems.length === 0 ? '결과가 없습니다.' : '— 끝 —'}
+              </PixelText>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item, index }) => (
+          <Pressable
+            onPress={() => router.push(`/cards/snkrdunk/${item.apparelId}` as never)}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              backgroundColor: pressed ? colors.pap2 : 'transparent',
+            })}
+          >
+            <View
+              style={{
+                width: 22,
+                alignItems: 'center',
+              }}
+            >
+              <PixelText variant="pixel" size={9} color={colors.ink3}>
+                {String(index + 1).padStart(2, '0')}
+              </PixelText>
+            </View>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                backgroundColor: colors.pap2,
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                borderColor: colors.ink,
+                borderWidth: 2,
+                marginLeft: 6,
+                marginRight: 10,
+              }}
+            >
+              {item.imageUrl ? (
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={{ fontSize: 18 }}>🃏</Text>
+              )}
+            </View>
+            <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
+              <PixelText
+                variant="ko"
+                size={10}
+                weight="bold"
+                numberOfLines={2}
+                style={{ lineHeight: 13 }}
+              >
+                {shortenName(localizeCardName(item.name))}
+              </PixelText>
+              <PixelText
+                variant="pixel"
+                size={7}
+                color={colors.ink3}
+                numberOfLines={1}
+                style={{ marginTop: 2 }}
+              >
+                {shortenName(item.name)}
+              </PixelText>
+            </View>
+            <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+              <PixelText variant="pixel" size={11} color={colors.red} numberOfLines={1}>
+                {item.priceText || '—'}
+              </PixelText>
+              <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginTop: 3 }}>
+                ▶
+              </PixelText>
+            </View>
+          </Pressable>
+        )}
+      />
+    </View>
+  );
+}
