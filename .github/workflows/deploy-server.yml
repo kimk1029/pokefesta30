@@ -54,24 +54,22 @@ jobs:
             # prisma client 재생성 (스키마는 ../prisma/schema.prisma)
             npm run prisma:generate
 
-            # pm2 가 이미 띄워둔 인스턴스가 있으면 restart, 없으면 ecosystem 으로 신규 기동.
-            if pm2 describe pokefesta30-server >/dev/null 2>&1; then
-              pm2 restart pokefesta30-server --update-env
-            else
-              cd /root/dev/pokefesta30
-              pm2 start ecosystem.config.cjs --only pokefesta30-server
-            fi
+            # ecosystem.config.cjs 가 단일 진실 소스. exec_mode 같은 구조 변경은
+            # reload 로는 안 잡혀서, 항상 delete → start 로 깨끗하게 재기동.
+            cd /root/dev/pokefesta30
+            pm2 delete pokefesta30-server >/dev/null 2>&1 || true
+            pm2 start ecosystem.config.cjs --only pokefesta30-server
             pm2 save
 
-            # 헬스 체크 — 3030 포트 응답 확인 (최대 30초 대기)
+            # 헬스 체크 — /health 엔드포인트가 {ok:true,...} 반환 (최대 30초).
             for i in $(seq 1 30); do
-              if curl -sf http://127.0.0.1:3030/auth/me >/dev/null 2>&1 \
-                 || curl -sf http://127.0.0.1:3030/ >/dev/null 2>&1; then
+              if curl -sf http://127.0.0.1:3030/health >/dev/null 2>&1; then
                 echo "✓ server is up on :3030"
                 exit 0
               fi
               sleep 1
             done
-            echo "::error::server did not respond on :3030 within 30s"
-            pm2 logs pokefesta30-server --lines 50 --nostream || true
+            echo "::error::server did not respond on :3030/health within 30s"
+            pm2 logs pokefesta30-server --lines 80 --nostream || true
+            pm2 describe pokefesta30-server || true
             exit 1

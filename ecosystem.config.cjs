@@ -43,11 +43,15 @@ module.exports = {
     },
     {
       // Express OCR / API 서버. mobile + web 의 백엔드.
+      // exec_mode: 'fork' 명시 — pm2 는 `instances` 가 있으면 기본 cluster 모드를
+      // 쓰는데, cluster 모드는 Node IPC handshake 가 필요해 `npm` CLI 래퍼와
+      // 함께 쓰면 즉시 종료된다 (무한 재시작).
       name: 'pokefesta30-server',
       cwd: __dirname + '/server',
       script: 'npm',
       args: 'run start',
       instances: 1,
+      exec_mode: 'fork',
       autorestart: true,
       watch: false,
       max_memory_restart: '512M',
