@@ -2,15 +2,16 @@
  * Express 백엔드 (`server/`) 호출용 클라이언트.
  *
  * baseUrl 은 `EXPO_PUBLIC_API_BASE_URL` 환경 변수에서 가져온다.
- * (예: `https://api.pokefesta30.com` 또는 개발 시 `http://192.168.1.10:3030`)
+ * 운영: http://kimk1029.synology.me:3030
+ * 로컬 dev: EXPO_PUBLIC_API_BASE_URL=http://<WSL2-IP>:3030 또는 adb reverse 후 localhost.
  *
  * 인증은 `/auth/{provider}` 가 발급한 JWT 를 `Authorization: Bearer ...` 헤더로
  * 첨부. [[session]] 모듈이 토큰을 관리.
  */
-import { Platform } from 'react-native';
 import { getAuthHeader } from './session';
 
-const DEFAULT_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:3030' : 'http://localhost:3030';
+// EXPO_PUBLIC_API_BASE_URL 이 비어있을 때 폴백 — 운영 Synology 호스트.
+const DEFAULT_BASE = 'http://kimk1029.synology.me:3030';
 
 export function getApiBaseUrl(): string {
   const v = process.env.EXPO_PUBLIC_API_BASE_URL;

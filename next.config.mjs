@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN ?? 'http://localhost:3001';
+// Express API/OCR server origin. Local dev defaults to the production Synology
+// host so `next dev` works without extra env setup; override with
+// NEXT_PUBLIC_API_ORIGIN (e.g. http://localhost:3030) when running the
+// server locally for back-end development.
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN ?? 'http://kimk1029.synology.me:3030';
 
 const nextConfig = {
   reactStrictMode: true,

@@ -21,10 +21,9 @@ function deriveBaseUrl(): string {
   const hostUri = (Constants.expoConfig as { hostUri?: string } | null)?.hostUri
     ?? (Constants.manifest2 as { extra?: { expoGo?: { developer?: { host?: string } } } } | null)?.extra?.expoGo?.developer?.host
     ?? '';
-  // Embedded debug/release builds do not always expose Expo's hostUri. On a
-  // USB-connected Android device we map device localhost:3030 to the dev
-  // machine with `adb reverse tcp:3030 tcp:3030`.
-  if (!hostUri) return 'http://localhost:3030';
+  // Embedded debug/release builds do not always expose Expo's hostUri.
+  // Production fallback: hit the Synology server directly.
+  if (!hostUri) return 'http://kimk1029.synology.me:3030';
   // Tunnel URLs already include scheme via .exp.direct (use https). LAN URLs use http.
   const isTunnel = /\.exp\.direct/.test(hostUri);
   const scheme = isTunnel ? 'https' : 'http';
