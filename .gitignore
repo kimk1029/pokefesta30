@@ -7,7 +7,16 @@ out
 .DS_Store
 *.tsbuildinfo
 
-# 모바일 — 모노레포로 합치는 중. 이 커밋에선 무시,
-# 다음 커밋(subtree merge)에서 트래킹 시작.
-mobile/
+# 모바일 빌드 산출물 — 소스만 트랙, 빌드 결과물은 무시.
+# (mobile/.gitignore 와 중복이지만 root git 에서도 확실히 가드)
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/dist-android/
+mobile/web-build/
+mobile/android/
+mobile/ios/
+mobile/.env
+mobile/.env.local
+mobile/.env.*.local
 
