@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>pokefesta30 OCR Tester</title>
+<style>
+  :root { --bg:#0f172a; --pap:#f7f1d9; --gold:#ffd23f; --grn:#22c55e; --red:#ef4444; --ink:#1a1a2e; --muted:#94a3b8; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--pap); color:var(--ink); padding:24px; }
+  h1 { font-size:20px; margin:0 0 6px; }
+  .sub { color:var(--muted); margin:0 0 18px; font-size:13px; }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:18px; max-width:1200px; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .card { background:#fff; border:3px solid var(--ink); padding:16px; }
+  .card h2 { font-size:14px; margin:0 0 10px; letter-spacing:0.5px; }
+  .drop { border:3px dashed var(--ink); padding:36px 18px; text-align:center; cursor:pointer; background:#fff8e6; }
+  .drop.over { background:#fff1c1; }
+  .drop input { display:none; }
+  .preview { width:100%; aspect-ratio: 63/88; background:#000; object-fit:contain; margin-top:14px; border:2px solid var(--ink); }
+  pre { background:#0f172a; color:#e5e7eb; padding:14px; overflow:auto; max-height:520px; font-size:12px; line-height:1.45; margin:0; }
+  button { background:var(--gold); border:3px solid var(--ink); padding:10px 18px; font-weight:700; cursor:pointer; font-size:14px; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+  .badge { padding:2px 8px; background:var(--ink); color:#fff; font-size:11px; }
+  .ok { background:var(--grn); color:#fff; }
+  .err { background:var(--red); color:#fff; }
+  .candidates { display:grid; gap:10px; margin-top:10px; }
+  .cand { display:flex; gap:10px; align-items:center; padding:10px; border:2px solid var(--ink); background:#fffaf0; }
+  .cand .nm { font-weight:700; }
+  .cand .meta { color:var(--muted); font-size:12px; }
+  .pill { display:inline-block; padding:2px 6px; background:#eee; border:1px solid var(--ink); margin-right:6px; font-size:11px; }
+  .roi { display:grid; grid-template-columns: repeat(2, 1fr); gap:6px; margin-top:10px; font-size:12px; }
+  .roi div { padding:4px 6px; background:#fff; border:1px solid #ddd; }
+  label { font-size:12px; color:var(--muted); }
+</style>
+</head>
+<body>
+  <h1>🃏 pokefesta30 OCR Tester</h1>
+  <p class="sub">서버에 직접 카드 이미지를 업로드해서 OCR 결과를 확인합니다. 모바일 앱과 동일한 엔드포인트 (<code>POST /api/cards/scan</code>) 를 사용합니다.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1. 이미지 업로드</h2>
+      <label class="drop" id="drop">
+        <input type="file" accept="image/*" id="file" />
+        이미지를 드래그하거나 클릭해서 선택하세요
+      </label>
+      <img id="preview" class="preview" alt="" style="display:none" />
+      <div class="row">
+        <button id="send" disabled>OCR 실행 ▶</button>
+        <span id="status" class="badge">대기</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2. 응답</h2>
+      <div id="summary" style="margin-bottom:10px"></div>
+      <div id="candidates" class="candidates"></div>
+      <h2 style="margin-top:18px">원본 JSON</h2>
+      <pre id="json">(아직 실행 안 됨)</pre>
+    </div>
+  </div>
+
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+const preview = document.getElementById('preview');
+const sendBtn = document.getElementById('send');
+const statusEl = document.getElementById('status');
+const jsonEl = document.getElementById('json');
+const candEl = document.getElementById('candidates');
+const sumEl = document.getElementById('summary');
+
+let currentFile = null;
+let imgW = 0, imgH = 0;
+
+function setStatus(text, cls = '') {
+  statusEl.textContent = text;
+  statusEl.className = 'badge ' + cls;
+}
+
+function pickFile(file) {
+  if (!file) return;
+  currentFile = file;
+  const url = URL.createObjectURL(file);
+  preview.src = url;
+  preview.style.display = 'block';
+  preview.onload = () => {
+    imgW = preview.naturalWidth;
+    imgH = preview.naturalHeight;
+  };
+  sendBtn.disabled = false;
+  setStatus('업로드 준비 완료');
+}
+
+drop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => pickFile(fileInput.files[0]));
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', (e) => {
+  e.preventDefault();
+  drop.classList.remove('over');
+  pickFile(e.dataTransfer.files[0]);
+});
+
+sendBtn.addEventListener('click', async () => {
+  if (!currentFile) return;
+  sendBtn.disabled = true;
+  setStatus('OCR 실행 중... (Tesseract는 보통 5–10초)', '');
+  jsonEl.textContent = '...';
+  candEl.innerHTML = '';
+  sumEl.innerHTML = '';
+
+  const fd = new FormData();
+  fd.append('image', currentFile);
+  fd.append('guideRect', JSON.stringify({ x: 0.06, y: 0.06, w: 0.88, h: 0.88 }));
+  fd.append('platform', 'web');
+  fd.append('imageWidth', String(imgW || 0));
+  fd.append('imageHeight', String(imgH || 0));
+  fd.append('capturedAt', new Date().toISOString());
+
+  const t0 = performance.now();
+  try {
+    const res = await fetch('/api/cards/scan', { method: 'POST', body: fd });
+    const data = await res.json();
+    const dt = Math.round(performance.now() - t0);
+    setStatus(`완료 (${dt}ms, ${data.success ? '성공' : '인식 실패'})`, data.success ? 'ok' : 'err');
+    jsonEl.textContent = JSON.stringify(data, null, 2);
+    renderSummary(data);
+  } catch (e) {
+    setStatus('네트워크 오류', 'err');
+    jsonEl.textContent = String(e);
+  } finally {
+    sendBtn.disabled = false;
+  }
+});
+
+function renderSummary(data) {
+  if (!data) return;
+  const ext = data.extracted ?? {};
+  sumEl.innerHTML = `
+    <div class="roi">
+      <div><label>카드명</label><br>${esc(ext.name) || '<i style="color:#999">(없음)</i>'}</div>
+      <div><label>번호</label><br>${esc(ext.cardNumber)} / ${esc(ext.totalNumber)}</div>
+      <div><label>세트</label><br>${esc(ext.setCode)}</div>
+      <div><label>희귀도</label><br>${esc(ext.rarity)}</div>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:#666">
+      raw: <code style="background:#fff;padding:2px 4px;border:1px solid #ddd">${esc(ext.rawText) || ''}</code>
+      &nbsp;·&nbsp; confidence: <b>${(data.confidence ?? 0).toFixed(2)}</b>
+    </div>`;
+  candEl.innerHTML = '';
+  for (const c of data.candidates ?? []) {
+    const div = document.createElement('div');
+    div.className = 'cand';
+    div.innerHTML = `
+      <div style="width:48px;height:66px;background:#eee;border:1px solid #999;display:flex;align-items:center;justify-content:center">🃏</div>
+      <div style="flex:1">
+        <div class="nm">${esc(c.name)}</div>
+        <div class="meta">${esc(c.setName ?? '')} · ${esc(c.number ?? '')}</div>
+        <div style="margin-top:4px"><span class="pill">${esc(c.rarity ?? '')}</span><span class="pill">${esc(c.source ?? '')}</span></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700">₩${(c.price?.marketPrice ?? 0).toLocaleString()}</div>
+      </div>`;
+    candEl.appendChild(div);
+  }
+}
+
+function esc(s) { return String(s ?? '').replace(/[<>&"]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+</script>
+</body>
+</html>

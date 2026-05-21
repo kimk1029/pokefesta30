@@ -1,6 +1,6 @@
 'use client';
 
-import { signOut } from 'next-auth/react';
+import { signOut } from '@/lib/session';
 
 export function LogoutButton() {
   return (
@@ -8,7 +8,7 @@ export function LogoutButton() {
       type="button"
       className="my-item"
       style={{ width: '100%', cursor: 'pointer' }}
-      onClick={() => signOut({ callbackUrl: '/' })}
+      onClick={() => signOut('/')}
     >
       <div className="mi-icon" style={{ background: 'var(--ink3)' }}>
         ↩

@@ -1,6 +1,5 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import {
   createContext,
   useCallback,
@@ -10,20 +9,19 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import {
-  buyAvatar as buyAvatarAction,
-  buyBackground as buyBgAction,
-  buyFrame as buyFrameAction,
-  mockCharge as mockChargeAction,
-  pickAvatar as pickAvatarAction,
-  pickBackground as pickBgAction,
-  pickFrame as pickFrameAction,
-  rewardAdView as rewardAdViewAction,
-  spendPoints as spendPointsAction,
-} from '@/app/inventory-actions';
+import { useSession } from '@/lib/session';
 import { DEFAULT_AVATAR, DEFAULT_OWNED, type AvatarId } from '@/lib/avatars';
-import type { InventorySnapshot } from '@/lib/queries';
 import { DEFAULT_BG, DEFAULT_FRAME, type BackgroundId, type FrameId } from '@/lib/shop';
+
+export interface InventorySnapshot {
+  avatar: AvatarId;
+  avatarOwned: AvatarId[];
+  bg: BackgroundId;
+  bgOwned: BackgroundId[];
+  frame: FrameId;
+  frameOwned: FrameId[];
+  points: number;
+}
 
 const ANON_SNAPSHOT: InventorySnapshot = {
   avatar: DEFAULT_AVATAR,
@@ -45,21 +43,28 @@ export interface InventoryCtxValue extends InventorySnapshot {
   buyAvatar: (id: AvatarId, price: number) => Promise<MutResult>;
   buyBg: (id: BackgroundId, price: number) => Promise<MutResult>;
   buyFrame: (id: FrameId, price: number) => Promise<MutResult>;
-  /** 임의 차감 (오리파 등). */
   spend: (amount: number) => Promise<MutResult>;
-  /** 포인트 충전. 현재 운영 중단 상태라 서버에서 차단된다. */
   charge: (amount: number) => Promise<MutResult>;
-  /** 무료 광고 충전. 현재 운영 중단 상태라 서버에서 차단된다. */
   rewardAd: (slotId: string) => Promise<MutResult>;
 }
 
 const Ctx = createContext<InventoryCtxValue | null>(null);
 
-export function InventoryProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+  return (await r.json()) as T;
+}
+
+type BuyResponse =
+  | { ok: true; inv: InventorySnapshot }
+  | { ok: false; error: string; retryInSec?: number };
+
+export function InventoryProvider({ children }: { children: ReactNode }) {
   const { status } = useSession();
   const isLoggedIn = status === 'authenticated';
   const [snap, setSnap] = useState<InventorySnapshot>(ANON_SNAPSHOT);
@@ -70,7 +75,7 @@ export function InventoryProvider({
       setSnap(ANON_SNAPSHOT);
       return;
     }
-    fetch('/api/me/inventory', { cache: 'no-store' })
+    fetch('/api/me/inventory', { cache: 'no-store', credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { inventory?: InventorySnapshot } | null) => {
         if (!cancelled && data?.inventory) setSnap(data.inventory);
@@ -81,45 +86,46 @@ export function InventoryProvider({
     };
   }, [isLoggedIn]);
 
-  const notLogged = useCallback((): MutResult => {
-    return { ok: false, msg: '로그인이 필요합니다' };
-  }, []);
+  const notLogged = useCallback(
+    (): MutResult => ({ ok: false, msg: '로그인이 필요합니다' }),
+    [],
+  );
 
-  const wrap =
-    <A extends unknown[]>(
-      fn: (
-        ...args: A
-      ) => Promise<
-        | { ok: true; inv: InventorySnapshot }
-        | { ok: false; error: string; retryInSec?: number }
-      >,
-    ) =>
-    async (...args: A): Promise<MutResult> => {
+  const apply = useCallback(
+    async (path: string, body: unknown): Promise<MutResult> => {
       if (!isLoggedIn) return notLogged();
-      const r = await fn(...args);
-      if (r.ok) {
-        setSnap(r.inv);
-        return { ok: true };
+      try {
+        const r = await postJson<BuyResponse>(path, body);
+        if (r.ok) {
+          setSnap(r.inv);
+          return { ok: true };
+        }
+        return { ok: false, msg: r.error, retryInSec: r.retryInSec };
+      } catch (e) {
+        return { ok: false, msg: e instanceof Error ? e.message : 'network' };
       }
-      return { ok: false, msg: r.error, retryInSec: r.retryInSec };
-    };
+    },
+    [isLoggedIn, notLogged],
+  );
 
   const value = useMemo<InventoryCtxValue>(
     () => ({
       ...snap,
       isLoggedIn,
-      pickAvatar: wrap(pickAvatarAction),
-      pickBg: wrap(pickBgAction),
-      pickFrame: wrap(pickFrameAction),
-      buyAvatar: wrap(buyAvatarAction),
-      buyBg: wrap(buyBgAction),
-      buyFrame: wrap(buyFrameAction),
-      spend: wrap(spendPointsAction),
-      charge: wrap(mockChargeAction),
-      rewardAd: wrap(rewardAdViewAction),
+      pickAvatar: (id) => apply('/api/me/inventory/buy', { action: 'pick', kind: 'avatar', id }),
+      pickBg: (id) => apply('/api/me/inventory/buy', { action: 'pick', kind: 'bg', id }),
+      pickFrame: (id) => apply('/api/me/inventory/buy', { action: 'pick', kind: 'frame', id }),
+      buyAvatar: (id, price) =>
+        apply('/api/me/inventory/buy', { action: 'buy', kind: 'avatar', id, price }),
+      buyBg: (id, price) =>
+        apply('/api/me/inventory/buy', { action: 'buy', kind: 'bg', id, price }),
+      buyFrame: (id, price) =>
+        apply('/api/me/inventory/buy', { action: 'buy', kind: 'frame', id, price }),
+      spend: (amount) => apply('/api/me/points/spend', { amount }),
+      charge: async () => ({ ok: false, msg: '포인트 충전은 현재 중단되었습니다' }),
+      rewardAd: async () => ({ ok: false, msg: '무료 광고 충전은 현재 중단되었습니다' }),
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [snap, isLoggedIn],
+    [snap, isLoggedIn, apply],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

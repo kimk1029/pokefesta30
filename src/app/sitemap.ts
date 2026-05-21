@@ -1,21 +1,17 @@
 import type { MetadataRoute } from 'next';
-import { prisma } from '@/lib/prisma';
+import { serverFetch } from '@/lib/apiServer';
 
-// Vercel 배포는 www.poke-30.com 으로 308 리다이렉트되므로 사이트맵 내부 URL 도
-// 처음부터 canonical(www) 호스트를 사용해야 한다. 그렇지 않으면 Google 이 모든
-// <loc> 을 redirect URL 로 인지해 "사이트맵 가져올 수 없음" 으로 처리한다.
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.poke-30.com';
 
-/**
- * 정적 + 동적 (열린 거래글) 라우트.
- * 빌드 시 한 번 + 재검증 ISR 로 갱신.
- * 실패 시 정적 라우트만 반환 — 사이트맵 자체가 비는 일은 없게.
- */
 export const revalidate = 3600;
+
+interface TradeRow {
+  id: number;
+  updatedAt: string;
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`,        lastModified: now, changeFrequency: 'hourly',  priority: 1.0 },
     { url: `${SITE_URL}/feed`,    lastModified: now, changeFrequency: 'hourly',  priority: 0.9 },
@@ -28,21 +24,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/terms`,   lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
   ];
 
-  try {
-    const trades = await prisma.trade.findMany({
-      where: { status: 'open' },
-      select: { id: true, updatedAt: true },
-      orderBy: { updatedAt: 'desc' },
-      take: 1000,
-    });
-    const tradeRoutes: MetadataRoute.Sitemap = trades.map((t) => ({
-      url: `${SITE_URL}/trade/${t.id}`,
-      lastModified: t.updatedAt,
-      changeFrequency: 'daily',
-      priority: 0.6,
-    }));
-    return [...staticRoutes, ...tradeRoutes];
-  } catch {
-    return staticRoutes;
-  }
+  const r = await serverFetch<{ data: TradeRow[] }>(
+    '/api/trades?status=open&limit=1000',
+    { auth: false },
+  );
+  const trades = r.data?.data ?? [];
+  const tradeRoutes: MetadataRoute.Sitemap = trades.map((t) => ({
+    url: `${SITE_URL}/trade/${t.id}`,
+    lastModified: new Date(t.updatedAt),
+    changeFrequency: 'daily',
+    priority: 0.6,
+  }));
+  return [...staticRoutes, ...tradeRoutes];
 }

@@ -1,17 +1,20 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
+import { useSession } from '@/lib/session';
 
 const Ctx = createContext<{ count: number; refresh: () => Promise<void> } | null>(null);
 
 const POLL_MS = 60_000;
 
-export function UnreadProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function UnreadProvider({ children }: { children: ReactNode }) {
   const { status } = useSession();
   const isLoggedIn = status === 'authenticated';
   const [count, setCount] = useState<number>(0);
@@ -22,7 +25,10 @@ export function UnreadProvider({
       return;
     }
     try {
-      const r = await fetch('/api/messages/unread', { cache: 'no-store' });
+      const r = await fetch('/api/messages/unread', {
+        cache: 'no-store',
+        credentials: 'include',
+      });
       if (!r.ok) return;
       const data = (await r.json()) as { count: number };
       setCount(Number.isFinite(data.count) ? data.count : 0);

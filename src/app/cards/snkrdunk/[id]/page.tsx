@@ -5,16 +5,17 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
 import {
   downsamplePricePoints,
-  fetchSnkrdunkApparel,
-  fetchSnkrdunkSalesChart,
-  fetchSnkrdunkSalesHistory,
   localizeSnkrdunkText,
   priceDownsampleUnit,
   priceUnitLabelKo,
   snkrdunkApparelUrl,
+  type SnkrdunkApparel,
+  type SnkrdunkSalesChart,
+  type SnkrdunkSalesHistory,
 } from '@/lib/snkrdunk';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { SNKRDUNK_FEATURED_CARDS } from '@/lib/snkrdunkCards';
+import { serverFetch } from '@/lib/apiServer';
 
 interface PageProps {
   params: { id: string };
@@ -252,11 +253,15 @@ export default async function Page({ params }: PageProps) {
   if (!Number.isInteger(apparelId) || apparelId <= 0) notFound();
 
   const seed = SNKRDUNK_FEATURED_CARDS.find((c) => c.apparelId === apparelId);
-  const [apparel, salesHistory, salesChart] = await Promise.all([
-    fetchSnkrdunkApparel(apparelId),
-    fetchSnkrdunkSalesHistory(apparelId),
-    fetchSnkrdunkSalesChart(apparelId),
+  const base = `/api/snkrdunk/apparels/${apparelId}`;
+  const [apparelResp, historyResp, chartResp] = await Promise.all([
+    serverFetch<{ data: SnkrdunkApparel | null }>(base, { auth: false }),
+    serverFetch<{ data: SnkrdunkSalesHistory | null }>(`${base}/sales-history`, { auth: false }),
+    serverFetch<{ data: SnkrdunkSalesChart | null }>(`${base}/sales-chart`, { auth: false }),
   ]);
+  const apparel = apparelResp.data?.data ?? null;
+  const salesHistory = historyResp.data?.data ?? null;
+  const salesChart = chartResp.data?.data ?? null;
   if (!apparel) notFound();
 
   const displayName = seed?.shortName ?? apparel.localizedName;

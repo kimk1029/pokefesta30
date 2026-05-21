@@ -1,6 +1,6 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
+import { signIn } from '@/lib/session';
 import { PixelBall } from './PixelBall';
 import { AppBar } from './ui/AppBar';
 import { StatusBar } from './ui/StatusBar';
@@ -58,7 +58,7 @@ export function LoginRequired({
           <button
             type="button"
             className="login-btn login-btn-kakao"
-            onClick={() => signIn('kakao', { callbackUrl })}
+            onClick={() => signIn('kakao', callbackUrl)}
           >
             <div className="login-btn-icon">💬</div>
             <div className="login-btn-txt">
@@ -69,7 +69,7 @@ export function LoginRequired({
           <button
             type="button"
             className="login-btn login-btn-naver"
-            onClick={() => signIn('naver', { callbackUrl })}
+            onClick={() => signIn('naver', callbackUrl)}
           >
             <div className="login-btn-icon">N</div>
             <div className="login-btn-txt">
@@ -80,7 +80,7 @@ export function LoginRequired({
           <button
             type="button"
             className="login-btn login-btn-google"
-            onClick={() => signIn('google', { callbackUrl })}
+            onClick={() => signIn('google', callbackUrl)}
           >
             <div className="login-btn-icon">G</div>
             <div className="login-btn-txt">

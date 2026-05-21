@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import type { Session } from 'next-auth';
 import { EditableName } from '@/components/EditableName';
 import { PointChipLive } from '@/components/LivePointsPill';
 import { LogoutButton } from '@/components/LogoutButton';
@@ -12,7 +11,7 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import type { LevelInfo } from '@/lib/level';
 
 interface Props {
-  session: Session;
+  user: { name?: string | null; email?: string | null };
   level: LevelInfo;
   cardCount: number;
   tradeCount: number;
@@ -39,10 +38,10 @@ const SETTINGS: Array<{ em: string; bg: string; lb: string; href?: string }> = [
   { em: '🔔', bg: '#E8DFB8', lb: '알림 설정 (준비중)' },
 ];
 
-export function MyScreen({ session, level, cardCount, tradeCount, savedCount }: Props) {
+export function MyScreen({ user, level, cardCount, tradeCount, savedCount }: Props) {
   const p = level;
   const xpPct = Math.max(0, Math.min(100, Math.round((p.xp / p.xpNeeded) * 100)));
-  const name = session.user?.name ?? '트레이너';
+  const name = user?.name ?? '트레이너';
 
   return (
     <>

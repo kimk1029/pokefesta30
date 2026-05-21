@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { AppBarProfile } from '@/components/AppBarProfile';
-import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
+import type { HeroSlideData } from '@/components/HeroSlider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
@@ -73,11 +73,27 @@ const XP_CURRENT = 340;
 const XP_MAX = 500;
 const XP_WEEK = 80;
 const TRADES_THIS_WEEK = 3;
-const CHART_DATA: Record<'1W' | '1M' | '3M', number[]> = {
-  '1W': [88, 90, 91, 89, 93, 96, 100],
-  '1M': [65, 68, 72, 70, 75, 78, 80, 82, 85, 83, 88, 90, 92, 95, 93, 97, 100],
-  '3M': [40, 45, 50, 48, 55, 60, 58, 62, 65, 68, 72, 75, 73, 78, 82, 85, 88, 90, 95, 100],
-};
+const PERIOD_DAYS: Record<'1W' | '1M' | '3M', number> = { '1W': 7, '1M': 30, '3M': 90 };
+
+/**
+ * 컬렉션 전체의 일별 종합 가격을 계산.
+ * 각 카드의 trend[](최근 N일 평균 시세) 을 합산. trend 가 짧으면 latestPrice 로 채움.
+ * 결과는 오래된→최신 순서.
+ */
+function computeDailyTotals(cards: Array<{ latestPrice: number; trend: number[] }>, days: number): number[] {
+  if (days <= 0) return [];
+  const out = new Array(days).fill(0);
+  for (const c of cards) {
+    const t = Array.isArray(c.trend) ? c.trend : [];
+    for (let i = 0; i < days; i++) {
+      // i=0: 가장 오래된. i=days-1: 가장 최신.
+      const tIdxFromEnd = days - 1 - i; // 마지막에서 얼마나 떨어졌는지
+      const tIdx = t.length - 1 - tIdxFromEnd;
+      out[i] += tIdx >= 0 && tIdx < t.length ? t[tIdx] : c.latestPrice;
+    }
+  }
+  return out;
+}
 const ACTIVITY = [
   { icon: '🔥', c: 'var(--grn)', txt: '리자몽 EX 가격 ▲ +8%', time: '10분 전', pt: '+5P' },
   { icon: '📷', c: 'var(--blu)', txt: '카이바 슈라이 스캔 완료', time: '1시간 전', pt: '+10P' },
@@ -137,16 +153,8 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
     };
   });
 
-  const totalVal = owned.reduce((a, c) => a + c.price, 0);
-  const prevVal = Math.round(totalVal * 0.88);
-  const change = totalVal - prevVal;
-  const changePct = prevVal > 0 ? Math.round((change / prevVal) * 100) : 0;
   const graded = owned.filter((c) => c.grade !== null);
   const topCards = [...owned].sort((a, b) => b.price - a.price).slice(0, 3);
-
-  const rarDist = RAR_ORDER
-    .map((r) => ({ r, n: owned.filter((c) => c.rar === r).length }))
-    .filter((x) => x.n > 0);
 
   const gamesPresent = Array.from(new Set(owned.map((c) => c.game)));
   const gameDist = gamesPresent.map((g) => ({
@@ -155,8 +163,15 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
     val: owned.filter((c) => c.game === g).reduce((a, c) => a + c.price, 0),
   }));
 
-  const chartData = CHART_DATA[chartPeriod];
-  const maxC = Math.max(...chartData);
+  // 컬렉션 일별 종합 가격 (오래된→최신)
+  const periodDays = PERIOD_DAYS[chartPeriod];
+  const chartData = computeDailyTotals(cards, periodDays);
+  const totalVal = chartData[chartData.length - 1] ?? 0;
+  const firstVal = chartData[0] ?? totalVal;
+  const change = totalVal - firstVal;
+  const changePct = firstVal > 0 ? Math.round((change / firstVal) * 100) : 0;
+  const maxC = Math.max(...chartData, 1);
+  const minC = Math.min(...chartData);
 
   return (
     <>
@@ -209,35 +224,13 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
           </div>
         </div>
 
-        {/* Chart area */}
+        {/* Chart area — 컬렉션 일별 종합 가격 꺾은선 */}
         <div style={{ position: 'relative', marginBottom: 12 }}>
-          <div style={{ display: 'flex', gap: 3, height: 60, alignItems: 'flex-end', padding: '0 2px', borderBottom: '1px solid rgba(255,255,255,.1)' }}>
-            {chartData.map((v, i) => {
-              const h = Math.round((v / maxC) * 100);
-              const isLast = i === chartData.length - 1;
-              const isHigh = v === maxC;
-              return (
-                <div
-                  key={i}
-                  style={{
-                    flex: 1, height: `${h}%`, minHeight: 4, position: 'relative', transition: 'height .2s',
-                    background: isLast ? 'var(--gold)' : isHigh ? 'rgba(255,210,63,.6)' : 'rgba(255,210,63,.2)',
-                    boxShadow: isLast
-                      ? '-1px 0 0 rgba(255,255,255,.2),1px 0 0 rgba(255,255,255,.2),0 -1px 0 rgba(255,255,255,.2),inset 0 3px 0 var(--gold-lt),inset 0 -3px 0 var(--gold-dk)'
-                      : 'none',
-                  }}
-                >
-                  {isLast && (
-                    <div style={{
-                      position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
-                      width: 6, height: 6, background: 'var(--gold)',
-                      boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-                    }} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <PortfolioLineChart
+            data={chartData}
+            width={300}
+            height={64}
+          />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
             <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.25)', letterSpacing: .3 }}>
               {chartPeriod === '1W' ? '7일' : chartPeriod === '1M' ? '30일' : '90일'} 전
@@ -277,6 +270,38 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
               <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: c, letterSpacing: .3, marginBottom: 5 }}>{v}</div>
               <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'rgba(255,255,255,.3)', letterSpacing: .3 }}>{l}</div>
             </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ═══ QUICK ACTIONS — 포트폴리오 바로 아래 ═══ */}
+      <div className="sect">
+        <div className="sect-hd"><h2>바로가기</h2></div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+          {[
+            { icon: '📷', lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
+            { icon: '¥', lb: '가격탐색', bg: 'var(--gold)', href: '/cards/packs' },
+            { icon: '🏷', lb: '마켓', bg: 'var(--orn)', href: '/feed' },
+            { icon: '📦', lb: '컬렉션', bg: 'var(--blu)', href: '/my/cards' },
+          ].map(({ icon, lb, bg, href }) => (
+            <Link
+              key={lb}
+              href={href}
+              style={{
+                background: 'var(--white)', padding: '14px 4px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
+                cursor: 'pointer', textDecoration: 'none', color: 'inherit',
+                boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.14),5px 5px 0 var(--ink)',
+              }}
+            >
+              <div style={{
+                width: 42, height: 42, background: bg, display: 'grid', placeItems: 'center', fontSize: 20,
+                boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
+              }}>
+                {icon}
+              </div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: .3 }}>{lb}</div>
+            </Link>
           ))}
         </div>
       </div>
@@ -331,69 +356,6 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
           <Block label="그레이딩률" value={`${owned.length > 0 ? Math.round((graded.length / owned.length) * 100) : 0}%`} sub={`${graded.length} / ${owned.length}장`} color="var(--pur)" icon="🏆" />
           <Block label="최고가 카드" value={`₩${fmt(topCards[0]?.price || 0)}`} sub={topCards[0]?.name} color="var(--grn-dk)" icon="🎯" />
           <Block label="이번주 거래" value={`${TRADES_THIS_WEEK}건`} sub="+45P 포인트 획득" color="var(--blu)" icon="🤝" href="/feed" />
-        </div>
-      </div>
-
-      {/* ═══ RARITY DISTRIBUTION INFOGRAPHIC ═══ */}
-      <div className="sect">
-        <div className="sect-hd"><h2>희귀도 분포</h2></div>
-        <div style={{
-          background: 'var(--white)', padding: '16px',
-          boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.12),5px 5px 0 var(--ink)',
-        }}>
-          {/* Column chart */}
-          <div style={{
-            display: 'flex', gap: 8, height: 80, alignItems: 'flex-end', marginBottom: 10,
-            borderBottom: '3px solid var(--bg3)', paddingBottom: 6,
-          }}>
-            {rarDist.length === 0 ? (
-              <div style={{ flex: 1, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', textAlign: 'center', letterSpacing: .3 }}>
-                카드를 추가하면 분포가 표시돼요
-              </div>
-            ) : (
-              rarDist.map(({ r, n }) => {
-                const maxN = Math.max(...rarDist.map((x) => x.n));
-                const h = Math.round((n / maxN) * 100);
-                return (
-                  <div key={r} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
-                    <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: RAR_COLORS[r], letterSpacing: .3 }}>{n}</div>
-                    <div style={{
-                      width: '100%', height: `${h}%`, minHeight: 8, background: RAR_COLORS[r],
-                      boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.4),inset 0 -3px 0 rgba(0,0,0,.3)',
-                    }} />
-                    <span className={`rar rar-${r}`} style={{
-                      fontSize: 9, padding: '3px 5px',
-                      boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-                    }}>{r}</span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-          {/* Grading bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', width: 56, flexShrink: 0, letterSpacing: .3 }}>그레이딩</div>
-            <div style={{
-              flex: 1, height: 16, background: 'var(--bg3)', position: 'relative',
-              boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 2px 2px 0 rgba(0,0,0,.1)',
-            }}>
-              <div style={{
-                position: 'absolute', left: 0, top: 0, bottom: 0,
-                width: `${owned.length > 0 ? Math.round((graded.length / owned.length) * 100) : 0}%`,
-                background: 'linear-gradient(90deg,var(--gold-dk),var(--gold))',
-                boxShadow: 'inset 0 3px 0 var(--gold-lt),inset 0 -3px 0 var(--gold-dk)',
-              }} />
-              <div style={{
-                position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink)', letterSpacing: .3,
-              }}>
-                {owned.length > 0 ? Math.round((graded.length / owned.length) * 100) : 0}%
-              </div>
-            </div>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--gold-dk)', width: 36, textAlign: 'right', flexShrink: 0, letterSpacing: .3 }}>
-              {graded.length}건
-            </div>
-          </div>
         </div>
       </div>
 
@@ -459,64 +421,6 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {/* ═══ TOP 3 CARDS ═══ */}
-      {topCards.length > 0 && (
-        <div className="sect">
-          <div className="sect-hd">
-            <h2>TOP 3 고가 카드</h2>
-            <Link href="/my/cards" className="more">전체 ▶</Link>
-          </div>
-          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
-            {topCards.map((card, i) => (
-              <Link
-                key={card.id}
-                href={card.cardId ? `/cards/search?id=${encodeURIComponent(card.cardId)}` : '/my/cards'}
-                style={{
-                  flexShrink: 0, width: 108, cursor: 'pointer', textDecoration: 'none', color: 'inherit',
-                  boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.7),5px 5px 0 var(--ink)',
-                  borderTop: `4px solid ${i === 0 ? 'var(--gold)' : i === 1 ? '#C0C0C0' : '#CD7F32'}`,
-                }}
-              >
-                <div style={{
-                  height: 130,
-                  background: `linear-gradient(160deg,${GAME_COLORS[card.game] || '#1E293B'}55,var(--ink2))`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, position: 'relative',
-                }}>
-                  {card.emoji}
-                  <div style={{
-                    position: 'absolute', top: 6, left: 6,
-                    fontFamily: 'var(--f1)', fontSize: 11,
-                    background: i === 0 ? 'var(--gold)' : i === 1 ? '#C0C0C0' : '#CD7F32',
-                    color: 'var(--ink)', padding: '3px 6px',
-                    boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-                  }}>
-                    #{i + 1}
-                  </div>
-                  {card.grade !== null && (
-                    <div style={{
-                      position: 'absolute', bottom: 6, right: 6,
-                      fontFamily: 'var(--f1)', fontSize: 9, padding: '3px 5px',
-                      background: card.grade >= 10 ? '#FFD700' : card.grade >= 9 ? '#C0C0C0' : '#CD7F32',
-                      color: 'var(--ink)',
-                      boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-                    }}>
-                      {card.grade}
-                    </div>
-                  )}
-                </div>
-                <div style={{ padding: '8px 8px 10px', background: 'var(--white)', borderTop: '3px solid var(--ink)' }}>
-                  <div style={{
-                    fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: .2, marginBottom: 5,
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>{card.name}</div>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: .3 }}>₩{fmt(card.price)}</div>
-                </div>
-              </Link>
-            ))}
           </div>
         </div>
       )}
@@ -619,40 +523,6 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
           ))}
         </div>
       </div>
-
-      {/* ═══ QUICK ACTIONS ═══ */}
-      <div className="sect">
-        <div className="sect-hd"><h2>바로가기</h2></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
-          {[
-            { icon: '📷', lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
-            { icon: '¥', lb: '가격탐색', bg: 'var(--gold)', href: '/cards/packs' },
-            { icon: '🏷', lb: '마켓', bg: 'var(--orn)', href: '/feed' },
-            { icon: '📦', lb: '컬렉션', bg: 'var(--blu)', href: '/my/cards' },
-          ].map(({ icon, lb, bg, href }) => (
-            <Link
-              key={lb}
-              href={href}
-              style={{
-                background: 'var(--white)', padding: '14px 4px',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
-                cursor: 'pointer', textDecoration: 'none', color: 'inherit',
-                boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.14),5px 5px 0 var(--ink)',
-              }}
-            >
-              <div style={{
-                width: 42, height: 42, background: bg, display: 'grid', placeItems: 'center', fontSize: 20,
-                boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
-              }}>
-                {icon}
-              </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: .3 }}>{lb}</div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {heroBanners && heroBanners.length > 0 && <HeroSlider slides={heroBanners} />}
 
       <div className="bggap" />
     </>
@@ -784,5 +654,81 @@ function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * 포트폴리오 일별 종합 가격 꺾은선 차트.
+ * data: 오래된→최신 순. 점은 첫/마지막/최고/최저만 표시.
+ */
+function PortfolioLineChart({
+  data,
+  width = 300,
+  height = 64,
+}: {
+  data: number[];
+  width?: number;
+  height?: number;
+}) {
+  if (data.length < 2) {
+    return (
+      <div
+        style={{
+          width: '100%', height, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.35)', letterSpacing: 0.3,
+          borderBottom: '1px solid rgba(255,255,255,.1)',
+        }}
+      >
+        시세 이력이 부족합니다
+      </div>
+    );
+  }
+
+  const pad = 4;
+  const innerW = width - pad * 2;
+  const innerH = height - pad * 2;
+  const minV = Math.min(...data);
+  const maxV = Math.max(...data);
+  const range = maxV - minV || 1;
+  const stepX = innerW / (data.length - 1);
+  const xOf = (i: number) => pad + i * stepX;
+  const yOf = (v: number) => pad + innerH - ((v - minV) / range) * innerH;
+
+  const pointsAttr = data.map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
+  const areaPath = [
+    `M${pad},${pad + innerH}`,
+    ...data.map((v, i) => `L${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`),
+    `L${pad + innerW},${pad + innerH}`,
+    'Z',
+  ].join(' ');
+
+  const lastV = data[data.length - 1];
+  const lastX = xOf(data.length - 1);
+  const lastY = yOf(lastV);
+  const trendUp = lastV >= data[0];
+  const stroke = trendUp ? 'var(--gold)' : '#E63946';
+  const fill = trendUp ? 'rgba(255,210,63,0.22)' : 'rgba(230,57,70,0.18)';
+
+  return (
+    <svg
+      width="100%"
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      style={{ display: 'block', borderBottom: '1px solid rgba(255,255,255,.1)' }}
+      aria-label="포트폴리오 차트"
+    >
+      <path d={areaPath} fill={fill} stroke="none" />
+      <polyline
+        points={pointsAttr}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      {/* 최신 시점 강조 */}
+      <circle cx={lastX} cy={lastY} r={3.2} fill={stroke} stroke="var(--ink)" strokeWidth={1} />
+    </svg>
   );
 }

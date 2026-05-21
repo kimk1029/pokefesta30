@@ -1,6 +1,6 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
+import { signIn } from '@/lib/session';
 import { useState } from 'react';
 import { PixelBall } from './PixelBall';
 
@@ -22,7 +22,7 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
     setPending(provider);
     // signIn 이 브라우저를 OAuth URL 로 navigate 시킴 → 이 페이지는 곧 언마운트됨.
     // 혹시 오류로 언마운트 전에 돌아오면 pending 해제해주기 위해 timeout 만 보험.
-    signIn(provider, { callbackUrl }).catch(() => setPending(null));
+    signIn(provider, callbackUrl);
     setTimeout(() => setPending(null), 10_000);
   };
 

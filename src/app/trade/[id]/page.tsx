@@ -1,4 +1,3 @@
-import { getServerSession } from 'next-auth';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { BookmarkButton } from '@/components/BookmarkButton';
@@ -9,10 +8,9 @@ import { TradeStatusActions } from '@/components/TradeStatusActions';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { Tag } from '@/components/ui/Tag';
-import { authOptions } from '@/lib/auth';
+import { getServerUser, serverFetch } from '@/lib/apiServer';
 import { formatPrice } from '@/lib/numberFormat';
-import { prisma } from '@/lib/prisma';
-import { getTradeById } from '@/lib/queries';
+import type { TradeDetail } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,19 +22,22 @@ export default async function Page({ params }: Props) {
   const id = Number(params.id);
   if (isNaN(id)) notFound();
 
-  const [trade, session] = await Promise.all([getTradeById(id), getServerSession(authOptions)]);
+  const [tradeResp, user] = await Promise.all([
+    serverFetch<{ data: TradeDetail }>(`/api/trades/${id}`, { auth: false }),
+    getServerUser(),
+  ]);
+  const trade = tradeResp.data?.data;
   if (!trade) notFound();
 
-  const isAuthor = !!session?.user?.id && session.user.id === trade.authorId;
+  const isAuthor = !!user?.id && user.id === trade.authorId;
 
-  // "거래 완료" 버튼 활성화 조건: 누군가 1:1 쪽지를 보낸 적이 있어야 함
-  const hasInboundMessage =
-    isAuthor && trade.authorId
-      ? !!(await prisma.message.findFirst({
-          where: { tradeId: trade.id, receiverId: trade.authorId },
-          select: { id: true },
-        }))
-      : false;
+  let hasInboundMessage = false;
+  if (isAuthor) {
+    const r = await serverFetch<{ hasInboundMessage: boolean }>(
+      `/api/trades/${id}/inbound-check`,
+    );
+    hasInboundMessage = r.data?.hasInboundMessage ?? false;
+  }
 
   const STATUS_LABEL: Record<string, string> = {
     open: '거래 중',
@@ -83,11 +84,9 @@ export default async function Page({ params }: Props) {
           <BookmarkButton tradeId={trade.id} />
         </div>
 
-        {/* 사진 갤러리 */}
         {trade.images && trade.images.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 6, paddingTop: 4 }}>
             {trade.images.map((url, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
               <a
                 key={url}
                 href={url}

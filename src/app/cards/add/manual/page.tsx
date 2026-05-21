@@ -1,9 +1,8 @@
-import { getServerSession } from 'next-auth';
 import { LoginRequired } from '@/components/LoginRequired';
 import { ManualAddForm } from '@/components/ManualAddForm';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { authOptions } from '@/lib/auth';
+import { getServerUser } from '@/lib/apiServer';
 import { CARDS_CATALOG } from '@/lib/cardsCatalog';
 
 export const dynamic = 'force-dynamic';
@@ -14,8 +13,8 @@ export const metadata = {
 };
 
 export default async function Page() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const user = await getServerUser();
+  if (!user?.id) {
     return (
       <LoginRequired
         title="카드 추가"

@@ -3,9 +3,9 @@ import { CardPriceChart } from '@/components/CardPriceChart';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { getCardHistory, getOrRefreshCardPrice, type PriceCurrent, type HistoryPoint } from '@/lib/cardPrices';
+import { type PriceCurrent, type HistoryPoint } from '@/lib/cardPrices';
 import { CARDS_CATALOG, snkrdunkQueryFor, snkrdunkUrl, type CardGrade } from '@/lib/cardsCatalog';
-import { isEbayConfigured } from '@/lib/ebay';
+import { serverFetch } from '@/lib/apiServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,15 +35,16 @@ interface CardRow {
 export default async function Page() {
   const rows: CardRow[] = await Promise.all(
     CARDS_CATALOG.map(async (c) => {
-      const [price, history] = await Promise.all([
-        getOrRefreshCardPrice(c.id, c.ebayQuery),
-        getCardHistory(c.id, 30),
+      const [priceResp, historyResp] = await Promise.all([
+        serverFetch<{ data: PriceCurrent | null }>(`/api/cards/${encodeURIComponent(c.id)}/price`, { auth: false }),
+        serverFetch<{ data: HistoryPoint[] }>(`/api/cards/${encodeURIComponent(c.id)}/history?days=30`, { auth: false }),
       ]);
-      return { ...c, price, history };
+      return { ...c, price: priceResp.data?.data ?? null, history: historyResp.data?.data ?? [] };
     }),
   );
 
-  const configured = isEbayConfigured();
+  const statusResp = await serverFetch<{ configured: boolean }>('/api/cards/ebay-status', { auth: false });
+  const configured = statusResp.data?.configured ?? false;
   const totalSamples = rows.reduce((s, r) => s + (r.price?.sampleN ?? 0), 0);
 
   return (

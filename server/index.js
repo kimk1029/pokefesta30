@@ -1,0 +1,690 @@
+import 'dotenv/config';
+// WSL2 / some Linux environments route IPv6 to a black hole. Node's global
+// fetch prefers IPv6 and times out (e.g. against api.tcgdex.net) — force the
+// IPv4 family so outbound HTTPS works regardless of host networking quirks.
+import { Agent, setGlobalDispatcher } from 'undici';
+setGlobalDispatcher(new Agent({ connect: { family: 4 } }));
+
+import express from 'express';
+import multer from 'multer';
+import cookieParser from 'cookie-parser';
+import { writeFile, mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+// Tesseract path removed — only `shutdown` is kept to terminate any worker
+// pre-loaded by older code. parseBottomLeft is still used by paddle.js.
+import { shutdown } from './lib/ocr.js';
+import { matchCandidates } from './lib/match.js';
+import { visionExtract, visionAvailable } from './lib/vision.js';
+import { paddleScan, paddleHealthcheck } from './lib/paddle.js';
+import { lookupCard, searchTcgdexByName } from './lib/lookup.js';
+import { matchSnkrdunkForCard } from './lib/snkrdunkMatch.js';
+import { buildCors } from './middleware/cors.js';
+import authRouter from './routes/auth.js';
+import cardPacksRouter from './routes/cardPacks.ts';
+import cardsRouter from './routes/cards.ts';
+import snkrdunkRouter from './routes/snkrdunk.ts';
+import feedsRouter from './routes/feeds.ts';
+import tradesRouter from './routes/trades.ts';
+import meRouter from './routes/me.ts';
+import messagesRouter from './routes/messages.ts';
+import bookmarksRouter from './routes/bookmarks.ts';
+import oripaRouter from './routes/oripa.ts';
+import metricsRouter from './routes/metrics.ts';
+import uploadRouter from './routes/upload.ts';
+import adminRouter from './routes/admin.ts';
+import bannersRouter from './routes/banners.ts';
+import placesRouter from './routes/places.ts';
+import usersRouter from './routes/users.ts';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DEBUG_DIR = join(__dirname, 'debug');
+await mkdir(DEBUG_DIR, { recursive: true }).catch(() => {});
+
+const PORT = Number(process.env.PORT ?? 3030);
+const app = express();
+app.set('trust proxy', 1);
+app.use(buildCors());
+app.use(cookieParser());
+app.use(express.json({ limit: '20mb' }));
+app.use('/auth', authRouter);
+app.use('/api/card-packs', cardPacksRouter);
+app.use('/api/cards', cardsRouter);
+app.use('/api/snkrdunk', snkrdunkRouter);
+app.use('/api/feeds', feedsRouter);
+app.use('/api/trades', tradesRouter);
+app.use('/api/me', meRouter);
+app.use('/api/messages', messagesRouter);
+app.use('/api/bookmarks', bookmarksRouter);
+app.use('/api/oripa', oripaRouter);
+app.use('/api/metrics', metricsRouter);
+app.use('/api/upload', uploadRouter);
+app.use('/api/admin', adminRouter);
+app.use('/api/banners', bannersRouter);
+app.use('/api/places', placesRouter);
+app.use('/api/users', usersRouter);
+app.use(express.static(join(__dirname, 'public')));
+// Expose /debug/* for inspecting last-scan crops in the browser.
+app.use('/debug', express.static(DEBUG_DIR));
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
+
+app.get('/health', async (_req, res) => {
+  const paddleUp = await paddleHealthcheck();
+  // - tesseract: always on (built-in)
+  // - paddle: free Korean-tuned OCR via Python sidecar (port 3002)
+  // - visionEnabled: GPT-4o-mini opt-in path
+  res.json({
+    ok: true,
+    tesseract: true,
+    paddle: paddleUp,
+    visionEnabled: visionAvailable(),
+  });
+});
+
+app.get('/last', (_req, res) => {
+  // Quick browser view of the most recent scan's crops + OCR text.
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.end(`<!doctype html><html><body style="font-family:system-ui;padding:16px">
+    <h2>Last scan debug</h2>
+    <p>${new Date().toISOString()}</p>
+    <h3>Original</h3><img src="/debug/last-orig.jpg" style="max-width:480px;border:2px solid #000">
+    <h3>Card crop (detected)</h3><img src="/debug/last-card.jpg" style="max-width:480px;border:2px solid #000">
+    <h3>Bottom-left ROI (binarized — Tesseract input)</h3><img src="/debug/last-bl.jpg" style="max-width:480px;border:2px solid #000;background:#fff">
+    <h3>Top-name ROI (Tesseract input)</h3><img src="/debug/last-tn.jpg" style="max-width:480px;border:2px solid #000;background:#fff">
+    <h3>OCR raw text</h3><pre id="t" style="background:#0f172a;color:#fff;padding:12px;white-space:pre-wrap">loading...</pre>
+    <script>fetch('/debug/last.json').then(r=>r.json()).then(j=>document.getElementById('t').textContent=JSON.stringify(j,null,2))</script>
+  </body></html>`);
+});
+
+/**
+ * Card-info lookup. Once /scan returns the 3 ID fields (setCode + number +
+ * total + rarity), the mobile client (or any other consumer) calls here to
+ * fetch enriched data — image, name, prices — from local DB or pokemontcg.io.
+ *
+ * GET /api/cards/lookup?setCode=sv6&number=71&total=101&rarity=U
+ */
+app.get('/api/cards/lookup', async (req, res) => {
+  const setCode = String(req.query.setCode ?? req.query.set ?? '');
+  const cardNumber = String(req.query.number ?? req.query.cardNumber ?? '');
+  const totalNumber = String(req.query.total ?? req.query.totalNumber ?? '');
+  const rarity = String(req.query.rarity ?? '');
+  const name = String(req.query.name ?? '');
+  const language = String(req.query.language ?? req.query.lang ?? '');
+
+  if (!setCode || !cardNumber) {
+    return res.status(400).json({
+      ok: false,
+      message: 'setCode와 number는 필수입니다.',
+    });
+  }
+
+  const result = await lookupCard({ setCode, cardNumber, totalNumber, rarity, name, language });
+  res.json({ ok: true, ...result });
+});
+
+app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
+  const startedAt = Date.now();
+  const file = req.file;
+  if (!file) return res.status(400).json({ success: false, candidates: [], needsUserSelection: false, message: 'image 파일이 필요합니다.' });
+
+  // Language hint from the registration UI: 'ko' | 'jp' | 'en'.
+  const langHint = (() => {
+    const v = String(req.body?.language ?? '').toLowerCase();
+    return v === 'ko' || v === 'jp' || v === 'en' ? v : '';
+  })();
+  let extracted = null;
+  let usedVision = false;
+  let usedPaddle = false;
+  // Tesseract path was removed — AI is the only OCR engine. We keep these
+  // names for backward-compatible debug/log shape but they stay empty.
+  const blText = '';
+  const nameText = '';
+  const dims = null;
+  const roiResults = [];
+  const bestRoi = null;
+
+  // AI-only OCR. Vision (paid GPT) takes priority when configured, then
+  // PaddleOCR (free, server-side). If both fail we return an error rather
+  // than falling back to Tesseract — Tesseract can't read modern stylized
+  // Pokémon cards anyway.
+  if (visionAvailable()) {
+    try {
+      extracted = await visionExtract(file.buffer);
+      if (extracted) usedVision = true;
+    } catch (e) {
+      console.warn('vision path failed:', e?.message ?? e);
+    }
+  }
+  if (!extracted) {
+    try {
+      const paddleExtracted = await paddleScan(file.buffer, langHint);
+      if (paddleExtracted && (paddleExtracted.name || paddleExtracted.cardNumber || paddleExtracted.setCode)) {
+        extracted = paddleExtracted;
+        usedPaddle = true;
+      }
+    } catch (e) {
+      console.warn('paddle path failed:', e?.message ?? e);
+    }
+  }
+  if (!extracted) {
+    return res.status(503).json({
+      success: false,
+      candidates: [],
+      needsUserSelection: false,
+      message: 'AI OCR 서버를 사용할 수 없습니다. 잠시 후 다시 시도해주세요.',
+    });
+  }
+  // Save the original for the /last debug view (helpful even on AI path).
+  await writeFile(join(DEBUG_DIR, 'last-orig.jpg'), file.buffer).catch(() => {});
+
+  // PROMO normalization — Vision / Paddle sometimes emits totalNumber="M-P"
+  // or setCode="020/M-P" because promo cards use a literal suffix (M-P,
+  // L-P, S-P, SV-P) instead of a numeric total. Re-route into setCode and
+  // clear totalNumber so downstream lookups don't search by a bogus total.
+  normalizePromoFields(extracted);
+
+  // Set-code inference: the white-on-black set badge is too small for
+  // both PaddleOCR and Tesseract to read reliably. When OCR didn't return
+  // a set code but we have a confident totalNumber, look up the unique set
+  // for that (language, total) pair.
+  if (extracted && !extracted.setCode && extracted.totalNumber) {
+    const lang = extracted.language || langHint || '';
+    const totalNum = Number(String(extracted.totalNumber).replace(/^0+(?=\d)/, ''));
+    const inferred = lang ? TOTAL_TO_SET_BY_LANG[lang]?.[totalNum] : undefined;
+    if (inferred) {
+      extracted.setCode = inferred;
+      extracted.setInferred = true;
+    }
+  }
+  // Fill in totalNumber from SET_TOTAL_MAP only when the OCR missed it.
+  // Previously this UNCONDITIONALLY overwrote, which corrupted accurate
+  // vision reads (e.g. AR cards numbered 112/106 in sv8 got rewritten to
+  // 112/101 because of a stale total in the map, then lookup 404'd).
+  if (extracted?.setCode && SET_TOTAL_MAP[extracted.setCode] && !extracted.totalNumber) {
+    extracted.totalNumber = String(SET_TOTAL_MAP[extracted.setCode]).padStart(3, '0');
+  }
+
+  const { candidates, confidence } = matchCandidates({
+    cardNumber: extracted.cardNumber,
+    totalNumber: extracted.totalNumber,
+    setCode: extracted.setCode,
+    rarity: extracted.rarity,
+    name: extracted.name,
+  });
+
+  const rawText = `${nameText ? nameText.trim() + ' | ' : ''}${blText.trim()}`.trim() ||
+    `${extracted.name} ${extracted.cardNumber}/${extracted.totalNumber} ${extracted.setCode} ${extracted.rarity}`.trim();
+
+  // Build an initial candidate list from the local DB match (top scoring rows
+  // that hit on setCode + cardNumber). These come with Korean names and KRW
+  // marketPrice; we'll merge in TCGdex art + cardmarket pricing below.
+  /** @type {Array<any>} */
+  let responseCandidates = candidates.map((c) => ({
+    id: c.id,
+    source: 'internal',
+    name: c.name,
+    setName: c.setName,
+    setCode: c.setCode,
+    number: `${c.number}/${c.totalNumber}`,
+    rarity: c.rarity,
+    language: c.language,
+    price: { marketPrice: c.marketPrice, currency: 'KRW', source: 'internal', updatedAt: new Date().toISOString() },
+  }));
+
+  // Server-side TCGdex enrichment — the mobile UI requires image + price for
+  // every candidate it shows. Doing the lookup here (in parallel with the
+  // name search) means the mobile only has to make a single /scan call and
+  // gets ready-to-render candidates back.
+  const enrichTasks = [];
+  // (a) Exact match — TCGdex `setCode-cardNumber`. Highest-priority candidate.
+  if (extracted?.setCode && extracted?.cardNumber) {
+    enrichTasks.push(
+      lookupCard({
+        setCode: extracted.setCode,
+        cardNumber: extracted.cardNumber,
+        totalNumber: extracted.totalNumber,
+        rarity: extracted.rarity,
+        name: extracted.name,
+        language: extracted.language,
+      }).then((r) => (r.found && r.card ? [tcgdexCardToCandidate(r.card, 'tcgdex-exact')] : [])),
+    );
+  }
+  // (b) Name search — when the exact match misses (typical for AR/SAR cards
+  // numbered beyond a set's base count), search TCGdex by JA Pokémon name.
+  // Returns siblings of the same Pokémon (same Pokémon, different prints),
+  // each with image + EUR pricing — gives the user real alternatives instead
+  // of a dead-end "시세 미확인".
+  if (extracted?.nameJa) {
+    enrichTasks.push(
+      searchTcgdexByName(extracted.nameJa, extracted.setCode, 5).then((cards) =>
+        cards.map((c) => tcgdexCardToCandidate(c, 'tcgdex-search')),
+      ),
+    );
+  }
+  const enrichedArrays = await Promise.all(enrichTasks);
+  const enriched = enrichedArrays.flat();
+
+  // Merge: local DB candidates first (Korean names + curated KRW prices),
+  // then TCGdex exact match, then TCGdex name-search siblings. De-dupe on
+  // composite key (setCode-number) — local + tcgdex-exact may collide and
+  // we want the merged shape with both Korean name and TCGdex image.
+  const byKey = new Map();
+  const keyOf = (c) => `${(c.setCode ?? '').toLowerCase()}-${pad(String(c.number ?? '').split('/')[0] ?? '')}`;
+  for (const c of responseCandidates) byKey.set(keyOf(c), c);
+  for (const e of enriched) {
+    const k = keyOf(e);
+    const existing = byKey.get(k);
+    if (existing) {
+      // Local DB wins on Korean name + KRW price; TCGdex wins on image + EUR
+      // pricing summary. Merge.
+      byKey.set(k, {
+        ...e,
+        ...existing,
+        imageSmall: e.imageSmall ?? existing.imageSmall ?? null,
+        imageLarge: e.imageLarge ?? existing.imageLarge ?? null,
+        priceSummary: existing.priceSummary ?? e.priceSummary ?? null,
+        localName: existing.name && /[가-힣]/.test(existing.name) ? existing.name : e.localName,
+      });
+    } else {
+      byKey.set(k, e);
+    }
+  }
+  responseCandidates = Array.from(byKey.values());
+
+  // Final fallback: if no API hit at all but OCR has signal, surface what we
+  // read so the user can confirm a manual save. No image, no price — the UI
+  // shows "시세 미확인" + emoji placeholder.
+  const hasSignal = Boolean(extracted.cardNumber || extracted.setCode);
+  if (responseCandidates.length === 0 && hasSignal) {
+    const cleanName = sanitizeName(extracted.name);
+    responseCandidates = [{
+      id: `extracted-${Date.now()}`,
+      source: 'unknown',
+      name: cleanName || '인식된 카드 (API 미등록)',
+      setName: extracted.setCode ? `세트 ${extracted.setCode}` : '세트 정보 없음',
+      setCode: extracted.setCode || '',
+      number: extracted.cardNumber
+        ? `${pad(extracted.cardNumber)}${extracted.totalNumber ? '/' + pad(extracted.totalNumber) : ''}`
+        : '',
+      rarity: extracted.rarity || '',
+      language: extracted.language ?? 'ko',
+      price: undefined,
+    }];
+  }
+
+  // Snkrdunk lookup — use OCR'd cardNumber/totalNumber/setCode (+ optional
+  // JP name) to find the matching apparel. Successful matches are cached on
+  // disk, so repeat scans skip the search and hit the JSON-only fast path.
+  let snkrdunk = null;
+  let snkrdunkTrace = null;
+  try {
+    const raw = await matchSnkrdunkForCard({
+      cardNumber: extracted.cardNumber,
+      totalNumber: extracted.totalNumber,
+      setCode: extracted.setCode,
+      nameJa: extracted.nameJa,
+      name: extracted.name,
+    });
+    if (raw?.miss) {
+      snkrdunkTrace = raw.trace;
+    } else if (raw) {
+      snkrdunk = raw;
+      snkrdunkTrace = raw.trace;
+    }
+  } catch (e) {
+    console.warn('[snkrdunk] match failed:', e?.message ?? e);
+  }
+
+  if (snkrdunk) {
+    // Build a dedicated snkrdunk-match candidate at the top of the list,
+    // sourced entirely from snkrdunk (image, JPY price, JP localized name).
+    // This stops the previous "smear over all candidates" behavior that
+    // made unrelated TCGdex siblings look like the scanned card.
+    const snkrCandidate = {
+      id: `snkr-${snkrdunk.apparelId}`,
+      source: 'snkrdunk-match',
+      name: snkrdunk.localizedName || extracted.name || extracted.nameJa || 'snkrdunk 카드',
+      localName: null,
+      nameJa: extracted.nameJa ?? null,
+      setName: extracted.setCode ? `세트 ${extracted.setCode.toUpperCase()}` : '',
+      setCode: extracted.setCode ?? '',
+      number: extracted.cardNumber
+        ? (extracted.totalNumber ? `${pad(extracted.cardNumber)}/${extracted.totalNumber}` : pad(extracted.cardNumber))
+        : '',
+      rarity: extracted.rarity ?? 'PROMO',
+      language: 'ja',
+      imageSmall: snkrdunk.imageUrl ?? null,
+      imageLarge: snkrdunk.imageUrl ?? null,
+      priceSummary: typeof snkrdunk.priceJpy === 'number' && snkrdunk.priceJpy > 0
+        ? {
+            source: 'snkrdunk',
+            value: snkrdunk.priceJpy,
+            currency: 'JPY',
+            low: null,
+            trend: null,
+            byRegion: {
+              jpy: snkrdunk.priceJpy,
+              krw: null,
+              eur: null,
+              usd: null,
+            },
+          }
+        : null,
+      price: typeof snkrdunk.priceJpy === 'number' && snkrdunk.priceJpy > 0
+        ? {
+            marketPrice: snkrdunk.priceJpy,
+            currency: 'JPY',
+            source: 'snkrdunk',
+            updatedAt: new Date().toISOString(),
+          }
+        : undefined,
+      snkrdunk,
+    };
+
+    // Drop other candidates whose setCode-cardNumber clearly doesn't match
+    // the OCR'd card code — they're TCGdex name-search siblings (e.g. 5
+    // unrelated Pikachus from sv4a when the scanned card is M-P 020). If
+    // we kept them they'd render with their own art but next to a confident
+    // snkrdunk hit, the user just gets confused.
+    if (extracted.cardNumber) {
+      const ocCardNum = pad(extracted.cardNumber);
+      const ocSet = (extracted.setCode || '').toLowerCase();
+      responseCandidates = responseCandidates.filter((c) => {
+        const candNum = pad(String(c.number ?? '').split('/')[0] ?? '');
+        const candSet = String(c.setCode ?? '').toLowerCase();
+        // Keep only candidates that align with the OCR'd card code.
+        if (!candNum) return false;
+        if (candNum !== ocCardNum) return false;
+        if (ocSet && candSet && candSet !== ocSet) return false;
+        return true;
+      });
+    } else {
+      responseCandidates = [];
+    }
+
+    // snkrdunk match always leads the list.
+    responseCandidates = [snkrCandidate, ...responseCandidates];
+  }
+
+  const needsUserSelection = responseCandidates.length > 1;
+  const success = responseCandidates.length > 0;
+
+  // Persist a debug snapshot
+  const debug = {
+    at: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
+    vision: usedVision,
+    paddle: usedPaddle,
+    dims,
+    blText,
+    nameText,
+    parsed: extracted,
+    matched: responseCandidates,
+  };
+
+  let snkrLog = '';
+  if (snkrdunk) {
+    const pick = snkrdunkTrace?.pick;
+    const qLabel = pick?.q ? ` q="${pick.q}"` : '';
+    const scoreLabel = pick?.score != null ? ` score=${pick.score}` : '';
+    snkrLog = ` snkr=${snkrdunk.apparelId}${snkrdunk.cacheHit ? '(cache)' : ''}${qLabel}${scoreLabel}${snkrdunk.priceJpy ? ` ¥${snkrdunk.priceJpy}` : ''}`;
+  } else if (snkrdunkTrace) {
+    const tried = snkrdunkTrace.queries.map((q) => q.q).join(' | ');
+    snkrLog = ` snkr=miss tries=[${tried}]`;
+  }
+  console.log(
+    `[scan] ${debug.durationMs}ms lang=${langHint || '-'} vision=${usedVision} paddle=${usedPaddle} num=${extracted.cardNumber} set=${extracted.setCode} rar=${extracted.rarity} name="${(extracted.name||'').slice(0,20)}" → ${responseCandidates.length} cand${snkrLog}`,
+  );
+  debug.snkrdunk = snkrdunk;
+  debug.snkrdunkTrace = snkrdunkTrace;
+
+  debug.roi = roiResults.map((r) => ({ name: r.name, score: r.score, text: r.text, parsed: r.parsed }));
+  debug.bestRoi = bestRoi?.name ?? null;
+  await writeFile(join(DEBUG_DIR, 'last.json'), JSON.stringify(debug, null, 2)).catch(() => {});
+
+  res.json({
+    success,
+    scanId: `s-${Date.now()}`,
+    confidence,
+    usedAi: usedVision || usedPaddle,
+    usedPaddle,
+    usedVision,
+    extracted: {
+      rawText,
+      cardNumber: extracted.cardNumber,
+      totalNumber: extracted.totalNumber,
+      setCode: extracted.setCode,
+      rarity: extracted.rarity,
+      language: extracted.language,
+      name: extracted.name,
+      nameJa: extracted.nameJa,
+    },
+    candidates: responseCandidates,
+    snkrdunk: snkrdunk ?? null,
+    needsUserSelection,
+    message: !success ? '좌측 하단의 카드번호가 잘 보이게 다시 촬영해주세요.' : undefined,
+  });
+});
+
+// Centralized error handler — catches throws from any route handler so a single
+// failing endpoint can't crash the whole process. Keep this LAST.
+app.use((err, _req, res, _next) => {
+  console.error('[express.error]', err);
+  if (res.headersSent) return;
+  res.status(500).json({ error: 'internal' });
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`OCR server listening http://localhost:${PORT}  vision=${visionAvailable() ? 'on' : 'off'}`);
+});
+
+const exit = async () => {
+  console.log('\nShutting down...');
+  await shutdown().catch(() => {});
+  server.close(() => process.exit(0));
+};
+process.on('SIGINT', exit);
+process.on('SIGTERM', exit);
+
+// Fallback for when OCR can't read totalNumber (rare since the two-image
+// vision call). Values verified against TCGdex `cardCount.official`.
+// Outdated entries here used to corrupt correctly-read totals — see the
+// guard above. Add new sets as they land.
+const SET_TOTAL_MAP = {
+  // Mega Evolution era (KR/JP 2025+)
+  m1: 63, m1l: 63, m1s: 63,
+  m2: 102, m2a: 71,
+  m3: 174, m4: 80,
+  // Scarlet & Violet
+  sv1s: 78, sv1v: 78, sv1a: 73,
+  sv2d: 71, sv2p: 71, sv2a: 165,
+  sv3: 108, sv3a: 71,
+  sv4k: 66, sv4m: 66, sv4a: 230,
+  sv5k: 71, sv5m: 71, sv5a: 66,
+  sv6: 101, sv6a: 73,
+  sv7: 102, sv7a: 70,
+  sv8: 106, sv8a: 187,
+  sv9: 100, sv9a: 71,
+  sv10: 98,
+  sv11b: 174, sv11w: 174,
+  // Sword & Shield
+  s10b: 71, s11: 100, s11a: 68, s12: 98, s12a: 211, sm12: 184,
+};
+
+// Reverse lookup by language → total → set code. The white-on-black set badge
+// is too small for OCR to read reliably, so when totalNumber is detected we
+// infer the set code from this map. Per-language because Korean / Japanese
+// / English sets share total values across regions.
+//
+// Only include totals UNIQUE within a language. If two sets share a total,
+// leave both out — better to return no setCode than the wrong one. Order
+// the dictionary so newer sets win when extending.
+const TOTAL_TO_SET_BY_LANG = {
+  ko: {
+    63: 'm1l',
+    // 71 is ambiguous (m2l vs sv3a vs s10b) — not inferred
+    78: 'sv5a',
+    98: 'sv7a-or-s12', // ambiguous - skip
+    100: 's11',         // also sv5 — keep most recent Korean release
+    101: 'sv6',
+    102: 'sv4',
+    105: 'sv7',
+    108: 'sv3',
+    165: 'sv2a',        // also sv1, sv2 — newest wins
+    230: 'sv4a',
+  },
+  jp: {
+    63: 'm1l',
+    71: 'sv3a',
+    100: 'sv5',
+    101: 'sv6',
+    102: 'sv4',
+    105: 'sv7',
+    108: 'sv3',
+    165: 'sv2a',
+    230: 'sv4a',
+  },
+};
+// Strip ambiguity sentinels so lookups don't return them.
+for (const lang of Object.keys(TOTAL_TO_SET_BY_LANG)) {
+  for (const k of Object.keys(TOTAL_TO_SET_BY_LANG[lang])) {
+    if (TOTAL_TO_SET_BY_LANG[lang][k].includes('-or-')) delete TOTAL_TO_SET_BY_LANG[lang][k];
+  }
+}
+
+function looksLikeKorean(s) {
+  if (!s) return false;
+  const total = s.replace(/\s/g, '').length;
+  if (total < 2) return false;
+  const hangul = (s.match(/[가-힣]/g) ?? []).length;
+  return hangul / total > 0.4;
+}
+
+function looksLikeJapanese(s) {
+  if (!s) return false;
+  const total = s.replace(/\s/g, '').length;
+  if (total < 2) return false;
+  const jp = (s.match(/[\u3040-\u30ff\u3400-\u9fff]/g) ?? []).length;
+  return jp / total > 0.35;
+}
+
+function bestNameCandidate(text, langHint = '') {
+  if (!text) return '';
+  const candidates = text
+    .split(/[\/\n]/)
+    .map((s) => sanitizeName(s, langHint))
+    .filter(Boolean)
+    .sort((a, b) => nameScore(b, langHint) - nameScore(a, langHint));
+  return candidates[0] ?? '';
+}
+
+function nameScore(s, langHint = '') {
+  let score = 0;
+  const letters = (s.match(/[가-힣A-Za-z\u3040-\u30ff\u3400-\u9fff]/g) ?? []).length;
+  const noise = (s.match(/[^가-힣A-Za-z0-9\u3040-\u30ff\u3400-\u9fff .&'’-]/g) ?? []).length;
+  if (looksLikeKorean(s)) score += langHint === 'ko' ? 60 : 30;
+  if (looksLikeJapanese(s)) score += langHint === 'jp' ? 60 : 30;
+  if (/^[A-Za-z][A-Za-z0-9 .&'’-]{2,}$/.test(s)) score += langHint === 'en' ? 50 : 18;
+  score += Math.min(letters, 18);
+  score -= noise * 8;
+  score -= Math.max(0, s.length - 32);
+  return score;
+}
+
+/** Trim OCR card-name noise. Returns '' for gibberish, otherwise a clean candidate.
+ *  When langHint is set we only emit tokens in that script, so an English name
+ *  like "Charizard ex" isn't dropped because no Korean tokens existed. */
+function sanitizeName(s, langHint = '') {
+  if (!s) return '';
+  const tokens = s
+    .replace(/[^가-힣A-Za-z0-9\u3040-\u30ff\u3400-\u9fff\s.&'’-]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 2);
+
+  if (langHint === 'ko') {
+    return tokens.find((t) => /^[가-힣]{2,}$/.test(t)) ?? '';
+  }
+  if (langHint === 'jp') {
+    return tokens.find((t) => /^[\u3040-\u30ff\u3400-\u9fff]{2,}$/.test(t)) ?? '';
+  }
+  if (langHint === 'en') {
+    const englishRun = tokens
+      .filter((t) => /^[A-Za-z][A-Za-z0-9.&'’-]*$/.test(t))
+      .slice(0, 4)
+      .join(' ');
+    return englishRun || '';
+  }
+  const hangulRun = tokens.find((t) => /^[가-힣]{2,}$/.test(t));
+  if (hangulRun) return hangulRun;
+  const japanese = tokens.find((t) => /^[\u3040-\u30ff\u3400-\u9fff]{2,}$/.test(t));
+  if (japanese) return japanese;
+  const english = tokens.find((t) => /^[A-Za-z][A-Za-z0-9 .&'’-]{2,}$/.test(t));
+  if (english) return english;
+  return '';
+}
+
+function pad(n) {
+  const s = String(n).replace(/^0+/, '');
+  return s.length >= 3 ? s : s.padStart(3, '0');
+}
+
+/** PROMO suffix re-routing. Vision/Paddle often emits
+ *  - totalNumber="M-P" / "L-P" / "SV-P" (literal promo suffix, not a count)
+ *  - setCode="020/M-P"   (cardNumber bled into setCode because of the slash)
+ *  Push these into setCode and clear totalNumber so downstream lookups
+ *  don't search by the bogus values. Force rarity=PROMO when seen. */
+function normalizePromoFields(ex) {
+  if (!ex) return;
+  const promoTotalRe = /^([a-z]+)-?p$/i;
+  // Case 1: totalNumber is "M-P" / "L-P" / "S-P" / "SV-P"
+  if (ex.totalNumber && promoTotalRe.test(String(ex.totalNumber).trim())) {
+    const match = String(ex.totalNumber).trim().match(promoTotalRe);
+    ex.setCode = (match[1] + '-p').toLowerCase();
+    ex.totalNumber = '';
+    ex.rarity = ex.rarity || 'PROMO';
+    return;
+  }
+  // Case 2: setCode was returned as "020/m-p" (cardNumber bled in)
+  if (ex.setCode && String(ex.setCode).includes('/')) {
+    const parts = String(ex.setCode).split('/');
+    if (parts.length === 2 && promoTotalRe.test(parts[1].trim())) {
+      const match = parts[1].trim().match(promoTotalRe);
+      ex.setCode = (match[1] + '-p').toLowerCase();
+      if (!ex.cardNumber) ex.cardNumber = parts[0];
+      ex.totalNumber = '';
+      ex.rarity = ex.rarity || 'PROMO';
+    }
+  }
+}
+
+/**
+ * Convert a TCGdex normalized card (from lookup.js `normalizeCard`) into the
+ * `ScanCandidate` shape the mobile UI consumes. Pulls image + pricing
+ * directly off the API response — no FX guessing in this layer.
+ */
+function tcgdexCardToCandidate(card, source) {
+  return {
+    id: card.id,
+    source,
+    name: card.localName ?? card.name,
+    localName: card.localName ?? null,
+    nameJa: card.name,
+    setName: card.setName,
+    setCode: (card.setCode ?? '').toLowerCase(),
+    number: card.totalNumber ? `${card.number}/${card.totalNumber}` : String(card.number ?? ''),
+    rarity: card.rarity,
+    language: card.sourceLang ?? 'ja',
+    imageSmall: card.imageSmall ?? null,
+    imageLarge: card.imageLarge ?? null,
+    priceSummary: card.priceSummary ?? null,
+    price: card.priceSummary?.byRegion
+      ? {
+          marketPrice: card.priceSummary.byRegion.jpy ?? card.priceSummary.byRegion.krw ?? null,
+          currency: 'JPY',
+          source: card.priceSummary.source,
+          updatedAt: new Date().toISOString(),
+        }
+      : undefined,
+  };
+}

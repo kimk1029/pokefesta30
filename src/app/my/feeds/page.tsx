@@ -1,18 +1,18 @@
-import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { FeedRow } from '@/components/FeedRow';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { authOptions } from '@/lib/auth';
-import { getMyFeeds } from '@/lib/queries';
+import { getServerUser, serverFetch } from '@/lib/apiServer';
+import type { FeedPost } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) redirect('/my');
+  const user = await getServerUser();
+  if (!user?.id) redirect('/my');
 
-  const feeds = await getMyFeeds(session.user.id);
+  const r = await serverFetch<{ data: FeedPost[] }>('/api/me/feeds');
+  const feeds = r.data?.data ?? [];
 
   return (
     <>

@@ -433,3 +433,67 @@ export const CARD_PACKS: CardPackMeta[] = [
 export function getCardPack(code: string): CardPackMeta | undefined {
   return CARD_PACKS.find((p) => p.code === code);
 }
+
+/**
+ * 카드 팩 코드 enum.
+ * `CARD_PACKS` 의 `code` 와 1:1 대응. UI 코드가 magic string ('sv9') 대신
+ * `CardPackCode.SV9` 를 쓰면 오타/누락 컴파일러가 잡아준다.
+ *
+ * 키는 대문자 + 점 제거 (e.g. 'sv11w' → SV11W, 'm1l' → M1L).
+ */
+export enum CardPackCode {
+  M4 = 'm4',
+  M3 = 'm3',
+  M2A = 'm2a',
+  M2 = 'm2',
+  M1S = 'm1s',
+  M1L = 'm1l',
+  SV11W = 'sv11w',
+  SV11B = 'sv11b',
+  SV10 = 'sv10',
+  SV9A = 'sv9a',
+  SV9 = 'sv9',
+  SV8A = 'sv8a',
+  SV8 = 'sv8',
+  SV7A = 'sv7a',
+  SV7 = 'sv7',
+  SV6A = 'sv6a',
+  SV6 = 'sv6',
+  SV5A = 'sv5a',
+  SV5M = 'sv5m',
+  SV5K = 'sv5k',
+  SV4A = 'sv4a',
+  SV4M = 'sv4m',
+  SV4K = 'sv4k',
+  SV3A = 'sv3a',
+  SV3 = 'sv3',
+  SV2A = 'sv2a',
+  SV2D = 'sv2d',
+  SV2P = 'sv2p',
+  SV1A = 'sv1a',
+  SV1V = 'sv1v',
+  SV1S = 'sv1s',
+  S12A = 's12a',
+  S12 = 's12',
+  S11 = 's11',
+  S10B = 's10b',
+  S8B = 's8b',
+  S6A = 's6a',
+  S4A = 's4a',
+}
+
+/** enum 으로 등록된 모든 팩 코드 (CARD_PACKS 의 순서 그대로). */
+export const CARD_PACK_CODES: readonly CardPackCode[] = Object.values(CardPackCode);
+
+/**
+ * enum / 문자열 어느 쪽으로도 호출 가능한 메타 조회.
+ * 알 수 없는 코드면 `undefined`.
+ */
+export function getCardPackMeta(code: CardPackCode | string): CardPackMeta | undefined {
+  return CARD_PACKS.find((p) => p.code === code);
+}
+
+/** runtime 에서 임의 문자열이 등록된 팩 코드인지 검증. */
+export function isCardPackCode(code: string): code is CardPackCode {
+  return CARD_PACK_CODES.includes(code as CardPackCode);
+}

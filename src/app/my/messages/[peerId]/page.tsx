@@ -1,18 +1,24 @@
-import { getServerSession } from 'next-auth';
 import { LoginRequired } from '@/components/LoginRequired';
 import { MessagesThreadScreen } from '@/components/screens/MessagesThreadScreen';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getServerUser, serverFetch } from '@/lib/apiServer';
 
 export const dynamic = 'force-dynamic';
+
+interface PeerUser {
+  id: string;
+  name: string;
+  avatarId: string;
+  backgroundId: string;
+  frameId: string;
+}
 
 interface Props {
   params: { peerId: string };
 }
 
 export default async function Page({ params }: Props) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const user = await getServerUser();
+  if (!user?.id) {
     return (
       <LoginRequired
         title="쪽지"
@@ -22,16 +28,16 @@ export default async function Page({ params }: Props) {
     );
   }
 
-  const peer = await prisma.user.findUnique({
-    where: { id: params.peerId },
-    select: { id: true, name: true, avatarId: true, backgroundId: true, frameId: true },
-  });
+  const r = await serverFetch<{ user: PeerUser }>(
+    `/api/users/${encodeURIComponent(params.peerId)}`,
+    { auth: false },
+  );
 
   return (
     <MessagesThreadScreen
       peerId={params.peerId}
-      peer={peer ?? undefined}
-      myId={session.user.id}
+      peer={r.data?.user ?? undefined}
+      myId={user.id}
     />
   );
 }

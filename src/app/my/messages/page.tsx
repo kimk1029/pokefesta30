@@ -1,13 +1,12 @@
-import { getServerSession } from 'next-auth';
 import { LoginRequired } from '@/components/LoginRequired';
 import { MessagesInboxScreen } from '@/components/screens/MessagesInboxScreen';
-import { authOptions } from '@/lib/auth';
+import { getServerUser } from '@/lib/apiServer';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const user = await getServerUser();
+  if (!user?.id) {
     return (
       <LoginRequired
         title="쪽지함"

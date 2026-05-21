@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { PackMarketSections } from '@/components/PackMarketSections';
-import { getPackWithHits } from '@/lib/cardPackHits';
+import { serverFetch } from '@/lib/apiServer';
+import type { PackWithHits } from '@/lib/cardPackHits';
 
 export const revalidate = 900;
 
@@ -10,9 +11,17 @@ interface Params {
   params: Promise<{ code: string }>;
 }
 
+async function loadPack(code: string): Promise<PackWithHits | null> {
+  const r = await serverFetch<{ data: PackWithHits }>(
+    `/api/card-packs/${encodeURIComponent(code)}?limit=600`,
+    { auth: false },
+  );
+  return r.data?.data ?? null;
+}
+
 export default async function PackDetailPage({ params }: Params) {
   const { code } = await params;
-  const pack = await getPackWithHits(code, 600);
+  const pack = await loadPack(code);
   if (!pack) notFound();
 
   const cards = pack.hits.filter((hit) => hit.itemKind === 'single');
@@ -23,7 +32,6 @@ export default async function PackDetailPage({ params }: Params) {
       <StatusBar />
       <AppBar title={pack.shortName} showBack backHref="/cards/packs" />
 
-      {/* Pack header */}
       <div className="sect">
         <div
           style={{
@@ -78,7 +86,7 @@ export default async function PackDetailPage({ params }: Params) {
 
 export async function generateMetadata({ params }: Params) {
   const { code } = await params;
-  const pack = await getPackWithHits(code, 1);
+  const pack = await loadPack(code);
   if (!pack) return { title: '카드팩' };
   return {
     title: `${pack.name} · 힛카드 시세 — CardVault`,

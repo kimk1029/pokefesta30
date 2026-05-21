@@ -5,14 +5,12 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import { SnkrdunkSearchBar } from '@/components/SnkrdunkSearchBar';
 import {
   downsamplePricePoints,
-  fetchSnkrdunkApparel,
-  fetchSnkrdunkBrowse,
-  fetchSnkrdunkSalesChart,
   type SnkrdunkApparel,
   type SnkrdunkSalesChart,
   type SnkrdunkSearchResult,
 } from '@/lib/snkrdunk';
 import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCards';
+import { serverFetch } from '@/lib/apiServer';
 
 // 추천 6장은 전체보기 리스트의 상단 6장과 동일해야 하므로 browse 순서를 그대로 사용.
 // fetch 레이어의 revalidate 캐싱(=10분)에 따라간다.
@@ -134,11 +132,12 @@ function Sparkline({
 }
 
 async function pickFeaturedSeeds(): Promise<DisplaySeed[]> {
-  const pool = await fetchSnkrdunkBrowse(1);
-  if (pool.length > 0) {
-    return pool.slice(0, 6).map(searchToSeed);
-  }
-  // browse 실패 시 폴백: 큐레이션된 시드의 상위 6장
+  const r = await serverFetch<{ results: SnkrdunkSearchResult[] }>(
+    '/api/snkrdunk/browse?page=1',
+    { auth: false },
+  );
+  const pool = r.data?.results ?? [];
+  if (pool.length > 0) return pool.slice(0, 6).map(searchToSeed);
   return SNKRDUNK_FEATURED_CARDS.slice(0, 6).map((s) => ({
     apparelId: s.apparelId,
     shortName: s.shortName,
@@ -150,11 +149,12 @@ export default async function Page() {
   const seeds = await pickFeaturedSeeds();
   const rows: CardRow[] = await Promise.all(
     seeds.map(async (seed) => {
-      const [apparel, chart] = await Promise.all([
-        fetchSnkrdunkApparel(seed.apparelId),
-        fetchSnkrdunkSalesChart(seed.apparelId),
+      const base = `/api/snkrdunk/apparels/${seed.apparelId}`;
+      const [ar, cr] = await Promise.all([
+        serverFetch<{ data: SnkrdunkApparel | null }>(base, { auth: false }),
+        serverFetch<{ data: SnkrdunkSalesChart | null }>(`${base}/sales-chart`, { auth: false }),
       ]);
-      return { seed, apparel, chart };
+      return { seed, apparel: ar.data?.data ?? null, chart: cr.data?.data ?? null };
     }),
   );
 

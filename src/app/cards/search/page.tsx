@@ -3,7 +3,8 @@ import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { translate } from '@/lib/cardTranslate';
 import { snkrdunkUrl } from '@/lib/cardsCatalog';
-import { isEbayConfigured, searchEbayPrices, type EbayItemSummary } from '@/lib/ebay';
+import { type EbayPriceSnapshot, type EbayItemSummary } from '@/lib/ebay';
+import { serverFetch } from '@/lib/apiServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,9 +25,15 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   const q = (searchParams.q ?? '').trim();
   const jaQuery = q ? translate(q, 'ja') : '';
   const enQuery = q ? translate(q, 'en') : '';
-  const configured = isEbayConfigured();
 
-  const ebay = q && configured ? await searchEbayPrices(enQuery, { limit: 20 }) : null;
+  const r = q
+    ? await serverFetch<{ configured: boolean; data: EbayPriceSnapshot | null }>(
+        `/api/cards/ebay-search?q=${encodeURIComponent(enQuery)}&limit=20`,
+        { auth: false },
+      )
+    : null;
+  const configured = r?.data?.configured ?? false;
+  const ebay = r?.data?.data ?? null;
 
   return (
     <>

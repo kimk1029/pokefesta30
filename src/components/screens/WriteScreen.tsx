@@ -1,8 +1,7 @@
 'use client';
 
 import { useRef, useState, useTransition } from 'react';
-import { isRedirectError } from 'next/dist/client/components/redirect';
-import { submitFeed, submitTrade } from '@/app/actions';
+import { useRouter } from 'next/navigation';
 import { useInventory } from '@/components/InventoryProvider';
 import { TradeImagePicker } from '@/components/TradeImagePicker';
 import { REWARDS } from '@/lib/rewards';
@@ -23,13 +22,26 @@ const TITLES: Record<WriteMode, string> = {
 
 interface Props {
   mode: WriteMode;
-  /** 거래 모드에서만 사용 — 만남 장소 칩 */
   places?: Place[];
-  /** "내 카드"에서 진입 시 제목/본문 prefill */
   prefill?: { title?: string; body?: string };
 }
 
+async function postJson(path: string, body: unknown) {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const data = (await r.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? `HTTP ${r.status}`);
+  }
+  return r.json();
+}
+
 export function WriteScreen({ mode, places = [], prefill }: Props) {
+  const router = useRouter();
   const { avatar: avatarId } = useInventory();
   const [place, setPlace] = useState<string>(
     mode === 'trade' ? (places[0]?.id ?? '') : '',
@@ -60,22 +72,21 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
     setError(null);
     submitLockRef.current = true;
 
-    const fd = new FormData();
-
     if (mode === 'trade') {
-      fd.set('place_id', place);
-      fd.set('type', ttype);
-      fd.set('title', title);
-      fd.set('body', note);
-      fd.set('price', price);
-      fd.set('avatar_id', avatarId);
-      if (kakaoId) fd.set('kakao_id', kakaoId);
-      if (images.length > 0) fd.set('images', JSON.stringify(images));
       startTransition(async () => {
         try {
-          await submitTrade(fd);
+          await postJson('/api/trades', {
+            placeId: place,
+            type: ttype,
+            title,
+            body: note,
+            price,
+            kakaoId: kakaoId || undefined,
+            avatarId,
+            images: images.length > 0 ? images : undefined,
+          });
+          router.push('/trade');
         } catch (e) {
-          if (isRedirectError(e)) throw e;
           submitLockRef.current = false;
           setError(e instanceof Error ? e.message : '거래글 등록 실패');
         }
@@ -83,15 +94,15 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
       return;
     }
 
-    // feed
-    fd.set('text', note);
-    fd.set('avatar_id', avatarId);
-    if (images.length > 0) fd.set('images', JSON.stringify(images));
     startTransition(async () => {
       try {
-        await submitFeed(fd);
+        await postJson('/api/feeds', {
+          text: note,
+          avatarId,
+          images: images.length > 0 ? images : undefined,
+        });
+        router.push('/feed');
       } catch (e) {
-        if (isRedirectError(e)) throw e;
         submitLockRef.current = false;
         setError(e instanceof Error ? e.message : '등록 실패');
       }
@@ -106,7 +117,6 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
       <AppBar title={TITLES[mode]} showBack />
       <div style={{ height: 14 }} />
 
-      {/* Trade type */}
       {mode === 'trade' && (
         <div className="form-sect">
           <div className="form-label">
@@ -123,7 +133,6 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
         </div>
       )}
 
-      {/* Place — 거래 전용 */}
       {mode === 'trade' && (
         <div className="form-sect">
           <div className="form-label">
@@ -139,7 +148,6 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
         </div>
       )}
 
-      {/* Trade title + price + kakao */}
       {mode === 'trade' && (
         <>
           <div className="form-sect">
@@ -189,7 +197,6 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
         </>
       )}
 
-      {/* Text body */}
       <div className="form-sect">
         <div className="form-label">
           {mode === 'trade' ? '📄 내용' : '🗣 하고 싶은 말'}
@@ -201,7 +208,6 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
         />
       </div>
 
-      {/* 피드 첨부 사진 */}
       {isFeed && (
         <div className="form-sect">
           <div className="form-label">

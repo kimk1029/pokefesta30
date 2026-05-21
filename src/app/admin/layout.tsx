@@ -1,12 +1,20 @@
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { requireAdminSession } from '@/lib/adminAuth';
+import { getServerUser } from '@/lib/apiServer';
 
 export const dynamic = 'force-dynamic';
 
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
+);
+
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const session = await requireAdminSession();
-  if (!session) {
+  const user = await getServerUser();
+  const email = user?.email?.toLowerCase();
+  if (!email || !ADMIN_EMAILS.has(email)) {
     redirect('/login?callbackUrl=/admin');
   }
   return <>{children}</>;

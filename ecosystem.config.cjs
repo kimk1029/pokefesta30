@@ -41,5 +41,20 @@ module.exports = {
         PORT: process.env.ADMIN_PORT || '3000',
       },
     },
+    {
+      // Express OCR / API 서버. mobile + web 의 백엔드.
+      name: 'pokefesta30-server',
+      cwd: __dirname + '/server',
+      script: 'npm',
+      args: 'run start',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '512M',
+      env: {
+        NODE_ENV: 'production',
+        PORT: process.env.SERVER_PORT || '3030',
+      },
+    },
   ],
 };

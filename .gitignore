@@ -7,6 +7,7 @@ out
 .DS_Store
 *.tsbuildinfo
 
-# React Native (Expo) — 별도 git repo로 관리
+# 모바일 — 모노레포로 합치는 중. 이 커밋에선 무시,
+# 다음 커밋(subtree merge)에서 트래킹 시작.
 mobile/
 

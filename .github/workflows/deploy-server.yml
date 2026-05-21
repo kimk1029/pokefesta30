@@ -1,0 +1,77 @@
+name: Deploy Server
+
+# Express OCR / API 서버 (server/) 를 Synology 로 SSH 배포.
+# server/** 또는 prisma/schema.prisma 가 main 에 푸시되면 실행.
+#
+# 동작:
+#   1. Synology 서버에 SSH
+#   2. git pull (현재 main)
+#   3. server/ 의존성 재설치 + prisma client 재생성
+#   4. pm2 restart pokefesta30-server (없으면 ecosystem 으로 start)
+#
+# 필요 secret:
+#   SSH_HOST, SSH_USER, SSH_KEY, SSH_PORT (기본 22)
+#   (기존 deploy.yml 의 admin 배포와 동일한 secret 재사용)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'prisma/schema.prisma'
+      - 'ecosystem.config.cjs'
+      - '.github/workflows/deploy-server.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-server
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Express server to Synology
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH & deploy server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            cd /root/dev/pokefesta30
+            git fetch origin main
+            git reset --hard origin/main
+
+            cd server
+            npm ci --prefer-offline --no-audit --no-fund
+
+            # prisma client 재생성 (스키마는 ../prisma/schema.prisma)
+            npm run prisma:generate
+
+            # pm2 가 이미 띄워둔 인스턴스가 있으면 restart, 없으면 ecosystem 으로 신규 기동.
+            if pm2 describe pokefesta30-server >/dev/null 2>&1; then
+              pm2 restart pokefesta30-server --update-env
+            else
+              cd /root/dev/pokefesta30
+              pm2 start ecosystem.config.cjs --only pokefesta30-server
+            fi
+            pm2 save
+
+            # 헬스 체크 — 3030 포트 응답 확인 (최대 30초 대기)
+            for i in $(seq 1 30); do
+              if curl -sf http://127.0.0.1:3030/auth/me >/dev/null 2>&1 \
+                 || curl -sf http://127.0.0.1:3030/ >/dev/null 2>&1; then
+                echo "✓ server is up on :3030"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "::error::server did not respond on :3030 within 30s"
+            pm2 logs pokefesta30-server --lines 50 --nostream || true
+            exit 1

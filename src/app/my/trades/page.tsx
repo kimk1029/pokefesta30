@@ -1,18 +1,18 @@
-import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { TradeCard } from '@/components/TradeCard';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { authOptions } from '@/lib/auth';
-import { getMyTrades } from '@/lib/queries';
+import { getServerUser, serverFetch } from '@/lib/apiServer';
+import type { Trade } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) redirect('/my');
+  const user = await getServerUser();
+  if (!user?.id) redirect('/my');
 
-  const trades = await getMyTrades(session.user.id);
+  const r = await serverFetch<{ data: Trade[] }>('/api/me/trades');
+  const trades = r.data?.data ?? [];
 
   return (
     <>

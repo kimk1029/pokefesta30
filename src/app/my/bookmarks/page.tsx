@@ -1,20 +1,20 @@
-import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { FeedRow } from '@/components/FeedRow';
 import { TradeCard } from '@/components/TradeCard';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { authOptions } from '@/lib/auth';
-import { getMyBookmarks } from '@/lib/queries';
+import { getServerUser, serverFetch } from '@/lib/apiServer';
+import type { FeedPost, Trade } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) redirect('/my');
+  const user = await getServerUser();
+  if (!user?.id) redirect('/my');
 
-  const { trades, feeds } = await getMyBookmarks(session.user.id);
+  const r = await serverFetch<{ data: { trades: Trade[]; feeds: FeedPost[] } }>('/api/me/bookmarks');
+  const { trades = [], feeds = [] } = r.data?.data ?? { trades: [], feeds: [] };
 
   return (
     <>

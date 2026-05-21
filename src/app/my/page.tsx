@@ -1,16 +1,21 @@
-import { getServerSession } from 'next-auth';
 import { LoginRequired } from '@/components/LoginRequired';
 import { MyScreen } from '@/components/screens/MyScreen';
-import { authOptions } from '@/lib/auth';
-import { levelFromPoints } from '@/lib/level';
-import { prisma } from '@/lib/prisma';
-import { countMyCards, getMyInventory } from '@/lib/queries';
+import { getServerUser, serverFetch } from '@/lib/apiServer';
+import type { LevelInfo } from '@/lib/level';
+import type { InventorySnapshot } from '@/components/InventoryProvider';
+
+interface SummaryResp {
+  user: { id: string; name: string | null; email: string | null };
+  inventory: InventorySnapshot;
+  level: LevelInfo;
+  counts: { tradeCount: number; savedCount: number; cardCount: number };
+}
 
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const user = await getServerUser();
+  if (!user?.id) {
     return (
       <LoginRequired
         title="마이페이지"
@@ -19,30 +24,24 @@ export default async function Page() {
       />
     );
   }
-
-  const userId = session.user.id;
-
-  // 실제 DB 집계
-  const [inv, profile, tradeCount, savedCount, cardCount] = await Promise.all([
-    getMyInventory(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { name: true } }).catch(() => null),
-    prisma.trade.count({ where: { authorId: userId } }).catch(() => 0),
-    prisma.bookmark.count({ where: { userId } }).catch(() => 0),
-    countMyCards(userId),
-  ]);
-
-  const level = levelFromPoints(inv.points);
-
+  const r = await serverFetch<SummaryResp>('/api/me/summary');
+  const s = r.data;
+  if (!s) {
+    return (
+      <LoginRequired
+        title="마이페이지"
+        message="잠시 후 다시 시도해주세요"
+        callbackUrl="/my"
+      />
+    );
+  }
   return (
     <MyScreen
-      session={{
-        ...session,
-        user: { ...session.user, name: profile?.name ?? session.user.name },
-      }}
-      level={level}
-      cardCount={cardCount}
-      tradeCount={tradeCount}
-      savedCount={savedCount}
+      user={s.user}
+      level={s.level}
+      cardCount={s.counts.cardCount}
+      tradeCount={s.counts.tradeCount}
+      savedCount={s.counts.savedCount}
     />
   );
 }

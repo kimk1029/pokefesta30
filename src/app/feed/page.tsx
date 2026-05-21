@@ -1,12 +1,21 @@
 import { CommunityScreen } from '@/components/screens/CommunityScreen';
-import { getFeedPage, getTrades } from '@/lib/queries';
+import { serverFetch } from '@/lib/apiServer';
+import type { FeedPost, Trade } from '@/lib/types';
 
 export const revalidate = 30;
 
 export default async function Page() {
-  const [feedPage, trades] = await Promise.all([
-    getFeedPage({ limit: 20 }),
-    getTrades('all', 30),
+  const [feedResp, tradesResp] = await Promise.all([
+    serverFetch<{ items: FeedPost[]; nextCursor: string | null }>(
+      '/api/feeds?limit=20',
+      { auth: false },
+    ),
+    serverFetch<{ data: Trade[] }>('/api/trades?limit=30', { auth: false }),
   ]);
-  return <CommunityScreen initialFeed={feedPage.items} trades={trades} />;
+  return (
+    <CommunityScreen
+      initialFeed={feedResp.data?.items ?? []}
+      trades={tradesResp.data?.data ?? []}
+    />
+  );
 }

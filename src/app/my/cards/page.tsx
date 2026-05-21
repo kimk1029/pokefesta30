@@ -1,8 +1,6 @@
-import { getServerSession } from 'next-auth';
 import { LoginRequired } from '@/components/LoginRequired';
 import { MyCardsScreen } from '@/components/screens/MyCardsScreen';
-import { authOptions } from '@/lib/auth';
-import { getMyCardsWithPrices } from '@/lib/queries';
+import { getServerUser, serverFetch } from '@/lib/apiServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +10,8 @@ export const metadata = {
 };
 
 export default async function Page() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const user = await getServerUser();
+  if (!user?.id) {
     return (
       <LoginRequired
         title="내 카드"
@@ -22,6 +20,6 @@ export default async function Page() {
       />
     );
   }
-  const cards = await getMyCardsWithPrices(session.user.id, 200);
-  return <MyCardsScreen cards={cards} />;
+  const r = await serverFetch<{ data: unknown[] }>('/api/me/cards/with-prices');
+  return <MyCardsScreen cards={(r.data?.data ?? []) as never} />;
 }

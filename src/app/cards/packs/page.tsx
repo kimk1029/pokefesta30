@@ -3,7 +3,11 @@ import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { CARD_PACKS } from '@/lib/cardPacks';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
-import { fetchSnkrdunkApparelGroup } from '@/lib/snkrdunk';
+import { serverFetch } from '@/lib/apiServer';
+
+interface ApparelGroupResp {
+  apparels?: Array<{ localizedName: string; imageUrl: string | null; minPrice: number }>;
+}
 
 export const metadata = {
   title: '가격탐색 · CardVault',
@@ -13,13 +17,14 @@ export const metadata = {
 export default async function PackExplorerPage() {
   const packs = await Promise.all(
     CARD_PACKS.map(async (pack) => {
-      const box = pack.apparelGroupId
-        ? (await fetchSnkrdunkApparelGroup(pack.apparelGroupId, {
-          apparelCategoryId: 14,
-          page: 1,
-          perPage: 1,
-        }))?.apparels?.[0]
-        : null;
+      let box: { localizedName: string; imageUrl: string | null; minPrice: number } | null = null;
+      if (pack.apparelGroupId) {
+        const r = await serverFetch<{ data: ApparelGroupResp | null }>(
+          `/api/snkrdunk/apparel-groups/${pack.apparelGroupId}?apparelCategoryId=14&page=1&perPage=1`,
+          { auth: false },
+        );
+        box = r.data?.data?.apparels?.[0] ?? null;
+      }
       return {
         ...pack,
         boxName: box?.localizedName ?? pack.searchQuery,

@@ -1,0 +1,14 @@
+[
+  { "id": "sv2a-006", "name": "리자몽 ex", "setName": "151", "setCode": "sv2a", "number": "006", "totalNumber": "165", "rarity": "SR", "language": "ko", "marketPrice": 128000 },
+  { "id": "sv2a-185", "name": "리자몽 ex SAR", "setName": "151", "setCode": "sv2a", "number": "185", "totalNumber": "165", "rarity": "SAR", "language": "ko", "marketPrice": 320000 },
+  { "id": "sv2a-025", "name": "피카츄", "setName": "151", "setCode": "sv2a", "number": "025", "totalNumber": "165", "rarity": "C", "language": "ko", "marketPrice": 1500 },
+  { "id": "sv2a-202", "name": "피카츄 SAR", "setName": "151", "setCode": "sv2a", "number": "202", "totalNumber": "165", "rarity": "SAR", "language": "ko", "marketPrice": 250000 },
+  { "id": "s8b-044", "name": "피카츄 VMAX", "setName": "비비드볼트", "setCode": "s8b", "number": "044", "totalNumber": "185", "rarity": "HR", "language": "ko", "marketPrice": 85000 },
+  { "id": "sv4a-106", "name": "개굴닌자 ex", "setName": "레이징 서프", "setCode": "sv4a", "number": "106", "totalNumber": "108", "rarity": "SAR", "language": "ko", "marketPrice": 71000 },
+  { "id": "s6a-076", "name": "레쿠쟈 V", "setName": "이브이 히어로즈", "setCode": "s6a", "number": "076", "totalNumber": "069", "rarity": "SR", "language": "ko", "marketPrice": 54000 },
+  { "id": "sm8b-093", "name": "뮤츠 GX", "setName": "울트라 샤이니", "setCode": "sm8b", "number": "093", "totalNumber": "150", "rarity": "SR", "language": "ko", "marketPrice": 62000 },
+  { "id": "sv3a-072", "name": "뮤 ex", "setName": "레이징 서프", "setCode": "sv4a", "number": "072", "totalNumber": "190", "rarity": "RR", "language": "ko", "marketPrice": 14000 },
+  { "id": "s12a-200", "name": "기라티나 VSTAR", "setName": "VSTAR 유니버스", "setCode": "s12a", "number": "200", "totalNumber": "172", "rarity": "UR", "language": "ko", "marketPrice": 110000 },
+  { "id": "sv6-083", "name": "파오리", "setName": "변환의 가면", "setCode": "sv6", "number": "083", "totalNumber": "101", "rarity": "C", "language": "ko", "marketPrice": 800 },
+  { "id": "sv6-071", "name": "사나운버섯", "setName": "변환의 가면", "setCode": "sv6", "number": "071", "totalNumber": "101", "rarity": "U", "language": "ko", "marketPrice": 1000 }
+]
