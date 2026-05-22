@@ -79,6 +79,9 @@ jobs:
             npx prisma generate
             # Apply any pending DB migrations. Idempotent — Prisma tracks state
             # in _prisma_migrations and skips already-applied ones.
+            # server/.env holds DATABASE_URL/DIRECT_URL; export into the shell
+            # so the prisma CLI (run from repo root) picks them up.
+            set -a; . ./server/.env; set +a
             npx prisma migrate deploy
 
             # 3) ecosystem.config.cjs 가 단일 진실 소스. exec_mode 같은 구조 변경은
