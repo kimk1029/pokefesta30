@@ -20,6 +20,7 @@ import {
   getMyInventory,
   getMyTrades,
 } from '../lib/queries.js';
+import { fetchSnkrdunkApparel } from '@/lib/snkrdunk';
 import { runDailyCheckIn } from '../lib/checkIn.js';
 
 const router = Router();
@@ -76,9 +77,15 @@ router.post('/cards', async (req: Request, res: Response) => {
   const ocrSetCode = typeof body.ocrSetCode === 'string' ? body.ocrSetCode.trim().slice(0, 16) : null;
   const ocrCardNumber =
     typeof body.ocrCardNumber === 'string' ? body.ocrCardNumber.trim().slice(0, 16) : null;
+  const snkrdunkApparelId =
+    typeof body.snkrdunkApparelId === 'number' && Number.isInteger(body.snkrdunkApparelId)
+      ? body.snkrdunkApparelId
+      : null;
 
-  if (!cardId && !ocrSetCode && !ocrCardNumber) {
-    return res.status(400).json({ error: 'cardId 또는 OCR 식별자 중 하나는 필요해요' });
+  if (!cardId && !ocrSetCode && !ocrCardNumber && !snkrdunkApparelId) {
+    return res
+      .status(400)
+      .json({ error: 'cardId, OCR 식별자, snkrdunkApparelId 중 하나는 필요해요' });
   }
 
   const nickname = typeof body.nickname === 'string' ? body.nickname.trim().slice(0, 60) : null;
@@ -106,6 +113,7 @@ router.post('/cards', async (req: Request, res: Response) => {
         cardId,
         ocrSetCode,
         ocrCardNumber,
+        snkrdunkApparelId,
         nickname,
         memo,
         gradeEstimate,
@@ -116,6 +124,114 @@ router.post('/cards', async (req: Request, res: Response) => {
     res.status(201).json({ data: created });
   } catch (err) {
     console.error('[me.cards.POST]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+router.get('/favorites', async (req: Request, res: Response) => {
+  try {
+    const rows = await prisma.favoriteCard.findMany({
+      where: { userId: req.user!.userId },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+    res.json({ data: rows });
+  } catch (err) {
+    console.error('[me.favorites.GET]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+router.post('/favorites', async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  const apparelId = Number((req.body as { snkrdunkApparelId?: unknown } | null)?.snkrdunkApparelId);
+  if (!Number.isInteger(apparelId) || apparelId <= 0) {
+    return res.status(400).json({ error: 'snkrdunkApparelId 필요' });
+  }
+  try {
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { id: userId, name: defaultNameFor(userId) },
+    });
+    const row = await prisma.favoriteCard.upsert({
+      where: { userId_snkrdunkApparelId: { userId, snkrdunkApparelId: apparelId } },
+      update: {},
+      create: { userId, snkrdunkApparelId: apparelId },
+    });
+    res.status(201).json({ data: row });
+  } catch (err) {
+    console.error('[me.favorites.POST]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+router.delete('/favorites/:apparelId', async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  const apparelId = Number(req.params.apparelId);
+  if (!Number.isInteger(apparelId)) return res.status(400).json({ error: 'invalid apparelId' });
+  try {
+    await prisma.favoriteCard.deleteMany({
+      where: { userId, snkrdunkApparelId: apparelId },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[me.favorites.DELETE]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+/**
+ * 포트폴리오 합계 — userCard 중 snkrdunkApparelId 가 있는 항목을 실시간 시세로
+ * 합산해 JPY 총합을 반환. 관심카드(FavoriteCard) 는 의도적으로 제외 — 사용자가
+ * "관심"으로 표시한 카드까지 자산으로 포함하면 부풀려진 자산이 됨.
+ */
+router.get('/portfolio', async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  try {
+    const cards = await prisma.userCard.findMany({
+      where: { userId, snkrdunkApparelId: { not: null } },
+      select: { id: true, snkrdunkApparelId: true },
+    });
+    if (cards.length === 0) {
+      return res.json({
+        data: { totalJpy: 0, pricedCount: 0, totalCount: await countMyCards(userId) },
+      });
+    }
+    const totalCount = await countMyCards(userId);
+    // 같은 apparelId 가 여러 번 들어 있을 수 있으니 fetch 는 한 번만.
+    const uniqueApparelIds: number[] = Array.from(
+      new Set<number>(
+        cards
+          .map((c) => c.snkrdunkApparelId)
+          .filter((v): v is number => typeof v === 'number'),
+      ),
+    );
+    const priceByApparel = new Map<number, number>();
+    await Promise.all(
+      uniqueApparelIds.map(async (id: number) => {
+        try {
+          const a = await fetchSnkrdunkApparel(id);
+          if (a && typeof a.minPrice === 'number' && a.minPrice > 0) {
+            priceByApparel.set(id, a.minPrice);
+          }
+        } catch (err) {
+          console.warn('[me.portfolio] apparel fetch failed', id, err);
+        }
+      }),
+    );
+    let totalJpy = 0;
+    let pricedCount = 0;
+    for (const c of cards) {
+      const p = c.snkrdunkApparelId != null ? priceByApparel.get(c.snkrdunkApparelId) : null;
+      if (p != null && p > 0) {
+        totalJpy += p;
+        pricedCount += 1;
+      }
+    }
+    res.json({ data: { totalJpy, pricedCount, totalCount } });
+  } catch (err) {
+    console.error('[me.portfolio]', err);
     res.status(500).json({ error: 'internal' });
   }
 });

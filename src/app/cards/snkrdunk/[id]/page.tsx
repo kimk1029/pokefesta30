@@ -3,12 +3,12 @@ import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
+import { CardActions } from '@/components/CardActions';
 import {
   downsamplePricePoints,
   localizeSnkrdunkText,
   priceDownsampleUnit,
   priceUnitLabelKo,
-  snkrdunkApparelUrl,
   type SnkrdunkApparel,
   type SnkrdunkSalesChart,
   type SnkrdunkSalesHistory,
@@ -343,60 +343,25 @@ export default async function Page({ params }: PageProps) {
           >
             {apparel.localizedName}
           </div>
+          {/* 일반/PSA10 평균을 한 줄에 — 라벨은 작게, 값은 컴팩트. */}
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 6,
+              display: 'flex',
+              alignItems: 'baseline',
+              flexWrap: 'wrap',
+              gap: '4px 10px',
               marginTop: 2,
+              fontFamily: 'var(--f1)',
+              fontSize: 11,
+              letterSpacing: 0.3,
             }}
           >
-            <div>
-              <div
-                style={{
-                  fontFamily: 'var(--f1)',
-                  fontSize: 7,
-                  color: 'var(--ink3)',
-                  letterSpacing: 0.5,
-                  marginBottom: 2,
-                }}
-              >
-                일반 평균 {rawAvg.count > 0 ? `(최근 ${rawAvg.count}건)` : ''}
-              </div>
-              <div
-                style={{
-                  fontFamily: 'var(--f1)',
-                  fontSize: 13,
-                  color: 'var(--red)',
-                  letterSpacing: 0.3,
-                }}
-              >
-                {fmtYen(rawAvg.avg)}
-              </div>
-            </div>
-            <div>
-              <div
-                style={{
-                  fontFamily: 'var(--f1)',
-                  fontSize: 7,
-                  color: 'var(--ink3)',
-                  letterSpacing: 0.5,
-                  marginBottom: 2,
-                }}
-              >
-                PSA10 평균 {psa10Avg.count > 0 ? `(최근 ${psa10Avg.count}건)` : ''}
-              </div>
-              <div
-                style={{
-                  fontFamily: 'var(--f1)',
-                  fontSize: 13,
-                  color: psa10Avg.avg > 0 ? 'var(--gold-dk, var(--orn))' : 'var(--ink3)',
-                  letterSpacing: 0.3,
-                }}
-              >
-                {fmtYen(psa10Avg.avg)}
-              </div>
-            </div>
+            <span style={{ fontSize: 7, color: 'var(--ink3)' }}>일반</span>
+            <span style={{ color: 'var(--red)' }}>{fmtYen(rawAvg.avg)}</span>
+            <span style={{ fontSize: 7, color: 'var(--ink3)', marginLeft: 4 }}>PSA10</span>
+            <span style={{ color: psa10Avg.avg > 0 ? 'var(--gold-dk, var(--orn))' : 'var(--ink3)' }}>
+              {fmtYen(psa10Avg.avg)}
+            </span>
           </div>
           <div
             style={{
@@ -414,30 +379,8 @@ export default async function Page({ params }: PageProps) {
         </div>
       </div>
 
-      {/* 스니덩크 바로가기 버튼 */}
-      <a
-        href={snkrdunkApparelUrl(apparelId)}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          margin: '0 var(--gap) var(--cg)',
-          padding: '12px 14px',
-          background: 'var(--ink)',
-          color: 'var(--gold)',
-          textDecoration: 'none',
-          fontFamily: 'var(--f1)',
-          fontSize: 10,
-          letterSpacing: 0.5,
-          boxShadow:
-            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--yel-dk)',
-        }}
-      >
-        <span>🇯🇵 스니덩크에서 구매·확인 ↗</span>
-      </a>
+      {/* 액션 — 컬렉션 추가 / 관심 / 스니덩크 외부링크 (한 줄, 컴팩트) */}
+      <CardActions apparelId={apparelId} cardName={koDisplayName} />
 
       {/* Sales chart */}
       <div className="sect">

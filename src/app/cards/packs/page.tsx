@@ -78,14 +78,14 @@ export default async function PackExplorerPage() {
             >
               <div
                 style={{
-                  width: 64,
-                  height: 64,
+                  width: 84,
+                  height: 84,
                   display: 'grid',
                   placeItems: 'center',
                   flexShrink: 0,
                   background: pack.bg,
                   color: 'var(--white)',
-                  fontSize: 20,
+                  fontSize: 22,
                   boxShadow:
                     '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.35),3px 3px 0 var(--ink)',
                   overflow: 'hidden',
@@ -93,7 +93,7 @@ export default async function PackExplorerPage() {
               >
                 {pack.boxImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pack.boxImageUrl} alt={pack.boxKoName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <img src={pack.boxImageUrl} alt={pack.boxKoName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   pack.emoji
                 )}

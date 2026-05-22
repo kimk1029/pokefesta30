@@ -41,10 +41,11 @@ model User {
   trades           Trade[]
   feeds            Feed[]
   bookmarks        Bookmark[]
-  sentMessages     Message[]     @relation("SentMessages")
-  receivedMessages Message[]     @relation("ReceivedMessages")
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
   oripaTickets     OripaTicket[]
   userCards        UserCard[]
+  favoriteCards    FavoriteCard[]
 
   @@map("users")
 }
@@ -247,6 +248,9 @@ model UserCard {
   /// 매칭 실패 시 보조 — OCR 로 추출한 raw 식별자.
   ocrSetCode     String?
   ocrCardNumber  String?
+  /// 시세 소스 식별자. 스니덩크 시세 페이지에서 추가한 카드는 여기에 apparelId.
+  /// 포트폴리오 합계 계산 시 이 값으로 실시간 시세 조회.
+  snkrdunkApparelId Int?
   /// 사용자가 직접 적은 별칭/메모.
   nickname       String?
   memo           String?
@@ -261,7 +265,22 @@ model UserCard {
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([cardId])
+  @@index([snkrdunkApparelId])
   @@map("user_cards")
+}
+
+/// 관심카드 — 사용자가 추적하고 싶은 스니덩크 카드 목록.
+/// 포트폴리오 합계에는 포함되지 않고, 단순히 즐겨찾기 용도.
+model FavoriteCard {
+  id                Int      @id @default(autoincrement())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snkrdunkApparelId Int
+  createdAt         DateTime @default(now())
+
+  @@unique([userId, snkrdunkApparelId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("favorite_cards")
 }
 
 /// 카드 시세 스냅샷 — eBay Browse API 결과 캐시 + 히스토리 차트용.

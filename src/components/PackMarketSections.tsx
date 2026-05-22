@@ -146,18 +146,18 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
     >
       <div
         style={{
-          height: 120, background: 'var(--pap2)',
+          height: 160, background: 'var(--pap2)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
         }}
       >
         {hit.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={hit.imageUrl} alt={hit.koName || hit.shortName} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} />
+          <img src={hit.imageUrl} alt={hit.koName || hit.shortName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         ) : (
           <span style={{ fontSize: 36 }}>CARD</span>
         )}
       </div>
-      <div style={{ padding: '8px 9px 10px', borderTop: '3px solid var(--ink)' }}>
+      <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
         <div
           style={{
             fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: 5,

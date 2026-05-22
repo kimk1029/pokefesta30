@@ -3,6 +3,7 @@ import { EditableName } from '@/components/EditableName';
 import { PointChipLive } from '@/components/LivePointsPill';
 import { LogoutButton } from '@/components/LogoutButton';
 import { MessagesInboxLink } from '@/components/MessagesInboxLink';
+import { PortfolioTotal } from '@/components/PortfolioTotal';
 import { ProfileAvatarClient } from '@/components/ProfileAvatarClient';
 import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { AppBar } from '@/components/ui/AppBar';
@@ -113,6 +114,7 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount }: Pro
               다음 LV.까지 {p.xpNeeded - p.xp} XP
             </span>
           </div>
+          <PortfolioTotal />
         </div>
       </div>
 
