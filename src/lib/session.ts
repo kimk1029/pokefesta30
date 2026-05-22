@@ -84,9 +84,9 @@ export async function signOut(redirect: string | null = '/') {
   }
 }
 
-export function signIn(provider: 'kakao' | 'naver' | 'google', redirect = '/') {
+export function signIn(provider: 'kakao' | 'naver' | 'google', _redirect = '/') {
   if (typeof window === 'undefined') return;
   const u = new URL('/auth/' + provider, window.location.origin);
-  u.searchParams.set('redirect', redirect);
+  u.searchParams.set('redirect', '/');
   window.location.href = u.toString();
 }
