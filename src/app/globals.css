@@ -2367,3 +2367,61 @@ a{color:inherit;text-decoration:none;}
 .theme-pick-tile .tp-name{font-size:11px;letter-spacing:0.5px;color:var(--ink);}
 .theme-pick-tile .tp-desc{font-size:8px;color:var(--ink3);margin-top:3px;letter-spacing:0.3px;}
 .theme-pick-tile.active .tp-desc{color:var(--ink2);}
+
+/* ── 시세 상세 액션 버튼 (모바일 PixelPress 와 동일한 룩) ── */
+.snk-act-row{display:flex;gap:8px;margin:0 var(--gap) var(--cg);}
+.snk-act{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
+  gap:5px;padding:7px 6px;
+  font-family:var(--f1);font-size:10px;letter-spacing:.3px;
+  text-decoration:none;border:0;cursor:pointer;
+  background:var(--white);color:var(--ink);
+  box-shadow:
+    -3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.35),inset 0 -3px 0 rgba(0,0,0,.25),
+    5px 5px 0 var(--ink);
+  transition:transform .05s steps(1),box-shadow .05s steps(1);}
+.snk-act:disabled{opacity:.7;cursor:wait;}
+.snk-act:active:not(:disabled){transform:translate(3px,3px);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    2px 2px 0 var(--ink);}
+.snk-act .snk-act-icon{font-size:14px;line-height:1;flex-shrink:0;}
+.snk-act .snk-act-icon img{width:18px;height:18px;display:block;image-rendering:auto;}
+.snk-act .snk-act-label{font-family:var(--f1);font-size:9px;line-height:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.snk-act .snk-act-desc{font-family:var(--f1);font-size:8px;line-height:1;
+  opacity:.7;letter-spacing:.2px;flex-shrink:0;}
+
+/* ── 대시보드 바로가기 타일 (탭 시 눌림) ── */
+.dash-quick{background:var(--white);padding:14px 4px;
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+  text-decoration:none;color:inherit;cursor:pointer;
+  box-shadow:
+    -3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.14),
+    5px 5px 0 var(--ink);
+  transition:transform .05s steps(1),box-shadow .05s steps(1);}
+.dash-quick:active{transform:translate(3px,3px);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    2px 2px 0 var(--ink);}
+
+/* ── 가격탐색 박스 리스트 항목 (탭 시 눌리는 액션) ── */
+.pack-list-item{display:flex;align-items:center;gap:12px;padding:12px;
+  background:var(--white);color:inherit;text-decoration:none;
+  box-shadow:
+    -3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 2px 0 rgba(255,255,255,.85),5px 5px 0 var(--ink);
+  transition:transform .05s steps(1),box-shadow .05s steps(1);}
+.pack-list-item:active{transform:translate(3px,3px);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    2px 2px 0 var(--ink);}
+
+/* ── 가격탐색 싱글카드 그리드 카드 (탭 시 눌림) ── */
+.pack-grid-card{min-width:0;text-decoration:none;color:inherit;
+  background:var(--white);display:block;
+  box-shadow:
+    -3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 2px 0 rgba(255,255,255,.7),5px 5px 0 var(--ink);
+  transition:transform .05s steps(1),box-shadow .05s steps(1);}
+.pack-grid-card:active{transform:translate(3px,3px);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    2px 2px 0 var(--ink);}

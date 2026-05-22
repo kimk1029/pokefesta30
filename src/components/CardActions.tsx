@@ -12,7 +12,7 @@ interface Props {
 type Status = 'idle' | 'loading' | 'done' | 'error';
 
 /**
- * 카드 시세 상세 페이지의 액션 줄 — 컬렉션 추가 / 관심 / 스니덩크 외부링크.
+ * 카드 시세 상세 페이지의 액션 줄 — 모바일 PixelPress 와 동일 라벨/룩.
  * 컬렉션은 `/api/me/cards`, 관심은 `/api/me/favorites` 를 호출.
  * 미로그인 시 클릭하면 `/login` 으로 이동.
  */
@@ -101,99 +101,57 @@ export function CardActions({ apparelId, cardName }: Props) {
     }
   };
 
+  const collectDesc =
+    collectStatus === 'loading'
+      ? '...'
+      : collectStatus === 'done'
+        ? '✓'
+        : collectStatus === 'error'
+          ? '!'
+          : '추가';
+
+  const favDesc =
+    favStatus === 'loading' ? '...' : favStatus === 'error' ? '!' : isFav ? '✓' : '추가';
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        gap: 6,
-        margin: '0 var(--gap) var(--cg)',
-      }}
-    >
-      <ActionBtn
+    <div className="snk-act-row">
+      <button
+        type="button"
+        className="snk-act"
         onClick={addToCollection}
         disabled={collectStatus === 'loading'}
-        label={
-          collectStatus === 'loading'
-            ? '추가 중...'
-            : collectStatus === 'done'
-              ? '추가됨 ✓'
-              : collectStatus === 'error'
-                ? '실패'
-                : '＋ 컬렉션'
-        }
-        bg="var(--white)"
-        fg="var(--ink)"
-      />
-      <ActionBtn
+        style={{ background: 'var(--blu)', color: 'var(--white)' }}
+      >
+        <span className="snk-act-icon" aria-hidden>📦</span>
+        <span className="snk-act-label">내 컬렉션</span>
+        <span className="snk-act-desc">{collectDesc}</span>
+      </button>
+      <button
+        type="button"
+        className="snk-act"
         onClick={toggleFavorite}
         disabled={favStatus === 'loading'}
-        label={isFav ? '★ 관심' : '☆ 관심'}
-        bg={isFav ? 'var(--yel)' : 'var(--white)'}
-        fg="var(--ink)"
-      />
+        style={{ background: 'var(--pur)', color: 'var(--white)' }}
+      >
+        <span className="snk-act-icon" aria-hidden>{isFav ? '★' : '⭐'}</span>
+        <span className="snk-act-label">관심카드</span>
+        <span className="snk-act-desc">{favDesc}</span>
+      </button>
       <a
+        className="snk-act"
         href={snkrdunkApparelUrl(apparelId)}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="스니덩크에서 보기"
-        style={{
-          flex: '0 0 auto',
-          minWidth: 56,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 4,
-          padding: '8px 10px',
-          background: 'var(--ink)',
-          color: 'var(--gold)',
-          textDecoration: 'none',
-          fontFamily: 'var(--f1)',
-          fontSize: 10,
-          letterSpacing: 0.3,
-          boxShadow:
-            '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--yel-dk)',
-        }}
+        aria-label="SNKDUNK 에서 보기"
+        style={{ background: 'var(--ink)', color: 'var(--gold)' }}
       >
-        🇯🇵 ↗
+        <span className="snk-act-icon" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/snkrdunk-icon.png" alt="" />
+        </span>
+        <span className="snk-act-label">SNKDUNK</span>
+        <span className="snk-act-desc">↗</span>
       </a>
     </div>
-  );
-}
-
-function ActionBtn({
-  onClick,
-  disabled,
-  label,
-  bg,
-  fg,
-}: {
-  onClick: () => void;
-  disabled?: boolean;
-  label: string;
-  bg: string;
-  fg: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        flex: 1,
-        padding: '8px 6px',
-        fontFamily: 'var(--f1)',
-        fontSize: 10,
-        letterSpacing: 0.3,
-        background: bg,
-        color: fg,
-        border: 0,
-        cursor: disabled ? 'wait' : 'pointer',
-        opacity: disabled ? 0.7 : 1,
-        boxShadow:
-          '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-      }}
-    >
-      {label}
-    </button>
   );
 }

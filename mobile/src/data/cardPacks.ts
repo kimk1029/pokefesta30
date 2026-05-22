@@ -15,6 +15,7 @@ export interface CardPackMeta {
 }
 
 export const CARD_PACKS: CardPackMeta[] = [
+  { code: 'm5', name: '어비스아이', shortName: '어비스아이', emoji: '🌑', bg: '#312E81', searchQuery: 'アビスアイ', apparelGroupId: 3453 },
   { code: 'm4', name: '닌자 스피너', shortName: '닌자 스피너', emoji: '🥷', bg: '#2563EB', searchQuery: 'ニンジャスピナー', apparelGroupId: 3320 },
   { code: 'm3', name: '무니키스 제로', shortName: '무니키스 제로', emoji: '🧬', bg: '#7C2D12', searchQuery: 'ムニキスゼロ', apparelGroupId: 3259 },
   { code: 'm2a', name: 'MEGA 드림 ex', shortName: 'MEGA 드림 ex', emoji: '💫', bg: '#C026D3', searchQuery: 'MEGAドリームex', apparelGroupId: 3113 },

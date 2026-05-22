@@ -323,45 +323,56 @@ export default async function Page({ params }: PageProps) {
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 10,
+              fontSize: 11,
               letterSpacing: 0.3,
-              marginBottom: 6,
+              marginBottom: 4,
               lineHeight: 1.4,
+              wordBreak: 'keep-all',
             }}
           >
             {koDisplayName}
           </div>
+          {apparel.localizedName && apparel.localizedName !== koDisplayName ? (
+            <div
+              style={{
+                fontFamily: 'var(--f1)',
+                fontSize: 7,
+                color: 'var(--ink3)',
+                letterSpacing: 0.2,
+                marginBottom: 8,
+                lineHeight: 1.5,
+              }}
+            >
+              {apparel.localizedName}
+            </div>
+          ) : null}
+          {/* 싱글카드 / PSA10 — 라벨을 위, 금액을 아래로 분리한 2-컬럼. */}
           <div
             style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 8,
+              marginTop: 4,
               fontFamily: 'var(--f1)',
-              fontSize: 8,
-              color: 'var(--ink3)',
-              letterSpacing: 0.2,
-              marginBottom: 6,
-              lineHeight: 1.45,
-            }}
-          >
-            {apparel.localizedName}
-          </div>
-          {/* 일반/PSA10 평균을 한 줄에 — 라벨은 작게, 값은 컴팩트. */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              flexWrap: 'wrap',
-              gap: '4px 10px',
-              marginTop: 2,
-              fontFamily: 'var(--f1)',
-              fontSize: 11,
               letterSpacing: 0.3,
             }}
           >
-            <span style={{ fontSize: 7, color: 'var(--ink3)' }}>일반</span>
-            <span style={{ color: 'var(--red)' }}>{fmtYen(rawAvg.avg)}</span>
-            <span style={{ fontSize: 7, color: 'var(--ink3)', marginLeft: 4 }}>PSA10</span>
-            <span style={{ color: psa10Avg.avg > 0 ? 'var(--gold-dk, var(--orn))' : 'var(--ink3)' }}>
-              {fmtYen(psa10Avg.avg)}
-            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 7, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>싱글카드</div>
+              <div style={{ fontSize: 12, color: 'var(--red)', lineHeight: 1 }}>{fmtYen(rawAvg.avg)}</div>
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 7, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>PSA10</div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: psa10Avg.avg > 0 ? 'var(--gold-dk)' : 'var(--ink3)',
+                  lineHeight: 1,
+                }}
+              >
+                {fmtYen(psa10Avg.avg)}
+              </div>
+            </div>
           </div>
           <div
             style={{

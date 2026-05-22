@@ -64,17 +64,7 @@ export default async function PackExplorerPage() {
             <Link
               key={pack.code}
               href={`/cards/packs/${pack.code}`}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: 12,
-                background: 'var(--white)',
-                color: 'inherit',
-                textDecoration: 'none',
-                boxShadow:
-                  '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.85),5px 5px 0 var(--ink)',
-              }}
+              className="pack-list-item"
             >
               <div
                 style={{

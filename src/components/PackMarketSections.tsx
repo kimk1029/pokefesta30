@@ -136,13 +136,8 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
   return (
     <Link
       href={`/cards/snkrdunk/${hit.apparelId}`}
-      style={{
-        minWidth: 0, textDecoration: 'none', color: 'inherit',
-        background: 'var(--white)',
-        boxShadow:
-          '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.7),5px 5px 0 var(--ink)',
-        borderTop: `4px solid ${packBg}`,
-      }}
+      className="pack-grid-card"
+      style={{ borderTop: `4px solid ${packBg}` }}
     >
       <div
         style={{

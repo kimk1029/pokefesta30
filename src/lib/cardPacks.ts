@@ -42,6 +42,16 @@ export interface CardPackMeta {
  */
 export const CARD_PACKS: CardPackMeta[] = [
   {
+    code: 'm5',
+    name: '어비스아이',
+    shortName: '어비스아이',
+    emoji: '🌑',
+    bg: '#312E81',
+    searchQuery: 'アビスアイ',
+    apparelGroupId: 3453,
+    hits: [],
+  },
+  {
     code: 'm4',
     name: '닌자 스피너',
     shortName: '닌자 스피너',
@@ -442,6 +452,7 @@ export function getCardPack(code: string): CardPackMeta | undefined {
  * 키는 대문자 + 점 제거 (e.g. 'sv11w' → SV11W, 'm1l' → M1L).
  */
 export enum CardPackCode {
+  M5 = 'm5',
   M4 = 'm4',
   M3 = 'm3',
   M2A = 'm2a',

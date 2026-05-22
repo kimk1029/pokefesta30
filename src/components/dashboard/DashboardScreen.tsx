@@ -284,16 +284,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
             { icon: '🏷', lb: '마켓', bg: 'var(--orn)', href: '/feed' },
             { icon: '📦', lb: '컬렉션', bg: 'var(--blu)', href: '/my/cards' },
           ].map(({ icon, lb, bg, href }) => (
-            <Link
-              key={lb}
-              href={href}
-              style={{
-                background: 'var(--white)', padding: '14px 4px',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
-                cursor: 'pointer', textDecoration: 'none', color: 'inherit',
-                boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.14),5px 5px 0 var(--ink)',
-              }}
-            >
+            <Link key={lb} href={href} className="dash-quick">
               <div style={{
                 width: 42, height: 42, background: bg, display: 'grid', placeItems: 'center', fontSize: 20,
                 boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
