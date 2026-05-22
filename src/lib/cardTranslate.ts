@@ -121,6 +121,32 @@ const POKEMON: Term[] = [
   { ko: '테라파고스', en: 'terapagos',  ja: 'テラパゴス' },
   { ko: '세이콜',    en: 'ceruledge',   ja: 'ソウブレイズ' },
   { ko: '센터',      en: 'armarouge',   ja: 'グレンアルマ' },
+  // 추가 인기 포켓몬 — snkrdunk 빈번 등장
+  { ko: '다크라이',  en: 'darkrai',     ja: 'ダークライ' },
+  { ko: '크레세리아', en: 'cresselia',  ja: 'クレセリア' },
+  { ko: '겐가',      en: 'gengar',      ja: 'ゲンガー' },
+  { ko: '고우스트',  en: 'haunter',     ja: 'ゴースト' },
+  { ko: '고오스',    en: 'gastly',      ja: 'ゴース' },
+  { ko: '망키',      en: 'mankey',      ja: 'マンキー' },
+  { ko: '성원숭',    en: 'primeape',    ja: 'オコリザル' },
+  { ko: '엘레키블',  en: 'electivire',  ja: 'エレキブル' },
+  { ko: '마기라스',  en: 'tyranitar',   ja: 'バンギラス' },
+  { ko: '메타그로스', en: 'metagross', ja: 'メタグロス' },
+  { ko: '한카리아스', en: 'garchomp',  ja: 'ガブリアス' },
+  { ko: '루카리오',  en: 'lucario',     ja: 'ルカリオ' },
+  { ko: '게치스',    en: 'greninja',    ja: 'ゲッコウガ' },
+  { ko: '게코우가',  en: 'greninja',    ja: 'ゲッコウガ' },
+  { ko: '조로아',    en: 'zorua',       ja: 'ゾロア' },
+  { ko: '조로아크',  en: 'zoroark',     ja: 'ゾロアーク' },
+  { ko: '에이스번',  en: 'cinderace',   ja: 'エースバーン' },
+  { ko: '인텔리레온', en: 'inteleon',   ja: 'インテレオン' },
+  { ko: '고릴타',    en: 'rillaboom',   ja: 'ゴリランダー' },
+  { ko: '드래펄트',  en: 'dragapult',   ja: 'ドラパルト' },
+  { ko: '리갸도스',  en: 'gholdengo',   ja: 'サーフゴー' },
+  { ko: '파오젠',    en: 'chien-pao',   ja: 'パオジアン' },
+  { ko: '딘르',      en: 'ting-lu',     ja: 'ディンルー' },
+  { ko: '청록',      en: 'chi-yu',      ja: 'チオンジェン' },
+  { ko: '와이주',    en: 'wo-chien',    ja: 'イーユイ' },
 ];
 
 /** 카드 기믹/용어 + 레어도 약어. 모두 대소문자 무시로 매칭. */
@@ -188,6 +214,14 @@ const JA_TO_KO: Array<[string, string]> = ALL
   .sort((a, b) => b[0].length - a[0].length);
 
 const CARD_NAME_PHRASES: Array<[RegExp, string]> = [
+  // 카드 자주 등장하는 접두/접미사 — 길이 긴 패턴 먼저
+  [/MEGAバトルアシスト/g, 'MEGA 배틀 어시스트'],
+  [/メガしんかセット/g, '메가 진화 세트'],
+  [/メガしんか/g, '메가 진화'],
+  [/MEGA/g, 'MEGA'],
+  [/メガ/g, '메가'],
+  [/[「『]/g, '"'],
+  [/[」』]/g, '"'],
   [/ポケモンカードゲーム/g, '포켓몬 카드 게임'],
   [/強化拡張パック/g, '강화 확장팩'],
   [/ハイクラスパック/g, '하이클래스팩'],

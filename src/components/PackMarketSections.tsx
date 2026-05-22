@@ -133,6 +133,10 @@ function MarketSection({
 }
 
 function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
+  // 번역된 koName 이 비어있거나 원문과 동일하면 일본어 별도 표기 생략 (중복 라인 방지).
+  const koTitle = hit.koName || hit.shortName;
+  const jpTitle = hit.name && hit.name !== koTitle ? hit.name : null;
+  const hasPrice = hit.minPrice > 0;
   return (
     <Link
       href={`/cards/snkrdunk/${hit.apparelId}`}
@@ -141,48 +145,70 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
     >
       <div
         style={{
-          height: 160, background: 'var(--pap2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+          aspectRatio: '63 / 88',
+          background: 'var(--pap2)',
+          overflow: 'hidden',
         }}
       >
         {hit.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={hit.imageUrl} alt={hit.koName || hit.shortName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          <img
+            src={hit.imageUrl}
+            alt={koTitle}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
         ) : (
-          <span style={{ fontSize: 36 }}>CARD</span>
+          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+            <span style={{ fontSize: 36 }}>🃏</span>
+          </div>
         )}
       </div>
       <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
         <div
           style={{
-            fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: 5,
+            fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: jpTitle ? 3 : 6,
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
             minHeight: 28,
             lineHeight: 1.45,
+            wordBreak: 'keep-all',
           }}
         >
-          {hit.koName || hit.shortName}
+          {koTitle}
         </div>
+        {jpTitle ? (
+          <div
+            style={{
+              fontFamily: 'var(--f1)',
+              fontSize: 7,
+              color: 'var(--ink3)',
+              marginBottom: 6,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: 1.5,
+            }}
+          >
+            {jpTitle}
+          </div>
+        ) : null}
         <div
           style={{
+            display: 'inline-block',
+            padding: '3px 6px',
+            background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
+            color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
             fontFamily: 'var(--f1)',
-            fontSize: 7,
-            color: 'var(--ink3)',
-            marginBottom: 5,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
+            fontSize: 10,
+            letterSpacing: 0.3,
+            boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
           }}
         >
-          {hit.name}
+          {hasPrice ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '시세 없음'}
         </div>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--red)', letterSpacing: 0.3 }}>
-          {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '시세 없음'}
-        </div>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 3, letterSpacing: 0.3, minHeight: 12 }}>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 5, letterSpacing: 0.3, minHeight: 12 }}>
           {hit.lastSaleText ? `최근 ${hit.lastSaleText}` : hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
         </div>
       </div>

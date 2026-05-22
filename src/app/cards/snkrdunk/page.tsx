@@ -239,9 +239,12 @@ export default async function Page() {
               <div
                 className="sh-icon"
                 style={{
+                  width: 88,
+                  height: 124,
                   background: bg,
                   color: 'var(--white)',
                   overflow: 'hidden',
+                  alignSelf: 'stretch',
                 }}
               >
                 {apparel?.imageUrl ? (
@@ -250,10 +253,10 @@ export default async function Page() {
                   <img
                     src={apparel.imageUrl}
                     alt={seed.shortName}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
                 ) : (
-                  <span style={{ fontSize: 22 }}>🃏</span>
+                  <span style={{ fontSize: 36 }}>🃏</span>
                 )}
               </div>
               <div className="sh-main">

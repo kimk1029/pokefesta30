@@ -2,6 +2,7 @@ import { DashboardScreen, type SnkrdunkRow, type SnkrdunkCategory } from '@/comp
 import { getServerUser, serverFetch } from '@/lib/apiServer';
 import type { HeroSlideData } from '@/components/HeroSlider';
 import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCards';
+import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,8 @@ interface SnkrdunkSearchResult {
 interface ApparelDetail {
   apparelId: number;
   name: string;
+  /** snkrdunk 일본어 원문. (인기카드 카드 아래 작은 글씨 노출에 사용) */
+  localizedName?: string;
   imageUrl: string | null;
   minPrice: number;
   listingCountText: string;
@@ -97,9 +100,15 @@ export default async function Page() {
         { auth: false },
       );
       const apparel = ar.data?.data;
+      // 큐레이션된 seed.shortName 이 우선, 없으면 일본어 원문을 한국어로 자동 번역.
+      const jp = apparel?.localizedName ?? apparel?.name ?? '';
+      const ko = FEATURED_BY_ID.has(seed.apparelId)
+        ? seed.shortName
+        : shortenName(translateKnownCardNameToKo(jp) || seed.shortName);
       return {
         apparelId: seed.apparelId,
-        shortName: seed.shortName,
+        shortName: ko,
+        localizedName: jp || undefined,
         category: seed.category,
         imageUrl: apparel?.imageUrl ?? null,
         minPrice: apparel?.minPrice ?? 0,

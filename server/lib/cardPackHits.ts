@@ -163,10 +163,10 @@ async function resolveGroupSingles(pack: CardPackMeta, limit: number): Promise<P
     apparelCategoryId: 25,
     maxItems: Math.max(limit, 100),
   });
-  return items
-    .filter((a) => a.minPrice > 0)
-    .map((a) => toHitCard(a))
-    .slice(0, limit);
+  // 우선 매물 있는 카드만. 신규팩처럼 매물 0 인 경우엔 전부 노출 (UI 가 '시세 없음' 표시).
+  const priced = items.filter((a) => a.minPrice > 0);
+  const pool = priced.length > 0 ? priced : items;
+  return pool.map((a) => toHitCard(a)).slice(0, limit);
 }
 
 async function resolveGroupBoxes(pack: CardPackMeta): Promise<PackHitCard[]> {

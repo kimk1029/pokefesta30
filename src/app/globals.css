@@ -2369,7 +2369,8 @@ a{color:inherit;text-decoration:none;}
 .theme-pick-tile.active .tp-desc{color:var(--ink2);}
 
 /* ── 시세 상세 액션 버튼 (모바일 PixelPress 와 동일한 룩) ── */
-.snk-act-row{display:flex;gap:8px;margin:0 var(--gap) var(--cg);}
+/* gap 은 shadow 5px 만큼 시각적으로 먹혀서 실제 여백 ≒ gap - 5px. 14 → 약 9px 노출. */
+.snk-act-row{display:flex;gap:14px;margin:0 var(--gap) var(--cg);}
 .snk-act{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
   gap:5px;padding:7px 6px;
   font-family:var(--f1);font-size:10px;letter-spacing:.3px;

@@ -14,6 +14,8 @@ export type SnkrdunkCategory = 'SAR' | '프로모' | 'SR' | '원피스';
 export interface SnkrdunkRow {
   apparelId: number;
   shortName: string;
+  /** 일본어 원문 (소제목 노출용). 비어 있으면 표시 생략. */
+  localizedName?: string;
   category: SnkrdunkCategory | null;
   imageUrl: string | null;
   minPrice: number;
@@ -423,16 +425,18 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
             <h2>🔥 인기 카드들</h2>
             <Link href="/cards/snkrdunk" className="more">전체 ▶</Link>
           </div>
-          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 4 }}>
+          {/* 좌/우 padding 으로 첫·마지막 카드의 box-shadow 가 잘리지 않도록 여백 확보. */}
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', padding: '4px 6px 8px' }}>
             {snkrdunkRows.map((r) => {
               const bg = r.category ? SNKR_CAT_BG[r.category] : SNKR_FALLBACK_BG;
               const priceText = r.minPrice > 0 ? `¥${r.minPrice.toLocaleString('ja-JP')}` : '—';
+              const showJp = r.localizedName && r.localizedName !== r.shortName;
               return (
                 <Link
                   key={r.apparelId}
                   href={`/cards/snkrdunk/${r.apparelId}`}
                   style={{
-                    flexShrink: 0, width: 124, cursor: 'pointer', textDecoration: 'none', color: 'inherit',
+                    flexShrink: 0, width: 108, cursor: 'pointer', textDecoration: 'none', color: 'inherit',
                     background: 'var(--white)',
                     boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.7),5px 5px 0 var(--ink)',
                     borderTop: `4px solid ${bg}`,
@@ -467,9 +471,16 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                       ) : null}
                     </div>
                     <div style={{
-                      fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: 4,
+                      fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: 3,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{r.shortName}</div>
+                    {showJp ? (
+                      <div style={{
+                        fontFamily: 'var(--f1)', fontSize: 7, color: 'var(--ink3)',
+                        letterSpacing: 0.2, marginBottom: 4,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>{r.localizedName}</div>
+                    ) : null}
                     <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--red)', letterSpacing: 0.3 }}>
                       {priceText}
                     </div>

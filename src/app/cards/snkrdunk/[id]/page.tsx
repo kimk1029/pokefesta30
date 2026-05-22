@@ -285,7 +285,8 @@ export default async function Page({ params }: PageProps) {
   return (
     <>
       <StatusBar />
-      <AppBar title="시세 상세" showBack backHref="/cards/snkrdunk" />
+      {/* 진입 경로(추천 6종/팩 상세/검색) 가 다양해서 backHref 를 고정하지 않고 브라우저 history 로 돌아감. */}
+      <AppBar title="시세 상세" showBack />
 
       <div style={{ height: 14 }} />
 
