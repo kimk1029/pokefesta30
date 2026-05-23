@@ -10,6 +10,7 @@ import { PhoneShell } from '@/components/PhoneShell';
 import { Providers } from '@/components/Providers';
 import { RouteProgress } from '@/components/RouteProgress';
 import { CurrencyProvider } from '@/components/CurrencyProvider';
+import { PriceModeProvider } from '@/components/PriceModeProvider';
 import { ToastProvider } from '@/components/ToastProvider';
 import { UnreadProvider } from '@/components/UnreadProvider';
 import 'galmuri/dist/galmuri.css';
@@ -101,18 +102,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <AdScripts />
         <Providers>
           <CurrencyProvider>
-            <ToastProvider>
-              <InventoryProvider>
-                <UnreadProvider>
+            <PriceModeProvider>
+              <ToastProvider>
+                <InventoryProvider>
+                  <UnreadProvider>
                 <Suspense fallback={null}>
                   <RouteProgress />
                 </Suspense>
                 <PageviewBeacon />
                 <InAppBrowserNotice />
                 <PhoneShell>{children}</PhoneShell>
-                </UnreadProvider>
-              </InventoryProvider>
-            </ToastProvider>
+                  </UnreadProvider>
+                </InventoryProvider>
+              </ToastProvider>
+            </PriceModeProvider>
           </CurrencyProvider>
         </Providers>
       </body>

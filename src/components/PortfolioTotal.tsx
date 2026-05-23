@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useCurrency } from '@/components/CurrencyProvider';
+import { usePriceMode } from '@/components/PriceModeProvider';
 
 /**
  * 포트폴리오 총합 (JPY) — 마이페이지 헤더에서 보여줌.
@@ -11,13 +12,16 @@ import { useCurrency } from '@/components/CurrencyProvider';
  */
 export function PortfolioTotal() {
   const { format } = useCurrency();
+  const { mode: priceMode } = usePriceMode();
   const [state, setState] = useState<
     | { kind: 'loading' }
     | { kind: 'empty' }
     | {
         kind: 'ok';
         totalJpy: number;
+        totalPsa10Jpy: number;
         pricedCount: number;
+        pricedPsa10Count: number;
         totalCount: number;
         changeAbsJpy: number | null;
         changePct: number | null;
@@ -42,7 +46,9 @@ export function PortfolioTotal() {
         const j = (await r.json()) as {
           data?: {
             totalJpy: number;
+            totalPsa10Jpy?: number;
             pricedCount: number;
+            pricedPsa10Count?: number;
             totalCount: number;
             changeAbsJpy: number | null;
             changePct: number | null;
@@ -57,7 +63,9 @@ export function PortfolioTotal() {
         setState({
           kind: 'ok',
           totalJpy: d.totalJpy,
+          totalPsa10Jpy: d.totalPsa10Jpy ?? 0,
           pricedCount: d.pricedCount,
+          pricedPsa10Count: d.pricedPsa10Count ?? 0,
           totalCount: d.totalCount,
           changeAbsJpy: d.changeAbsJpy,
           changePct: d.changePct,
@@ -104,7 +112,11 @@ export function PortfolioTotal() {
           {state.kind === 'loading'
             ? '계산 중…'
             : state.kind === 'ok'
-              ? format(state.totalJpy)
+              ? format(
+                  priceMode === 'psa10' && state.totalPsa10Jpy > 0
+                    ? state.totalPsa10Jpy
+                    : state.totalJpy,
+                )
               : state.kind === 'empty'
                 ? '컬렉션 없음'
                 : '시세 조회 실패'}

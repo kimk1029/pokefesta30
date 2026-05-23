@@ -14,6 +14,7 @@ import {
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import type { MyCardWithPrice } from '@/lib/queries';
 import { useCurrency } from '@/components/CurrencyProvider';
+import { usePriceMode } from '@/components/PriceModeProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 
@@ -62,6 +63,7 @@ const GAME_COLORS: Record<string, string> = {
 
 export function MyCardsScreen({ cards: initial }: Props) {
   const { format } = useCurrency();
+  const { mode: priceMode } = usePriceMode();
   const [cards, setCards] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -92,11 +94,15 @@ export function MyCardsScreen({ cards: initial }: Props) {
           rar: detectRarity(c.nickname, c.snkrdunkName, catalog?.name),
           gradeNum: parsePsa(c.gradeEstimate),
           price: c.latestPrice,
-          priceJpy: c.snkrdunkMinPriceJpy ?? 0,
+          // priceMode 에 따라 single 또는 PSA10 가격 표시 (PSA10 데이터 없으면 single 폴백).
+          priceJpy:
+            priceMode === 'psa10' && c.pricePsa10Jpy > 0
+              ? c.pricePsa10Jpy
+              : c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0,
           imageUrl: c.photoUrl || c.snkrdunkImageUrl || null,
         };
       }),
-    [cards],
+    [cards, priceMode],
   );
 
   const games = useMemo(() => {

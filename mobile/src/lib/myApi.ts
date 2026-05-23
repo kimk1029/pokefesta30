@@ -62,6 +62,10 @@ export interface MyCardRow {
   snkrdunkName?: string | null;
   snkrdunkImageUrl?: string | null;
   snkrdunkMinPriceJpy?: number;
+  /** raw 싱글카드 중앙값 시세. */
+  priceSingleJpy?: number;
+  /** PSA10 중앙값 시세 (있으면). */
+  pricePsa10Jpy?: number;
 }
 
 export interface MyFavoriteRow {
@@ -75,7 +79,9 @@ export interface MyFavoriteRow {
 
 export interface PortfolioSummary {
   totalJpy: number;
+  totalPsa10Jpy?: number;
   pricedCount: number;
+  pricedPsa10Count?: number;
   totalCount: number;
   yesterdayJpy: number | null;
   changeAbsJpy: number | null;

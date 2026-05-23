@@ -21,7 +21,7 @@ import {
   getMyInventory,
   getMyTrades,
 } from '../lib/queries.js';
-import { fetchSnkrdunkApparel } from '@/lib/snkrdunk';
+import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory } from '@/lib/snkrdunk';
 import { runDailyCheckIn } from '../lib/checkIn.js';
 
 const router = Router();
@@ -248,7 +248,9 @@ router.get('/portfolio', async (req: Request, res: Response) => {
     const totalCount = await countMyCards(userId);
 
     let totalJpy = 0;
+    let totalPsa10Jpy = 0;
     let pricedCount = 0;
+    let pricedPsa10Count = 0;
     if (cards.length > 0) {
       // 같은 apparelId 가 여러 번 들어 있을 수 있으니 fetch 는 한 번만.
       const uniqueApparelIds: number[] = Array.from(
@@ -258,14 +260,37 @@ router.get('/portfolio', async (req: Request, res: Response) => {
             .filter((v): v is number => typeof v === 'number'),
         ),
       );
-      const priceByApparel = new Map<number, number>();
+      const PSA10_RE = /PSA\s*10\b/i;
+      const PSA_ANY_RE = /PSA\s*\d+/i;
+      const median = (arr: number[]): number => {
+        if (arr.length === 0) return 0;
+        const sorted = [...arr].sort((a, b) => a - b);
+        return sorted[Math.floor(sorted.length / 2)];
+      };
+      // apparel.minPrice (현재 최저) + sales history median (raw / psa10) 모두 수집.
+      const priceByApparel = new Map<number, { single: number; psa10: number }>();
       await Promise.all(
         uniqueApparelIds.map(async (id: number) => {
           try {
-            const a = await fetchSnkrdunkApparel(id);
-            if (a && typeof a.minPrice === 'number' && a.minPrice > 0) {
-              priceByApparel.set(id, a.minPrice);
+            const [a, hist] = await Promise.all([
+              fetchSnkrdunkApparel(id),
+              fetchSnkrdunkSalesHistory(id).catch(() => null),
+            ]);
+            const history = hist?.history ?? [];
+            const pickPrices = (predicate: (badge: string) => boolean) =>
+              history
+                .filter((h) => typeof h.price === 'number' && h.price > 0)
+                .filter((h) => predicate((h.condition || h.label || '').trim()))
+                .map((h) => h.price)
+                .slice(0, 7);
+            const rawPrices = pickPrices((b) => !PSA_ANY_RE.test(b));
+            const psa10Prices = pickPrices((b) => PSA10_RE.test(b));
+            let single = median(rawPrices);
+            if (single === 0 && a && typeof a.minPrice === 'number' && a.minPrice > 0) {
+              single = a.minPrice;
             }
+            const psa10 = median(psa10Prices);
+            priceByApparel.set(id, { single, psa10 });
           } catch (err) {
             console.warn('[me.portfolio] apparel fetch failed', id, err);
           }
@@ -273,9 +298,14 @@ router.get('/portfolio', async (req: Request, res: Response) => {
       );
       for (const c of cards) {
         const p = c.snkrdunkApparelId != null ? priceByApparel.get(c.snkrdunkApparelId) : null;
-        if (p != null && p > 0) {
-          totalJpy += p;
+        if (!p) continue;
+        if (p.single > 0) {
+          totalJpy += p.single;
           pricedCount += 1;
+        }
+        if (p.psa10 > 0) {
+          totalPsa10Jpy += p.psa10;
+          pricedPsa10Count += 1;
         }
       }
     }
@@ -326,6 +356,8 @@ router.get('/portfolio', async (req: Request, res: Response) => {
         totalJpy,
         pricedCount,
         totalCount,
+        totalPsa10Jpy,
+        pricedPsa10Count,
         yesterdayJpy,
         changeAbsJpy,
         changePct,

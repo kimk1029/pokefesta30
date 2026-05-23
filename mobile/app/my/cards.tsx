@@ -21,6 +21,7 @@ import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useToast } from '@/components/ToastProvider';
+import { usePriceMode } from '@/lib/priceMode';
 import { colors, fonts, space } from '@/theme/tokens';
 import {
   fetchMyCards,
@@ -64,7 +65,7 @@ interface Display {
   priceJpy: number;
 }
 
-function toDisplay(c: MyCardRow): Display {
+function toDisplay(c: MyCardRow, mode: 'single' | 'psa10'): Display {
   const raw =
     c.nickname ||
     c.snkrdunkName ||
@@ -72,13 +73,15 @@ function toDisplay(c: MyCardRow): Display {
     (c.ocrSetCode || c.ocrCardNumber
       ? `${c.ocrSetCode ?? '?'} ${c.ocrCardNumber ?? ''}`.trim()
       : '미식별 카드');
+  const psa10 = c.pricePsa10Jpy ?? 0;
+  const single = c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0;
   return {
     src: c,
     name: localizeCardName(raw),
     imageUrl: c.photoUrl || c.snkrdunkImageUrl || null,
     rar: detectRarity(c.nickname, c.snkrdunkName, c.cardId),
     gradeNum: parsePsa(c.gradeEstimate),
-    priceJpy: c.snkrdunkMinPriceJpy ?? 0,
+    priceJpy: mode === 'psa10' && psa10 > 0 ? psa10 : single,
   };
 }
 
@@ -97,6 +100,7 @@ function useAuthed(): boolean {
 export default function MyCardsScreen() {
   const authed = useAuthed();
   const { format } = useCurrency();
+  const { mode: priceMode } = usePriceMode();
   const toast = useToast();
 
   const [view, setView] = useState<ViewMode>('grid');
@@ -117,7 +121,7 @@ export default function MyCardsScreen() {
     );
   }
 
-  const display: Display[] = (data ?? []).map(toDisplay);
+  const display: Display[] = (data ?? []).map((c) => toDisplay(c, priceMode));
 
   const presentRarities = useMemo(() => {
     const set = new Set<Rarity>();

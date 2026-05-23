@@ -310,7 +310,15 @@ export interface MyCardWithPrice extends MyCardRow {
   /** snkrdunkApparelId 가 있는 카드만 채워짐. */
   snkrdunkName: string | null;
   snkrdunkImageUrl: string | null;
+  /**
+   * 호환용 — priceSingleJpy 와 동일 (raw/싱글카드 중앙값).
+   * 기존 호출처가 이 필드를 쓰므로 유지.
+   */
   snkrdunkMinPriceJpy: number;
+  /** 싱글카드 (raw, non-PSA10) 최근 7건 매출 중앙값. */
+  priceSingleJpy: number;
+  /** PSA10 라벨이 붙은 최근 7건 매출 중앙값. 데이터 없으면 0. */
+  pricePsa10Jpy: number;
 }
 
 export async function getMyCardsWithPrices(
@@ -328,11 +336,24 @@ export async function getMyCardsWithPrices(
         .filter((v): v is number => typeof v === 'number'),
     ),
   );
-  // apparel meta + 평균 시세. 평균은 최근 7건 매출(salesHistory) 의 중앙값을
-  // 우선 사용. 데이터가 부족하면 apparel.minPrice 로 폴백.
+  // apparel meta + 평균 시세. salesHistory 를 PSA10 vs raw 로 분리해서
+  // 각각 중앙값을 계산. 데이터 부족 시 apparel.minPrice 로 폴백.
+  const PSA10_RE = /PSA\s*10\b/i;
+  const PSA_ANY_RE = /PSA\s*\d+/i;
+  const median = (arr: number[]): number => {
+    if (arr.length === 0) return 0;
+    const sorted = [...arr].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
+  };
+
   const apparelInfo = new Map<
     number,
-    { name: string; imageUrl: string | null; minPrice: number }
+    {
+      name: string;
+      imageUrl: string | null;
+      priceSingleJpy: number;
+      pricePsa10Jpy: number;
+    }
   >();
   if (apparelIds.length > 0) {
     await Promise.all(
@@ -343,21 +364,26 @@ export async function getMyCardsWithPrices(
             fetchSnkrdunkSalesHistory(id).catch(() => null),
           ]);
           if (!a) return;
-          const recent = (hist?.history ?? [])
-            .map((h) => (typeof h.price === 'number' && h.price > 0 ? h.price : 0))
-            .filter((n): n is number => n > 0)
-            .slice(0, 7);
-          let avg = 0;
-          if (recent.length >= 3) {
-            const sorted = [...recent].sort((x, y) => x - y);
-            avg = sorted[Math.floor(sorted.length / 2)]; // median — outlier 에 강함
-          } else if (typeof a.minPrice === 'number' && a.minPrice > 0) {
-            avg = a.minPrice;
+          const history = hist?.history ?? [];
+          // raw (non-PSA) vs PSA10 분리. condition + label 둘 다 검사.
+          const pickPrices = (predicate: (badge: string) => boolean) =>
+            history
+              .filter((h) => typeof h.price === 'number' && h.price > 0)
+              .filter((h) => predicate((h.condition || h.label || '').trim()))
+              .map((h) => h.price)
+              .slice(0, 7);
+          const rawPrices = pickPrices((b) => !PSA_ANY_RE.test(b));
+          const psa10Prices = pickPrices((b) => PSA10_RE.test(b));
+          let single = median(rawPrices);
+          if (single === 0 && typeof a.minPrice === 'number' && a.minPrice > 0) {
+            single = a.minPrice; // 데이터 없으면 현재 최저매물 폴백
           }
+          const psa10 = median(psa10Prices);
           apparelInfo.set(id, {
             name: a.localizedName || a.name || '',
             imageUrl: a.imageUrl,
-            minPrice: avg,
+            priceSingleJpy: single,
+            pricePsa10Jpy: psa10,
           });
         } catch (err) {
           console.warn('[getMyCardsWithPrices] apparel fetch failed', id, err);
@@ -368,13 +394,21 @@ export async function getMyCardsWithPrices(
 
   const enrichSnk = (c: MyCardRow) => {
     if (!c.snkrdunkApparelId) {
-      return { snkrdunkName: null, snkrdunkImageUrl: null, snkrdunkMinPriceJpy: 0 };
+      return {
+        snkrdunkName: null,
+        snkrdunkImageUrl: null,
+        snkrdunkMinPriceJpy: 0,
+        priceSingleJpy: 0,
+        pricePsa10Jpy: 0,
+      };
     }
     const info = apparelInfo.get(c.snkrdunkApparelId);
     return {
       snkrdunkName: info?.name ?? null,
       snkrdunkImageUrl: info?.imageUrl ?? null,
-      snkrdunkMinPriceJpy: info?.minPrice ?? 0,
+      snkrdunkMinPriceJpy: info?.priceSingleJpy ?? 0, // 호환용 별칭
+      priceSingleJpy: info?.priceSingleJpy ?? 0,
+      pricePsa10Jpy: info?.pricePsa10Jpy ?? 0,
     };
   };
 

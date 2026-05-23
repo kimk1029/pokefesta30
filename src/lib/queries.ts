@@ -21,7 +21,12 @@ export interface MyCardWithPrice extends MyCardRow {
   /** snkrdunkApparelId 가 있을 때만 채워짐. */
   snkrdunkName: string | null;
   snkrdunkImageUrl: string | null;
+  /** 호환용 — priceSingleJpy 와 동일. */
   snkrdunkMinPriceJpy: number;
+  /** 싱글카드 (raw, non-PSA10) 중앙값 시세. */
+  priceSingleJpy: number;
+  /** PSA10 중앙값 시세. 데이터 없으면 0. */
+  pricePsa10Jpy: number;
 }
 
 export interface MyFavoriteRow {

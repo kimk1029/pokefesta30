@@ -14,11 +14,11 @@ export type AuthProvider = 'kakao' | 'naver' | 'google';
 
 const DEEP_LINK_SCHEME = 'pokefesta30://';
 
-// OAuth 는 반드시 웹 오리진(HTTPS) 을 통과해야 한다 —
-// 1) Express 가 굽는 state 쿠키가 secure: true 라 HTTP 직통 Synology 에선 저장 안 됨
-// 2) Kakao/Naver/Google 콘솔에 등록된 콜백 도메인과 시작 도메인이 같아야 쿠키가 살아남음
-// 일반 API 는 apiClient 가 그대로 Synology 직통 (Authorization: Bearer 이라 쿠키 무관).
-const WEB_OAUTH_ORIGIN = process.env.EXPO_PUBLIC_WEB_OAUTH_ORIGIN ?? 'https://www.poke-30.com';
+// OAuth 시작 오리진. 서버 state 가 HMAC 서명이라 쿠키 없이도 검증 가능 →
+// Express 서버를 직접 호출. 만약 OAuth provider 콜백 URL 이 웹 도메인으로만
+// 등록되어 있다면 EXPO_PUBLIC_WEB_OAUTH_ORIGIN 으로 override 가능.
+const WEB_OAUTH_ORIGIN =
+  process.env.EXPO_PUBLIC_WEB_OAUTH_ORIGIN ?? getApiBaseUrl();
 
 interface Props {
   provider: AuthProvider;
