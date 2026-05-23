@@ -4,7 +4,9 @@ import { router, usePathname } from 'expo-router';
 import { colors } from '@/theme/tokens';
 import { PixelText } from './PixelText';
 import { PokeballSpinner } from './PokeballSpinner';
+import { StrawHatBall } from './StrawHatBall';
 import { TabIcon, type TabIconName } from './TabIcon';
+import { useTheme } from './ThemeProvider';
 
 type TabId = 'home' | 'collection' | 'fab' | 'community' | 'my';
 
@@ -100,6 +102,7 @@ interface FabProps {
 }
 
 function FabTab({ on, label, href }: FabProps) {
+  const { theme } = useTheme();
   const spin = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const lift = useRef(new Animated.Value(0)).current;
@@ -178,7 +181,7 @@ function FabTab({ on, label, href }: FabProps) {
           { transform: [{ translateY: lift }, { scale }, { rotate }] },
         ]}
       >
-        <PokeballSpinner size={62} />
+        {theme === 'onepiece' ? <StrawHatBall size={62} /> : <PokeballSpinner size={62} />}
       </Animated.View>
       <PixelText
         variant="pixel"

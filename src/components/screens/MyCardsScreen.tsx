@@ -11,6 +11,7 @@ import {
   RARITY_ORDER,
   type Rarity,
 } from '@/lib/cardRarity';
+import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import type { MyCardWithPrice } from '@/lib/queries';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { AppBar } from '@/components/ui/AppBar';
@@ -79,13 +80,14 @@ export function MyCardsScreen({ cards: initial }: Props) {
         return {
           src: c,
           catalog,
-          name:
+          name: translateKnownCardNameToKo(
             c.nickname ||
-            c.snkrdunkName ||
-            catalog?.name ||
-            (c.ocrSetCode || c.ocrCardNumber
-              ? `${c.ocrSetCode ?? '?'} ${c.ocrCardNumber ?? ''}`.trim()
-              : '미식별 카드'),
+              c.snkrdunkName ||
+              catalog?.name ||
+              (c.ocrSetCode || c.ocrCardNumber
+                ? `${c.ocrSetCode ?? '?'} ${c.ocrCardNumber ?? ''}`.trim()
+                : '미식별 카드'),
+          ),
           game: catalog || fromSnk ? '포켓몬' : '기타',
           rar: detectRarity(c.nickname, c.snkrdunkName, catalog?.name),
           gradeNum: parsePsa(c.gradeEstimate),

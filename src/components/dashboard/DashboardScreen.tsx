@@ -267,6 +267,35 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
       <StatusBar />
       <AppBar right={<AppBarProfile />} />
 
+      {/* ═══ SEARCH (KR → JP → snkrdunk) — 최상단 진입점 ═══ */}
+      <div className="sect">
+        <div className="sect-hd"><h2>카드 검색</h2></div>
+        <HomeKoSearchBar />
+      </div>
+
+      {/* ═══ QUICK ACTIONS — 자주 쓰는 4개 진입 ═══ */}
+      <div className="sect">
+        <div className="sect-hd"><h2>바로가기</h2></div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+          {[
+            { icon: '📷' as const, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
+            { icon: '¥' as const, lb: '가격탐색', bg: 'var(--gold)', href: '/cards/packs' },
+            { icon: '🛒' as const, lb: '마켓', bg: 'var(--orn)', href: '/feed' },
+            { icon: 'cards' as const, lb: '컬렉션', bg: 'var(--blu)', href: '/my/cards' },
+          ].map(({ icon, lb, bg, href }) => (
+            <Link key={lb} href={href} className="dash-quick">
+              <div style={{
+                width: 42, height: 42, background: bg, display: 'grid', placeItems: 'center', fontSize: 21,
+                boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
+              }}>
+                {icon === 'cards' ? <CardStackPixel /> : icon}
+              </div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: .3 }}>{lb}</div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       {/* ═══ HERO: PORTFOLIO CARD ═══ */}
       <div style={{
         margin: 'var(--gap) var(--gap) var(--cg)',
@@ -363,74 +392,51 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
         </div>
       </div>
 
-      {/* ═══ QUICK ACTIONS — 포트폴리오 바로 아래 ═══ */}
-      <div className="sect">
-        <div className="sect-hd"><h2>바로가기</h2></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
-          {[
-            { icon: '📷' as const, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
-            { icon: '¥' as const, lb: '가격탐색', bg: 'var(--gold)', href: '/cards/packs' },
-            { icon: '🛒' as const, lb: '마켓', bg: 'var(--orn)', href: '/feed' },
-            { icon: 'cards' as const, lb: '컬렉션', bg: 'var(--blu)', href: '/my/cards' },
-          ].map(({ icon, lb, bg, href }) => (
-            <Link key={lb} href={href} className="dash-quick">
-              <div style={{
-                width: 42, height: 42, background: bg, display: 'grid', placeItems: 'center', fontSize: 21,
-                boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
-              }}>
-                {icon === 'cards' ? <CardStackPixel /> : icon}
-              </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: .3 }}>{lb}</div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* ═══ SEARCH (KR → JP → snkrdunk) ═══ */}
-      <div className="sect">
-        <div className="sect-hd"><h2>카드 검색</h2></div>
-        <HomeKoSearchBar />
-      </div>
-
-      {/* ═══ XP / LEVEL BAR ═══ */}
-      <div style={{
-        margin: '0 var(--gap) var(--cg)', background: 'var(--white)', padding: '13px 14px',
-        boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.12),5px 5px 0 var(--ink)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-            <div style={{
-              width: 32, height: 32, background: 'var(--pur)', display: 'grid', placeItems: 'center', fontSize: 17,
-              boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 var(--pur-lt),inset 0 -2px 0 var(--pur-dk),3px 3px 0 var(--ink)',
-            }}>🏆</div>
-            <div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: .5 }}>{LEVEL_LABEL}</div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 4, letterSpacing: .3 }}>다음 레벨까지 {XP_MAX - XP_CURRENT}P</div>
-            </div>
+      {/* ═══ LEVEL · COMPACT ═══ — 한 줄로 LV/XP/포인트 모두 표시. */}
+      <div
+        style={{
+          margin: '0 var(--gap) var(--cg)',
+          background: 'var(--white)',
+          padding: '10px 14px',
+          boxShadow:
+            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.9),4px 4px 0 var(--ink)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            style={{
+              fontFamily: 'var(--f1)',
+              fontSize: 11,
+              color: 'var(--ink)',
+              letterSpacing: 0.5,
+              flexShrink: 0,
+            }}
+          >
+            {LEVEL_LABEL}
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 14, color: 'var(--gold-dk)', letterSpacing: .5 }}>🪙{POINTS.toLocaleString()}</div>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 3, letterSpacing: .3 }}>포인트</div>
+          <div
+            style={{
+              flex: 1,
+              background: 'var(--pap2)',
+              height: 8,
+              position: 'relative',
+              boxShadow: 'inset 1px 1px 0 rgba(0,0,0,.15)',
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.round((XP_CURRENT / XP_MAX) * 100)}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg,var(--pur),var(--gold))',
+              }}
+            />
           </div>
-        </div>
-        <div style={{
-          background: 'var(--bg3)', height: 12, position: 'relative',
-          boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 2px 2px 0 rgba(0,0,0,.15)',
-        }}>
-          <div style={{
-            width: `${Math.round((XP_CURRENT / XP_MAX) * 100)}%`, height: '100%',
-            background: 'linear-gradient(90deg,var(--pur-dk),var(--pur),var(--gold))',
-            boxShadow: 'inset 0 3px 0 rgba(255,255,255,.4),inset 0 -3px 0 rgba(0,0,0,.2)', position: 'relative',
-          }}>
-            <div style={{
-              position: 'absolute', right: 0, top: 0, bottom: 0, width: 3, background: 'var(--white)', opacity: .9,
-              animation: 'xp-shine 1.5s steps(2) infinite',
-            }} />
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', flexShrink: 0 }}>
+            {XP_CURRENT}/{XP_MAX}
           </div>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
-          <span style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', letterSpacing: .3 }}>{XP_CURRENT} / {XP_MAX} XP</span>
-          <span style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--pur)', letterSpacing: .3 }}>+{XP_WEEK}XP 이번 주</span>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--gold-dk)', flexShrink: 0 }}>
+            🪙{POINTS.toLocaleString()}
+          </div>
         </div>
       </div>
 
@@ -638,18 +644,54 @@ function Block({ label, value, sub, color, icon, href }: BlockProps) {
     <>
       {icon && <div style={{ position: 'absolute', right: 10, top: 10, fontSize: 19, opacity: .15 }}>{icon}</div>}
       <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', letterSpacing: .5 }}>{label}</div>
-      <div style={{
-        fontFamily: 'var(--f1)', fontSize: 21, color: color || 'var(--ink)', letterSpacing: -1, lineHeight: 1,
-        textShadow: color ? '1px 1px 0 rgba(0,0,0,.15)' : 'none',
-      }}>{value}</div>
-      {sub && <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', letterSpacing: .3 }}>{sub}</div>}
+      <div
+        style={{
+          fontFamily: 'var(--f1)',
+          fontSize: 19,
+          color: color || 'var(--ink)',
+          letterSpacing: -1,
+          lineHeight: 1.1,
+          textShadow: color ? '1px 1px 0 rgba(0,0,0,.15)' : 'none',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {value}
+      </div>
+      {sub && (
+        <div
+          style={{
+            fontFamily: 'var(--f1)',
+            fontSize: 10,
+            color: 'var(--ink3)',
+            letterSpacing: 0.3,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {sub}
+        </div>
+      )}
     </>
   );
+  // 4 칸 동일 높이 — minHeight 로 통일.
   const baseStyle: React.CSSProperties = {
-    background: 'var(--white)', padding: '14px 12px',
-    boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -4px 0 rgba(0,0,0,.14),5px 5px 0 var(--ink)',
-    display: 'flex', flexDirection: 'column', gap: 5, position: 'relative', overflow: 'hidden',
-    textDecoration: 'none', color: 'inherit',
+    background: 'var(--white)',
+    padding: '14px 12px',
+    minHeight: 96,
+    minWidth: 0,
+    boxShadow:
+      '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -4px 0 rgba(0,0,0,.14),5px 5px 0 var(--ink)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+    gap: 5,
+    position: 'relative',
+    overflow: 'hidden',
+    textDecoration: 'none',
+    color: 'inherit',
   };
   if (href) {
     return <Link href={href} style={baseStyle}>{inner}</Link>;

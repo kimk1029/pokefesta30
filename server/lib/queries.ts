@@ -21,7 +21,7 @@ import type {
   TradeStatus,
   TradeType,
 } from '@/lib/types';
-import { fetchSnkrdunkApparel } from '@/lib/snkrdunk';
+import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory } from '@/lib/snkrdunk';
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -328,6 +328,8 @@ export async function getMyCardsWithPrices(
         .filter((v): v is number => typeof v === 'number'),
     ),
   );
+  // apparel meta + 평균 시세. 평균은 최근 7건 매출(salesHistory) 의 중앙값을
+  // 우선 사용. 데이터가 부족하면 apparel.minPrice 로 폴백.
   const apparelInfo = new Map<
     number,
     { name: string; imageUrl: string | null; minPrice: number }
@@ -336,14 +338,27 @@ export async function getMyCardsWithPrices(
     await Promise.all(
       apparelIds.map(async (id) => {
         try {
-          const a = await fetchSnkrdunkApparel(id);
-          if (a) {
-            apparelInfo.set(id, {
-              name: a.localizedName || a.name || '',
-              imageUrl: a.imageUrl,
-              minPrice: typeof a.minPrice === 'number' && a.minPrice > 0 ? a.minPrice : 0,
-            });
+          const [a, hist] = await Promise.all([
+            fetchSnkrdunkApparel(id),
+            fetchSnkrdunkSalesHistory(id).catch(() => null),
+          ]);
+          if (!a) return;
+          const recent = (hist?.history ?? [])
+            .map((h) => (typeof h.price === 'number' && h.price > 0 ? h.price : 0))
+            .filter((n): n is number => n > 0)
+            .slice(0, 7);
+          let avg = 0;
+          if (recent.length >= 3) {
+            const sorted = [...recent].sort((x, y) => x - y);
+            avg = sorted[Math.floor(sorted.length / 2)]; // median — outlier 에 강함
+          } else if (typeof a.minPrice === 'number' && a.minPrice > 0) {
+            avg = a.minPrice;
           }
+          apparelInfo.set(id, {
+            name: a.localizedName || a.name || '',
+            imageUrl: a.imageUrl,
+            minPrice: avg,
+          });
         } catch (err) {
           console.warn('[getMyCardsWithPrices] apparel fetch failed', id, err);
         }

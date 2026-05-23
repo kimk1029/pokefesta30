@@ -25,7 +25,7 @@ export function HomeKoSearchBar() {
   }
 
   return (
-    <div style={{ margin: '0 var(--gap) var(--cg)' }}>
+    <div>
       <form
         onSubmit={(e) => {
           e.preventDefault();

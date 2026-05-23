@@ -36,6 +36,7 @@ import {
   RARITY_FG,
   type Rarity,
 } from '@/lib/cardRarity';
+import { localizeCardName } from '@/lib/cardNameKo';
 
 type ViewMode = 'grid' | 'list' | 'album' | 'film';
 type SortBy = 'recent' | 'name' | 'price' | 'grade';
@@ -64,15 +65,16 @@ interface Display {
 }
 
 function toDisplay(c: MyCardRow): Display {
+  const raw =
+    c.nickname ||
+    c.snkrdunkName ||
+    c.cardId ||
+    (c.ocrSetCode || c.ocrCardNumber
+      ? `${c.ocrSetCode ?? '?'} ${c.ocrCardNumber ?? ''}`.trim()
+      : '미식별 카드');
   return {
     src: c,
-    name:
-      c.nickname ||
-      c.snkrdunkName ||
-      c.cardId ||
-      (c.ocrSetCode || c.ocrCardNumber
-        ? `${c.ocrSetCode ?? '?'} ${c.ocrCardNumber ?? ''}`.trim()
-        : '미식별 카드'),
+    name: localizeCardName(raw),
     imageUrl: c.photoUrl || c.snkrdunkImageUrl || null,
     rar: detectRarity(c.nickname, c.snkrdunkName, c.cardId),
     gradeNum: parsePsa(c.gradeEstimate),
