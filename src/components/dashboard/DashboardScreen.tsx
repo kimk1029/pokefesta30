@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppBarProfile } from '@/components/AppBarProfile';
 import { useCurrency } from '@/components/CurrencyProvider';
 import type { HeroSlideData } from '@/components/HeroSlider';
@@ -151,6 +151,41 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
   const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '3M'>('1M');
   const [activeGame, setActiveGame] = useState<string>('전체');
 
+  // 실시간 포트폴리오 — 서버 일별 스냅샷 기반 등락 + history (KST 정각 reset).
+  const [portfolio, setPortfolio] = useState<{
+    totalJpy: number;
+    changeAbsJpy: number | null;
+    changePct: number | null;
+    history: number[];
+  } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch('/api/me/portfolio', { credentials: 'include', cache: 'no-store' });
+        if (!alive || !r.ok) return;
+        const j = (await r.json()) as {
+          data?: {
+            totalJpy: number;
+            changeAbsJpy: number | null;
+            changePct: number | null;
+            history?: Array<{ date: string; totalJpy: number }>;
+          };
+        };
+        if (!alive || !j.data) return;
+        setPortfolio({
+          totalJpy: j.data.totalJpy,
+          changeAbsJpy: j.data.changeAbsJpy,
+          changePct: j.data.changePct,
+          history: (j.data.history ?? []).map((h) => h.totalJpy),
+        });
+      } catch {
+        /* 비로그인 등 — 폴백 (computeDailyTotals) 사용 */
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   const owned: OwnedDisplay[] = cards.map((c) => {
     const catalog = c.cardId ? findCardEntry(c.cardId) : undefined;
     // price 는 JPY 단위로 통일 — snkrdunk 카드는 JPY 그대로, 카탈로그 USD 는 환율 환산.
@@ -181,11 +216,21 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
 
   // 컬렉션 일별 종합 가격 (오래된→최신)
   const periodDays = PERIOD_DAYS[chartPeriod];
-  const chartData = computeDailyTotals(cards, periodDays);
-  const totalVal = chartData[chartData.length - 1] ?? 0;
+  // 실 데이터 (스냅샷 history) 가 있으면 그걸 우선, 없으면 card.trend 기반 폴백.
+  const fallbackChart = computeDailyTotals(cards, periodDays);
+  const realHistory = portfolio?.history ?? [];
+  const useReal = realHistory.length >= 2;
+  const chartData = useReal ? realHistory.slice(-periodDays) : fallbackChart;
+  const totalVal = useReal && portfolio ? portfolio.totalJpy : chartData[chartData.length - 1] ?? 0;
   const firstVal = chartData[0] ?? totalVal;
   const change = totalVal - firstVal;
-  const changePct = firstVal > 0 ? Math.round((change / firstVal) * 100) : 0;
+  // 어제 대비 % (실 데이터). 없으면 차트 양끝 % 추정값.
+  const changePct =
+    portfolio?.changePct != null
+      ? Math.round(portfolio.changePct)
+      : firstVal > 0
+        ? Math.round((change / firstVal) * 100)
+        : 0;
   const maxC = Math.max(...chartData, 1);
   const minC = Math.min(...chartData);
 
@@ -234,7 +279,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                 </span>
               </div>
               <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.3)', letterSpacing: .3 }}>
-                vs 지난주
+                {portfolio?.changePct != null ? 'vs 어제 (KST 정각)' : 'vs 지난주'}
               </div>
             </div>
           </div>

@@ -5,8 +5,8 @@ import { useCurrency } from '@/components/CurrencyProvider';
 
 /**
  * 포트폴리오 총합 (JPY) — 마이페이지 헤더에서 보여줌.
- * `/api/me/portfolio` 는 스니덩크 실시간 시세 조회 (Promise.all) 라 시간이 좀
- * 걸리니까 페이지 첫 페인트에 묶지 않고 클라이언트에서 따로 가져온다.
+ * `/api/me/portfolio` 는 스니덩크 실시간 시세 조회 + 오늘자 KST 스냅샷 upsert.
+ * 응답에 어제 대비 등락 (절대값/%) 과 30일 히스토리가 함께 옴.
  * 관심카드는 합계에 포함되지 않음 — 서버에서 컬렉션(UserCard) 만 합산.
  */
 export function PortfolioTotal() {
@@ -14,7 +14,15 @@ export function PortfolioTotal() {
   const [state, setState] = useState<
     | { kind: 'loading' }
     | { kind: 'empty' }
-    | { kind: 'ok'; totalJpy: number; pricedCount: number; totalCount: number }
+    | {
+        kind: 'ok';
+        totalJpy: number;
+        pricedCount: number;
+        totalCount: number;
+        changeAbsJpy: number | null;
+        changePct: number | null;
+        history: Array<{ date: string; totalJpy: number }>;
+      }
     | { kind: 'error' }
   >({ kind: 'loading' });
 
@@ -32,7 +40,14 @@ export function PortfolioTotal() {
           return;
         }
         const j = (await r.json()) as {
-          data?: { totalJpy: number; pricedCount: number; totalCount: number };
+          data?: {
+            totalJpy: number;
+            pricedCount: number;
+            totalCount: number;
+            changeAbsJpy: number | null;
+            changePct: number | null;
+            history: Array<{ date: string; totalJpy: number }>;
+          };
         };
         const d = j.data;
         if (!d || d.totalCount === 0) {
@@ -44,6 +59,9 @@ export function PortfolioTotal() {
           totalJpy: d.totalJpy,
           pricedCount: d.pricedCount,
           totalCount: d.totalCount,
+          changeAbsJpy: d.changeAbsJpy,
+          changePct: d.changePct,
+          history: d.history ?? [],
         });
       } catch {
         if (alive) setState({ kind: 'error' });
@@ -74,7 +92,7 @@ export function PortfolioTotal() {
       >
         포트폴리오 평가액 (스니덩크 최저가 합계)
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <span
           style={{
             fontFamily: 'var(--f1)',
@@ -91,11 +109,97 @@ export function PortfolioTotal() {
                 ? '컬렉션 없음'
                 : '시세 조회 실패'}
         </span>
+        {state.kind === 'ok' && state.changePct != null && (
+          <DeltaBadge pct={state.changePct} absJpy={state.changeAbsJpy} format={format} />
+        )}
         {state.kind === 'ok' && (
           <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.45)' }}>
             {state.pricedCount}/{state.totalCount}장 시세 반영
           </span>
         )}
+      </div>
+      {state.kind === 'ok' && state.history.length >= 2 && (
+        <DeltaSparkline points={state.history.map((h) => h.totalJpy)} />
+      )}
+    </div>
+  );
+}
+
+function DeltaBadge({
+  pct,
+  absJpy,
+  format,
+}: {
+  pct: number;
+  absJpy: number | null;
+  format: (jpy: number) => string;
+}) {
+  const up = pct >= 0;
+  const sign = up ? '▲' : '▼';
+  const color = up ? '#22C55E' : '#E63946';
+  const pctStr = `${up ? '+' : ''}${pct.toFixed(1)}%`;
+  const absStr = absJpy != null ? ` ${up ? '+' : ''}${format(Math.abs(absJpy))}` : '';
+  return (
+    <span
+      style={{
+        fontFamily: 'var(--f1)',
+        fontSize: 10,
+        color,
+        letterSpacing: 0.3,
+        padding: '2px 6px',
+        background: 'rgba(0,0,0,.2)',
+        boxShadow: `inset 0 0 0 1px ${color}55`,
+      }}
+      title="어제 정각 (KST) 대비"
+    >
+      {sign} {pctStr}{absStr ? ` (${up ? '+' : '-'}${format(Math.abs(absJpy!))})` : ''}
+    </span>
+  );
+}
+
+/** 작은 라인 스파크라인 — history 의 JPY 시계열 0..1 정규화 후 SVG path. */
+function DeltaSparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return null;
+  const W = 280;
+  const H = 36;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = Math.max(1, max - min);
+  const step = W / (points.length - 1);
+  const d = points
+    .map((v, i) => {
+      const x = i * step;
+      const y = H - 2 - ((v - min) / span) * (H - 4);
+      return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(' ');
+  const last = points[points.length - 1];
+  const first = points[0];
+  const up = last >= first;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', maxWidth: '100%' }}>
+        <path d={d} fill="none" stroke={up ? '#22C55E' : '#E63946'} strokeWidth={2} strokeLinejoin="round" />
+        {/* baseline */}
+        <line
+          x1={0}
+          y1={H - 2}
+          x2={W}
+          y2={H - 2}
+          stroke="rgba(255,255,255,.08)"
+          strokeWidth={1}
+        />
+      </svg>
+      <div
+        style={{
+          fontFamily: 'var(--f1)',
+          fontSize: 8,
+          color: 'rgba(255,255,255,.35)',
+          letterSpacing: 0.3,
+          marginTop: 3,
+        }}
+      >
+        최근 {points.length}일 (KST 정각 기준)
       </div>
     </div>
   );

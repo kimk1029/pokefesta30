@@ -46,6 +46,7 @@ model User {
   oripaTickets     OripaTicket[]
   userCards        UserCard[]
   favoriteCards    FavoriteCard[]
+  portfolioDailySnapshots PortfolioDailySnapshot[]
 
   @@map("users")
 }
@@ -267,6 +268,26 @@ model UserCard {
   @@index([cardId])
   @@index([snkrdunkApparelId])
   @@map("user_cards")
+}
+
+/// 일별 포트폴리오 스냅샷 — 등락율 차트/표시용. KST 일자 키 (YYYY-MM-DD).
+/// /api/me/portfolio 호출 시 오늘자 행을 upsert. 어제 행과 비교해 % 계산.
+model PortfolioDailySnapshot {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// KST 정각 기준 일자 (예: "2026-05-24"). 같은 일자 내 호출은 upsert 로 갱신만.
+  date        String
+  /// 스니덩크 최저가 합산 (JPY).
+  totalJpy    Int
+  pricedCount Int
+  totalCount  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date(sort: Desc)])
+  @@map("portfolio_daily_snapshots")
 }
 
 /// 관심카드 — 사용자가 추적하고 싶은 스니덩크 카드 목록.

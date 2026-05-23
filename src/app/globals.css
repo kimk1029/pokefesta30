@@ -2270,82 +2270,101 @@ a{color:inherit;text-decoration:none;}
  * 따라서 attribute selector 는 첫 페인트부터 작동.
  * ========================================================== */
 
-/* PixelBall variant 토글 — 기본은 pokemon SVG 만 보임 */
-.ball-themed > .ball-pixel{display:none;}
-[data-theme="default"] .ball-themed > .ball-pokemon,
-[data-theme="minimal"] .ball-themed > .ball-pokemon{display:none;}
-[data-theme="default"] .ball-themed > .ball-pixel,
-[data-theme="minimal"] .ball-themed > .ball-pixel{display:block;color:var(--yel);}
-[data-theme="minimal"] .ball-themed > .ball-pixel{color:var(--teal);}
+/* PixelBall variant 토글 — pokemon SVG 가 기본, 다른 테마는 해당 SVG 만 표시 */
+.ball-themed > .ball-onepiece,
+.ball-themed > .ball-yugioh{display:none;}
+[data-theme="onepiece"] .ball-themed > .ball-pokemon,
+[data-theme="onepiece"] .ball-themed > .ball-yugioh{display:none;}
+[data-theme="onepiece"] .ball-themed > .ball-onepiece{display:block;}
+[data-theme="yugioh"] .ball-themed > .ball-pokemon,
+[data-theme="yugioh"] .ball-themed > .ball-onepiece{display:none;}
+[data-theme="yugioh"] .ball-themed > .ball-yugioh{display:block;}
 
 /* ── FAB (탭바 중앙 버튼) ─────────────────────── */
 
-/* default 테마 — 노란 사각, "+" 십자 */
-[data-theme="default"] .fab-circle{
-  border-radius:0;
-  background:var(--yel);
+/* onepiece 테마 — 위에서 본 루피의 밀짚모자 (탄 brim + 빨강 띠 + 어두운 정수리). */
+[data-theme="onepiece"] .fab-circle{
+  border-radius:50%;
+  border:3px solid var(--ink);
+  background:
+    radial-gradient(circle at 50% 50%,
+      #B8884B 0,#B8884B 20%,            /* 모자 정수리 (어두운 밀짚) */
+      #E63946 20%,#E63946 32%,          /* 빨강 띠 */
+      #F4D272 32%,#F4D272 100%);        /* 밀짚 brim */
   box-shadow:
-    inset 0 4px 0 var(--yel-lt),inset 0 -4px 0 var(--yel-dk),
+    inset 0 4px 0 rgba(255,255,255,.22),inset 0 -4px 0 rgba(0,0,0,.18),
     5px 5px 0 var(--ink);
 }
-[data-theme="default"] .fab-circle::before{
-  width:22px;height:5px;
+[data-theme="onepiece"] .fab-circle::before{display:none;}
+[data-theme="onepiece"] .fab-circle:active{
+  transform:translate(3px,3px);
+  box-shadow:
+    inset 0 4px 0 rgba(255,255,255,.22),inset 0 -4px 0 rgba(0,0,0,.18),
+    2px 2px 0 var(--ink);
+}
+[data-theme="onepiece"] .fab-circle.fab-click:active{
+  box-shadow:
+    inset 0 4px 0 rgba(255,255,255,.22),inset 0 -4px 0 rgba(0,0,0,.18),
+    5px 5px 0 var(--ink);
+}
+[data-theme="onepiece"] .fab-tab span{color:#F4D272;}
+
+/* yugioh 테마 — 천년 퍼즐 정사각 + 호루스의 눈 가로 줄 */
+[data-theme="yugioh"] .fab-circle{
+  border-radius:0;
+  background:var(--gold);
+  box-shadow:
+    inset 0 4px 0 rgba(255,255,255,.4),inset 0 -4px 0 #B8860B,
+    5px 5px 0 var(--ink);
+}
+[data-theme="yugioh"] .fab-circle::before{
+  width:26px;height:5px;
   background:var(--ink);
   border:0;border-radius:0;
   box-shadow:none;
 }
-[data-theme="default"] .fab-circle::after{
+[data-theme="yugioh"] .fab-circle::after{
   content:'';position:absolute;top:50%;left:50%;
-  width:5px;height:22px;
+  width:8px;height:8px;
   background:var(--ink);
   transform:translate(-50%,-50%);
   z-index:2;
 }
-[data-theme="default"] .fab-circle:active{
+[data-theme="yugioh"] .fab-circle:active{
   transform:translate(3px,3px);
   box-shadow:
-    inset 0 4px 0 var(--yel-lt),inset 0 -4px 0 var(--yel-dk),
+    inset 0 4px 0 rgba(255,255,255,.4),inset 0 -4px 0 #B8860B,
     2px 2px 0 var(--ink);
 }
-[data-theme="default"] .fab-circle.fab-click:active{
+[data-theme="yugioh"] .fab-circle.fab-click:active{
   box-shadow:
-    inset 0 4px 0 var(--yel-lt),inset 0 -4px 0 var(--yel-dk),
+    inset 0 4px 0 rgba(255,255,255,.4),inset 0 -4px 0 #B8860B,
     5px 5px 0 var(--ink);
+}
+[data-theme="yugioh"] .fab-tab span{color:var(--gold);}
+
+/* ── 테마별 액센트 컬러 오버라이드 ─────────────────────────────
+   부분적으로만 색을 바꿔서 다른 컴포넌트의 대비를 보존. */
+
+/* onepiece — 노을 톤. 노랑 액센트를 밀짚 톤으로, 보조 강조는 빨강 유지. */
+[data-theme="onepiece"]{
+  --yel:#F4D272;
+  --yel-lt:#FCE6A8;
+  --yel-dk:#B8884B;
+  --gold:#D9A85D;
+  --gold-lt:#F4D272;
+  --gold-dk:#7A5A2A;
 }
 
-/* minimal 테마 — default 와 같은 사각 + "+" 모양, 색만 틸 */
-[data-theme="minimal"] .fab-circle{
-  border-radius:0;
-  background:var(--teal);
-  box-shadow:
-    inset 0 4px 0 #2DC1B7,inset 0 -4px 0 #07574F,
-    5px 5px 0 var(--ink);
+/* yugioh — 보라/황금 톤. 빨강 액센트는 보라로, 노랑은 채도 높은 황금으로. */
+[data-theme="yugioh"]{
+  --red:#7C3AED;
+  --red-lt:#A78BFA;
+  --red-dk:#4C1D95;
+  --gold:#FFD23F;
+  --gold-lt:#FCE6A8;
+  --gold-dk:#B8860B;
 }
-[data-theme="minimal"] .fab-circle::before{
-  width:22px;height:5px;
-  background:var(--paper);
-  border:0;border-radius:0;
-  box-shadow:none;
-}
-[data-theme="minimal"] .fab-circle::after{
-  content:'';position:absolute;top:50%;left:50%;
-  width:5px;height:22px;
-  background:var(--paper);
-  transform:translate(-50%,-50%);
-  z-index:2;
-}
-[data-theme="minimal"] .fab-circle:active{
-  transform:translate(3px,3px);
-  box-shadow:
-    inset 0 4px 0 #2DC1B7,inset 0 -4px 0 #07574F,
-    2px 2px 0 var(--ink);
-}
-[data-theme="minimal"] .fab-circle.fab-click:active{
-  box-shadow:
-    inset 0 4px 0 #2DC1B7,inset 0 -4px 0 #07574F,
-    5px 5px 0 var(--ink);
-}
-[data-theme="minimal"] .fab-tab span{color:var(--teal);}
 
 /* ── 테마 픽커 모달 ─────────────────────── */
 .theme-pick-grid{display:flex;flex-direction:column;gap:8px;}

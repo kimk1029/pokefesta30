@@ -1,9 +1,10 @@
 /**
- * 테마별 픽셀 마크. 두 SVG variant 를 둘 다 DOM 에 렌더하고
- * `[data-theme]` 속성 셀렉터로 CSS 가 표시 토글.
+ * 테마별 픽셀 마크. 모든 variant 를 DOM 에 렌더하고
+ * `[data-theme]` 셀렉터로 CSS 가 표시 토글.
  *
- * - pokemon: 몬스터볼 (현재 디자인)
- * - default / minimal: 색만 다른 사각 마크 ("픽셀 30" 배지)
+ * - pokemon  : 몬스터볼
+ * - onepiece : 위에서 본 루피의 밀짚모자 (탄 brim + 빨강 띠)
+ * - yugioh   : 천년 퍼즐 — 위에서 본 황금 사각 + 호루스의 눈
  *
  * SSR 안전 — 어떤 테마든 첫 페인트에서 정확히 한 variant 만 보임.
  */
@@ -20,7 +21,7 @@ export function PixelBall({ size = 22 }: { size?: number }) {
       }}
       aria-hidden
     >
-      {/* pokemon variant */}
+      {/* pokemon variant — 몬스터볼 */}
       <svg
         className="ball-pokemon"
         width={size}
@@ -59,29 +60,62 @@ export function PixelBall({ size = 22 }: { size?: number }) {
         <rect x="3" y="9" width="4" height="1" fill="#1A1A2E" />
       </svg>
 
-      {/* default + minimal variant — 색은 currentColor 로 CSS 가 결정 */}
+      {/* onepiece variant — 위에서 본 밀짚모자.
+          바깥 = 밀짚 brim, 안쪽 = 빨강 띠, 중앙 = 모자 정수리(어두운 밀짚). */}
       <svg
-        className="ball-pixel"
+        className="ball-onepiece"
         width={size}
         height={size}
         viewBox="0 0 10 10"
         style={{ shapeRendering: 'crispEdges' }}
       >
-        {/* 검정 외곽 1px 테두리 */}
-        <rect x="1" y="0" width="8" height="1" fill="#1A1A2E" />
+        {/* 외곽 검정 테두리 (둥근 사각) */}
+        <rect x="2" y="0" width="6" height="1" fill="#1A1A2E" />
+        <rect x="1" y="1" width="1" height="1" fill="#1A1A2E" />
+        <rect x="8" y="1" width="1" height="1" fill="#1A1A2E" />
+        <rect x="0" y="2" width="1" height="6" fill="#1A1A2E" />
+        <rect x="9" y="2" width="1" height="6" fill="#1A1A2E" />
+        <rect x="1" y="8" width="1" height="1" fill="#1A1A2E" />
+        <rect x="8" y="8" width="1" height="1" fill="#1A1A2E" />
+        <rect x="2" y="9" width="6" height="1" fill="#1A1A2E" />
+        {/* 밀짚 brim (밝은 밀짚색) */}
+        <rect x="2" y="1" width="6" height="1" fill="#F4D272" />
+        <rect x="1" y="2" width="8" height="2" fill="#F4D272" />
+        <rect x="1" y="6" width="8" height="2" fill="#F4D272" />
+        <rect x="2" y="8" width="6" height="1" fill="#F4D272" />
+        {/* 빨강 띠 (모자와 brim 경계) */}
+        <rect x="2" y="4" width="6" height="1" fill="#E63946" />
+        <rect x="2" y="5" width="6" height="1" fill="#E63946" />
+        {/* 모자 정수리 살짝 어두운 밀짚 */}
+        <rect x="3" y="4" width="4" height="2" fill="#D9A85D" />
+        {/* brim 하이라이트 (왼쪽 위) */}
+        <rect x="2" y="1" width="3" height="1" fill="#FCE6A8" />
+        <rect x="1" y="2" width="1" height="2" fill="#FCE6A8" />
+      </svg>
+
+      {/* yugioh variant — 천년 퍼즐 정사각 + 호루스의 눈 */}
+      <svg
+        className="ball-yugioh"
+        width={size}
+        height={size}
+        viewBox="0 0 10 10"
+        style={{ shapeRendering: 'crispEdges' }}
+      >
+        {/* 외곽 검정 */}
+        <rect x="0" y="0" width="10" height="1" fill="#1A1A2E" />
+        <rect x="0" y="9" width="10" height="1" fill="#1A1A2E" />
         <rect x="0" y="1" width="1" height="8" fill="#1A1A2E" />
         <rect x="9" y="1" width="1" height="8" fill="#1A1A2E" />
-        <rect x="1" y="9" width="8" height="1" fill="#1A1A2E" />
-        {/* 본체 — currentColor */}
-        <rect x="1" y="1" width="8" height="8" fill="currentColor" />
-        {/* 상단 하이라이트 픽셀 */}
-        <rect x="1" y="1" width="8" height="1" fill="rgba(255,255,255,.55)" />
-        <rect x="1" y="2" width="1" height="6" fill="rgba(255,255,255,.35)" />
-        {/* 하단/우측 그림자 픽셀 */}
-        <rect x="1" y="8" width="8" height="1" fill="rgba(0,0,0,.25)" />
-        <rect x="8" y="2" width="1" height="6" fill="rgba(0,0,0,.18)" />
-        {/* 중앙 점 */}
-        <rect x="4" y="4" width="2" height="2" fill="#1A1A2E" />
+        {/* 황금 본체 */}
+        <rect x="1" y="1" width="8" height="8" fill="#FFD23F" />
+        {/* 황금 하이라이트 (상단) */}
+        <rect x="1" y="1" width="8" height="1" fill="#FCE6A8" />
+        {/* 황금 그림자 (하단) */}
+        <rect x="1" y="8" width="8" height="1" fill="#B8860B" />
+        {/* 호루스의 눈 — 가로 줄 + 검정 동공 */}
+        <rect x="3" y="4" width="4" height="1" fill="#1A1A2E" />
+        <rect x="4" y="5" width="2" height="1" fill="#1A1A2E" />
+        <rect x="4" y="4" width="2" height="1" fill="#FFFFFF" />
       </svg>
     </span>
   );

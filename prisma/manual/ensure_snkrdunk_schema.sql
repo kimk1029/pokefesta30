@@ -38,3 +38,34 @@ CREATE UNIQUE INDEX IF NOT EXISTS "favorite_cards_userId_snkrdunkApparelId_key"
 
 CREATE INDEX IF NOT EXISTS "favorite_cards_userId_createdAt_idx"
   ON "favorite_cards" ("userId", "createdAt" DESC);
+
+-- 3) PortfolioDailySnapshot — 등락율/차트용 일별 스냅샷.
+CREATE TABLE IF NOT EXISTS "portfolio_daily_snapshots" (
+  "id" SERIAL PRIMARY KEY,
+  "userId" TEXT NOT NULL,
+  "date" TEXT NOT NULL,
+  "totalJpy" INTEGER NOT NULL,
+  "pricedCount" INTEGER NOT NULL,
+  "totalCount" INTEGER NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'portfolio_daily_snapshots_userId_fkey'
+  ) THEN
+    ALTER TABLE "portfolio_daily_snapshots"
+      ADD CONSTRAINT "portfolio_daily_snapshots_userId_fkey"
+      FOREIGN KEY ("userId") REFERENCES "users"("id")
+      ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END
+$$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "portfolio_daily_snapshots_userId_date_key"
+  ON "portfolio_daily_snapshots" ("userId", "date");
+
+CREATE INDEX IF NOT EXISTS "portfolio_daily_snapshots_userId_date_idx"
+  ON "portfolio_daily_snapshots" ("userId", "date" DESC);

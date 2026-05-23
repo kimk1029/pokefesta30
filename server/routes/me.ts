@@ -208,9 +208,35 @@ router.delete('/favorites/:apparelId', async (req: Request, res: Response) => {
 });
 
 /**
+ * KST 정각 기준 오늘 날짜 (YYYY-MM-DD). 일별 스냅샷 키.
+ * 정각이 되는 순간 새 일자로 넘어가, 새 행이 upsert 된다.
+ */
+function kstDateKey(d: Date = new Date()): string {
+  // UTC ms → KST (UTC+9). offset 계산은 Date.UTC 와 동일한 방식.
+  const utcMs = d.getTime();
+  const kstMs = utcMs + 9 * 60 * 60 * 1000;
+  const kst = new Date(kstMs);
+  // KST 환산 후 UTC getter 가 KST 의 연/월/일 을 돌려준다.
+  const y = kst.getUTCFullYear();
+  const m = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(kst.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** kstDateKey 의 'days 일 전' 일자. */
+function kstDateKeyShifted(daysBack: number): string {
+  return kstDateKey(new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000));
+}
+
+/**
  * 포트폴리오 합계 — userCard 중 snkrdunkApparelId 가 있는 항목을 실시간 시세로
  * 합산해 JPY 총합을 반환. 관심카드(FavoriteCard) 는 의도적으로 제외 — 사용자가
  * "관심"으로 표시한 카드까지 자산으로 포함하면 부풀려진 자산이 됨.
+ *
+ * 추가로:
+ *   - 오늘자 KST 일자 키로 PortfolioDailySnapshot upsert (정각이 되면 새 키)
+ *   - 어제 일자 스냅샷이 있으면 등락 (절대값 + %) 반환
+ *   - 최근 30 일 히스토리 반환 (차트용)
  */
 router.get('/portfolio', async (req: Request, res: Response) => {
   const userId = req.user!.userId;
@@ -219,43 +245,94 @@ router.get('/portfolio', async (req: Request, res: Response) => {
       where: { userId, snkrdunkApparelId: { not: null } },
       select: { id: true, snkrdunkApparelId: true },
     });
-    if (cards.length === 0) {
-      return res.json({
-        data: { totalJpy: 0, pricedCount: 0, totalCount: await countMyCards(userId) },
-      });
-    }
     const totalCount = await countMyCards(userId);
-    // 같은 apparelId 가 여러 번 들어 있을 수 있으니 fetch 는 한 번만.
-    const uniqueApparelIds: number[] = Array.from(
-      new Set<number>(
-        cards
-          .map((c) => c.snkrdunkApparelId)
-          .filter((v): v is number => typeof v === 'number'),
-      ),
-    );
-    const priceByApparel = new Map<number, number>();
-    await Promise.all(
-      uniqueApparelIds.map(async (id: number) => {
-        try {
-          const a = await fetchSnkrdunkApparel(id);
-          if (a && typeof a.minPrice === 'number' && a.minPrice > 0) {
-            priceByApparel.set(id, a.minPrice);
-          }
-        } catch (err) {
-          console.warn('[me.portfolio] apparel fetch failed', id, err);
-        }
-      }),
-    );
+
     let totalJpy = 0;
     let pricedCount = 0;
-    for (const c of cards) {
-      const p = c.snkrdunkApparelId != null ? priceByApparel.get(c.snkrdunkApparelId) : null;
-      if (p != null && p > 0) {
-        totalJpy += p;
-        pricedCount += 1;
+    if (cards.length > 0) {
+      // 같은 apparelId 가 여러 번 들어 있을 수 있으니 fetch 는 한 번만.
+      const uniqueApparelIds: number[] = Array.from(
+        new Set<number>(
+          cards
+            .map((c) => c.snkrdunkApparelId)
+            .filter((v): v is number => typeof v === 'number'),
+        ),
+      );
+      const priceByApparel = new Map<number, number>();
+      await Promise.all(
+        uniqueApparelIds.map(async (id: number) => {
+          try {
+            const a = await fetchSnkrdunkApparel(id);
+            if (a && typeof a.minPrice === 'number' && a.minPrice > 0) {
+              priceByApparel.set(id, a.minPrice);
+            }
+          } catch (err) {
+            console.warn('[me.portfolio] apparel fetch failed', id, err);
+          }
+        }),
+      );
+      for (const c of cards) {
+        const p = c.snkrdunkApparelId != null ? priceByApparel.get(c.snkrdunkApparelId) : null;
+        if (p != null && p > 0) {
+          totalJpy += p;
+          pricedCount += 1;
+        }
       }
     }
-    res.json({ data: { totalJpy, pricedCount, totalCount } });
+
+    const today = kstDateKey();
+
+    // 오늘자 스냅샷 upsert — KST 정각 넘어가면 새 행. 같은 날 호출은 update.
+    let yesterdayJpy: number | null = null;
+    let history: Array<{ date: string; totalJpy: number }> = [];
+    try {
+      await prisma.portfolioDailySnapshot.upsert({
+        where: { userId_date: { userId, date: today } },
+        update: { totalJpy, pricedCount, totalCount },
+        create: { userId, date: today, totalJpy, pricedCount, totalCount },
+      });
+
+      // 어제 일자 스냅샷 — 정확히 어제(yesterday) 키, 없으면 그 이전 가장 가까운 행.
+      const yesterdayKey = kstDateKeyShifted(1);
+      const prev = await prisma.portfolioDailySnapshot.findFirst({
+        where: { userId, date: { lt: today } },
+        orderBy: { date: 'desc' },
+        select: { date: true, totalJpy: true },
+      });
+      if (prev) yesterdayJpy = prev.totalJpy;
+      // (yesterdayKey 는 폴백 라벨용 — 어제 정확한 키가 없어도 동작.)
+      void yesterdayKey;
+
+      // 차트용 30일 히스토리 (오래된 → 최신).
+      const rows = await prisma.portfolioDailySnapshot.findMany({
+        where: { userId },
+        orderBy: { date: 'desc' },
+        take: 30,
+        select: { date: true, totalJpy: true },
+      });
+      history = rows.reverse().map((r) => ({ date: r.date, totalJpy: r.totalJpy }));
+    } catch (err) {
+      console.warn('[me.portfolio] snapshot upsert/read failed', err);
+    }
+
+    const changeAbsJpy = yesterdayJpy != null ? totalJpy - yesterdayJpy : null;
+    const changePct =
+      yesterdayJpy != null && yesterdayJpy > 0
+        ? ((totalJpy - yesterdayJpy) / yesterdayJpy) * 100
+        : null;
+
+    res.json({
+      data: {
+        totalJpy,
+        pricedCount,
+        totalCount,
+        yesterdayJpy,
+        changeAbsJpy,
+        changePct,
+        history,
+        asOfDate: today,
+      },
+    });
   } catch (err) {
     console.error('[me.portfolio]', err);
     res.status(500).json({ error: 'internal' });

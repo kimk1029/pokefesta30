@@ -1,4 +1,4 @@
-export type ThemeId = 'pokemon' | 'default' | 'minimal';
+export type ThemeId = 'pokemon' | 'onepiece' | 'yugioh';
 
 export const THEMES: ReadonlyArray<{
   id: ThemeId;
@@ -8,17 +8,17 @@ export const THEMES: ReadonlyArray<{
   {
     id: 'pokemon',
     label: '포켓몬',
-    desc: '몬스터볼 + 잉어킹 도트',
+    desc: '몬스터볼 + 빨강·노랑 (기본)',
   },
   {
-    id: 'default',
-    label: '디폴트',
-    desc: '심플 픽셀 (포켓몬 X)',
+    id: 'onepiece',
+    label: '원피스',
+    desc: '루피의 밀짚모자 + 노을 톤',
   },
   {
-    id: 'minimal',
-    label: '미니멀',
-    desc: '틸 액센트 변형',
+    id: 'yugioh',
+    label: '유희왕',
+    desc: '천년 퍼즐 + 보라·황금 톤',
   },
 ] as const;
 
@@ -26,5 +26,5 @@ export const DEFAULT_THEME: ThemeId = 'pokemon';
 export const THEME_STORAGE_KEY = 'pokefesta-theme';
 
 export function isThemeId(v: unknown): v is ThemeId {
-  return v === 'pokemon' || v === 'default' || v === 'minimal';
+  return v === 'pokemon' || v === 'onepiece' || v === 'yugioh';
 }

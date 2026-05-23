@@ -6,14 +6,14 @@ import { THEMES, type ThemeId } from '@/lib/theme';
 
 const SWATCH_BG: Record<ThemeId, string> = {
   pokemon: '#E63946',
-  default: '#FFD23F',
-  minimal: '#0D9488',
+  onepiece: '#F4D272',
+  yugioh: '#FFD23F',
 };
 
 const SWATCH_DOT: Record<ThemeId, string> = {
   pokemon: '#FFFFFF',
-  default: '#1A1A2E',
-  minimal: '#F7F3E3',
+  onepiece: '#E63946',
+  yugioh: '#7C3AED',
 };
 
 /**

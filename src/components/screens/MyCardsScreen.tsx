@@ -4,6 +4,13 @@ import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
+import {
+  detectRarity,
+  RARITY_BG,
+  RARITY_FG,
+  RARITY_ORDER,
+  type Rarity,
+} from '@/lib/cardRarity';
 import type { MyCardWithPrice } from '@/lib/queries';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { AppBar } from '@/components/ui/AppBar';
@@ -11,7 +18,7 @@ import { StatusBar } from '@/components/ui/StatusBar';
 
 type ViewMode = 'grid' | 'list' | 'album' | 'film';
 type SortBy = 'name' | 'price' | 'grade' | 'recent';
-type RarFilter = 'all' | 'C' | 'A' | 'B' | 'S';
+type RarFilter = 'all' | Rarity;
 
 const VIEW_TABS: Array<[ViewMode, string]> = [
   ['grid', '바둑판'],
@@ -31,8 +38,8 @@ interface DisplayCard {
   name: string;
   /** UI 분류용 — 카탈로그 게임. snkrdunk-added 카드는 '포켓몬' 으로 분류. */
   game: string;
-  /** 카탈로그 grade 가 우선 (S/A/B/C). 없으면 'C'. */
-  rar: 'S' | 'A' | 'B' | 'C';
+  /** 카드명/별칭에서 추출한 TCG 등급 (C / U / R / RR / AR / SAR / SR / HR / UR / MA / MUR / CHR). */
+  rar: Rarity;
   /** 모의 그레이딩 라벨에서 PSA 숫자 추출. */
   gradeNum: number | null;
   /** USD 가격 — 카드 카탈로그 스냅샷에서 옴. */
@@ -80,7 +87,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
               ? `${c.ocrSetCode ?? '?'} ${c.ocrCardNumber ?? ''}`.trim()
               : '미식별 카드'),
           game: catalog || fromSnk ? '포켓몬' : '기타',
-          rar: (catalog?.grade as 'S' | 'A' | 'B' | 'C' | undefined) ?? 'C',
+          rar: detectRarity(c.nickname, c.snkrdunkName, catalog?.name),
           gradeNum: parsePsa(c.gradeEstimate),
           price: c.latestPrice,
           priceJpy: c.snkrdunkMinPriceJpy ?? 0,
@@ -189,9 +196,10 @@ export function MyCardsScreen({ cards: initial }: Props) {
         ))}
       </div>
 
-      {/* Rarity filter */}
+      {/* Rarity filter — TCG 등급 (C/U/R/RR/AR/SAR/SR/HR/UR/MA/MUR/CHR).
+          컬렉션에 존재하는 등급 + ALL 만 노출 (없는 등급은 chip 숨김). */}
       <div className="cv-chip-row">
-        {(['all', 'S', 'A', 'B', 'C'] as RarFilter[]).map((r) => (
+        {(['all', ...RARITY_ORDER.filter((r) => display.some((c) => c.rar === r))] as RarFilter[]).map((r) => (
           <button
             key={r}
             className={`cv-chip${rar === r ? ' on' : ''}`}
@@ -421,7 +429,12 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
               <span style={{ color: 'var(--ink3)' }}>아카이빙 {fmtDate(c.src.createdAt)}</span>
             </div>
             <div className="cv-lc-row">
-              <span className={`cv-rar cv-rar-${c.rar}`}>{c.rar}</span>
+              <span
+                className="cv-rar"
+                style={{ background: RARITY_BG[c.rar], color: RARITY_FG[c.rar] }}
+              >
+                {c.rar}
+              </span>
               <span className="cv-tag cv-tag-game" style={{ background: gameAccent(c.game), color: '#fff' }}>
                 {c.game}
               </span>
