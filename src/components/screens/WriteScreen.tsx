@@ -11,6 +11,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { TextInput } from '@/components/ui/TextInput';
 import { TradeTypeButton } from '@/components/ui/TradeTypeButton';
+import { startRouteTransition } from '@/components/RouteProgress';
 import type { Place, TradeType } from '@/lib/types';
 
 export type WriteMode = 'feed' | 'trade';
@@ -85,6 +86,7 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
             avatarId,
             images: images.length > 0 ? images : undefined,
           });
+          startRouteTransition();
           router.push('/trade');
         } catch (e) {
           submitLockRef.current = false;
@@ -101,6 +103,7 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
           avatarId,
           images: images.length > 0 ? images : undefined,
         });
+        startRouteTransition();
         router.push('/feed');
       } catch (e) {
         submitLockRef.current = false;

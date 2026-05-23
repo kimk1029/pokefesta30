@@ -5,6 +5,7 @@ import { useSession } from '@/lib/session';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { StampRallyModal } from './StampRallyModal';
+import { startRouteTransition } from './RouteProgress';
 
 export type HeroSlideClass = 'slide-a' | 'slide-b' | 'slide-c' | 'slide-d';
 export type HeroOnClick = 'stamp-rally' | 'oripa' | null;
@@ -135,12 +136,16 @@ export function HeroSlider({ slides }: HeroSliderProps = {}) {
     }
     if (slide.onClick === 'oripa') {
       if (status === 'authenticated') {
+        startRouteTransition();
         router.push('/my/oripa');
       } else {
         const ok = window.confirm(
           '오리파 뽑기는 로그인이 필요합니다.\n로그인하러 가시겠어요?',
         );
-        if (ok) router.push('/login?callbackUrl=/my/oripa');
+        if (ok) {
+          startRouteTransition();
+          router.push('/login?callbackUrl=/my/oripa');
+        }
       }
     }
   };

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
+import { startRouteTransition } from '@/components/RouteProgress';
 
 export function HomeKoSearchBar() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export function HomeKoSearchBar() {
       inputRef.current?.focus();
       return;
     }
+    startRouteTransition();
     router.push(`/cards/snkrdunk/search?q=${encodeURIComponent(trimmed)}`);
   }
 

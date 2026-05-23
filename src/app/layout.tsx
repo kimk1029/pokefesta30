@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { Suspense } from 'react';
 import { AdScripts } from '@/components/ads/AdScripts';
 import { GoogleAnalytics } from '@/components/GoogleAnalytics';
 import { InAppBrowserNotice } from '@/components/InAppBrowserNotice';
@@ -101,7 +102,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <ToastProvider>
             <InventoryProvider>
               <UnreadProvider>
-                <RouteProgress />
+                <Suspense fallback={null}>
+                  <RouteProgress />
+                </Suspense>
                 <PageviewBeacon />
                 <InAppBrowserNotice />
                 <PhoneShell>{children}</PhoneShell>

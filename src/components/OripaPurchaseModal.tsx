@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useInventory } from './InventoryProvider';
+import { startRouteTransition } from './RouteProgress';
 import type { OripaBox } from '@/lib/types';
 
 interface Props {
@@ -70,6 +71,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
     // 라우팅을 transition 으로 wrap → destination 마운트 끝날 때까지 navigating=true 유지.
     // paying 은 그대로 true 유지 → 모달 unmount 까지 버튼 활성화 윈도우 0.
     startNav(() => {
+      startRouteTransition();
       router.push(`/my/oripa/play?pack=${box.id}&qty=${pack.count}`);
     });
   };

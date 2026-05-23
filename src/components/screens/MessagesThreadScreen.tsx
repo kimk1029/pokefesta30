@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ComposedAvatar } from '@/components/ComposedAvatar';
+import { startRouteTransition } from '@/components/RouteProgress';
 import { useInventory } from '@/components/InventoryProvider';
 import { useToast } from '@/components/ToastProvider';
 import { AppBar } from '@/components/ui/AppBar';
@@ -150,7 +151,10 @@ export function MessagesThreadScreen({ peerId, peer, myId }: Props) {
         {tradeId && (
           <button
             type="button"
-            onClick={() => router.push(`/trade/${tradeId}`)}
+            onClick={() => {
+              startRouteTransition();
+              router.push(`/trade/${tradeId}`);
+            }}
             style={{
               margin: '14px var(--gap) 0',
               padding: '8px 12px',

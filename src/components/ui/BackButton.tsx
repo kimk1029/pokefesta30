@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { startRouteTransition } from '@/components/RouteProgress';
 
 export function BackButton({ href }: { href?: string }) {
   const router = useRouter();
@@ -9,7 +10,11 @@ export function BackButton({ href }: { href?: string }) {
       type="button"
       className="appbar-back"
       aria-label="뒤로"
-      onClick={() => (href ? router.push(href) : router.back())}
+      onClick={() => {
+        startRouteTransition();
+        if (href) router.push(href);
+        else router.back();
+      }}
     >
       ◀
     </button>

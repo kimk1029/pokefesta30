@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { startRouteTransition } from '@/components/RouteProgress';
 
 interface CatalogOption {
   id: string;
@@ -59,6 +60,7 @@ export function ManualAddForm({ catalog }: Props) {
           const data = (await r.json().catch(() => ({}))) as { error?: string };
           throw new Error(data.error ?? `HTTP ${r.status}`);
         }
+        startRouteTransition();
         router.push('/my/cards');
         router.refresh();
       } catch (e) {
