@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Price } from '@/components/Price';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -222,7 +223,7 @@ export default async function Page() {
         />
         {rows.map(({ seed, apparel, chart }) => {
           const bg = seed.category ? CATEGORY_BG[seed.category] : 'var(--ink2)';
-          const priceText = apparel ? fmtYen(apparel.minPrice) : '—';
+          const priceJpy = apparel?.minPrice ?? 0;
           const listingText = apparel?.listingCountText
             ? `매물 ${apparel.listingCountText}건`
             : '데이터 없음';
@@ -289,7 +290,7 @@ export default async function Page() {
                     letterSpacing: 0.3,
                   }}
                 >
-                  최저 {priceText}
+                  최저 <Price jpy={priceJpy} empty="—" />
                 </div>
                 <div
                   style={{

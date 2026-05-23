@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Price } from '@/components/Price';
 import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -241,7 +242,7 @@ function PriceChart({
           기간: {fmtDateShort(minX)} ~ {fmtDateShort(maxX)} · {unitLabel} · 거래 {rawCount}건
         </span>
         <span>
-          최저 ¥{dataMinY.toLocaleString('ja-JP')} · 최고 ¥{dataMaxY.toLocaleString('ja-JP')}
+          최저 <Price jpy={dataMinY} /> · 최고 <Price jpy={dataMaxY} />
         </span>
       </div>
     </div>
@@ -360,7 +361,7 @@ export default async function Page({ params }: PageProps) {
           >
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 8, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>싱글카드</div>
-              <div style={{ fontSize: 13, color: 'var(--red)', lineHeight: 1 }}>{fmtYen(rawAvg.avg)}</div>
+              <div style={{ fontSize: 13, color: 'var(--red)', lineHeight: 1 }}><Price jpy={rawAvg.avg} empty="—" /></div>
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 8, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>PSA10</div>
@@ -371,7 +372,7 @@ export default async function Page({ params }: PageProps) {
                   lineHeight: 1,
                 }}
               >
-                {fmtYen(psa10Avg.avg)}
+                <Price jpy={psa10Avg.avg} empty="—" />
               </div>
             </div>
           </div>
@@ -384,7 +385,7 @@ export default async function Page({ params }: PageProps) {
               letterSpacing: 0.3,
             }}
           >
-            최저매물 {fmtYen(apparel.minPrice)}
+            최저매물 <Price jpy={apparel.minPrice} empty="—" />
             {apparel.listingCountText ? ` · 매물 ${apparel.listingCountText}건` : ''}
             {apparel.productNumber ? ` · ${apparel.productNumber}` : ''}
           </div>
@@ -473,7 +474,7 @@ export default async function Page({ params }: PageProps) {
                       textOverflow: 'ellipsis',
                     }}
                   >
-                    {fmtYen(h.price)}
+                    <Price jpy={h.price} empty="—" />
                   </span>
                   <span
                     style={{

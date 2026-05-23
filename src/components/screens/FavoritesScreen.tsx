@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useCurrency } from '@/components/CurrencyProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import type { MyFavoriteRow } from '@/lib/queries';
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function FavoritesScreen({ favorites: initial }: Props) {
+  const { format } = useCurrency();
   const [rows, setRows] = useState(initial);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -69,7 +71,7 @@ export function FavoritesScreen({ favorites: initial }: Props) {
                 lineHeight: 1.6,
               }}
             >
-              {rows.length}개 · 합산 시세 ¥{pricedTotal.toLocaleString('ja-JP')}
+              {rows.length}개 · 합산 시세 {format(pricedTotal)}
               <br />
               <span style={{ color: 'var(--ink3)' }}>※ 포트폴리오 총합엔 포함되지 않습니다.</span>
             </div>
@@ -138,6 +140,7 @@ function FavoriteCard({
   row: MyFavoriteRow;
   onRemove: (apparelId: number) => void;
 }) {
+  const { format } = useCurrency();
   const hasPrice = row.minPriceJpy > 0;
   return (
     <div className="pack-grid-card" style={{ borderTop: '4px solid var(--pur)' }}>
@@ -190,7 +193,7 @@ function FavoriteCard({
                 '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
             }}
           >
-            {hasPrice ? `¥${row.minPriceJpy.toLocaleString('ja-JP')}` : '시세 없음'}
+            {hasPrice ? format(row.minPriceJpy) : '시세 없음'}
           </div>
         </div>
       </Link>

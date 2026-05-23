@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { AppBarProfile } from '@/components/AppBarProfile';
+import { useCurrency } from '@/components/CurrencyProvider';
 import type { HeroSlideData } from '@/components/HeroSlider';
 import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
 import { AppBar } from '@/components/ui/AppBar';
@@ -146,20 +147,24 @@ function fmt(n: number): string {
 }
 
 export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs = [] }: Props) {
+  const { format } = useCurrency();
   const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '3M'>('1M');
   const [activeGame, setActiveGame] = useState<string>('전체');
 
   const owned: OwnedDisplay[] = cards.map((c) => {
     const catalog = c.cardId ? findCardEntry(c.cardId) : undefined;
+    // price 는 JPY 단위로 통일 — snkrdunk 카드는 JPY 그대로, 카탈로그 USD 는 환율 환산.
+    const snkJpy = c.snkrdunkMinPriceJpy ?? 0;
+    const priceJpy = snkJpy > 0 ? snkJpy : c.latestPrice * USD_TO_JPY;
     return {
       id: c.id,
       cardId: c.cardId,
       catalog,
-      name: c.nickname || catalog?.name || '미식별 카드',
+      name: c.nickname || c.snkrdunkName || catalog?.name || '미식별 카드',
       emoji: catalog?.emoji ?? '🃏',
-      game: catalog ? '포켓몬' : '기타',
+      game: catalog || c.snkrdunkApparelId ? '포켓몬' : '기타',
       rar: rarOf(catalog),
-      price: c.latestPrice,
+      price: priceJpy,
       grade: parsePsa(c.gradeEstimate),
     };
   });
@@ -214,7 +219,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
               fontFamily: 'var(--f1)', fontSize: 29, color: 'var(--gold)', letterSpacing: -2,
               textShadow: '0 0 24px rgba(255,210,63,.35),4px 4px 0 rgba(0,0,0,.5)', lineHeight: 1,
             }}>
-              ¥{fmt(totalVal)}
+              {format(totalVal)}
             </div>
             <div style={{ paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -357,9 +362,9 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
       <div className="sect">
         <div className="sect-hd"><h2>핵심 지표</h2></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <Block label="컬렉션 가치" value={`₩${fmt(totalVal)}`} sub={`▲ +${changePct}% 지난주`} color="var(--gold-dk)" icon="💰" />
+          <Block label="컬렉션 가치" value={format(totalVal)} sub={`▲ +${changePct}% 지난주`} color="var(--gold-dk)" icon="💰" />
           <Block label="그레이딩률" value={`${owned.length > 0 ? Math.round((graded.length / owned.length) * 100) : 0}%`} sub={`${graded.length} / ${owned.length}장`} color="var(--pur)" icon="🏆" />
-          <Block label="최고가 카드" value={`₩${fmt(topCards[0]?.price || 0)}`} sub={topCards[0]?.name} color="var(--grn-dk)" icon="🎯" />
+          <Block label="최고가 카드" value={format(topCards[0]?.price || 0)} sub={topCards[0]?.name} color="var(--grn-dk)" icon="🎯" />
           <Block label="이번주 거래" value={`${TRADES_THIS_WEEK}건`} sub="+45P 포인트 획득" color="var(--blu)" icon="🤝" href="/feed" />
         </div>
       </div>
@@ -404,7 +409,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                   <div style={{ fontFamily: 'var(--f1)', fontSize: 21, letterSpacing: -1, color: 'var(--ink)', marginBottom: 4 }}>
                     {n}<span style={{ fontSize: 12, color: 'var(--ink3)', marginLeft: 4 }}>장</span>
                   </div>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 12, color: 'var(--grn-dk)', letterSpacing: .3, marginBottom: 8 }}>₩{fmt(val)}</div>
+                  <div style={{ fontFamily: 'var(--f1)', fontSize: 12, color: 'var(--grn-dk)', letterSpacing: .3, marginBottom: 8 }}>{format(val)}</div>
                   {/* rarity fill bar */}
                   <div style={{ display: 'flex', gap: 2, height: 8 }}>
                     {RAR_ORDER.map((r) => {
@@ -441,7 +446,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', padding: '4px 6px 8px' }}>
             {snkrdunkRows.map((r) => {
               const bg = r.category ? SNKR_CAT_BG[r.category] : SNKR_FALLBACK_BG;
-              const priceText = r.minPrice > 0 ? `¥${r.minPrice.toLocaleString('ja-JP')}` : '—';
+              const priceText = r.minPrice > 0 ? format(r.minPrice) : '—';
               const showJp = r.localizedName && r.localizedName !== r.shortName;
               return (
                 <Link
@@ -577,6 +582,7 @@ function Block({ label, value, sub, color, icon, href }: BlockProps) {
 }
 
 function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
+  const { format } = useCurrency();
   return (
     <div>
       <div
@@ -657,7 +663,7 @@ function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
                   {hit.shortName}
                 </div>
                 <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--red)', letterSpacing: 0.3 }}>
-                  {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '—'}
+                  {hit.minPrice > 0 ? format(hit.minPrice) : '—'}
                 </div>
                 <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 3, letterSpacing: 0.3, minHeight: 11 }}>
                   {hit.listingCountText ? `매물 ${hit.listingCountText}건` : ''}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useCurrency } from '@/components/CurrencyProvider';
 
 /**
  * 포트폴리오 총합 (JPY) — 마이페이지 헤더에서 보여줌.
@@ -9,6 +10,7 @@ import { useEffect, useState } from 'react';
  * 관심카드는 합계에 포함되지 않음 — 서버에서 컬렉션(UserCard) 만 합산.
  */
 export function PortfolioTotal() {
+  const { format } = useCurrency();
   const [state, setState] = useState<
     | { kind: 'loading' }
     | { kind: 'empty' }
@@ -84,7 +86,7 @@ export function PortfolioTotal() {
           {state.kind === 'loading'
             ? '계산 중…'
             : state.kind === 'ok'
-              ? `¥${state.totalJpy.toLocaleString('ja-JP')}`
+              ? format(state.totalJpy)
               : state.kind === 'empty'
                 ? '컬렉션 없음'
                 : '시세 조회 실패'}

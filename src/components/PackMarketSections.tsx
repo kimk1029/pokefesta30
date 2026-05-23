@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { useCurrency } from '@/components/CurrencyProvider';
 import type { PackHitCard } from '@/lib/cardPackHits';
 
 type SortKey = 'price-desc' | 'recent-sale' | 'listing-desc';
@@ -133,6 +134,7 @@ function MarketSection({
 }
 
 function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
+  const { format } = useCurrency();
   // 번역된 koName 이 비어있거나 원문과 동일하면 일본어 별도 표기 생략 (중복 라인 방지).
   const koTitle = hit.koName || hit.shortName;
   const jpTitle = hit.name && hit.name !== koTitle ? hit.name : null;
@@ -206,7 +208,7 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
             boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
           }}
         >
-          {hasPrice ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '시세 없음'}
+          {hasPrice ? format(hit.minPrice) : '시세 없음'}
         </div>
         <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 5, letterSpacing: 0.3, minHeight: 12 }}>
           {hit.lastSaleText ? `최근 ${hit.lastSaleText}` : hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}

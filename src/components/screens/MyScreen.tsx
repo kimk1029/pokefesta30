@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CurrencySettingsItem } from '@/components/CurrencySettingsItem';
 import { EditableName } from '@/components/EditableName';
 import { PointChipLive } from '@/components/LivePointsPill';
 import { LogoutButton } from '@/components/LogoutButton';
@@ -158,6 +159,7 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount }: Pro
       {/* 설정 */}
       <div className="sect">
         <SectionTitle title="설정" />
+        <CurrencySettingsItem />
         <ThemeSettingsItem />
         {SETTINGS.map((it) =>
           it.href ? (

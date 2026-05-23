@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Price } from '@/components/Price';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { serverFetch } from '@/lib/apiServer';
@@ -323,7 +324,7 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
             boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
           }}
         >
-          {hasPrice ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '시세 없음'}
+          {hasPrice ? <Price jpy={hit.minPrice} /> : '시세 없음'}
         </div>
         <div
           style={{

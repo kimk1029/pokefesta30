@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
 import type { MyCardWithPrice } from '@/lib/queries';
+import { useCurrency } from '@/components/CurrencyProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 
@@ -52,6 +53,7 @@ const GAME_COLORS: Record<string, string> = {
 };
 
 export function MyCardsScreen({ cards: initial }: Props) {
+  const { format } = useCurrency();
   const [cards, setCards] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -155,7 +157,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
       <div className="cv-strip">
         <div className="cv-strip-cell cv-strip-a">총 {filtered.length}장</div>
         <div className="cv-strip-cell cv-strip-b">
-          {totalJpy > 0 ? `¥${totalJpy.toLocaleString('ja-JP')}` : `$${fmtUsd(totalVal)}`}
+          {totalJpy > 0 ? format(totalJpy) : `$${fmtUsd(totalVal)}`}
         </div>
         <div className="cv-strip-cell cv-strip-c">그레이딩 {gradedN}</div>
       </div>
@@ -290,7 +292,9 @@ function GridView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
 }
 
 function GridItem({ c, onDelete }: { c: DisplayCard; onDelete: (id: number) => void }) {
-  const hasPrice = priceLabel(c) !== null;
+  const { format } = useCurrency();
+  const label = priceLabel(c, format);
+  const hasPrice = label !== null;
   return (
     <div className="pack-grid-card" style={{ borderTop: `4px solid ${gameAccent(c.game)}`, minWidth: 0 }}>
       <Link
@@ -343,7 +347,7 @@ function GridItem({ c, onDelete }: { c: DisplayCard; onDelete: (id: number) => v
               boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
             }}
           >
-            {hasPrice ? priceLabel(c) : '시세 없음'}
+            {hasPrice ? label : '시세 없음'}
           </div>
         </div>
       </Link>
@@ -370,6 +374,7 @@ function GridItem({ c, onDelete }: { c: DisplayCard; onDelete: (id: number) => v
 }
 
 function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: number) => void }) {
+  const { format } = useCurrency();
   return (
     <div style={{ margin: '0 var(--gap)' }}>
       {cards.map((c) => (
@@ -428,9 +433,9 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-              {priceLabel(c) ? (
+              {priceLabel(c, format) ? (
                 <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: 0.3 }}>
-                  {priceLabel(c)}
+                  {priceLabel(c, format)}
                 </span>
               ) : (
                 <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>시세 없음</span>
@@ -525,6 +530,7 @@ function AlbumView({ cards }: { cards: DisplayCard[] }) {
 
 /** 필름: 가로 스크롤 한 줄. 컨테이너 안에서만 스크롤 — 페이지 자체는 안 넘어감. */
 function FilmView({ cards }: { cards: DisplayCard[] }) {
+  const { format } = useCurrency();
   return (
     <div className="sect" style={{ maxWidth: '100%', overflow: 'hidden' }}>
       <div
@@ -588,7 +594,7 @@ function FilmView({ cards }: { cards: DisplayCard[] }) {
             >
               {c.name}
             </div>
-            {priceLabel(c) && (
+            {priceLabel(c, format) && (
               <div
                 style={{
                   fontFamily: 'var(--f1)',
@@ -601,7 +607,7 @@ function FilmView({ cards }: { cards: DisplayCard[] }) {
                   textOverflow: 'ellipsis',
                 }}
               >
-                {priceLabel(c)}
+                {priceLabel(c, format)}
               </div>
             )}
           </Link>
@@ -631,10 +637,10 @@ function fmtUsd(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-/** USD > JPY 우선. 둘 다 없으면 null. */
-function priceLabel(c: DisplayCard): string | null {
+/** USD > JPY 우선. 둘 다 없으면 null. JPY 는 currency 모드에 따라 ¥/₩ 자동 표시. */
+function priceLabel(c: DisplayCard, format: (jpy: number) => string): string | null {
   if (c.price > 0) return `$${fmtUsd(c.price)}`;
-  if (c.priceJpy > 0) return `¥${c.priceJpy.toLocaleString('ja-JP')}`;
+  if (c.priceJpy > 0) return format(c.priceJpy);
   return null;
 }
 

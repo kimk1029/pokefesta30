@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Price } from '@/components/Price';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { CARD_PACKS } from '@/lib/cardPacks';
@@ -123,7 +124,7 @@ export default async function PackExplorerPage() {
                       }}
                     >
                       <span style={{ fontSize: 8, opacity: 0.7 }}>박스</span>
-                      <b>¥{pack.boxPrice.toLocaleString('ja-JP')}</b>
+                      <b><Price jpy={pack.boxPrice} /></b>
                     </span>
                   ) : (
                     <span
