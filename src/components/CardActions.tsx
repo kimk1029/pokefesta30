@@ -15,25 +15,36 @@ type Status = 'idle' | 'loading' | 'done' | 'error';
 /**
  * 카드 시세 상세 페이지의 액션 줄 — 모바일 PixelPress 와 동일 라벨/룩.
  * 컬렉션은 `/api/me/cards`, 관심은 `/api/me/favorites` 를 호출.
+ * 마운트 시 둘 다 fetch 해서 이미 추가된 카드면 ✓ 표시.
  * 미로그인 시 클릭하면 `/login` 으로 이동.
  */
 export function CardActions({ apparelId, cardName }: Props) {
   const [collectStatus, setCollectStatus] = useState<Status>('idle');
   const [favStatus, setFavStatus] = useState<Status>('idle');
   const [isFav, setIsFav] = useState<boolean>(false);
+  const [isCollected, setIsCollected] = useState<boolean>(false);
   const toast = useToast();
 
-  // 마운트 시 현재 관심 여부 확인 — toggle UI 일관성 위해.
+  // 마운트 시 컬렉션/관심 여부 확인 — 이미 추가된 카드면 즉시 ✓ 로 표시.
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const r = await fetch('/api/me/favorites', { credentials: 'include', cache: 'no-store' });
-        if (!r.ok) return;
-        const j = (await r.json()) as { data?: Array<{ snkrdunkApparelId: number }> };
+        const [favRes, cardRes] = await Promise.all([
+          fetch('/api/me/favorites', { credentials: 'include', cache: 'no-store' }),
+          fetch('/api/me/cards', { credentials: 'include', cache: 'no-store' }),
+        ]);
         if (!alive) return;
-        const has = (j.data ?? []).some((row) => row.snkrdunkApparelId === apparelId);
-        setIsFav(has);
+        if (favRes.ok) {
+          const j = (await favRes.json()) as { data?: Array<{ snkrdunkApparelId: number }> };
+          setIsFav((j.data ?? []).some((row) => row.snkrdunkApparelId === apparelId));
+        }
+        if (cardRes.ok) {
+          const j = (await cardRes.json()) as {
+            data?: Array<{ snkrdunkApparelId: number | null }>;
+          };
+          setIsCollected((j.data ?? []).some((row) => row.snkrdunkApparelId === apparelId));
+        }
       } catch {
         // ignore — 미로그인일 가능성
       }
@@ -73,6 +84,7 @@ export function CardActions({ apparelId, cardName }: Props) {
         throw new Error(detail);
       }
       setCollectStatus('done');
+      setIsCollected(true);
       toast.success('내 컬렉션에 추가되었습니다');
       setTimeout(() => setCollectStatus('idle'), 1500);
     } catch (err) {
@@ -122,13 +134,14 @@ export function CardActions({ apparelId, cardName }: Props) {
     }
   };
 
+  // 컬렉션 / 관심 둘 다 동일 패턴: loading="...", error="!", added="✓", 그 외 "추가".
   const collectDesc =
     collectStatus === 'loading'
       ? '...'
-      : collectStatus === 'done'
-        ? '✓'
-        : collectStatus === 'error'
-          ? '!'
+      : collectStatus === 'error'
+        ? '!'
+        : isCollected
+          ? '✓'
           : '추가';
 
   const favDesc =
@@ -143,7 +156,7 @@ export function CardActions({ apparelId, cardName }: Props) {
         disabled={collectStatus === 'loading'}
         style={{ background: 'var(--blu)', color: 'var(--white)' }}
       >
-        <span className="snk-act-icon" aria-hidden>📦</span>
+        <span className="snk-act-icon" aria-hidden>{isCollected ? '✅' : '📦'}</span>
         <span className="snk-act-label">내 컬렉션</span>
         <span className="snk-act-desc">{collectDesc}</span>
       </button>

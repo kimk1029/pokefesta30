@@ -20,6 +20,7 @@ on:
       - 'server/**'
       - 'src/lib/**'
       - 'prisma/schema.prisma'
+      - 'prisma/manual/**'
       - 'ecosystem.config.cjs'
       - '.github/workflows/deploy-server.yml'
   workflow_dispatch:
@@ -85,6 +86,15 @@ jobs:
             # is what we actually need. Log + continue.
             set -a; . ./server/.env; set +a
             npx prisma migrate deploy || echo "::warning::prisma migrate deploy failed — continuing (admin db push owns schema)"
+
+            # Idempotent safety-net: even if `migrate deploy` no-ops due to
+            # drift, run the manual SQL (IF NOT EXISTS clauses) to make sure
+            # the columns / tables the code expects actually exist.
+            npx prisma db execute \
+              --file prisma/manual/ensure_snkrdunk_schema.sql \
+              --schema prisma/schema.prisma \
+              && echo "✓ ensure_snkrdunk_schema.sql applied" \
+              || echo "::warning::ensure_snkrdunk_schema.sql failed — check DB"
 
             # 3) ecosystem.config.cjs 가 단일 진실 소스. exec_mode 같은 구조 변경은
             #    reload 로는 안 잡혀서, 항상 delete → start 로 깨끗하게 재기동.
