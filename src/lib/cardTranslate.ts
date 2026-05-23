@@ -239,7 +239,42 @@ const CARD_TERMS: Term[] = [
 
 import { POKEMON_KO_TO_JA } from './pokemonNamesKoJa';
 
-const ALL: Term[] = [...POKEMON, ...CARD_TERMS];
+/**
+ * 트레이너/등장인물 이름. 한국·일본 공식 표기가 *다른* 케이스 중심.
+ * 일본 카드 (snkrdunk) 에서 イラスト・SAR/CHR 등에 등장하는 이름이 한국어
+ * 검색어로 잡히도록 양방향 매핑. 같은 표기여도 사전에 두면 검색 안정성 ↑.
+ *
+ *   ex) '메이' 또는 '명희' 검색 → 'メイ' 로 변환되어 snkrdunk 결과 노출
+ *       응답의 'メイ' 는 표시 단계에서 '명희' 로 한국어화
+ */
+const CHARACTERS: Term[] = [
+  // KR/JP 표기가 명확히 다른 케이스
+  { ko: '명희',     ja: 'メイ',         en: 'Rosa' },           // BW2 여주인공
+  { ko: '메이',     ja: 'メイ',         en: 'Rosa' },           // KR 동인 표기 — 같은 인물
+  { ko: '휴이',     ja: 'キョウヘイ',   en: 'Hugh' },           // BW2 남주인공
+  { ko: '모란',     ja: 'ナンジャモ',   en: 'Iono' },           // SV 전기 체육관 관장
+  { ko: '난천',     ja: 'シロナ',       en: 'Cynthia' },        // 신오 챔피언
+  { ko: '풀잎',     ja: 'ナタネ',       en: 'Gardenia' },       // 신오 풀 체육관
+  { ko: '단지',     ja: 'デンジ',       en: 'Volkner' },        // 신오 전기 체육관
+  { ko: '태홍',     ja: 'アカギ',       en: 'Cyrus' },          // 신오 갤럭틱단 보스
+  { ko: '진철',     ja: 'シンジ',       en: 'Paul' },           // 신오 라이벌 (애니)
+  { ko: '미카',     ja: 'カトレア',     en: 'Caitlin' },        // 단,투 4천왕
+  { ko: '벨라',     ja: 'ベル',         en: 'Bianca' },         // BW 라이벌
+  { ko: '체렌',     ja: 'チェレン',     en: 'Cheren' },         // BW 라이벌
+  { ko: '스즈나',   ja: 'スズナ',       en: 'Candice' },        // 신오 얼음 체육관
+  { ko: '미스즈',   ja: 'ミタル',       en: 'Bertha' },         // 신오 4천왕 (땅)
+  // 표기 거의 동일하지만 양방향 안전망 — 인기 캐릭
+  { ko: '리리에',   ja: 'リーリエ',     en: 'Lillie' },
+  { ko: '구즈마',   ja: 'グズマ',       en: 'Guzma' },
+  { ko: '루자미네', ja: 'ルザミーネ',   en: 'Lusamine' },
+  { ko: '구라이브', ja: 'グラジオ',     en: 'Gladion' },
+  { ko: '페퍼',     ja: 'ペパー',       en: 'Pepper' },         // SV
+  { ko: '아오키',   ja: 'アオキ',       en: 'Larry' },          // SV 노말 체육관
+  { ko: '보탄',     ja: 'ボタン',       en: 'Penny' },          // SV
+  { ko: '하사크',   ja: 'ハッサク',     en: 'Hassel' },         // SV
+];
+
+const ALL: Term[] = [...POKEMON, ...CARD_TERMS, ...CHARACTERS];
 
 /**
  * 사전을 lowercase key → value 로 빌드해서 대소문자 무시 매칭.

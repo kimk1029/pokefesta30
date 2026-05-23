@@ -2282,29 +2282,28 @@ a{color:inherit;text-decoration:none;}
 
 /* ── FAB (탭바 중앙 버튼) ─────────────────────── */
 
-/* onepiece 테마 — 위에서 본 루피의 밀짚모자 (탄 brim + 빨강 띠 + 어두운 정수리). */
+/* onepiece 테마 — 위에서 본 루피의 밀짚모자 (Tabbar 가 SVG 자식 렌더, CSS 는 배경/표시만). */
+.fab-strawhat{display:none;}
+[data-theme="onepiece"] .fab-strawhat{display:block;position:relative;z-index:2;}
 [data-theme="onepiece"] .fab-circle{
   border-radius:50%;
   border:3px solid var(--ink);
-  background:
-    radial-gradient(circle at 50% 50%,
-      #B8884B 0,#B8884B 20%,            /* 모자 정수리 (어두운 밀짚) */
-      #E63946 20%,#E63946 32%,          /* 빨강 띠 */
-      #F4D272 32%,#F4D272 100%);        /* 밀짚 brim */
+  background:transparent;     /* SVG 가 직접 그림 */
   box-shadow:
-    inset 0 4px 0 rgba(255,255,255,.22),inset 0 -4px 0 rgba(0,0,0,.18),
+    inset 0 -4px 0 rgba(0,0,0,.12),
     5px 5px 0 var(--ink);
+  overflow:visible;
 }
 [data-theme="onepiece"] .fab-circle::before{display:none;}
 [data-theme="onepiece"] .fab-circle:active{
   transform:translate(3px,3px);
   box-shadow:
-    inset 0 4px 0 rgba(255,255,255,.22),inset 0 -4px 0 rgba(0,0,0,.18),
+    inset 0 -4px 0 rgba(0,0,0,.12),
     2px 2px 0 var(--ink);
 }
 [data-theme="onepiece"] .fab-circle.fab-click:active{
   box-shadow:
-    inset 0 4px 0 rgba(255,255,255,.22),inset 0 -4px 0 rgba(0,0,0,.18),
+    inset 0 -4px 0 rgba(0,0,0,.12),
     5px 5px 0 var(--ink);
 }
 [data-theme="onepiece"] .fab-tab span{color:#F4D272;}
@@ -2346,14 +2345,29 @@ a{color:inherit;text-decoration:none;}
 /* ── 테마별 액센트 컬러 오버라이드 ─────────────────────────────
    부분적으로만 색을 바꿔서 다른 컴포넌트의 대비를 보존. */
 
-/* onepiece — 노을 톤. 노랑 액센트를 밀짚 톤으로, 보조 강조는 빨강 유지. */
+/* onepiece — 항해 노을 톤. 종이톤은 따뜻한 크림, 액센트는 밀짚/모래/노을/대양. */
 [data-theme="onepiece"]{
+  /* 종이 - 따뜻한 크림 */
+  --paper:#FBF1D9;
+  --pap2:#F0DEAA;
+  --pap3:#CDB57B;
+  --papdk:#7E6A38;
+  /* 노랑 → 밀짚 */
   --yel:#F4D272;
   --yel-lt:#FCE6A8;
   --yel-dk:#B8884B;
-  --gold:#D9A85D;
+  /* 골드 → 어둠 밀짚 */
+  --gold:#E5B85A;
   --gold-lt:#F4D272;
   --gold-dk:#7A5A2A;
+  /* 파랑 → 대양 */
+  --blu:#1B6FB8;
+  --blu-lt:#4BA0E0;
+  --blu-dk:#0B3F70;
+  /* 주황 → 노을 (악마의 열매 톤) */
+  --orn:#F4783D;
+  --orn-lt:#FFA070;
+  --orn-dk:#9B3B0A;
 }
 
 /* yugioh — 보라/황금 톤. 빨강 액센트는 보라로, 노랑은 채도 높은 황금으로. */

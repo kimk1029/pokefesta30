@@ -156,11 +156,9 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount }: Pro
         ))}
       </div>
 
-      {/* 설정 — 좌우 꽉차게 (sect 의 gap 없이). */}
-      <div className="sect" style={{ margin: '0 0 var(--cg)' }}>
-        <div style={{ margin: '0 var(--gap)' }}>
-          <SectionTitle title="설정" />
-        </div>
+      {/* 설정 — 상점 바로가기와 동일 컨테이너 (좌우 gap 유지). */}
+      <div className="sect">
+        <SectionTitle title="설정" />
         <CurrencySettingsItem />
         <ThemeSettingsItem />
         {SETTINGS.map((it) =>
