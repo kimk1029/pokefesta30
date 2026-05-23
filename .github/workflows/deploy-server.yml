@@ -18,6 +18,7 @@ on:
     branches: [main]
     paths:
       - 'server/**'
+      - 'src/lib/**'
       - 'prisma/schema.prisma'
       - 'ecosystem.config.cjs'
       - '.github/workflows/deploy-server.yml'

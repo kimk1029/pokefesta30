@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { AppBarProfile } from '@/components/AppBarProfile';
 import type { HeroSlideData } from '@/components/HeroSlider';
+import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
@@ -298,6 +299,9 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
           ))}
         </div>
       </div>
+
+      {/* ═══ SEARCH (KR → JP → snkrdunk) ═══ */}
+      <HomeKoSearchBar />
 
       {/* ═══ XP / LEVEL BAR ═══ */}
       <div style={{

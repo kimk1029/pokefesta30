@@ -105,8 +105,43 @@ export default async function PackExplorerPage() {
                   <br />
                   {pack.boxName}
                 </div>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--red)', marginTop: 5, letterSpacing: 0.3 }}>
-                  {pack.boxPrice > 0 ? `박스 ¥${pack.boxPrice.toLocaleString('ja-JP')}` : pack.releasedAt ? `${pack.releasedAt} 출시` : '출시일 확인 중'}
+                <div style={{ marginTop: 7 }}>
+                  {pack.boxPrice > 0 ? (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '3px 7px',
+                        background: 'var(--yel)',
+                        color: 'var(--ink)',
+                        fontFamily: 'var(--f1)',
+                        fontSize: 9,
+                        letterSpacing: 0.3,
+                        boxShadow:
+                          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
+                      }}
+                    >
+                      <span style={{ fontSize: 7, opacity: 0.7 }}>박스</span>
+                      <b>¥{pack.boxPrice.toLocaleString('ja-JP')}</b>
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        padding: '2px 6px',
+                        background: 'var(--pap2)',
+                        color: 'var(--ink2)',
+                        fontFamily: 'var(--f1)',
+                        fontSize: 8,
+                        letterSpacing: 0.3,
+                        boxShadow:
+                          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                      }}
+                    >
+                      {pack.releasedAt ? `${pack.releasedAt} 출시` : '출시일 확인 중'}
+                    </span>
+                  )}
                 </div>
               </div>
               <div style={{ fontFamily: 'var(--f1)', fontSize: 14, color: 'var(--ink3)' }}>›</div>
