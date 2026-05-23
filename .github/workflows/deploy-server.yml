@@ -78,12 +78,13 @@ jobs:
             cd /root/dev/pokefesta30
             npm ci --prefer-offline --no-audit --no-fund
             npx prisma generate
-            # Apply any pending DB migrations. Idempotent — Prisma tracks state
-            # in _prisma_migrations and skips already-applied ones.
-            # server/.env holds DATABASE_URL/DIRECT_URL; export into the shell
-            # so the prisma CLI (run from repo root) picks them up.
+            # Apply any pending DB migrations. Non-fatal: the admin
+            # workflow owns schema via `prisma db push`, which doesn't
+            # update the _prisma_migrations ledger. If `migrate deploy`
+            # sees that drift it errors — but the server restart below
+            # is what we actually need. Log + continue.
             set -a; . ./server/.env; set +a
-            npx prisma migrate deploy
+            npx prisma migrate deploy || echo "::warning::prisma migrate deploy failed — continuing (admin db push owns schema)"
 
             # 3) ecosystem.config.cjs 가 단일 진실 소스. exec_mode 같은 구조 변경은
             #    reload 로는 안 잡혀서, 항상 delete → start 로 깨끗하게 재기동.
