@@ -27,6 +27,8 @@ function useAuthed(): boolean {
 import { RARS, gameColors, fmt, priceLabel, displayCardName, inferCardCurrency, cardKrw, cardPrice, type Game, type Rarity } from '@/data/cardvault';
 import { updateCard, useCollection } from '@/lib/collection';
 import { usePriceMode } from '@/lib/priceMode';
+import { useCurrency } from '@/components/CurrencyProvider';
+import { fetchPortfolio, type PortfolioSummary } from '@/lib/myApi';
 import {
   fetchSnkrdunkApparel,
   fetchSnkrdunkBrowse,
@@ -116,11 +118,24 @@ const ACTIVITY: { icon: string; c: string; txt: string; time: string; pt: string
 
 export default function Home() {
   const authed = useAuthed();
+  const { format: formatCurrency } = useCurrency();
   const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '3M'>('1M');
   const [activeGame, setActiveGame] = useState<string>('전체');
   // 관심 카드(favorite=true)는 포트폴리오 합계 / 차트 / 통계에서 제외.
   const ownedAll = useCollection();
   const owned = ownedAll.filter((c) => !c.favorite);
+
+  // 서버 일별 스냅샷 (KST 정각 reset) — totalJpy / changePct / 30일 history.
+  // 인증 시에만 동작. 미인증 / 실패 시 폴백으로 로컬 useCollection 사용.
+  const [serverPortfolio, setServerPortfolio] = useState<PortfolioSummary | null>(null);
+  useEffect(() => {
+    if (!authed) return;
+    let alive = true;
+    fetchPortfolio()
+      .then((d) => alive && d && d.totalCount > 0 && setServerPortfolio(d))
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [authed]);
   const { mode: globalPriceMode, toggle: togglePriceMode } = usePriceMode();
   // Force singles when no card in the collection has any PSA10 data —
   // the toggle isn't shown in that case but we still want totals to use
@@ -148,13 +163,16 @@ export default function Home() {
     val: owned.filter((c) => c.game === g).reduce((a, c) => a + cardKrw(c, priceMode), 0),
   }));
 
-  // 컬렉션 일별 종합 가격 (오래된→최신). owned 카드의 KRW 환산 시세를 latestPrice 로 사용.
+  // 컬렉션 일별 종합 가격 (오래된→최신). 서버 히스토리(스냅샷)가 있으면 그걸 사용,
+  // 없으면 owned 카드의 trend 로 폴백.
   const periodDays = PERIOD_DAYS[chartPeriod];
   const ownedForChart = owned.map((c) => ({
     latestPrice: cardKrw(c, priceMode),
     trend: Array.isArray(c.trend) ? c.trend : [],
   }));
-  const chartData = computeDailyTotals(ownedForChart, periodDays);
+  const realHistory = (serverPortfolio?.history ?? []).map((h) => h.totalJpy);
+  const chartData =
+    realHistory.length >= 2 ? realHistory.slice(-periodDays) : computeDailyTotals(ownedForChart, periodDays);
   const gradedPct = owned.length > 0 ? Math.round((graded.length / owned.length) * 100) : 0;
 
   // Background refresh: for every owned card with a snkrdunkApparelId (or
@@ -347,28 +365,39 @@ export default function Home() {
               color={colors.gold}
               style={{ letterSpacing: -2, marginRight: 12 }}
             >
-              ₩{totalVal.toLocaleString()}
+              {serverPortfolio ? formatCurrency(serverPortfolio.totalJpy) : `₩${totalVal.toLocaleString()}`}
             </PixelText>
             <View style={{ paddingBottom: 4 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <View
-                  style={{
-                    width: 0,
-                    height: 0,
-                    borderLeftWidth: 5,
-                    borderRightWidth: 5,
-                    borderBottomWidth: 8,
-                    borderLeftColor: 'transparent',
-                    borderRightColor: 'transparent',
-                    borderBottomColor: '#22C55E',
-                  }}
-                />
-                <PixelText variant="pixel" size={11} color="#22C55E">
-                  +{changePct}%
-                </PixelText>
+                {(() => {
+                  const realPct = serverPortfolio?.changePct ?? null;
+                  const pct = realPct != null ? Math.round(realPct) : changePct;
+                  const up = pct >= 0;
+                  return (
+                    <>
+                      <View
+                        style={{
+                          width: 0,
+                          height: 0,
+                          borderLeftWidth: 5,
+                          borderRightWidth: 5,
+                          borderBottomWidth: up ? 8 : 0,
+                          borderTopWidth: up ? 0 : 8,
+                          borderLeftColor: 'transparent',
+                          borderRightColor: 'transparent',
+                          borderBottomColor: up ? '#22C55E' : 'transparent',
+                          borderTopColor: up ? 'transparent' : '#E63946',
+                        }}
+                      />
+                      <PixelText variant="pixel" size={11} color={up ? '#22C55E' : '#E63946'}>
+                        {up ? '+' : ''}{pct}%
+                      </PixelText>
+                    </>
+                  );
+                })()}
               </View>
               <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }}>
-                vs 지난주
+                {serverPortfolio?.changePct != null ? 'vs 어제 (KST 정각)' : 'vs 지난주'}
               </PixelText>
             </View>
           </View>

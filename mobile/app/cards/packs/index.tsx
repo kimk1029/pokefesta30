@@ -20,6 +20,7 @@ import { PixelFrame } from '@/components/cv/PixelFrame';
 import { LoadingState, ErrorView } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
 import { CARD_PACKS, type CardPackMeta } from '@/data/cardPacks';
+import { useCurrency } from '@/components/CurrencyProvider';
 import { fetchSnkrdunkApparelGroup } from '@/services/snkrdunk';
 import { localizeCardName } from '@/lib/cardNameKo';
 
@@ -85,6 +86,7 @@ function fetchPacksOnce(): Promise<PackWithBox[]> {
 }
 
 export default function PackExplorerScreen() {
+  const { format: formatCurrency } = useCurrency();
   // 캐시가 있으면 즉시 보여주고 (loading=false), 없으면 로딩 표시.
   const [data, setData] = useState<PackWithBox[] | null>(packsCache?.data ?? null);
   const [loading, setLoading] = useState<boolean>(!packsCache);
@@ -257,7 +259,7 @@ export default function PackExplorerScreen() {
                         numberOfLines={1}
                       >
                         {pack.boxPrice > 0
-                          ? `¥${pack.boxPrice.toLocaleString('ja-JP')}`
+                          ? formatCurrency(pack.boxPrice)
                           : pack.releasedAt
                             ? `${pack.releasedAt} 출시`
                             : '출시일 확인 중'}

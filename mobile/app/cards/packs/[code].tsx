@@ -11,11 +11,13 @@ import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
 import { fetchPackHits, type PackHitCard, type PackWithHits } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
+import { useCurrency } from '@/components/CurrencyProvider';
 
 type SortMode = 'price' | 'listing' | 'name';
 type ViewMode = 'grid' | 'list';
 
 export default function PackDetailScreen() {
+  const { format: formatCurrency } = useCurrency();
   const params = useLocalSearchParams<{ code: string }>();
   const code = params.code ?? '';
   const [sort, setSort] = useState<SortMode>('price');
@@ -218,7 +220,7 @@ export default function PackDetailScreen() {
                             {hit.name}
                           </PixelText>
                           <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1} style={{ marginTop: 6 }}>
-                            {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '시세 없음'}
+                            {hit.minPrice > 0 ? formatCurrency(hit.minPrice) : '시세 없음'}
                           </PixelText>
                           <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
                             {hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
@@ -244,6 +246,7 @@ export default function PackDetailScreen() {
 }
 
 function ListRow({ hit, accent }: { hit: PackHitCard; accent: string }) {
+  const { format: formatCurrency } = useCurrency();
   return (
     <PixelPress
       onPress={() => router.push(`/cards/snkrdunk/${hit.apparelId}` as never)}
@@ -277,7 +280,7 @@ function ListRow({ hit, accent }: { hit: PackHitCard; accent: string }) {
           </PixelText>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
             <PixelText variant="pixel" size={11} color={colors.red}>
-              {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '시세 없음'}
+              {hit.minPrice > 0 ? formatCurrency(hit.minPrice) : '시세 없음'}
             </PixelText>
             <PixelText variant="pixel" size={8} color={colors.ink3}>
               {hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}

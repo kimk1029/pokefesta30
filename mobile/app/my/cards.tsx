@@ -1,40 +1,109 @@
 /**
  * /my/cards — 내 카드 컬렉션.
- * GET /api/me/cards/with-prices 로 서버 저장된 카드 + 최근 시세를 가져온다.
- * 미로그인/네트워크 실패 시 빈 상태 UI 표시.
+ *
+ * 웹 MyCardsScreen 과 동일한 4 view (그리드/리스트/앨범/필름) + 등급 탭 + 정렬.
+ * 서버에서 /api/me/cards/with-prices 로 enriched MyCardRow 가져와 표시.
  */
-import { useMemo, useState } from 'react';
-import { ScrollView, View, StyleSheet, Pressable, TextInput, Image } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
-import { colors, space } from '@/theme/tokens';
-import { fetchMyCards, type MyCardRow } from '@/lib/myApi';
+import { useCurrency } from '@/components/CurrencyProvider';
+import { useToast } from '@/components/ToastProvider';
+import { colors, fonts, space } from '@/theme/tokens';
+import {
+  fetchMyCards,
+  deleteMyCard,
+  type MyCardRow,
+} from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 import { isAuthenticated, subscribeSession } from '@/lib/session';
-import { useEffect } from 'react';
+import {
+  detectRarity,
+  RARITY_ORDER,
+  RARITY_BG,
+  RARITY_FG,
+  type Rarity,
+} from '@/lib/cardRarity';
 
-type ViewMode = 'grid' | 'list';
+type ViewMode = 'grid' | 'list' | 'album' | 'film';
+type SortBy = 'recent' | 'name' | 'price' | 'grade';
+type RarFilter = 'all' | Rarity;
 
-/** 로그인 상태를 반응형으로 구독 — 로그인 성공 시 자동으로 컬렉션 화면으로 전환. */
+const VIEW_TABS: Array<[ViewMode, string]> = [
+  ['grid', '바둑판'],
+  ['list', '리스트'],
+  ['album', '앨범'],
+  ['film', '필름'],
+];
+const SORT_TABS: Array<[SortBy, string]> = [
+  ['recent', '최근'],
+  ['name', '이름'],
+  ['price', '가격'],
+  ['grade', '등급'],
+];
+
+interface Display {
+  src: MyCardRow;
+  name: string;
+  imageUrl: string | null;
+  rar: Rarity;
+  gradeNum: number | null;
+  priceJpy: number;
+}
+
+function toDisplay(c: MyCardRow): Display {
+  return {
+    src: c,
+    name:
+      c.nickname ||
+      c.snkrdunkName ||
+      c.cardId ||
+      (c.ocrSetCode || c.ocrCardNumber
+        ? `${c.ocrSetCode ?? '?'} ${c.ocrCardNumber ?? ''}`.trim()
+        : '미식별 카드'),
+    imageUrl: c.photoUrl || c.snkrdunkImageUrl || null,
+    rar: detectRarity(c.nickname, c.snkrdunkName, c.cardId),
+    gradeNum: parsePsa(c.gradeEstimate),
+    priceJpy: c.snkrdunkMinPriceJpy ?? 0,
+  };
+}
+
+function parsePsa(label: string | null | undefined): number | null {
+  if (!label) return null;
+  const m = label.match(/PSA\s*(\d+)/i);
+  return m ? Number(m[1]) : null;
+}
+
 function useAuthed(): boolean {
   const [authed, setAuthed] = useState(() => isAuthenticated());
-  useEffect(() => {
-    return subscribeSession(() => setAuthed(isAuthenticated()));
-  }, []);
+  useEffect(() => subscribeSession(() => setAuthed(isAuthenticated())), []);
   return authed;
 }
 
 export default function MyCardsScreen() {
   const authed = useAuthed();
+  const { format } = useCurrency();
+  const toast = useToast();
 
   const [view, setView] = useState<ViewMode>('grid');
   const [search, setSearch] = useState('');
+  const [rar, setRar] = useState<RarFilter>('all');
+  const [sort, setSort] = useState<SortBy>('recent');
+
   const { data, loading, error, refresh } = useAsync<MyCardRow[]>(fetchMyCards, [authed]);
 
-  // 인라인 로그인 게이트 — 바텀 탭바는 PhoneShell 이 유지.
   if (!authed) {
     return (
       <InlineLoginGate
@@ -46,128 +115,160 @@ export default function MyCardsScreen() {
     );
   }
 
-  const cards = data ?? [];
+  const display: Display[] = (data ?? []).map(toDisplay);
+
+  const presentRarities = useMemo(() => {
+    const set = new Set<Rarity>();
+    for (const d of display) set.add(d.rar);
+    return RARITY_ORDER.filter((r) => set.has(r));
+  }, [display]);
 
   const filtered = useMemo(() => {
-    if (search === '') return cards;
     const q = search.toLowerCase();
-    return cards.filter((c) =>
-      [c.nickname, c.cardId, c.ocrSetCode, c.ocrCardNumber, c.memo]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(q)),
-    );
-  }, [cards, search]);
+    let out = display.filter((d) => {
+      if (rar !== 'all' && d.rar !== rar) return false;
+      if (!q) return true;
+      return d.name.toLowerCase().includes(q);
+    });
+    if (sort === 'name') out = [...out].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === 'price') out = [...out].sort((a, b) => b.priceJpy - a.priceJpy);
+    if (sort === 'grade') out = [...out].sort((a, b) => (b.gradeNum ?? 0) - (a.gradeNum ?? 0));
+    return out;
+  }, [display, search, rar, sort]);
 
-  const totalVal = filtered.reduce((s, c) => s + (c.latestPrice ?? 0), 0);
-  const gradedN = filtered.filter((c) => c.gradeEstimate).length;
+  const totalJpy = filtered.reduce((s, d) => s + d.priceJpy, 0);
+  const gradedN = filtered.filter((d) => d.gradeNum !== null).length;
+
+  const onDelete = (id: number) => {
+    Alert.alert('카드 삭제', '이 카드를 컬렉션에서 제거할까요?', [
+      { text: '취소' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteMyCard(id);
+            toast.success('카드가 삭제되었습니다');
+            refresh();
+          } catch {
+            toast.error('삭제 실패');
+          }
+        },
+      },
+    ]);
+  };
+
+  const openDetail = (d: Display) => {
+    if (d.src.snkrdunkApparelId) {
+      router.push(`/cards/snkrdunk/${d.src.snkrdunkApparelId}` as never);
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <AppBar title="내 컬렉션" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
         {loading && !data ? (
-          <View style={{ paddingTop: 30 }}>
-            <LoadingState />
-          </View>
+          <View style={{ paddingTop: 30 }}><LoadingState /></View>
         ) : error ? (
           <View style={{ marginHorizontal: 14, marginTop: 14 }}>
             <ErrorView error={error} onRetry={refresh} />
           </View>
-        ) : cards.length === 0 ? (
-          <View style={{ marginHorizontal: 14, marginTop: 14 }}>
+        ) : display.length === 0 ? (
+          <View style={{ marginHorizontal: 14, marginTop: 30 }}>
             <EmptyState
               icon="🃏"
               title="저장된 카드가 없어요"
-              desc="카드를 스캔·그레이딩하면 내 컬렉션에 자동 저장됩니다."
-              ctaLabel="카드 스캔하기"
-              onCtaPress={() => router.push('/scan' as never)}
+              desc="시세 상세 페이지의 [내 컬렉션] 버튼으로 추가하세요."
+              ctaLabel="가격 탐색"
+              onCtaPress={() => router.push('/cards/packs' as never)}
             />
           </View>
         ) : (
           <>
-            {/* SUMMARY STRIP */}
+            {/* 요약 스트립 */}
             <View style={styles.strip}>
               <StripCell text={`총 ${filtered.length}장`} bg={colors.ink} fg={colors.gold} />
-              <StripCell text={`₩${totalVal.toLocaleString('ko-KR')}`} bg={colors.gold} fg={colors.ink} />
-              <StripCell text={`${gradedN}건 그레이딩`} bg={colors.pur} fg={colors.white} />
+              <StripCell text={format(totalJpy)} bg={colors.gold} fg={colors.ink} />
+              <StripCell text={`그레이딩 ${gradedN}`} bg={colors.pur} fg={colors.white} />
             </View>
 
-            {/* SEARCH */}
+            {/* 검색 */}
             <View style={styles.search}>
               <PixelText variant="pixel" size={14}>🔍</PixelText>
               <TextInput
                 value={search}
                 onChangeText={setSearch}
-                placeholder="카드명, 세트, 번호 검색..."
+                placeholder="카드명 검색..."
                 placeholderTextColor={colors.ink3}
                 style={styles.searchInput}
               />
             </View>
 
-            {/* TOOLBAR */}
+            {/* 등급 탭 (컬렉션에 존재하는 등급만) */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipRow}
+            >
+              {(['all', ...presentRarities] as RarFilter[]).map((r) => (
+                <Pressable
+                  key={r}
+                  onPress={() => setRar(r)}
+                  style={[styles.chip, rar === r && styles.chipOn]}
+                >
+                  <PixelText
+                    variant="pixel"
+                    size={9}
+                    color={rar === r ? colors.ink : colors.ink}
+                  >
+                    {r === 'all' ? 'ALL' : r}
+                  </PixelText>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            {/* 정렬 */}
             <View style={styles.toolbar}>
-              <View style={{ flex: 1 }} />
-              <Pressable style={[styles.viewBtn, view === 'grid' && styles.viewBtnOn]} onPress={() => setView('grid')}>
-                <PixelText variant="pixel" size={13} color={view === 'grid' ? colors.gold : colors.ink}>⊞</PixelText>
-              </Pressable>
-              <Pressable style={[styles.viewBtn, view === 'list' && styles.viewBtnOn]} onPress={() => setView('list')}>
-                <PixelText variant="pixel" size={13} color={view === 'list' ? colors.gold : colors.ink}>☰</PixelText>
-              </Pressable>
+              {SORT_TABS.map(([k, lb]) => (
+                <Pressable key={k} onPress={() => setSort(k)} style={[styles.sortBtn, sort === k && styles.sortBtnOn]}>
+                  <PixelText variant="pixel" size={9} color={sort === k ? colors.gold : colors.ink}>
+                    {lb}
+                  </PixelText>
+                </Pressable>
+              ))}
             </View>
 
+            {/* 뷰 탭 */}
+            <View style={styles.subseg}>
+              {VIEW_TABS.map(([k, lb]) => (
+                <Pressable
+                  key={k}
+                  onPress={() => setView(k)}
+                  style={[styles.subsegBtn, view === k && styles.subsegBtnOn]}
+                >
+                  <PixelText variant="pixel" size={10} color={view === k ? colors.ink : colors.pap3}>
+                    {lb}
+                  </PixelText>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* 뷰 본문 */}
             {filtered.length === 0 ? (
-              <View style={{ padding: 40, alignItems: 'center' }}>
-                <PixelText variant="pixel" size={10} color={colors.ink3}>검색 결과가 없어요</PixelText>
+              <View style={{ padding: 30, alignItems: 'center' }}>
+                <PixelText variant="pixel" size={10} color={colors.ink3}>
+                  필터 결과가 없어요
+                </PixelText>
               </View>
             ) : view === 'grid' ? (
-              <View style={styles.grid}>
-                {filtered.map((c) => (
-                  <View key={c.id} style={styles.gridItem}>
-                    <Thumb card={c} mode="grid" />
-                    <View style={{ padding: 8 }}>
-                      <PixelText variant="ko" size={10} numberOfLines={1} style={{ marginBottom: 5 }} weight="bold">
-                        {displayName(c)}
-                      </PixelText>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <PixelText variant="pixel" size={7} color={colors.ink3} numberOfLines={1}>
-                          {c.ocrSetCode ?? '—'}
-                        </PixelText>
-                        {c.gradeEstimate ? <GradeBadge g={c.gradeEstimate} /> : null}
-                      </View>
-                      <PixelText variant="pixel" size={8} color={colors.grnDk} style={{ marginTop: 5 }}>
-                        {priceLabel(c.latestPrice)}
-                      </PixelText>
-                    </View>
-                  </View>
-                ))}
-              </View>
+              <GridView items={filtered} onPress={openDetail} onDelete={onDelete} format={format} />
+            ) : view === 'list' ? (
+              <ListView items={filtered} onPress={openDetail} onDelete={onDelete} format={format} />
+            ) : view === 'album' ? (
+              <AlbumView items={filtered} onPress={openDetail} />
             ) : (
-              <View style={{ paddingHorizontal: space.gap }}>
-                {filtered.map((c) => (
-                  <View key={c.id} style={styles.listItem}>
-                    <Thumb card={c} mode="list" />
-                    <View style={{ flex: 1 }}>
-                      <PixelText variant="ko" size={11} weight="bold" style={{ marginBottom: 6 }} numberOfLines={1}>
-                        {displayName(c)}
-                      </PixelText>
-                      <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginBottom: 6 }} numberOfLines={1}>
-                        {[c.ocrSetCode, c.ocrCardNumber].filter(Boolean).join(' · ') || '메타 없음'}
-                      </PixelText>
-                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 6 }}>
-                        {c.gradeEstimate ? <GradeBadge g={c.gradeEstimate} /> : null}
-                        {typeof c.centeringScore === 'number' ? (
-                          <PixelText variant="pixel" size={8} color={colors.ink3}>
-                            CT {c.centeringScore.toFixed(0)}
-                          </PixelText>
-                        ) : null}
-                      </View>
-                      <PixelText variant="pixel" size={10} color={colors.grnDk}>
-                        {priceLabel(c.latestPrice)}
-                      </PixelText>
-                    </View>
-                  </View>
-                ))}
-              </View>
+              <FilmView items={filtered} onPress={openDetail} format={format} />
             )}
           </>
         )}
@@ -176,27 +277,167 @@ export default function MyCardsScreen() {
   );
 }
 
-function displayName(c: MyCardRow): string {
-  if (c.nickname && c.nickname.length > 0) return c.nickname;
-  if (c.cardId) return c.cardId;
-  if (c.ocrSetCode && c.ocrCardNumber) return `${c.ocrSetCode} #${c.ocrCardNumber}`;
-  if (c.ocrSetCode) return c.ocrSetCode;
-  return '이름 없음';
+/* ────────────── views ────────────── */
+
+function GridView({
+  items, onPress, onDelete, format,
+}: {
+  items: Display[];
+  onPress: (d: Display) => void;
+  onDelete: (id: number) => void;
+  format: (jpy: number) => string;
+}) {
+  return (
+    <View style={styles.grid}>
+      {items.map((d) => (
+        <View key={d.src.id} style={styles.gridItem}>
+          <Pressable onPress={() => onPress(d)}>
+            <CardImage d={d} aspect />
+            <View style={{ padding: 7 }}>
+              <PixelText variant="ko" size={10} numberOfLines={2} weight="bold">
+                {d.name}
+              </PixelText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
+                <RarBadgeMini rar={d.rar} />
+                {d.gradeNum != null && (
+                  <PixelText variant="pixel" size={8} color={colors.goldDk}>
+                    P{d.gradeNum}
+                  </PixelText>
+                )}
+              </View>
+              <PixelText variant="pixel" size={10} color={colors.grnDk} style={{ marginTop: 5 }}>
+                {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
+              </PixelText>
+            </View>
+          </Pressable>
+          <Pressable onPress={() => onDelete(d.src.id)} style={styles.deleteBtn}>
+            <PixelText variant="pixel" size={9} color={colors.red}>✕ 삭제</PixelText>
+          </Pressable>
+        </View>
+      ))}
+    </View>
+  );
 }
 
-function priceLabel(p: number | undefined): string {
-  if (!p || p <= 0) return '시세 없음';
-  return `₩${Math.round(p).toLocaleString('ko-KR')}`;
+function ListView({
+  items, onPress, onDelete, format,
+}: {
+  items: Display[];
+  onPress: (d: Display) => void;
+  onDelete: (id: number) => void;
+  format: (jpy: number) => string;
+}) {
+  return (
+    <View style={{ paddingHorizontal: space.gap }}>
+      {items.map((d) => (
+        <Pressable key={d.src.id} onPress={() => onPress(d)} style={styles.listItem}>
+          <CardImage d={d} thumb />
+          <View style={{ flex: 1 }}>
+            <PixelText variant="ko" size={11} weight="bold" numberOfLines={1}>
+              {d.name}
+            </PixelText>
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 5 }}>
+              <RarBadgeMini rar={d.rar} />
+              {d.gradeNum != null && (
+                <PixelText variant="pixel" size={8} color={colors.goldDk}>
+                  PSA {d.gradeNum}
+                </PixelText>
+              )}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
+              <PixelText variant="pixel" size={10} color={colors.grnDk}>
+                {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
+              </PixelText>
+              <Pressable onPress={() => onDelete(d.src.id)}>
+                <PixelText variant="pixel" size={9} color={colors.red}>✕</PixelText>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
 }
 
-function Thumb({ card, mode }: { card: MyCardRow; mode: 'grid' | 'list' }) {
-  const dim = mode === 'grid' ? { height: 90 } : { width: 52, height: 72 };
-  if (card.photoUrl) {
-    return <Image source={{ uri: card.photoUrl }} style={[dim, { backgroundColor: colors.ink2, borderColor: colors.ink, borderWidth: mode === 'list' ? 2 : 0 }]} resizeMode="cover" />;
+function AlbumView({ items, onPress }: { items: Display[]; onPress: (d: Display) => void }) {
+  return (
+    <View style={[styles.grid, { gap: 5 }]}>
+      {items.map((d) => (
+        <Pressable key={d.src.id} onPress={() => onPress(d)} style={[styles.gridItem, { width: '31.5%' }]}>
+          <CardImage d={d} aspect />
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function FilmView({
+  items, onPress, format,
+}: {
+  items: Display[];
+  onPress: (d: Display) => void;
+  format: (jpy: number) => string;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: space.gap, gap: 8 }}
+    >
+      {items.map((d) => (
+        <Pressable key={d.src.id} onPress={() => onPress(d)} style={styles.filmTile}>
+          <CardImage d={d} aspect />
+          <PixelText variant="ko" size={9} numberOfLines={1} style={{ marginTop: 6 }}>
+            {d.name}
+          </PixelText>
+          {d.priceJpy > 0 && (
+            <PixelText variant="pixel" size={8} color={colors.grnDk} numberOfLines={1}>
+              {format(d.priceJpy)}
+            </PixelText>
+          )}
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
+/* ────────────── atoms ────────────── */
+
+function CardImage({
+  d, aspect, thumb,
+}: {
+  d: Display;
+  aspect?: boolean;
+  thumb?: boolean;
+}) {
+  const sizeStyle = thumb
+    ? { width: 52, height: 72 }
+    : aspect
+      ? { width: '100%' as const, aspectRatio: 63 / 88 }
+      : { height: 110 };
+  const bg = colors.ink2;
+  if (d.imageUrl) {
+    return (
+      <Image
+        source={{ uri: d.imageUrl }}
+        style={[sizeStyle, { backgroundColor: bg, borderColor: colors.ink, borderWidth: thumb ? 2 : 0 }]}
+        resizeMode="cover"
+      />
+    );
   }
   return (
-    <View style={[dim, { backgroundColor: colors.ink2, alignItems: 'center', justifyContent: 'center', borderColor: colors.ink, borderWidth: mode === 'list' ? 2 : 0 }]}>
-      <PixelText variant="pixel" size={mode === 'grid' ? 28 : 22} color={colors.gold}>🃏</PixelText>
+    <View style={[sizeStyle, { backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderColor: colors.ink, borderWidth: thumb ? 2 : 0 }]}>
+      <PixelText variant="pixel" size={thumb ? 22 : 28} color={colors.gold}>🃏</PixelText>
+    </View>
+  );
+}
+
+function RarBadgeMini({ rar }: { rar: Rarity }) {
+  return (
+    <View style={{ backgroundColor: RARITY_BG[rar], paddingHorizontal: 5, paddingVertical: 2 }}>
+      <PixelText variant="pixel" size={7} color={RARITY_FG[rar]}>
+        {rar}
+      </PixelText>
     </View>
   );
 }
@@ -209,17 +450,7 @@ function StripCell({ text, bg, fg }: { text: string; bg: string; fg: string }) {
   );
 }
 
-function GradeBadge({ g }: { g: string }) {
-  const num = Number(g.replace(/[^0-9.]/g, ''));
-  const bg = num >= 10 ? colors.psa10 : num >= 9 ? colors.psa9 : num >= 8 ? colors.psa8 : colors.psa7;
-  const fg = num >= 8 && num < 9 ? colors.white : colors.ink;
-  return (
-    <View style={[styles.grade, { backgroundColor: bg }]}>
-      <PixelText variant="pixel" size={9} color={fg}>{g}</PixelText>
-    </View>
-  );
-}
-
+/* ────────────── styles ────────────── */
 const styles = StyleSheet.create({
   strip: {
     flexDirection: 'row',
@@ -241,32 +472,56 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     gap: 8,
   },
-  searchInput: {
-    flex: 1,
-    fontFamily: 'Galmuri11',
-    fontSize: 14,
-    color: colors.ink,
-    paddingVertical: 10,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: space.gap,
-    marginBottom: space.cg,
-    gap: 4,
-  },
-  viewBtn: {
-    width: 32,
-    height: 32,
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.ink,
+  searchInput: { flex: 1, fontFamily: fonts.ko, fontSize: 14, color: colors.ink, paddingVertical: 10 },
+  chipRow: { paddingHorizontal: space.gap, gap: 6, alignItems: 'center', marginBottom: 8 },
+  chip: {
+    paddingHorizontal: 10,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.ink,
+    borderWidth: 2,
   },
-  viewBtnOn: { backgroundColor: colors.ink },
+  chipOn: { backgroundColor: colors.gold },
+  toolbar: { flexDirection: 'row', gap: 4, marginHorizontal: space.gap, marginBottom: space.cg },
+  sortBtn: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    backgroundColor: colors.white,
+    borderColor: colors.ink,
+    borderWidth: 2,
+  },
+  sortBtnOn: { backgroundColor: colors.ink },
+  subseg: {
+    flexDirection: 'row',
+    backgroundColor: colors.ink,
+    padding: 3,
+    marginHorizontal: space.gap,
+    marginBottom: space.cg,
+    gap: 3,
+  },
+  subsegBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
+    backgroundColor: colors.ink2,
+  },
+  subsegBtnOn: { backgroundColor: colors.gold },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: space.gap, gap: 8 },
-  gridItem: { width: '31%', backgroundColor: colors.white, borderWidth: 3, borderColor: colors.ink },
+  gridItem: {
+    width: '31%',
+    backgroundColor: colors.white,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    marginBottom: 8,
+  },
+  deleteBtn: {
+    paddingVertical: 5,
+    alignItems: 'center',
+    borderTopWidth: 2,
+    borderTopColor: colors.ink,
+  },
   listItem: {
     flexDirection: 'row',
     gap: 12,
@@ -276,13 +531,5 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.ink,
   },
-  grade: {
-    minWidth: 28,
-    height: 22,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.ink,
-  },
+  filmTile: { width: 100 },
 });

@@ -50,6 +50,7 @@ export interface MyCardRow {
   cardId: string | null;
   ocrSetCode: string | null;
   ocrCardNumber: string | null;
+  snkrdunkApparelId: number | null;
   nickname: string | null;
   memo: string | null;
   gradeEstimate: string | null;
@@ -58,6 +59,29 @@ export interface MyCardRow {
   createdAt: string;
   latestPrice?: number;
   trend?: number[];
+  snkrdunkName?: string | null;
+  snkrdunkImageUrl?: string | null;
+  snkrdunkMinPriceJpy?: number;
+}
+
+export interface MyFavoriteRow {
+  id: number;
+  snkrdunkApparelId: number;
+  createdAt: string;
+  name: string | null;
+  imageUrl: string | null;
+  minPriceJpy: number;
+}
+
+export interface PortfolioSummary {
+  totalJpy: number;
+  pricedCount: number;
+  totalCount: number;
+  yesterdayJpy: number | null;
+  changeAbsJpy: number | null;
+  changePct: number | null;
+  history: Array<{ date: string; totalJpy: number }>;
+  asOfDate: string;
 }
 
 export interface MessageThread {
@@ -130,6 +154,22 @@ export function fetchMyBookmarks(): Promise<MyBookmarks> {
 
 export function fetchMyCards(): Promise<MyCardRow[]> {
   return api<{ data: MyCardRow[] }>('/api/me/cards/with-prices').then((r) => r.data);
+}
+
+export function fetchMyFavorites(): Promise<MyFavoriteRow[]> {
+  return api<{ data: MyFavoriteRow[] }>('/api/me/favorites/with-prices').then((r) => r.data);
+}
+
+export function fetchPortfolio(): Promise<PortfolioSummary> {
+  return api<{ data: PortfolioSummary }>('/api/me/portfolio').then((r) => r.data);
+}
+
+export function removeFavorite(apparelId: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/me/favorites/${apparelId}`, { method: 'DELETE' });
+}
+
+export function deleteMyCard(id: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/me/cards/${id}`, { method: 'DELETE' });
 }
 
 export function fetchMessageThreads(): Promise<MessageThread[]> {
