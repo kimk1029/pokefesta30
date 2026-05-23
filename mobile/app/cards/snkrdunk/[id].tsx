@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Alert, Image, Linking, Modal, Pressable, ScrollView, ToastAndroid, View, Platform, Text, type ImageSourcePropType } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
-import { addCards } from '@/lib/collection';
 import { isAuthenticated } from '@/lib/session';
+import { CardActions } from '@/components/CardActions';
 
 function toast(msg: string) {
   if (Platform.OS === 'android') {
@@ -235,103 +235,11 @@ export default function SnkrdunkDetail() {
               </PixelFrame>
             </View>
 
-            {/* 액션 버튼 3개 — 내 컬렉션 / 관심카드 / SNKDUNK 외부 링크 */}
-            <View
-              style={{
-                flexDirection: 'row',
-                marginHorizontal: 14,
-                marginBottom: 12,
-                gap: 8,
-              }}
-            >
-              <ActionBtn
-                bg={colors.blu}
-                fg={colors.white}
-                icon="📦"
-                label="내 컬렉션"
-                desc="추가"
-                onPress={() => {
-                  if (!isAuthenticated()) {
-                    toast('로그인이 필요합니다');
-                    return;
-                  }
-                  if (!apparel) {
-                    toast('카드 정보 로딩 중');
-                    return;
-                  }
-                  const price = apparel.minPrice ?? 0;
-                  addCards([
-                    {
-                      id: Date.now(),
-                      name: displayNameKo || displayName || '카드',
-                      set: '—',
-                      num: String(apparel.id),
-                      game: '포켓몬' as const,
-                      rar: 'C' as const,
-                      grade: null,
-                      price,
-                      priceSingle: price,
-                      priceCurrency: 'JPY' as const,
-                      trend: [],
-                      emoji: '🃏',
-                      owned: true,
-                      imageUrl: apparel.imageUrl ?? undefined,
-                      snkrdunkApparelId: apparel.id,
-                      favorite: false,
-                    },
-                  ]);
-                  toast('내 컬렉션에 추가되었습니다');
-                }}
-              />
-              <ActionBtn
-                bg={colors.pur}
-                fg={colors.white}
-                icon="⭐"
-                label="관심카드"
-                desc="추가"
-                onPress={() => {
-                  if (!isAuthenticated()) {
-                    toast('로그인이 필요합니다');
-                    return;
-                  }
-                  if (!apparel) {
-                    toast('카드 정보 로딩 중');
-                    return;
-                  }
-                  const price = apparel.minPrice ?? 0;
-                  addCards([
-                    {
-                      id: Date.now(),
-                      name: displayNameKo || displayName || '카드',
-                      set: '—',
-                      num: String(apparel.id),
-                      game: '포켓몬' as const,
-                      rar: 'C' as const,
-                      grade: null,
-                      price,
-                      priceSingle: price,
-                      priceCurrency: 'JPY' as const,
-                      trend: [],
-                      emoji: '🃏',
-                      owned: false,
-                      imageUrl: apparel.imageUrl ?? undefined,
-                      snkrdunkApparelId: apparel.id,
-                      favorite: true,
-                    },
-                  ]);
-                  toast('관심카드에 추가되었습니다');
-                  router.push('/my/favorites' as never);
-                }}
-              />
-              <ActionBtn
-                bg={colors.ink}
-                fg={colors.gold}
-                iconImage={require('../../../assets/snkrdunk-icon.png')}
-                label="SNKDUNK"
-                desc="↗"
-                onPress={() => Linking.openURL(snkrdunkApparelUrl(apparelId))}
-              />
-            </View>
+            {/* 액션 버튼 3개 — 서버 동기 (웹과 동일). 토스트/이미 추가됨 상태/관심카드 토글 처리. */}
+            <CardActions
+              apparelId={apparelId}
+              cardName={displayNameKo || displayName || undefined}
+            />
 
             {/* Chart */}
             <View style={{ marginHorizontal: 14 }}>

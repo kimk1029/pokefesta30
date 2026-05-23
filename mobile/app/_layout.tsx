@@ -11,6 +11,9 @@ import {
 import { PhoneShell } from '@/components/PhoneShell';
 import { ChromeProvider } from '@/components/ChromeContext';
 import { PriceModeProvider } from '@/lib/priceMode';
+import { CurrencyProvider } from '@/components/CurrencyProvider';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { ToastProvider } from '@/components/ToastProvider';
 import { colors } from '@/theme/tokens';
 
 // preventAutoHideAsync 를 호출하지 않음 → splash 가 JS 로드되면 자동으로 사라짐.
@@ -51,9 +54,12 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ChromeProvider>
-        <PriceModeProvider>
-          <PhoneShell>
+      <ThemeProvider>
+        <CurrencyProvider>
+          <ToastProvider>
+            <ChromeProvider>
+              <PriceModeProvider>
+                <PhoneShell>
             {/*
              * Stack 으로 전환해 라우트 변경 시 네이티브 슬라이드/페이드 트랜지션 적용.
              * PhoneShell 이 외부에 있으므로 StatusBar / Tabbar 는 고정되고,
@@ -80,9 +86,12 @@ export default function RootLayout() {
                 options={{ animation: 'fade', animationDuration: 220 }}
               />
             </Stack>
-          </PhoneShell>
-        </PriceModeProvider>
-      </ChromeProvider>
+                </PhoneShell>
+              </PriceModeProvider>
+            </ChromeProvider>
+          </ToastProvider>
+        </CurrencyProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

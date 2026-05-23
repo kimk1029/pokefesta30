@@ -13,6 +13,8 @@ import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { colors } from '@/theme/tokens';
+import { CurrencySettingsItem } from '@/components/CurrencySettingsItem';
+import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { fetchMySummary, type MySummary } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 import { isAuthenticated, setSession, subscribeSession } from '@/lib/session';
@@ -198,6 +200,13 @@ export default function MyScreen() {
             </PixelFrame>
           </View>
         ))}
+
+        {/* 환경설정 — 통화/테마 */}
+        <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
+          <SectHd title="환경설정" />
+          <CurrencySettingsItem />
+          <ThemeSettingsItem />
+        </View>
       </ScrollView>
     </View>
   );
