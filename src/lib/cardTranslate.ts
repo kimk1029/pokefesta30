@@ -237,19 +237,44 @@ const CARD_TERMS: Term[] = [
   { ko: '파트너즈',  en: 'partners',    ja: 'パートナーズ' },
 ];
 
+import { POKEMON_KO_TO_JA } from './pokemonNamesKoJa';
+
 const ALL: Term[] = [...POKEMON, ...CARD_TERMS];
 
-/** 사전을 lowercase key → value 로 빌드해서 대소문자 무시 매칭 */
+/**
+ * 사전을 lowercase key → value 로 빌드해서 대소문자 무시 매칭.
+ *
+ * 우선순위: 큐레이션 POKEMON+CARD_TERMS > PokeAPI 전수 매핑.
+ * 큐레이션이 먼저 들어가고, PokeAPI 매핑은 비어있는 키만 채운다.
+ * → 직접 손본 별칭/특수 케이스(예: 게치스→ゲッコウガ 같은 한국 표기 변형)는
+ *   덮어쓰지 않으면서, 전 1025종 자동 커버.
+ */
 const MAP_EN: Record<string, string> = Object.fromEntries(
   ALL.filter((t) => t.en).map((t) => [t.ko.toLowerCase(), t.en!]),
 );
-const MAP_JA: Record<string, string> = Object.fromEntries(
-  ALL.filter((t) => t.ja).map((t) => [t.ko.toLowerCase(), t.ja!]),
-);
-const JA_TO_KO: Array<[string, string]> = ALL
-  .filter((t) => t.ja)
-  .map((t) => [t.ja!, t.ko] as [string, string])
-  .sort((a, b) => b[0].length - a[0].length);
+const MAP_JA: Record<string, string> = (() => {
+  const out: Record<string, string> = {};
+  for (const [ko, ja] of Object.entries(POKEMON_KO_TO_JA)) {
+    out[ko.toLowerCase()] = ja;
+  }
+  // 큐레이션 사전이 PokeAPI 보다 우선 (override)
+  for (const t of ALL) {
+    if (t.ja) out[t.ko.toLowerCase()] = t.ja;
+  }
+  return out;
+})();
+const JA_TO_KO: Array<[string, string]> = (() => {
+  const pairs: Array<[string, string]> = [];
+  for (const [ko, ja] of Object.entries(POKEMON_KO_TO_JA)) {
+    pairs.push([ja, ko]);
+  }
+  for (const t of ALL) {
+    if (t.ja) pairs.push([t.ja, t.ko]);
+  }
+  // 중복 JP 키는 마지막(큐레이션) 이 이김 — Map 으로 dedupe
+  const dedup = new Map(pairs);
+  return Array.from(dedup.entries()).sort((a, b) => b[0].length - a[0].length);
+})();
 
 const CARD_NAME_PHRASES: Array<[RegExp, string]> = [
   // 카드 자주 등장하는 접두/접미사 — 길이 긴 패턴 먼저
