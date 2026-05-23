@@ -79,20 +79,28 @@ const TRADES_THIS_WEEK = 3;
 const PERIOD_DAYS: Record<'1W' | '1M' | '3M', number> = { '1W': 7, '1M': 30, '3M': 90 };
 
 /**
- * 컬렉션 전체의 일별 종합 가격을 계산.
- * 각 카드의 trend[](최근 N일 평균 시세) 을 합산. trend 가 짧으면 latestPrice 로 채움.
- * 결과는 오래된→최신 순서.
+ * 컬렉션 전체의 일별 종합 가격(JPY 기준)을 계산.
+ * - 스니덩크 카드(snkrdunkMinPriceJpy>0): JPY 그대로 사용.
+ * - 카탈로그 카드(latestPrice>0, USD): trend[] 가 있으면 그걸로, 없으면 latestPrice 를 ~150 JPY 환율로 변환.
+ * 결과는 오래된→최신 순서, 단위 = JPY.
  */
-function computeDailyTotals(cards: Array<{ latestPrice: number; trend: number[] }>, days: number): number[] {
+const USD_TO_JPY = 150;
+function computeDailyTotals(
+  cards: Array<{ latestPrice: number; trend: number[]; snkrdunkMinPriceJpy?: number }>,
+  days: number,
+): number[] {
   if (days <= 0) return [];
   const out = new Array(days).fill(0);
   for (const c of cards) {
+    const snk = c.snkrdunkMinPriceJpy ?? 0;
     const t = Array.isArray(c.trend) ? c.trend : [];
     for (let i = 0; i < days; i++) {
       // i=0: 가장 오래된. i=days-1: 가장 최신.
-      const tIdxFromEnd = days - 1 - i; // 마지막에서 얼마나 떨어졌는지
+      const tIdxFromEnd = days - 1 - i;
       const tIdx = t.length - 1 - tIdxFromEnd;
-      out[i] += tIdx >= 0 && tIdx < t.length ? t[tIdx] : c.latestPrice;
+      const usdPrice = tIdx >= 0 && tIdx < t.length ? t[tIdx] : c.latestPrice;
+      // snkrdunk JPY 가 우선, 없으면 USD * 환율.
+      out[i] += snk > 0 ? snk : usdPrice * USD_TO_JPY;
     }
   }
   return out;
@@ -206,7 +214,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
               fontFamily: 'var(--f1)', fontSize: 29, color: 'var(--gold)', letterSpacing: -2,
               textShadow: '0 0 24px rgba(255,210,63,.35),4px 4px 0 rgba(0,0,0,.5)', lineHeight: 1,
             }}>
-              ₩{fmt(totalVal)}
+              ¥{fmt(totalVal)}
             </div>
             <div style={{ paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
