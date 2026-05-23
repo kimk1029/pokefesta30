@@ -8,9 +8,16 @@ import type { MyCardWithPrice } from '@/lib/queries';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 
-type ViewMode = 'grid' | 'list' | 'binder' | 'album';
+type ViewMode = 'grid' | 'list' | 'album' | 'film';
 type SortBy = 'name' | 'price' | 'grade' | 'recent';
 type RarFilter = 'all' | 'C' | 'A' | 'B' | 'S';
+
+const VIEW_TABS: Array<[ViewMode, string]> = [
+  ['grid', '바둑판'],
+  ['list', '리스트'],
+  ['album', '앨범'],
+  ['film', '필름'],
+];
 
 interface Props {
   cards: MyCardWithPrice[];
@@ -141,6 +148,9 @@ export function MyCardsScreen({ cards: initial }: Props) {
       />
       <div style={{ height: 12 }} />
 
+      {/* 좌우 오버플로 가드 — 내부 요소가 viewport 밖으로 새지 않도록. */}
+      <div style={{ overflowX: 'hidden' }}>
+
       {/* Summary strip */}
       <div className="cv-strip">
         <div className="cv-strip-cell cv-strip-a">총 {filtered.length}장</div>
@@ -191,9 +201,9 @@ export function MyCardsScreen({ cards: initial }: Props) {
         ))}
       </div>
 
-      {/* Toolbar — sort + view */}
+      {/* Sort */}
       <div className="cv-toolbar">
-        <div style={{ flex: 1, display: 'flex', gap: 4 }}>
+        <div style={{ flex: 1, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {(
             [
               ['recent', '최근'],
@@ -212,26 +222,20 @@ export function MyCardsScreen({ cards: initial }: Props) {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 3 }}>
-          {(
-            [
-              ['grid', '⊞'],
-              ['list', '☰'],
-              ['binder', '📒'],
-              ['album', '🎞'],
-            ] as Array<[ViewMode, string]>
-          ).map(([v, icon]) => (
-            <button
-              key={v}
-              type="button"
-              className={`cv-view-btn${view === v ? ' on' : ''}`}
-              onClick={() => setView(v)}
-              aria-label={v}
-            >
-              {icon}
-            </button>
-          ))}
-        </div>
+      </div>
+
+      {/* View mode tabs (카드검색 결과 헤더 톤 — pixel-press subseg) */}
+      <div className="cv-subseg">
+        {VIEW_TABS.map(([k, lb]) => (
+          <button
+            key={k}
+            type="button"
+            className={view === k ? 'on' : ''}
+            onClick={() => setView(k)}
+          >
+            {lb}
+          </button>
+        ))}
       </div>
 
       {err && (
@@ -252,11 +256,13 @@ export function MyCardsScreen({ cards: initial }: Props) {
         <GridView cards={filtered} onDelete={onDelete} />
       ) : view === 'list' ? (
         <ListView cards={filtered} onDelete={onDelete} />
-      ) : view === 'binder' ? (
-        <BinderView cards={filtered} />
-      ) : (
+      ) : view === 'album' ? (
         <AlbumView cards={filtered} />
+      ) : (
+        <FilmView cards={filtered} />
       )}
+
+      </div>{/* /overflow guard */}
 
       <div className="bggap" />
     </>
@@ -267,58 +273,137 @@ export function MyCardsScreen({ cards: initial }: Props) {
 
 function GridView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: number) => void }) {
   return (
-    <div className="cv-coll-grid">
-      {cards.map((c) => (
-        <div key={c.src.id} className="cv-coll-item">
-          <Link href={detailHref(c)} style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
-            <CardImg card={c} h={110} />
-            {c.src.memo && <div className="cv-coll-noteflag" title={c.src.memo}>📝</div>}
-          </Link>
-          <div className="cv-coll-info">
-            <div className="cv-coll-name" title={c.name}>
-              {c.name}
+    <div className="sect">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: 10,
+        }}
+      >
+        {cards.map((c) => (
+          <GridItem key={c.src.id} c={c} onDelete={onDelete} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GridItem({ c, onDelete }: { c: DisplayCard; onDelete: (id: number) => void }) {
+  const hasPrice = priceLabel(c) !== null;
+  return (
+    <div className="pack-grid-card" style={{ borderTop: `4px solid ${gameAccent(c.game)}`, minWidth: 0 }}>
+      <Link
+        href={detailHref(c)}
+        style={{ display: 'block', textDecoration: 'none', color: 'inherit', position: 'relative' }}
+      >
+        <div style={{ aspectRatio: '63 / 88', background: 'var(--pap2)', overflow: 'hidden' }}>
+          {c.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={c.imageUrl}
+              alt={c.name}
+              loading="lazy"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          ) : (
+            <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+              <span style={{ fontSize: 37 }}>{c.catalog?.emoji ?? '🃏'}</span>
             </div>
-            <div className="cv-coll-date">{fmtDate(c.src.createdAt)}</div>
-            <div className="cv-coll-meta">
-              <span className={`cv-rar cv-rar-${c.rar}`}>{c.rar}</span>
-              {c.gradeNum !== null && <GradeBadge g={c.gradeNum} />}
-            </div>
-            {priceLabel(c) && <div className="cv-price">{priceLabel(c)}</div>}
-            <button
-              type="button"
-              onClick={() => onDelete(c.src.id)}
-              style={{
-                marginTop: 6,
-                width: '100%',
-                padding: 4,
-                background: 'transparent',
-                fontFamily: 'var(--f1)',
-                fontSize: 8,
-                color: 'var(--ink3)',
-                letterSpacing: 0.3,
-                border: '1px solid var(--pap3)',
-                cursor: 'pointer',
-              }}
-            >
-              삭제
-            </button>
+          )}
+          {c.src.memo && <div className="cv-coll-noteflag" title={c.src.memo}>📝</div>}
+        </div>
+        <div style={{ padding: '7px 8px 6px', borderTop: '3px solid var(--ink)' }}>
+          <div
+            style={{
+              fontFamily: 'var(--f1)',
+              fontSize: 10,
+              letterSpacing: 0.2,
+              marginBottom: 5,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              minHeight: 30,
+              lineHeight: 1.45,
+              wordBreak: 'keep-all',
+            }}
+          >
+            {c.name}
+          </div>
+          <div
+            style={{
+              display: 'inline-block',
+              padding: '3px 6px',
+              background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
+              color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
+              fontFamily: 'var(--f1)',
+              fontSize: 11,
+              letterSpacing: 0.3,
+              boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+            }}
+          >
+            {hasPrice ? priceLabel(c) : '시세 없음'}
           </div>
         </div>
-      ))}
+      </Link>
+      <button
+        type="button"
+        onClick={() => onDelete(c.src.id)}
+        style={{
+          width: '100%',
+          padding: '5px 0',
+          background: 'var(--white)',
+          color: 'var(--red)',
+          fontFamily: 'var(--f1)',
+          fontSize: 9,
+          letterSpacing: 0.3,
+          border: 0,
+          borderTop: '3px solid var(--ink)',
+          cursor: 'pointer',
+        }}
+      >
+        ✕ 삭제
+      </button>
     </div>
   );
 }
 
 function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: number) => void }) {
   return (
-    <div className="cv-sect">
+    <div style={{ margin: '0 var(--gap)' }}>
       {cards.map((c) => (
-        <div key={c.src.id} className="cv-list-card">
-          <Link href={detailHref(c)} style={{ display: 'block' }}>
-            <div className="cv-list-thumb cv-card-img" style={{ background: gameBg(c.game) }}>
-              <div className="cv-card-em" style={{ fontSize: 25 }}>
-                {c.catalog?.emoji ?? '🃏'}
-              </div>
+        <div key={c.src.id} className="cv-list-card" style={{ minWidth: 0 }}>
+          <Link href={detailHref(c)} style={{ display: 'block', flexShrink: 0 }}>
+            <div
+              className="cv-list-thumb"
+              style={{
+                background: gameBg(c.game),
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              {c.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.imageUrl}
+                  alt={c.name}
+                  loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    placeItems: 'center',
+                    width: '100%',
+                    height: '100%',
+                    fontSize: 25,
+                  }}
+                >
+                  {c.catalog?.emoji ?? '🃏'}
+                </div>
+              )}
             </div>
           </Link>
           <div className="cv-lc-body">
@@ -390,44 +475,47 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
   );
 }
 
-function BinderView({ cards }: { cards: DisplayCard[] }) {
+/** 앨범: 이미지만 — 텍스트 없이 3열 그리드. 카드 사진만 한눈에 보기. */
+function AlbumView({ cards }: { cards: DisplayCard[] }) {
   return (
-    <div className="cv-binder">
-      <div className="cv-binder-hd">📒 바인더 · {cards.length}장</div>
-      <div className="cv-binder-grid">
+    <div className="sect">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: 6,
+        }}
+      >
         {cards.map((c) => (
           <Link
             key={c.src.id}
             href={detailHref(c)}
-            className="cv-binder-item"
-            style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
+            style={{
+              display: 'block',
+              textDecoration: 'none',
+              color: 'inherit',
+              minWidth: 0,
+              aspectRatio: '63 / 88',
+              background: 'var(--pap2)',
+              overflow: 'hidden',
+              position: 'relative',
+              boxShadow:
+                '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+            }}
           >
-            <div className="cv-binder-img" style={{ background: gameBg(c.game) }}>
-              {c.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={c.imageUrl}
-                  alt={c.name}
-                  loading="lazy"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
-                />
-              ) : (
-                <>{c.catalog?.emoji ?? '🃏'}</>
-              )}
-            </div>
-            <div className="cv-binder-info">
-              <div className="cv-binder-name" title={c.name}>
-                {c.name}
+            {c.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={c.imageUrl}
+                alt={c.name}
+                loading="lazy"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            ) : (
+              <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+                <span style={{ fontSize: 33 }}>{c.catalog?.emoji ?? '🃏'}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span className={`cv-rar cv-rar-${c.rar}`} style={{ fontSize: 7, padding: '1px 4px' }}>
-                  {c.rar}
-                </span>
-                {c.gradeNum !== null && (
-                  <span style={{ fontFamily: 'var(--f1)', fontSize: 7, color: 'var(--gold-dk)' }}>P{c.gradeNum}</span>
-                )}
-              </div>
-            </div>
+            )}
           </Link>
         ))}
       </div>
@@ -435,80 +523,95 @@ function BinderView({ cards }: { cards: DisplayCard[] }) {
   );
 }
 
-function AlbumView({ cards }: { cards: DisplayCard[] }) {
-  const byGame = new Map<string, DisplayCard[]>();
-  for (const c of cards) {
-    const arr = byGame.get(c.game) ?? [];
-    arr.push(c);
-    byGame.set(c.game, arr);
-  }
+/** 필름: 가로 스크롤 한 줄. 컨테이너 안에서만 스크롤 — 페이지 자체는 안 넘어감. */
+function FilmView({ cards }: { cards: DisplayCard[] }) {
   return (
-    <>
-      {Array.from(byGame.entries()).map(([g, list]) => (
-        <div key={g} className="cv-album-sect">
-          <div className="cv-album-hd" style={{ background: gameAccent(g) }}>
-            <div className="cv-album-name">{g}</div>
-            <div className="cv-album-cnt">{list.length}장</div>
-          </div>
-          <div className="cv-album-row">
-            {list.map((c) => (
-              <Link
-                key={c.src.id}
-                href={detailHref(c)}
-                className="cv-album-tile"
-                style={{ textDecoration: 'none', color: 'inherit' }}
+    <div className="sect" style={{ maxWidth: '100%', overflow: 'hidden' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          overflowX: 'auto',
+          paddingBottom: 6,
+          scrollbarWidth: 'none',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {cards.map((c) => (
+          <Link
+            key={c.src.id}
+            href={detailHref(c)}
+            style={{
+              flexShrink: 0,
+              width: 92,
+              textDecoration: 'none',
+              color: 'inherit',
+            }}
+          >
+            <div
+              style={{
+                width: 92,
+                aspectRatio: '63 / 88',
+                background: 'var(--pap2)',
+                overflow: 'hidden',
+                position: 'relative',
+                boxShadow:
+                  '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+              }}
+            >
+              {c.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.imageUrl}
+                  alt={c.name}
+                  loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+              ) : (
+                <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+                  <span style={{ fontSize: 29 }}>{c.catalog?.emoji ?? '🃏'}</span>
+                </div>
+              )}
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--f1)',
+                fontSize: 9,
+                letterSpacing: 0.2,
+                marginTop: 6,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: 1.4,
+              }}
+              title={c.name}
+            >
+              {c.name}
+            </div>
+            {priceLabel(c) && (
+              <div
+                style={{
+                  fontFamily: 'var(--f1)',
+                  fontSize: 9,
+                  color: 'var(--grn-dk)',
+                  letterSpacing: 0.2,
+                  marginTop: 2,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
               >
-                <div className="cv-album-img" style={{ background: gameBg(g) }}>
-                  {c.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={c.imageUrl}
-                      alt={c.name}
-                      loading="lazy"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
-                    />
-                  ) : (
-                    <>{c.catalog?.emoji ?? '🃏'}</>
-                  )}
-                </div>
-                <div className="cv-album-meta">
-                  <div className="cv-binder-name" title={c.name}>
-                    {c.name}
-                  </div>
-                  {priceLabel(c) && (
-                    <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--grn-dk)', letterSpacing: 0.2 }}>
-                      {priceLabel(c)}
-                    </div>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      ))}
-    </>
+                {priceLabel(c)}
+              </div>
+            )}
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
 
 /* ---------------- atoms ---------------- */
-
-function CardImg({ card, h }: { card: DisplayCard; h: number }) {
-  return (
-    <div className="cv-card-img" style={{ height: h, background: gameBg(card.game) }}>
-      {card.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={card.imageUrl}
-          alt={card.name}
-          loading="lazy"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
-        />
-      ) : (
-        <div className="cv-card-em">{card.catalog?.emoji ?? '🃏'}</div>
-      )}
-    </div>
-  );
-}
 
 function GradeBadge({ g }: { g: number }) {
   const cls = g >= 10 ? 'cv-g10' : g >= 9 ? 'cv-g9' : g >= 8 ? 'cv-g8' : 'cv-g7';
