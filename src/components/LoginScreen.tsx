@@ -52,7 +52,7 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
                 animation: 'pf-ball-spin 0.7s linear infinite',
               }}
             />
-            <div style={{ color: 'var(--yel)', fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 1 }}>
+            <div style={{ color: 'var(--yel)', fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 1 }}>
               {pending === 'kakao' && '카카오 로그인 창 여는 중...'}
               {pending === 'naver' && '네이버 로그인 창 여는 중...'}
               {pending === 'google' && '구글 로그인 창 여는 중...'}
@@ -124,7 +124,7 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
           marginTop: 14,
           padding: '0 12px',
           fontFamily: 'var(--f1)',
-          fontSize: 7,
+          fontSize: 8,
           lineHeight: 1.8,
           color: 'rgba(255,255,255,.55)',
           textAlign: 'center',
@@ -153,7 +153,7 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
           marginTop: 10,
           padding: '0 6px',
           fontFamily: 'var(--f1)',
-          fontSize: 7,
+          fontSize: 8,
           lineHeight: 1.7,
           color: 'rgba(255,255,255,.35)',
           textAlign: 'center',

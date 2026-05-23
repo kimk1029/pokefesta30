@@ -81,7 +81,7 @@ export function HomeRecentFeed({ initialFeeds }: Props) {
             background: 'var(--red)',
             color: 'var(--white)',
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             letterSpacing: 0.5,
             textAlign: 'center',
           }}

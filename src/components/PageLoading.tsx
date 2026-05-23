@@ -21,7 +21,7 @@ export function PageLoading() {
           width: 120,
           height: 120,
           fontFamily: 'var(--f1)',
-          fontSize: 9,
+          fontSize: 10,
           color: 'var(--ink)',
           letterSpacing: 1,
           textAlign: 'center',

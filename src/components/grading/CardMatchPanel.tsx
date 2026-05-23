@@ -35,7 +35,7 @@ export function CardMatchPanel({ ocr, gradeLabel, centeringScore }: Props) {
               padding: '10px 12px',
               background: 'var(--pap2)',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--ink3)',
               letterSpacing: 0.3,
               lineHeight: 1.6,
@@ -44,7 +44,7 @@ export function CardMatchPanel({ ocr, gradeLabel, centeringScore }: Props) {
           >
             📊 카탈로그에서 일치하는 카드를 찾지 못했어요
             <br />
-            <span style={{ fontSize: 8, opacity: 0.7 }}>
+            <span style={{ fontSize: 9, opacity: 0.7 }}>
               (이름/세트코드/번호가 OCR 로 잘 읽혔는지 확인해주세요)
             </span>
           </div>
@@ -122,7 +122,7 @@ function SaveToArchive({
           background: saved ? 'var(--ink3)' : 'var(--ink)',
           color: 'var(--white)',
           fontFamily: 'var(--f1)',
-          fontSize: 11,
+          fontSize: 12,
           letterSpacing: 0.5,
           border: 'none',
           cursor: saving || saved ? 'default' : 'pointer',
@@ -141,7 +141,7 @@ function SaveToArchive({
           style={{
             marginTop: 8,
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             color: 'var(--red)',
             textAlign: 'center',
             letterSpacing: 0.3,
@@ -155,7 +155,7 @@ function SaveToArchive({
           style={{
             marginTop: 8,
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             color: 'var(--ink3)',
             textAlign: 'center',
             letterSpacing: 0.3,
@@ -233,7 +233,7 @@ function MatchedCardPanel({ match }: { match: CardMatch }) {
               height: 44,
               display: 'grid',
               placeItems: 'center',
-              fontSize: 28,
+              fontSize: 29,
               background: 'var(--white)',
               boxShadow:
                 '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)',
@@ -245,7 +245,7 @@ function MatchedCardPanel({ match }: { match: CardMatch }) {
             <div
               style={{
                 fontFamily: 'var(--f2)',
-                fontSize: 14,
+                fontSize: 15,
                 color: 'var(--ink)',
                 lineHeight: 1.3,
               }}
@@ -255,7 +255,7 @@ function MatchedCardPanel({ match }: { match: CardMatch }) {
             <div
               style={{
                 fontFamily: 'var(--f1)',
-                fontSize: 8,
+                fontSize: 9,
                 color: 'var(--ink3)',
                 letterSpacing: 0.3,
                 marginTop: 3,
@@ -267,7 +267,7 @@ function MatchedCardPanel({ match }: { match: CardMatch }) {
           <span
             className="tag"
             style={{
-              fontSize: 9,
+              fontSize: 10,
               padding: '2px 6px',
               background: gradeColor(entry.grade),
               color: 'var(--white)',
@@ -284,7 +284,7 @@ function MatchedCardPanel({ match }: { match: CardMatch }) {
               padding: 16,
               textAlign: 'center',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--ink3)',
               letterSpacing: 0.5,
             }}
@@ -296,7 +296,7 @@ function MatchedCardPanel({ match }: { match: CardMatch }) {
             style={{
               padding: 10,
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--red)',
               textAlign: 'center',
             }}
@@ -308,7 +308,7 @@ function MatchedCardPanel({ match }: { match: CardMatch }) {
             style={{
               padding: 10,
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--ink3)',
               textAlign: 'center',
               letterSpacing: 0.3,
@@ -332,7 +332,7 @@ function MatchedCardPanel({ match }: { match: CardMatch }) {
             <div
               style={{
                 fontFamily: 'var(--f1)',
-                fontSize: 8,
+                fontSize: 9,
                 color: 'var(--ink3)',
                 letterSpacing: 0.3,
                 textAlign: 'right',
@@ -362,7 +362,7 @@ function MatchedCardPanel({ match }: { match: CardMatch }) {
             color: 'var(--white)',
             padding: '8px 12px',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 11,
             letterSpacing: 0.5,
             textDecoration: 'none',
           }}
@@ -385,10 +385,10 @@ function PriceStat({ label, value }: { label: string; value: string }) {
           '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)',
       }}
     >
-      <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', letterSpacing: 0.3 }}>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: 0.3 }}>
         {label}
       </div>
-      <div style={{ fontFamily: 'var(--f2)', fontSize: 13, color: 'var(--ink)', marginTop: 2 }}>
+      <div style={{ fontFamily: 'var(--f2)', fontSize: 14, color: 'var(--ink)', marginTop: 2 }}>
         {value}
       </div>
     </div>

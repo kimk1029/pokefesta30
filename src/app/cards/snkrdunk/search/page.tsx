@@ -109,7 +109,7 @@ export default async function Page({
         <div
           style={{
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             color: 'var(--yel)',
             letterSpacing: 0.5,
             marginBottom: 8,
@@ -130,7 +130,7 @@ export default async function Page({
               border: 'none',
               outline: 'none',
               fontFamily: 'var(--f1)',
-              fontSize: 10,
+              fontSize: 11,
               color: 'var(--ink)',
               letterSpacing: 0.3,
               boxShadow: 'inset 2px 2px 0 rgba(0,0,0,.1),inset -2px -2px 0 rgba(255,255,255,.8)',
@@ -145,7 +145,7 @@ export default async function Page({
               border: 'none',
               cursor: 'pointer',
               fontFamily: 'var(--f1)',
-              fontSize: 10,
+              fontSize: 11,
               letterSpacing: 1,
               boxShadow: 'inset 0 3px 0 var(--red-lt),inset 0 -3px 0 var(--red-dk)',
             }}
@@ -161,7 +161,7 @@ export default async function Page({
             margin: '0 var(--gap)',
             padding: 24,
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             color: 'var(--ink3)',
             textAlign: 'center',
             lineHeight: 1.8,
@@ -179,7 +179,7 @@ export default async function Page({
               padding: '10px 14px',
               background: 'var(--pap2)',
               fontFamily: 'var(--f1)',
-              fontSize: 8,
+              fontSize: 9,
               color: 'var(--ink2)',
               letterSpacing: 0.3,
               lineHeight: 1.8,
@@ -206,7 +206,7 @@ export default async function Page({
                 textAlign: 'center',
                 background: 'var(--white)',
                 fontFamily: 'var(--f1)',
-                fontSize: 9,
+                fontSize: 10,
                 color: 'var(--ink3)',
                 boxShadow:
                   '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
@@ -218,10 +218,10 @@ export default async function Page({
             <div className="sect">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 14, letterSpacing: 0.4 }}>
+                  <div style={{ fontFamily: 'var(--f1)', fontSize: 15, letterSpacing: 0.4 }}>
                     싱글카드 시세
                   </div>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 4 }}>
+                  <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 4 }}>
                     {hits.length}개 매물
                   </div>
                 </div>
@@ -273,7 +273,7 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
           />
         ) : (
           <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-            <span style={{ fontSize: 36 }}>🃏</span>
+            <span style={{ fontSize: 37 }}>🃏</span>
           </div>
         )}
       </div>
@@ -281,7 +281,7 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
         <div
           style={{
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 11,
             letterSpacing: 0.2,
             marginBottom: jpTitle ? 3 : 6,
             display: '-webkit-box',
@@ -299,7 +299,7 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 8,
+              fontSize: 9,
               color: 'var(--ink3)',
               marginBottom: 6,
               whiteSpace: 'nowrap',
@@ -318,7 +318,7 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
             background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
             color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 11,
             letterSpacing: 0.3,
             boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
           }}
@@ -328,7 +328,7 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
         <div
           style={{
             fontFamily: 'var(--f1)',
-            fontSize: 8,
+            fontSize: 9,
             color: 'var(--ink3)',
             marginTop: 5,
             letterSpacing: 0.3,

@@ -54,7 +54,7 @@ export function SnkrdunkImageZoom({ src, alt }: Props) {
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
-          <span style={{ fontSize: 36 }}>🃏</span>
+          <span style={{ fontSize: 37 }}>🃏</span>
         )}
       </button>
       {open && src ? (
@@ -93,7 +93,7 @@ export function SnkrdunkImageZoom({ src, alt }: Props) {
               background: 'var(--ink)',
               color: 'var(--gold)',
               fontFamily: 'var(--f1)',
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: 0.5,
               padding: '8px 12px',
               border: '2px solid var(--gold)',

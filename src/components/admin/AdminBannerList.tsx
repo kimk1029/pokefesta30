@@ -167,7 +167,7 @@ export function AdminBannerList({ initialBanners }: Props) {
             background: 'var(--ink)',
             color: 'var(--yel)',
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             letterSpacing: 0.5,
             textAlign: 'center',
           }}
@@ -183,7 +183,7 @@ export function AdminBannerList({ initialBanners }: Props) {
             background: 'var(--red)',
             color: 'var(--white)',
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             letterSpacing: 0.5,
             textAlign: 'center',
           }}
@@ -193,7 +193,7 @@ export function AdminBannerList({ initialBanners }: Props) {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink2)', letterSpacing: 0.5 }}>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink2)', letterSpacing: 0.5 }}>
           총 {initialBanners.length}개 · 비활성 배너는 홈에서 노출되지 않습니다
         </div>
         <button
@@ -267,11 +267,11 @@ export function AdminBannerList({ initialBanners }: Props) {
               </div>
             </div>
 
-            <div style={{ marginTop: 10, fontFamily: 'var(--f1)', fontSize: 10, lineHeight: 1.6, color: 'var(--ink)' }}>
+            <div style={{ marginTop: 10, fontFamily: 'var(--f1)', fontSize: 11, lineHeight: 1.6, color: 'var(--ink)' }}>
               <div style={{ color: 'var(--red)' }}>{b.badge}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'pre-line', margin: '4px 0' }}>{b.title}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'pre-line', margin: '4px 0' }}>{b.title}</div>
               <div style={{ color: 'var(--ink2)', whiteSpace: 'pre-line' }}>{b.sub}</div>
-              <div style={{ marginTop: 6, fontSize: 9, color: 'var(--ink3)' }}>
+              <div style={{ marginTop: 6, fontSize: 10, color: 'var(--ink3)' }}>
                 visual: {b.visualType} · {b.visualValue}
                 {b.ctaHint && <> · CTA: {b.ctaHint}</>}
                 {b.onClick && <> · onClick: {b.onClick}</>}
@@ -397,7 +397,7 @@ function BannerForm({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =>
         </select>
       </Field>
 
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--f1)', fontSize: 10 }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--f1)', fontSize: 11 }}>
         <input
           type="checkbox"
           checked={draft.active}
@@ -412,7 +412,7 @@ function BannerForm({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =>
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink2)', marginBottom: 4, letterSpacing: 0.5 }}>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink2)', marginBottom: 4, letterSpacing: 0.5 }}>
         {label}
       </div>
       {children}
@@ -424,7 +424,7 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '6px 8px',
   fontFamily: 'var(--f1)',
-  fontSize: 11,
+  fontSize: 12,
   color: 'var(--ink)',
   background: 'var(--white)',
   border: '1px solid var(--ink)',
@@ -442,7 +442,7 @@ const editorBoxStyle: React.CSSProperties = {
 
 const editorHeaderStyle: React.CSSProperties = {
   fontFamily: 'var(--f1)',
-  fontSize: 10,
+  fontSize: 11,
   color: 'var(--ink)',
   letterSpacing: 0.5,
   marginBottom: 10,
@@ -467,7 +467,7 @@ const rowHeaderStyle: React.CSSProperties = {
 
 const badgeChipStyle: React.CSSProperties = {
   fontFamily: 'var(--f1)',
-  fontSize: 8,
+  fontSize: 9,
   letterSpacing: 0.3,
   padding: '3px 6px',
   background: 'var(--ink)',
@@ -479,7 +479,7 @@ function btnStyle(bg: string): React.CSSProperties {
   return {
     padding: '8px 12px',
     fontFamily: 'var(--f1)',
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 0.5,
     color: 'var(--white)',
     background: bg,
@@ -492,7 +492,7 @@ function btnStyleSm(bg: string): React.CSSProperties {
   return {
     padding: '4px 8px',
     fontFamily: 'var(--f1)',
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 0.3,
     color: 'var(--white)',
     background: bg,

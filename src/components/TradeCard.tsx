@@ -49,7 +49,7 @@ export function TradeCard({ trade, showChatCount }: Props) {
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 7,
+              fontSize: 8,
               color: 'var(--ink2)',
               letterSpacing: 0.2,
               maxWidth: 50,
@@ -140,7 +140,7 @@ export function TradeCard({ trade, showChatCount }: Props) {
           <span
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 8,
+              fontSize: 9,
               color: 'var(--ink3)',
               letterSpacing: 0.3,
               whiteSpace: 'nowrap',

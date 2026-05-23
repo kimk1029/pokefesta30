@@ -102,7 +102,7 @@ function PriceChart({
           display: 'grid',
           placeItems: 'center',
           fontFamily: 'var(--f1)',
-          fontSize: 9,
+          fontSize: 10,
           color: 'var(--ink3)',
           background: 'var(--pap2)',
           letterSpacing: 0.3,
@@ -170,7 +170,7 @@ function PriceChart({
                 x={PAD_L - 6}
                 y={y + 3}
                 textAnchor="end"
-                style={{ fontFamily: 'var(--f1)', fontSize: 7, fill: 'var(--ink3)' }}
+                style={{ fontFamily: 'var(--f1)', fontSize: 8, fill: 'var(--ink3)' }}
               >
                 {fmtYenCompact(v)}
               </text>
@@ -195,7 +195,7 @@ function PriceChart({
                 x={x}
                 y={PAD_T + innerH + 12}
                 textAnchor={i === 0 ? 'start' : i === xTickValues.length - 1 ? 'end' : 'middle'}
-                style={{ fontFamily: 'var(--f1)', fontSize: 7, fill: 'var(--ink3)' }}
+                style={{ fontFamily: 'var(--f1)', fontSize: 8, fill: 'var(--ink3)' }}
               >
                 {fmtDateShort(tv)}
               </text>
@@ -213,7 +213,7 @@ function PriceChart({
           x={PAD_L}
           y={PAD_T - 4}
           textAnchor="start"
-          style={{ fontFamily: 'var(--f1)', fontSize: 7, fill: 'var(--ink3)', letterSpacing: 0.3 }}
+          style={{ fontFamily: 'var(--f1)', fontSize: 8, fill: 'var(--ink3)', letterSpacing: 0.3 }}
         >
           가격 (JPY)
         </text>
@@ -221,7 +221,7 @@ function PriceChart({
           x={width - PAD_R}
           y={height - 4}
           textAnchor="end"
-          style={{ fontFamily: 'var(--f1)', fontSize: 7, fill: 'var(--ink3)', letterSpacing: 0.3 }}
+          style={{ fontFamily: 'var(--f1)', fontSize: 8, fill: 'var(--ink3)', letterSpacing: 0.3 }}
         >
           거래일
         </text>
@@ -232,7 +232,7 @@ function PriceChart({
           justifyContent: 'space-between',
           marginTop: 8,
           fontFamily: 'var(--f1)',
-          fontSize: 8,
+          fontSize: 9,
           color: 'var(--ink3)',
           letterSpacing: 0.3,
         }}
@@ -309,7 +309,7 @@ export default async function Page({ params }: PageProps) {
               style={{
                 display: 'inline-block',
                 fontFamily: 'var(--f1)',
-                fontSize: 8,
+                fontSize: 9,
                 padding: '2px 5px',
                 background: 'var(--orn)',
                 color: 'var(--white)',
@@ -324,7 +324,7 @@ export default async function Page({ params }: PageProps) {
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 12,
+              fontSize: 13,
               letterSpacing: 0.3,
               marginBottom: 4,
               lineHeight: 1.4,
@@ -337,7 +337,7 @@ export default async function Page({ params }: PageProps) {
             <div
               style={{
                 fontFamily: 'var(--f1)',
-                fontSize: 8,
+                fontSize: 9,
                 color: 'var(--ink3)',
                 letterSpacing: 0.2,
                 marginBottom: 8,
@@ -359,14 +359,14 @@ export default async function Page({ params }: PageProps) {
             }}
           >
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 7, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>싱글카드</div>
-              <div style={{ fontSize: 12, color: 'var(--red)', lineHeight: 1 }}>{fmtYen(rawAvg.avg)}</div>
+              <div style={{ fontSize: 8, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>싱글카드</div>
+              <div style={{ fontSize: 13, color: 'var(--red)', lineHeight: 1 }}>{fmtYen(rawAvg.avg)}</div>
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 7, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>PSA10</div>
+              <div style={{ fontSize: 8, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>PSA10</div>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   color: psa10Avg.avg > 0 ? 'var(--gold-dk)' : 'var(--ink3)',
                   lineHeight: 1,
                 }}
@@ -378,7 +378,7 @@ export default async function Page({ params }: PageProps) {
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 8,
+              fontSize: 9,
               color: 'var(--ink3)',
               marginTop: 6,
               letterSpacing: 0.3,
@@ -451,7 +451,7 @@ export default async function Page({ params }: PageProps) {
                       minWidth: 56,
                       textAlign: 'center',
                       fontFamily: 'var(--f1)',
-                      fontSize: 8,
+                      fontSize: 9,
                       padding: '2px 5px',
                       background: isPsa ? 'var(--gold)' : 'rgba(255,255,255,.12)',
                       color: isPsa ? 'var(--ink)' : 'var(--white)',
@@ -465,7 +465,7 @@ export default async function Page({ params }: PageProps) {
                     style={{
                       flex: 1,
                       fontFamily: 'var(--f1)',
-                      fontSize: 10,
+                      fontSize: 11,
                       color: 'var(--gold)',
                       letterSpacing: 0.3,
                       whiteSpace: 'nowrap',
@@ -479,7 +479,7 @@ export default async function Page({ params }: PageProps) {
                     style={{
                       flexShrink: 0,
                       fontFamily: 'var(--f1)',
-                      fontSize: 8,
+                      fontSize: 9,
                       color: 'rgba(255,255,255,.55)',
                       letterSpacing: 0.3,
                     }}
@@ -494,7 +494,7 @@ export default async function Page({ params }: PageProps) {
               style={{
                 padding: '20px 0',
                 fontFamily: 'var(--f1)',
-                fontSize: 9,
+                fontSize: 10,
                 color: 'rgba(255,255,255,.55)',
                 textAlign: 'center',
                 letterSpacing: 0.3,
@@ -513,7 +513,7 @@ export default async function Page({ params }: PageProps) {
           margin: '0 var(--gap)',
           padding: '10px 12px',
           fontFamily: 'var(--f1)',
-          fontSize: 8,
+          fontSize: 9,
           color: 'var(--ink3)',
           textAlign: 'center',
           letterSpacing: 0.3,

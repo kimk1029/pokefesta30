@@ -43,7 +43,7 @@ export function FeedAdRow({ slotIndex = 0 }: { slotIndex?: number }) {
           top: 6,
           right: 10,
           fontFamily: 'var(--f1)',
-          fontSize: 7,
+          fontSize: 8,
           color: 'var(--ink3)',
           letterSpacing: 0.5,
           background: 'var(--white)',

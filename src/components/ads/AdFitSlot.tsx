@@ -103,7 +103,7 @@ function Placeholder({ height, label }: { height: number; label: string }) {
         placeItems: 'center',
         background: 'var(--pap2)',
         fontFamily: 'var(--f1)',
-        fontSize: 8,
+        fontSize: 9,
         color: 'var(--ink3)',
         letterSpacing: 1,
       }}

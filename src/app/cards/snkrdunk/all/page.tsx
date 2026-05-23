@@ -113,7 +113,7 @@ export default function Page() {
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
-                <span style={{ fontSize: 22 }}>🃏</span>
+                <span style={{ fontSize: 23 }}>🃏</span>
               )}
             </div>
             <div className="sh-main">
@@ -121,7 +121,7 @@ export default function Page() {
                 className="sh-title"
                 style={{
                   fontFamily: 'var(--f1)',
-                  fontSize: 11,
+                  fontSize: 12,
                   letterSpacing: 0.3,
                   lineHeight: 1.4,
                 }}
@@ -132,7 +132,7 @@ export default function Page() {
                 className="sh-desc"
                 style={{
                   fontFamily: 'var(--f1)',
-                  fontSize: 11,
+                  fontSize: 12,
                   color: 'var(--red)',
                   marginTop: 6,
                   letterSpacing: 0.3,
@@ -150,7 +150,7 @@ export default function Page() {
             padding: '24px 0',
             textAlign: 'center',
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             color: 'var(--ink3)',
             letterSpacing: 0.3,
           }}
@@ -163,7 +163,7 @@ export default function Page() {
                 style={{
                   marginLeft: 10,
                   fontFamily: 'var(--f1)',
-                  fontSize: 9,
+                  fontSize: 10,
                   padding: '4px 10px',
                   background: 'var(--ink)',
                   color: 'var(--white)',

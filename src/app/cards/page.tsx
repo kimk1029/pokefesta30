@@ -67,20 +67,20 @@ export default async function Page() {
           color: 'var(--white)',
           textDecoration: 'none',
           fontFamily: 'var(--f1)',
-          fontSize: 10,
+          fontSize: 11,
           letterSpacing: 0.5,
           lineHeight: 1.5,
           boxShadow:
             '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),4px 4px 0 var(--ink)',
         }}
       >
-        <span style={{ fontSize: 22 }}>📐</span>
+        <span style={{ fontSize: 23 }}>📐</span>
         <span style={{ flex: 1 }}>
           <b>카드 그레이딩 (센터링 추정)</b>
           <br />
-          <span style={{ fontSize: 8, opacity: 0.85 }}>사진으로 PSA 예상 등급 측정 — 참고용</span>
+          <span style={{ fontSize: 9, opacity: 0.85 }}>사진으로 PSA 예상 등급 측정 — 참고용</span>
         </span>
-        <span style={{ fontSize: 14 }}>▶</span>
+        <span style={{ fontSize: 15 }}>▶</span>
       </Link>
 
       {/* 검색 폼 — 임의 카드명/코드 → /cards/search */}
@@ -107,7 +107,7 @@ export default async function Page() {
             border: 'none',
             outline: 'none',
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             color: 'var(--ink)',
             letterSpacing: 0.3,
             boxShadow: 'inset 2px 2px 0 rgba(0,0,0,.1),inset -2px -2px 0 rgba(255,255,255,.8)',
@@ -122,7 +122,7 @@ export default async function Page() {
             border: 'none',
             cursor: 'pointer',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 11,
             letterSpacing: 1,
           }}
         >
@@ -137,7 +137,7 @@ export default async function Page() {
             padding: '10px 12px',
             background: 'var(--yel)',
             fontFamily: 'var(--f1)',
-            fontSize: 8,
+            fontSize: 9,
             color: 'var(--ink)',
             letterSpacing: 0.3,
             lineHeight: 1.7,
@@ -146,9 +146,9 @@ export default async function Page() {
           }}
         >
           ⚠ eBay API 키가 설정되지 않았습니다.<br />
-          <code style={{ fontSize: 8 }}>EBAY_CLIENT_ID / EBAY_CLIENT_SECRET</code> 를 .env 에 추가하고 재배포하세요.
+          <code style={{ fontSize: 9 }}>EBAY_CLIENT_ID / EBAY_CLIENT_SECRET</code> 를 .env 에 추가하고 재배포하세요.
           <br />
-          설정 방법: <code style={{ fontSize: 8 }}>docs/ebay-setup.md</code>
+          설정 방법: <code style={{ fontSize: 9 }}>docs/ebay-setup.md</code>
         </div>
       )}
 
@@ -165,15 +165,15 @@ export default async function Page() {
             '-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),inset 0 3px 0 var(--ink2),8px 8px 0 var(--yel-dk)',
         }}
       >
-        <div style={{ fontSize: 31 }}>📊</div>
+        <div style={{ fontSize: 32 }}>📊</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 1, color: 'var(--yel)' }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: 1, color: 'var(--yel)' }}>
             eBay 실시간 시세
           </div>
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 8,
+              fontSize: 9,
               letterSpacing: 0.3,
               color: 'rgba(255,255,255,.7)',
               marginTop: 6,
@@ -205,7 +205,7 @@ export default async function Page() {
                   <span
                     style={{
                       fontFamily: 'var(--f1)',
-                      fontSize: 8,
+                      fontSize: 9,
                       padding: '2px 5px',
                       background: GRADE_BG[c.grade],
                       color: 'var(--white)',
@@ -220,7 +220,7 @@ export default async function Page() {
                 </div>
                 <div
                   className="sh-desc"
-                  style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 6 }}
+                  style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 6 }}
                 >
                   {rangeText}
                 </div>
@@ -237,7 +237,7 @@ export default async function Page() {
                       alignItems: 'center',
                       gap: 4,
                       fontFamily: 'var(--f1)',
-                      fontSize: 8,
+                      fontSize: 9,
                       padding: '3px 8px',
                       background: 'var(--white)',
                       color: 'var(--ink2)',
@@ -259,7 +259,7 @@ export default async function Page() {
                   <span
                     style={{
                       fontFamily: 'var(--f1)',
-                      fontSize: 8,
+                      fontSize: 9,
                       color: 'var(--ink3)',
                       letterSpacing: 0.3,
                     }}
@@ -279,7 +279,7 @@ export default async function Page() {
           padding: '10px 12px',
           background: 'var(--pap2)',
           fontFamily: 'var(--f1)',
-          fontSize: 8,
+          fontSize: 9,
           color: 'var(--ink2)',
           lineHeight: 1.8,
           letterSpacing: 0.3,

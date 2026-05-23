@@ -198,12 +198,12 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
 
         {/* Label + value */}
         <div style={{ position: 'relative', marginBottom: 16 }}>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.35)', letterSpacing: 2, marginBottom: 8 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.35)', letterSpacing: 2, marginBottom: 8 }}>
             TOTAL PORTFOLIO
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
             <div style={{
-              fontFamily: 'var(--f1)', fontSize: 28, color: 'var(--gold)', letterSpacing: -2,
+              fontFamily: 'var(--f1)', fontSize: 29, color: 'var(--gold)', letterSpacing: -2,
               textShadow: '0 0 24px rgba(255,210,63,.35),4px 4px 0 rgba(0,0,0,.5)', lineHeight: 1,
             }}>
               ₩{fmt(totalVal)}
@@ -216,11 +216,11 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                   borderBottom: changePct >= 0 ? '8px solid #22C55E' : '8px solid transparent',
                   borderTop: changePct >= 0 ? 'none' : '8px solid #E63946',
                 }} />
-                <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: changePct >= 0 ? '#22C55E' : '#E63946', letterSpacing: .5 }}>
+                <span style={{ fontFamily: 'var(--f1)', fontSize: 12, color: changePct >= 0 ? '#22C55E' : '#E63946', letterSpacing: .5 }}>
                   {changePct >= 0 ? '+' : ''}{changePct}%
                 </span>
               </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.3)', letterSpacing: .3 }}>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.3)', letterSpacing: .3 }}>
                 vs 지난주
               </div>
             </div>
@@ -235,7 +235,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
             height={64}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.25)', letterSpacing: .3 }}>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.25)', letterSpacing: .3 }}>
               {chartPeriod === '1W' ? '7일' : chartPeriod === '1M' ? '30일' : '90일'} 전
             </div>
             <div style={{ display: 'flex', gap: 5 }}>
@@ -245,7 +245,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                   type="button"
                   onClick={() => setChartPeriod(p)}
                   style={{
-                    padding: '3px 9px', fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: .5, cursor: 'pointer',
+                    padding: '3px 9px', fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: .5, cursor: 'pointer',
                     background: chartPeriod === p ? 'var(--gold)' : 'rgba(255,255,255,.06)',
                     color: chartPeriod === p ? 'var(--ink)' : 'rgba(255,255,255,.35)',
                     boxShadow: chartPeriod === p
@@ -270,8 +270,8 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
             { l: '거래', v: TRADES_THIS_WEEK + '건', c: '#22C55E' },
           ].map(({ l, v, c }) => (
             <div key={l} style={{ background: 'rgba(255,255,255,.05)', padding: '9px 6px', boxShadow: '0 0 0 1px rgba(255,255,255,.08)', textAlign: 'center' }}>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: c, letterSpacing: .3, marginBottom: 5 }}>{v}</div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'rgba(255,255,255,.3)', letterSpacing: .3 }}>{l}</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 12, color: c, letterSpacing: .3, marginBottom: 5 }}>{v}</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.3)', letterSpacing: .3 }}>{l}</div>
             </div>
           ))}
         </div>
@@ -289,12 +289,12 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
           ].map(({ icon, lb, bg, href }) => (
             <Link key={lb} href={href} className="dash-quick">
               <div style={{
-                width: 42, height: 42, background: bg, display: 'grid', placeItems: 'center', fontSize: 20,
+                width: 42, height: 42, background: bg, display: 'grid', placeItems: 'center', fontSize: 21,
                 boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
               }}>
                 {icon}
               </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: .3 }}>{lb}</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: .3 }}>{lb}</div>
             </Link>
           ))}
         </div>
@@ -311,17 +311,17 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <div style={{
-              width: 32, height: 32, background: 'var(--pur)', display: 'grid', placeItems: 'center', fontSize: 16,
+              width: 32, height: 32, background: 'var(--pur)', display: 'grid', placeItems: 'center', fontSize: 17,
               boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 var(--pur-lt),inset 0 -2px 0 var(--pur-dk),3px 3px 0 var(--ink)',
             }}>🏆</div>
             <div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: .5 }}>{LEVEL_LABEL}</div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 4, letterSpacing: .3 }}>다음 레벨까지 {XP_MAX - XP_CURRENT}P</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: .5 }}>{LEVEL_LABEL}</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 4, letterSpacing: .3 }}>다음 레벨까지 {XP_MAX - XP_CURRENT}P</div>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 13, color: 'var(--gold-dk)', letterSpacing: .5 }}>🪙{POINTS.toLocaleString()}</div>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 3, letterSpacing: .3 }}>포인트</div>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 14, color: 'var(--gold-dk)', letterSpacing: .5 }}>🪙{POINTS.toLocaleString()}</div>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 3, letterSpacing: .3 }}>포인트</div>
           </div>
         </div>
         <div style={{
@@ -340,8 +340,8 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
-          <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: .3 }}>{XP_CURRENT} / {XP_MAX} XP</span>
-          <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--pur)', letterSpacing: .3 }}>+{XP_WEEK}XP 이번 주</span>
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', letterSpacing: .3 }}>{XP_CURRENT} / {XP_MAX} XP</span>
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--pur)', letterSpacing: .3 }}>+{XP_WEEK}XP 이번 주</span>
         </div>
       </div>
 
@@ -368,7 +368,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                 type="button"
                 onClick={() => setActiveGame(g)}
                 style={{
-                  flexShrink: 0, fontFamily: 'var(--f1)', fontSize: 9, padding: '6px 11px', cursor: 'pointer',
+                  flexShrink: 0, fontFamily: 'var(--f1)', fontSize: 10, padding: '6px 11px', cursor: 'pointer',
                   background: activeGame === g ? 'var(--ink)' : (g !== '전체' ? GAME_COLORS[g] || 'var(--white)' : 'var(--white)'),
                   color: activeGame === g ? 'var(--gold)' : (g !== '전체' ? 'var(--white)' : 'var(--ink)'),
                   boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
@@ -390,13 +390,13 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                   borderTop: `4px solid ${GAME_COLORS[g] || 'var(--ink)'}`,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                    <div style={{ flex: 1, fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: .3 }}>{g}</div>
-                    <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', letterSpacing: .3 }}>{pct}%</div>
+                    <div style={{ flex: 1, fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: .3 }}>{g}</div>
+                    <div style={{ fontFamily: 'var(--f1)', fontSize: 12, color: 'var(--ink3)', letterSpacing: .3 }}>{pct}%</div>
                   </div>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 20, letterSpacing: -1, color: 'var(--ink)', marginBottom: 4 }}>
-                    {n}<span style={{ fontSize: 11, color: 'var(--ink3)', marginLeft: 4 }}>장</span>
+                  <div style={{ fontFamily: 'var(--f1)', fontSize: 21, letterSpacing: -1, color: 'var(--ink)', marginBottom: 4 }}>
+                    {n}<span style={{ fontSize: 12, color: 'var(--ink3)', marginLeft: 4 }}>장</span>
                   </div>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: .3, marginBottom: 8 }}>₩{fmt(val)}</div>
+                  <div style={{ fontFamily: 'var(--f1)', fontSize: 12, color: 'var(--grn-dk)', letterSpacing: .3, marginBottom: 8 }}>₩{fmt(val)}</div>
                   {/* rarity fill bar */}
                   <div style={{ display: 'flex', gap: 2, height: 8 }}>
                     {RAR_ORDER.map((r) => {
@@ -411,7 +411,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                     })}
                   </div>
                   {gGraded > 0 && (
-                    <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--gold-dk)', marginTop: 6, letterSpacing: .3 }}>
+                    <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--gold-dk)', marginTop: 6, letterSpacing: .3 }}>
                       🏆 그레이딩 {gGraded}건
                     </div>
                   )}
@@ -458,7 +458,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     ) : (
-                      <span style={{ fontSize: 32 }}>🃏</span>
+                      <span style={{ fontSize: 33 }}>🃏</span>
                     )}
                   </div>
                   <div style={{
@@ -468,28 +468,28 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                     <div style={{ minHeight: 16, marginBottom: 5 }}>
                       {r.category ? (
                         <span style={{
-                          fontFamily: 'var(--f1)', fontSize: 8, padding: '2px 4px', display: 'inline-block',
+                          fontFamily: 'var(--f1)', fontSize: 9, padding: '2px 4px', display: 'inline-block',
                           background: bg, color: 'var(--white)', letterSpacing: 0.3,
                           boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
                         }}>{r.category}</span>
                       ) : null}
                     </div>
                     <div style={{
-                      fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.2, marginBottom: 3,
+                      fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.2, marginBottom: 3,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{r.shortName}</div>
                     {showJp ? (
                       <div style={{
-                        fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)',
+                        fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)',
                         letterSpacing: 0.2, marginBottom: 4,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{r.localizedName}</div>
                     ) : null}
-                    <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--red)', letterSpacing: 0.3 }}>
+                    <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--red)', letterSpacing: 0.3 }}>
                       {priceText}
                     </div>
                     <div style={{
-                      fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)',
+                      fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)',
                       marginTop: 3, letterSpacing: 0.3, minHeight: 11,
                     }}>
                       {r.listingCountText ? `매물 ${r.listingCountText}건` : ''}
@@ -515,15 +515,15 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
               borderBottom: i < ACTIVITY.length - 1 ? '2px solid var(--bg3)' : 'none',
             }}>
               <div style={{
-                width: 32, height: 32, background: a.c, display: 'grid', placeItems: 'center', fontSize: 14, flexShrink: 0,
+                width: 32, height: 32, background: a.c, display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0,
                 boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.3),3px 3px 0 var(--ink)',
               }}>
                 {a.icon}
               </div>
-              <div style={{ flex: 1, fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: .3, lineHeight: 1.5 }}>{a.txt}</div>
+              <div style={{ flex: 1, fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: .3, lineHeight: 1.5 }}>{a.txt}</div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--gold-dk)', letterSpacing: .3 }}>{a.pt}</div>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: .3 }}>{a.time}</div>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--gold-dk)', letterSpacing: .3 }}>{a.pt}</div>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', letterSpacing: .3 }}>{a.time}</div>
               </div>
             </div>
           ))}
@@ -547,13 +547,13 @@ interface BlockProps {
 function Block({ label, value, sub, color, icon, href }: BlockProps) {
   const inner = (
     <>
-      {icon && <div style={{ position: 'absolute', right: 10, top: 10, fontSize: 18, opacity: .15 }}>{icon}</div>}
-      <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: .5 }}>{label}</div>
+      {icon && <div style={{ position: 'absolute', right: 10, top: 10, fontSize: 19, opacity: .15 }}>{icon}</div>}
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', letterSpacing: .5 }}>{label}</div>
       <div style={{
-        fontFamily: 'var(--f1)', fontSize: 20, color: color || 'var(--ink)', letterSpacing: -1, lineHeight: 1,
+        fontFamily: 'var(--f1)', fontSize: 21, color: color || 'var(--ink)', letterSpacing: -1, lineHeight: 1,
         textShadow: color ? '1px 1px 0 rgba(0,0,0,.15)' : 'none',
       }}>{value}</div>
-      {sub && <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: .3 }}>{sub}</div>}
+      {sub && <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', letterSpacing: .3 }}>{sub}</div>}
     </>
   );
   const baseStyle: React.CSSProperties = {
@@ -580,16 +580,16 @@ function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
           marginBottom: 8,
         }}
       >
-        <span style={{ fontSize: 18 }}>{pack.emoji}</span>
-        <span style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.5, flex: 1 }}>{pack.shortName}</span>
+        <span style={{ fontSize: 19 }}>{pack.emoji}</span>
+        <span style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: 0.5, flex: 1 }}>{pack.shortName}</span>
         {pack.releasedAt ? (
-          <span style={{ fontFamily: 'var(--f1)', fontSize: 8, opacity: 0.8, letterSpacing: 0.3 }}>
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 9, opacity: 0.8, letterSpacing: 0.3 }}>
             {pack.releasedAt.slice(0, 7).replace('-', '.')}
           </span>
         ) : null}
         <Link
           href={`/cards/packs/${pack.code}`}
-          style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--white)', letterSpacing: 0.3, textDecoration: 'underline' }}
+          style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--white)', letterSpacing: 0.3, textDecoration: 'underline' }}
         >
           전체 ▶
         </Link>
@@ -598,7 +598,7 @@ function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
         <div
           style={{
             padding: 24, textAlign: 'center', background: 'var(--white)',
-            fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)',
+            fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)',
             boxShadow:
               '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
           }}
@@ -636,22 +636,22 @@ function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={hit.imageUrl} alt={hit.shortName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <span style={{ fontSize: 32 }}>🃏</span>
+                  <span style={{ fontSize: 33 }}>🃏</span>
                 )}
               </div>
               <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
                 <div
                   style={{
-                    fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.2, marginBottom: 4,
+                    fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.2, marginBottom: 4,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}
                 >
                   {hit.shortName}
                 </div>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--red)', letterSpacing: 0.3 }}>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--red)', letterSpacing: 0.3 }}>
                   {hit.minPrice > 0 ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '—'}
                 </div>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 3, letterSpacing: 0.3, minHeight: 11 }}>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 3, letterSpacing: 0.3, minHeight: 11 }}>
                   {hit.listingCountText ? `매물 ${hit.listingCountText}건` : ''}
                 </div>
               </div>
@@ -681,7 +681,7 @@ function PortfolioLineChart({
       <div
         style={{
           width: '100%', height, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.35)', letterSpacing: 0.3,
+          fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.35)', letterSpacing: 0.3,
           borderBottom: '1px solid rgba(255,255,255,.1)',
         }}
       >

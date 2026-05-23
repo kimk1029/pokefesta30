@@ -77,7 +77,7 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount }: Pro
               background: 'rgba(255,255,255,.1)',
               color: 'var(--gold)',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               letterSpacing: 0.5,
               textDecoration: 'none',
               boxShadow: '-2px 0 0 rgba(255,255,255,.2),2px 0 0 rgba(255,255,255,.2),0 -2px 0 rgba(255,255,255,.2),0 2px 0 rgba(255,255,255,.2)',
@@ -88,7 +88,7 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount }: Pro
         </div>
 
         <div>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'rgba(255,255,255,.5)', letterSpacing: 0.5, marginBottom: 6 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.5)', letterSpacing: 0.5, marginBottom: 6 }}>
             XP {p.xp} / {p.xpNeeded}
           </div>
           <div
@@ -110,7 +110,7 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount }: Pro
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <PointChipLive />
-            <span style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'rgba(255,255,255,.5)', letterSpacing: 0.3 }}>
+            <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.5)', letterSpacing: 0.3 }}>
               다음 LV.까지 {p.xpNeeded - p.xp} XP
             </span>
           </div>

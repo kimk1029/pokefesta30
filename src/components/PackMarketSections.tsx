@@ -78,8 +78,8 @@ function MarketSection({
     <div className="sect">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 14, letterSpacing: 0.4 }}>{title}</div>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 4 }}>{count}개 매물</div>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 15, letterSpacing: 0.4 }}>{title}</div>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 4 }}>{count}개 매물</div>
         </div>
         {sort && onSort ? (
           <select
@@ -88,7 +88,7 @@ function MarketSection({
             aria-label="정렬"
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               height: 32,
               padding: '0 8px',
               background: 'var(--white)',
@@ -108,7 +108,7 @@ function MarketSection({
         <div
           style={{
             padding: 30, textAlign: 'center', background: 'var(--white)',
-            fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)',
+            fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)',
             boxShadow:
               '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
           }}
@@ -159,14 +159,14 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
           />
         ) : (
           <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-            <span style={{ fontSize: 36 }}>🃏</span>
+            <span style={{ fontSize: 37 }}>🃏</span>
           </div>
         )}
       </div>
       <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
         <div
           style={{
-            fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.2, marginBottom: jpTitle ? 3 : 6,
+            fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.2, marginBottom: jpTitle ? 3 : 6,
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
@@ -182,7 +182,7 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 8,
+              fontSize: 9,
               color: 'var(--ink3)',
               marginBottom: 6,
               whiteSpace: 'nowrap',
@@ -201,14 +201,14 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
             background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
             color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 11,
             letterSpacing: 0.3,
             boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
           }}
         >
           {hasPrice ? `¥${hit.minPrice.toLocaleString('ja-JP')}` : '시세 없음'}
         </div>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 5, letterSpacing: 0.3, minHeight: 12 }}>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 5, letterSpacing: 0.3, minHeight: 12 }}>
           {hit.lastSaleText ? `최근 ${hit.lastSaleText}` : hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
         </div>
       </div>

@@ -125,7 +125,7 @@ export default function Page() {
               <summary
                 style={{
                   fontFamily: 'var(--f1)',
-                  fontSize: 9,
+                  fontSize: 10,
                   letterSpacing: 0.3,
                   cursor: 'pointer',
                   listStyle: 'none',
@@ -139,7 +139,7 @@ export default function Page() {
                   <span style={{ color: 'var(--red)', marginRight: 6 }}>Q.</span>
                   {it.q}
                 </span>
-                <span style={{ fontSize: 8, color: 'var(--ink3)' }}>▼</span>
+                <span style={{ fontSize: 9, color: 'var(--ink3)' }}>▼</span>
               </summary>
               <div
                 style={{
@@ -147,7 +147,7 @@ export default function Page() {
                   paddingTop: 10,
                   borderTop: '1px dashed rgba(0,0,0,.15)',
                   fontFamily: 'var(--f1)',
-                  fontSize: 8,
+                  fontSize: 9,
                   lineHeight: 1.8,
                   color: 'var(--ink2)',
                   letterSpacing: 0.3,

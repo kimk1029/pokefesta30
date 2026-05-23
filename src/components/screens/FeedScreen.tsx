@@ -84,7 +84,7 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
               alignItems: 'center',
               gap: 14,
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--ink3)',
               letterSpacing: 0.5,
             }}
@@ -127,7 +127,7 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
             style={{
               padding: '12px 10px',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--red)',
               textAlign: 'center',
             }}
@@ -143,7 +143,7 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
               padding: '18px 0',
               textAlign: 'center',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--ink3)',
               letterSpacing: 1,
             }}
@@ -157,7 +157,7 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
               padding: '18px 0',
               textAlign: 'center',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--ink3)',
               letterSpacing: 1,
             }}

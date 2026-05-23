@@ -141,7 +141,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
 
       {/* Search */}
       <div className="cv-search">
-        <span style={{ fontSize: 14 }}>🔍</span>
+        <span style={{ fontSize: 15 }}>🔍</span>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -221,7 +221,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
       </div>
 
       {err && (
-        <div style={{ padding: '8px 12px', fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--red)', textAlign: 'center' }}>
+        <div style={{ padding: '8px 12px', fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--red)', textAlign: 'center' }}>
           ⚠ {err}
         </div>
       )}
@@ -279,7 +279,7 @@ function GridView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
                 padding: 4,
                 background: 'transparent',
                 fontFamily: 'var(--f1)',
-                fontSize: 7,
+                fontSize: 8,
                 color: 'var(--ink3)',
                 letterSpacing: 0.3,
                 border: '1px solid var(--pap3)',
@@ -302,7 +302,7 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
         <div key={c.src.id} className="cv-list-card">
           <Link href={detailHref(c)} style={{ display: 'block' }}>
             <div className="cv-list-thumb cv-card-img" style={{ background: gameBg(c.game) }}>
-              <div className="cv-card-em" style={{ fontSize: 24 }}>
+              <div className="cv-card-em" style={{ fontSize: 25 }}>
                 {c.catalog?.emoji ?? '🃏'}
               </div>
             </div>
@@ -330,11 +330,11 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
             )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
               {c.price > 0 ? (
-                <span style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--grn-dk)', letterSpacing: 0.3 }}>
+                <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: 0.3 }}>
                   ${fmtUsd(c.price)}
                 </span>
               ) : (
-                <span style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)' }}>시세 없음</span>
+                <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>시세 없음</span>
               )}
               <div style={{ display: 'flex', gap: 6 }}>
                 <Link
@@ -344,7 +344,7 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
                     background: 'var(--ink)',
                     color: 'var(--gold)',
                     fontFamily: 'var(--f1)',
-                    fontSize: 7,
+                    fontSize: 8,
                     letterSpacing: 0.3,
                     textDecoration: 'none',
                   }}
@@ -359,7 +359,7 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
                     background: 'var(--white)',
                     color: 'var(--red)',
                     fontFamily: 'var(--f1)',
-                    fontSize: 7,
+                    fontSize: 8,
                     letterSpacing: 0.3,
                     border: '2px solid var(--ink)',
                     cursor: 'pointer',
@@ -396,11 +396,11 @@ function BinderView({ cards }: { cards: DisplayCard[] }) {
                 {c.name}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span className={`cv-rar cv-rar-${c.rar}`} style={{ fontSize: 6, padding: '1px 4px' }}>
+                <span className={`cv-rar cv-rar-${c.rar}`} style={{ fontSize: 7, padding: '1px 4px' }}>
                   {c.rar}
                 </span>
                 {c.gradeNum !== null && (
-                  <span style={{ fontFamily: 'var(--f1)', fontSize: 6, color: 'var(--gold-dk)' }}>P{c.gradeNum}</span>
+                  <span style={{ fontFamily: 'var(--f1)', fontSize: 7, color: 'var(--gold-dk)' }}>P{c.gradeNum}</span>
                 )}
               </div>
             </div>
@@ -442,7 +442,7 @@ function AlbumView({ cards }: { cards: DisplayCard[] }) {
                     {c.name}
                   </div>
                   {c.price > 0 && (
-                    <div style={{ fontFamily: 'var(--f1)', fontSize: 7, color: 'var(--grn-dk)', letterSpacing: 0.2 }}>
+                    <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--grn-dk)', letterSpacing: 0.2 }}>
                       ${fmtUsd(c.price)}
                     </div>
                   )}

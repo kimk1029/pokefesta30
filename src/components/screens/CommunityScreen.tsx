@@ -138,7 +138,7 @@ function MarketList({ list }: { list: Trade[] }) {
                 style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
               />
             ) : (
-              <div className="cv-card-em" style={{ fontSize: 24 }}>
+              <div className="cv-card-em" style={{ fontSize: 25 }}>
                 {t.type === 'sell' ? '🏷' : '🛒'}
               </div>
             )}
@@ -153,16 +153,16 @@ function MarketList({ list }: { list: Trade[] }) {
                 {t.type === 'sell' ? '팝니다' : '삽니다'}
               </span>
               {typeof t.bumpCount === 'number' && t.bumpCount > 0 && (
-                <span style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)' }}>
+                <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>
                   ↑ {t.bumpCount}
                 </span>
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-              <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: 0.5 }}>
+              <span style={{ fontFamily: 'var(--f1)', fontSize: 12, color: 'var(--grn-dk)', letterSpacing: 0.5 }}>
                 {t.price}
               </span>
-              <span style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)' }}>
+              <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>
                 {t.authorName ?? '익명'}
               </span>
             </div>

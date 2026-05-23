@@ -83,7 +83,7 @@ function renderVisual(s: HeroSlideData): ReactNode {
       <img src={s.visualValue} alt={s.badge} className="hero-promo-card" />
     );
   }
-  return <div style={{ fontSize: 68, lineHeight: 1 }}>{s.visualValue}</div>;
+  return <div style={{ fontSize: 69, lineHeight: 1 }}>{s.visualValue}</div>;
 }
 
 interface HeroSliderProps {

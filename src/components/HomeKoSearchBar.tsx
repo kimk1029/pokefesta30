@@ -47,7 +47,7 @@ export function HomeKoSearchBar() {
             height: 44,
             display: 'flex',
             alignItems: 'center',
-            fontSize: 14,
+            fontSize: 15,
             color: 'var(--ink3)',
             pointerEvents: 'none',
           }}
@@ -71,7 +71,7 @@ export function HomeKoSearchBar() {
             outline: 'none',
             background: 'var(--white)',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 11,
             color: 'var(--ink)',
             letterSpacing: 0.3,
             boxShadow:
@@ -95,7 +95,7 @@ export function HomeKoSearchBar() {
               background: 'transparent',
               cursor: 'pointer',
               fontFamily: 'var(--f1)',
-              fontSize: 10,
+              fontSize: 11,
               color: 'var(--ink3)',
             }}
           >
@@ -118,7 +118,7 @@ export function HomeKoSearchBar() {
             color: 'var(--gold)',
             cursor: 'pointer',
             fontFamily: 'var(--f1)',
-            fontSize: 12,
+            fontSize: 13,
             letterSpacing: 0,
             boxShadow:
               '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--yel-dk)',

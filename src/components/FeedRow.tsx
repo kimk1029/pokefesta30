@@ -56,14 +56,14 @@ export function FeedRow({ post }: { post: FeedPost }) {
               size={56}
             />
           ) : (
-            <span style={{ fontSize: 29, lineHeight: 1 }}>{post.user}</span>
+            <span style={{ fontSize: 30, lineHeight: 1 }}>{post.user}</span>
           )}
         </div>
         {post.authorName && (
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 8,
+              fontSize: 9,
               color: 'var(--ink2)',
               letterSpacing: 0.3,
               maxWidth: 70,
@@ -83,7 +83,7 @@ export function FeedRow({ post }: { post: FeedPost }) {
         <div className="fi-top">
           <span
             className="tag tag-feed"
-            style={{ fontSize: 9, padding: '2px 7px' }}
+            style={{ fontSize: 10, padding: '2px 7px' }}
           >
             🗣 커뮤니티
           </span>
@@ -164,8 +164,8 @@ export function FeedRow({ post }: { post: FeedPost }) {
               lineHeight: 1,
             }}
           >
-            <span style={{ fontSize: 16 }}>📷</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ink)' }}>
+            <span style={{ fontSize: 17 }}>📷</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink)' }}>
               {images.length}
             </span>
           </div>
@@ -239,7 +239,7 @@ function Lightbox({
           color: 'var(--white)',
           border: '2px solid var(--white)',
           fontFamily: 'var(--f1)',
-          fontSize: 18,
+          fontSize: 19,
           letterSpacing: 0.5,
           cursor: 'pointer',
           zIndex: 1001,
@@ -299,7 +299,7 @@ function Lightbox({
               right: 0,
               textAlign: 'center',
               fontFamily: 'var(--f1)',
-              fontSize: 10,
+              fontSize: 11,
               color: 'rgba(255,255,255,.85)',
               letterSpacing: 0.5,
               pointerEvents: 'none',
@@ -324,7 +324,7 @@ function navBtnStyle(side: 'left' | 'right'): React.CSSProperties {
     background: 'rgba(0,0,0,.6)',
     color: 'var(--white)',
     border: '2px solid rgba(255,255,255,.5)',
-    fontSize: 28,
+    fontSize: 29,
     fontFamily: 'var(--f1)',
     cursor: 'pointer',
     zIndex: 1001,

@@ -63,7 +63,7 @@ export function TradeScreen({ trades }: { trades: Trade[] }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="제목 · 장소 · 닉네임 · 가격"
             className="text-input"
-            style={{ fontSize: 10 }}
+            style={{ fontSize: 11 }}
             aria-label="거래글 검색"
           />
           {q && (
@@ -71,7 +71,7 @@ export function TradeScreen({ trades }: { trades: Trade[] }) {
               style={{
                 marginTop: 6,
                 fontFamily: 'var(--f1)',
-                fontSize: 8,
+                fontSize: 9,
                 color: 'var(--ink3)',
                 letterSpacing: 0.3,
               }}
@@ -93,7 +93,7 @@ export function TradeScreen({ trades }: { trades: Trade[] }) {
           alignItems: 'center',
           gap: 6,
           fontFamily: 'var(--f1)',
-          fontSize: 8,
+          fontSize: 9,
           letterSpacing: 0.3,
           color: 'var(--ink3)',
           cursor: 'pointer',

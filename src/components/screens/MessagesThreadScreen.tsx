@@ -140,7 +140,7 @@ export function MessagesThreadScreen({ peerId, peer, myId }: Props) {
             className="appbar-right"
             aria-label="새로고침"
             disabled={refreshing}
-            style={{ fontSize: 17, opacity: refreshing ? 0.5 : 1 }}
+            style={{ fontSize: 18, opacity: refreshing ? 0.5 : 1 }}
           >
             ↻
           </button>
@@ -160,7 +160,7 @@ export function MessagesThreadScreen({ peerId, peer, myId }: Props) {
               padding: '8px 12px',
               background: 'var(--pap2)',
               fontFamily: 'var(--f1)',
-              fontSize: 8,
+              fontSize: 9,
               color: 'var(--ink2)',
               letterSpacing: 0.3,
               textAlign: 'center',

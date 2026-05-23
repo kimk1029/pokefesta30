@@ -41,7 +41,7 @@ export function ThemeSettingsItem() {
           🎨
         </div>
         <div className="mi-main">
-          테마 <span style={{ color: 'var(--ink3)', marginLeft: 6, fontSize: 9 }}>· {current.label}</span>
+          테마 <span style={{ color: 'var(--ink3)', marginLeft: 6, fontSize: 10 }}>· {current.label}</span>
         </div>
         <span className="mi-arr">▶</span>
       </button>
@@ -109,7 +109,7 @@ export function ThemeSettingsItem() {
                       <span
                         style={{
                           fontFamily: 'var(--f1)',
-                          fontSize: 9,
+                          fontSize: 10,
                           color: 'var(--ink)',
                           letterSpacing: 0.5,
                         }}

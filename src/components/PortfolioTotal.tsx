@@ -64,7 +64,7 @@ export function PortfolioTotal() {
       <div
         style={{
           fontFamily: 'var(--f1)',
-          fontSize: 8,
+          fontSize: 9,
           color: 'rgba(255,255,255,.5)',
           letterSpacing: 0.4,
           marginBottom: 4,
@@ -76,7 +76,7 @@ export function PortfolioTotal() {
         <span
           style={{
             fontFamily: 'var(--f1)',
-            fontSize: 16,
+            fontSize: 17,
             color: 'var(--gold)',
             letterSpacing: 0.3,
           }}
@@ -90,7 +90,7 @@ export function PortfolioTotal() {
                 : '시세 조회 실패'}
         </span>
         {state.kind === 'ok' && (
-          <span style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'rgba(255,255,255,.45)' }}>
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.45)' }}>
             {state.pricedCount}/{state.totalCount}장 시세 반영
           </span>
         )}

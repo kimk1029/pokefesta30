@@ -95,7 +95,7 @@ export function ShopScreen() {
                 background: 'var(--white)',
                 color: 'var(--ink)',
                 fontFamily: 'var(--f1)',
-                fontSize: 12,
+                fontSize: 13,
                 lineHeight: 1,
                 boxShadow:
                   '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),2px 2px 0 var(--ink)',
@@ -248,7 +248,7 @@ function PointHelpModal({ onClose }: { onClose: () => void }) {
                 padding: '10px 12px',
                 background: 'var(--white)',
                 fontFamily: 'var(--f1)',
-                fontSize: 9,
+                fontSize: 10,
                 lineHeight: 1.5,
                 boxShadow:
                   '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',

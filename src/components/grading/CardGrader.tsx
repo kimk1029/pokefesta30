@@ -252,7 +252,7 @@ export function CardGrader() {
           padding: '8px 10px',
           background: 'var(--pap2)',
           fontFamily: 'var(--f1)',
-          fontSize: 9,
+          fontSize: 10,
           color: 'var(--ink2)',
           letterSpacing: 0.3,
           lineHeight: 1.6,
@@ -274,7 +274,7 @@ export function CardGrader() {
           >
             📷 카드 사진 선택 / 촬영
           </button>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', textAlign: 'center', lineHeight: 1.6 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', textAlign: 'center', lineHeight: 1.6 }}>
             먼저 사진을 올려주세요 — 그 다음 자동 외곽 검출(선택) 또는 핸들 드래그로 맞춥니다.
           </div>
         </div>
@@ -288,7 +288,7 @@ export function CardGrader() {
             background: 'var(--red)',
             color: 'var(--white)',
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             letterSpacing: 0.5,
             textAlign: 'center',
           }}
@@ -414,7 +414,7 @@ export function CardGrader() {
                   gap: 14,
                   color: 'var(--yel)',
                   fontFamily: 'var(--f1)',
-                  fontSize: 10,
+                  fontSize: 11,
                   letterSpacing: 0.5,
                   padding: 16,
                   textAlign: 'center',
@@ -494,7 +494,7 @@ export function CardGrader() {
                 background: 'var(--ink)',
                 color: 'var(--yel)',
                 fontFamily: 'var(--f1)',
-                fontSize: 9,
+                fontSize: 10,
                 letterSpacing: 0.5,
                 lineHeight: 1.5,
               }}
@@ -504,7 +504,7 @@ export function CardGrader() {
                 <span style={{ flex: 1 }}>{ocrPhase ?? '인식 중…'}</span>
               </div>
               <ProgressBar value={ocrProgress} indeterminate={ocrProgress == null} tone="yellow" />
-              <div style={{ marginTop: 6, fontSize: 8, opacity: 0.8 }}>
+              <div style={{ marginTop: 6, fontSize: 9, opacity: 0.8 }}>
                 하단 영역 (카드번호/세트코드) 만 영문 인식 — 첫 실행 시 ~10MB 다운로드
               </div>
             </div>
@@ -517,7 +517,7 @@ export function CardGrader() {
                 background: 'var(--red)',
                 color: 'var(--white)',
                 fontFamily: 'var(--f1)',
-                fontSize: 9,
+                fontSize: 10,
                 letterSpacing: 0.5,
                 textAlign: 'center',
                 lineHeight: 1.5,
@@ -539,7 +539,7 @@ export function CardGrader() {
           {result && <ResultCard r={result} />}
 
           {/* 범례 */}
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', lineHeight: 1.7 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', lineHeight: 1.7 }}>
             <span style={{ color: '#3A5BD9' }}>● 외곽(파랑)</span> = 카드 컷 라인 (테두리 끝).
             {' '}<span style={{ color: '#FFD23F' }}>● 내곽(노랑)</span> = 인쇄 프레임 안쪽 라인.
             <br />
@@ -655,7 +655,7 @@ function Loupe({
           bottom: 4,
           right: 8,
           fontFamily: 'var(--f1)',
-          fontSize: 8,
+          fontSize: 9,
           color: 'rgba(255,255,255,.85)',
           background: 'rgba(0,0,0,.5)',
           padding: '1px 4px',
@@ -728,7 +728,7 @@ function MarginLabel({ x, y, pct, px, worst }: { x: number; y: number; pct: numb
         color: 'var(--white)',
         padding: '3px 6px',
         fontFamily: 'var(--f1)',
-        fontSize: 8,
+        fontSize: 9,
         letterSpacing: 0.3,
         whiteSpace: 'nowrap',
         pointerEvents: 'none', // 핸들 드래그 방해 안 하게
@@ -799,7 +799,7 @@ function ProgressBar({
           style={{
             marginTop: 4,
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             letterSpacing: 0.5,
             textAlign: 'right',
             color: 'currentColor',
@@ -896,7 +896,7 @@ function ResultCard({ r }: { r: CenteringResult }) {
           background: r.band.tone,
           color: '#fff',
           fontFamily: 'var(--f1)',
-          fontSize: 12,
+          fontSize: 13,
           letterSpacing: 0.5,
           textAlign: 'center',
           marginBottom: 8,
@@ -904,7 +904,7 @@ function ResultCard({ r }: { r: CenteringResult }) {
       >
         ▶ 추정 등급: <b>{r.band.label}</b>
       </div>
-      <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', lineHeight: 1.6, textAlign: 'center' }}>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', lineHeight: 1.6, textAlign: 'center' }}>
         센터링 한 항목 기준. 코너 / 표면 / 인쇄 결함은 별도.
       </div>
     </div>
@@ -929,7 +929,7 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
       <div
         style={{
           fontFamily: 'var(--f1)',
-          fontSize: 10,
+          fontSize: 11,
           letterSpacing: 0.5,
           fontWeight: 700,
           color: 'var(--ink)',
@@ -942,7 +942,7 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
       </div>
 
       {!found && (
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', textAlign: 'center', padding: 12 }}>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', textAlign: 'center', padding: 12 }}>
           카드 번호/세트 코드를 찾지 못했어요.
           <br />
           하단 영역이 잘 안 보이거나 번호 자리가 외곽 밖이면 외곽 사각형을 더 정확히 맞춰주세요.
@@ -967,7 +967,7 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
             border: 'none',
             cursor: 'pointer',
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             color: 'var(--blu)',
             letterSpacing: 0.3,
             padding: 0,
@@ -980,7 +980,7 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
             href={`/cards/search?q=${encodeURIComponent(r.cardNumber.raw)}`}
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--white)',
               background: 'var(--blu)',
               padding: '4px 8px',
@@ -1000,7 +1000,7 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
             padding: 8,
             background: 'var(--pap2)',
             fontFamily: 'monospace',
-            fontSize: 9,
+            fontSize: 10,
             color: 'var(--ink)',
             lineHeight: 1.5,
             whiteSpace: 'pre-wrap',
@@ -1013,7 +1013,7 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
         </pre>
       )}
 
-      <div style={{ marginTop: 8, fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', lineHeight: 1.6 }}>
+      <div style={{ marginTop: 8, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', lineHeight: 1.6 }}>
         ⚠ OCR 자동 추출 — 이름은 OCR 정확도 한계로 오타가 있을 수 있어요. 번호로 시세를 조회하는 게 정확합니다.
       </div>
     </div>
@@ -1023,14 +1023,14 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
 function KvRow({ k, v, highlight }: { k: string; v: string; highlight?: boolean }) {
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-      <div style={{ minWidth: 80, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: 0.3 }}>
+      <div style={{ minWidth: 80, fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', letterSpacing: 0.3 }}>
         {k}
       </div>
       <div
         style={{
           flex: 1,
           fontFamily: 'var(--f1)',
-          fontSize: highlight ? 13 : 11,
+          fontSize: highlight ? 14 : 12,
           fontWeight: highlight ? 700 : 400,
           color: highlight ? 'var(--red)' : 'var(--ink)',
           letterSpacing: 0.3,
@@ -1046,13 +1046,13 @@ function KvRow({ k, v, highlight }: { k: string; v: string; highlight?: boolean 
 function Stat({ label, value, hi }: { label: string; value: string; hi: boolean }) {
   return (
     <div style={{ flex: 1 }}>
-      <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', letterSpacing: 0.5, marginBottom: 4 }}>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: 0.5, marginBottom: 4 }}>
         {label} {hi && '⚠'}
       </div>
       <div
         style={{
           fontFamily: 'var(--f1)',
-          fontSize: 18,
+          fontSize: 19,
           fontWeight: 700,
           color: hi ? 'var(--red)' : 'var(--ink)',
           letterSpacing: 0.5,
@@ -1144,7 +1144,7 @@ function mainBtn(bg: string): React.CSSProperties {
     width: '100%',
     padding: '14px 16px',
     fontFamily: 'var(--f1)',
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.5,
     color: 'var(--white)',
     background: bg,
@@ -1161,7 +1161,7 @@ function ctrlBtn(bg: string): React.CSSProperties {
     minWidth: 100,
     padding: '8px 10px',
     fontFamily: 'var(--f1)',
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 0.5,
     color: 'var(--white)',
     background: bg,

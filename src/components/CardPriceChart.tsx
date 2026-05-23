@@ -20,7 +20,7 @@ export function CardPriceChart({ history, width = 120, height = 40 }: Props) {
           display: 'grid',
           placeItems: 'center',
           fontFamily: 'var(--f1)',
-          fontSize: 7,
+          fontSize: 8,
           color: 'var(--ink3)',
           background: 'var(--pap2)',
           letterSpacing: 0.3,

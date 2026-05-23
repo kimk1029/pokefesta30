@@ -87,7 +87,7 @@ export function SnkrdunkSearchBar() {
             outline: 'none',
             background: 'var(--white)',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 11,
             color: 'var(--ink)',
             letterSpacing: 0.3,
             transition: 'width 220ms ease, padding 220ms ease',
@@ -114,7 +114,7 @@ export function SnkrdunkSearchBar() {
               background: 'transparent',
               cursor: 'pointer',
               fontFamily: 'var(--f1)',
-              fontSize: 10,
+              fontSize: 11,
               color: 'var(--ink3)',
             }}
           >
@@ -142,7 +142,7 @@ export function SnkrdunkSearchBar() {
             color: 'var(--gold)',
             cursor: 'pointer',
             fontFamily: 'var(--f1)',
-            fontSize: 14,
+            fontSize: 15,
             letterSpacing: 0,
             boxShadow:
               '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--yel-dk)',
@@ -160,7 +160,7 @@ export function SnkrdunkSearchBar() {
               style={{
                 padding: '20px 0',
                 fontFamily: 'var(--f1)',
-                fontSize: 9,
+                fontSize: 10,
                 color: 'var(--ink3)',
                 textAlign: 'center',
                 letterSpacing: 0.3,
@@ -173,7 +173,7 @@ export function SnkrdunkSearchBar() {
               style={{
                 padding: '20px 0',
                 fontFamily: 'var(--f1)',
-                fontSize: 9,
+                fontSize: 10,
                 color: 'var(--ink3)',
                 textAlign: 'center',
                 letterSpacing: 0.3,
@@ -186,7 +186,7 @@ export function SnkrdunkSearchBar() {
               <div
                 style={{
                   fontFamily: 'var(--f1)',
-                  fontSize: 9,
+                  fontSize: 10,
                   color: 'var(--ink3)',
                   letterSpacing: 0.3,
                   marginBottom: 8,
@@ -234,7 +234,7 @@ export function SnkrdunkSearchBar() {
                       <div
                         style={{
                           fontFamily: 'var(--f1)',
-                          fontSize: 9,
+                          fontSize: 10,
                           letterSpacing: 0.2,
                           color: 'var(--ink)',
                           lineHeight: 1.4,
@@ -250,7 +250,7 @@ export function SnkrdunkSearchBar() {
                         <div
                           style={{
                             fontFamily: 'var(--f1)',
-                            fontSize: 10,
+                            fontSize: 11,
                             color: 'var(--red)',
                             letterSpacing: 0.3,
                             marginTop: 4,

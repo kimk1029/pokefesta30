@@ -94,7 +94,7 @@ export function AvatarPicker({ inv, onClose }: Props) {
               background: 'var(--ink)',
               color: 'var(--yel)',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               letterSpacing: 0.5,
               textAlign: 'center',
               boxShadow: '3px 3px 0 var(--yel-dk)',
@@ -161,7 +161,7 @@ export function AvatarPicker({ inv, onClose }: Props) {
             onClick={onClose}
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--ink3)',
               letterSpacing: 0.5,
               textDecoration: 'underline',

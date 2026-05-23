@@ -145,7 +145,7 @@ export function TradeImagePicker({
                 border: 'none',
                 cursor: 'pointer',
                 fontFamily: 'var(--f1)',
-                fontSize: 10,
+                fontSize: 11,
                 lineHeight: 1,
                 boxShadow:
                   '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
@@ -170,7 +170,7 @@ export function TradeImagePicker({
               display: 'grid',
               placeItems: 'center',
               fontFamily: 'var(--f1)',
-              fontSize: 8,
+              fontSize: 9,
               color: 'var(--ink2)',
               letterSpacing: 0.3,
               textAlign: 'center',
@@ -194,11 +194,11 @@ export function TradeImagePicker({
       />
 
       {err && (
-        <div style={{ marginTop: 8, fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--red)', letterSpacing: 0.3 }}>
+        <div style={{ marginTop: 8, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--red)', letterSpacing: 0.3 }}>
           ⚠ {err}
         </div>
       )}
-      <div style={{ marginTop: 6, fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', letterSpacing: 0.3 }}>
+      <div style={{ marginTop: 6, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: 0.3 }}>
         jpg/png/webp · 최대 {max}장 · 자동 압축(가로 1280px, 80% 품질)
       </div>
     </div>

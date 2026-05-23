@@ -63,7 +63,7 @@ export function TradeStatusActions({ tradeId, status, isAuthor, canComplete }: P
   const btnBase: React.CSSProperties = {
     padding: '10px 14px',
     fontFamily: 'var(--f1)',
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1,
     cursor: 'pointer',
     border: 'none',
@@ -83,7 +83,7 @@ export function TradeStatusActions({ tradeId, status, isAuthor, canComplete }: P
             background: 'var(--ink)',
             color: 'var(--yel)',
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             letterSpacing: 0.5,
             textAlign: 'center',
           }}
@@ -137,7 +137,7 @@ export function TradeStatusActions({ tradeId, status, isAuthor, canComplete }: P
             background: 'var(--pap2)',
             color: 'var(--ink2)',
             fontFamily: 'var(--f1)',
-            fontSize: 8,
+            fontSize: 9,
             letterSpacing: 0.5,
             textAlign: 'center',
           }}

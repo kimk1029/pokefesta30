@@ -72,7 +72,7 @@ export function EditableName({ initialName }: Props) {
               width: '100%',
               padding: '4px 8px',
               fontFamily: 'var(--f1)',
-              fontSize: 13,
+              fontSize: 14,
               letterSpacing: 1,
               color: 'var(--ink)',
               background: 'var(--white)',
@@ -100,7 +100,7 @@ export function EditableName({ initialName }: Props) {
             ✕
           </button>
         </div>
-        {err && <div style={{ fontSize: 8, color: 'var(--red)' }}>⚠ {err}</div>}
+        {err && <div style={{ fontSize: 9, color: 'var(--red)' }}>⚠ {err}</div>}
       </div>
     );
   }
@@ -130,7 +130,7 @@ export function EditableName({ initialName }: Props) {
           border: '1px solid var(--ink)',
           cursor: 'pointer',
           fontFamily: 'var(--f1)',
-          fontSize: 8,
+          fontSize: 9,
           letterSpacing: 0.5,
           padding: '3px 6px',
           lineHeight: 1,
@@ -150,7 +150,7 @@ function btnStyle(bg: string): React.CSSProperties {
     color: 'var(--ink)',
     border: 'none',
     cursor: 'pointer',
-    fontSize: 10,
+    fontSize: 11,
     display: 'inline-grid',
     placeItems: 'center',
   };

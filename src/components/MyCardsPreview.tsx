@@ -30,7 +30,7 @@ export function MyCardsPreview({ cards, total }: Props) {
             padding: '14px 12px',
             background: 'var(--pap2)',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 11,
             color: 'var(--ink2)',
             letterSpacing: 0.4,
             lineHeight: 1.6,
@@ -42,7 +42,7 @@ export function MyCardsPreview({ cards, total }: Props) {
         >
           🃏 카드를 그레이딩해서 내 컬렉션에 추가해 보세요
           <br />
-          <span style={{ fontSize: 9, opacity: 0.7 }}>＋ 그레이딩으로 가기</span>
+          <span style={{ fontSize: 10, opacity: 0.7 }}>＋ 그레이딩으로 가기</span>
         </Link>
       ) : (
         <div
@@ -85,7 +85,7 @@ function PreviewTile({ card }: { card: MyCardRow }) {
           background: 'var(--white)',
           display: 'grid',
           placeItems: 'center',
-          fontSize: 30,
+          fontSize: 31,
           overflow: 'hidden',
           boxShadow:
             '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)',
@@ -107,7 +107,7 @@ function PreviewTile({ card }: { card: MyCardRow }) {
         style={{
           marginTop: 4,
           fontFamily: 'var(--f1)',
-          fontSize: 9,
+          fontSize: 10,
           color: 'var(--ink)',
           letterSpacing: 0.3,
           whiteSpace: 'nowrap',
@@ -122,7 +122,7 @@ function PreviewTile({ card }: { card: MyCardRow }) {
         <div
           style={{
             fontFamily: 'var(--f1)',
-            fontSize: 8,
+            fontSize: 9,
             color: 'var(--ink3)',
             letterSpacing: 0.3,
           }}

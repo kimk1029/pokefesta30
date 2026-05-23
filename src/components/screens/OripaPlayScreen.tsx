@@ -322,7 +322,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
             background: revealStage === 'idle' ? 'var(--pur)' : 'var(--ink3)',
             color: 'var(--white)',
             fontFamily: 'var(--f1)',
-            fontSize: 11,
+            fontSize: 12,
             letterSpacing: 1,
             cursor: revealStage === 'idle' ? 'pointer' : 'not-allowed',
             opacity: revealStage === 'idle' && remaining >= qty ? 1 : 0.55,
@@ -384,7 +384,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
           background: selectionDone ? 'var(--red)' : 'var(--pap2)',
           color: selectionDone ? 'var(--white)' : 'var(--ink2)',
           fontFamily: 'var(--f1)',
-          fontSize: 9,
+          fontSize: 10,
           letterSpacing: 0.5,
           lineHeight: 1.7,
           textAlign: 'center',
@@ -452,7 +452,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
                     }}
                   />
                 ) : (
-                  <div style={{ fontSize: 60, lineHeight: 1 }}>{activeReveal.emoji}</div>
+                  <div style={{ fontSize: 61, lineHeight: 1 }}>{activeReveal.emoji}</div>
                 )}
               </div>
             </div>
@@ -487,7 +487,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
             <div
               style={{
                 fontFamily: 'var(--f1)',
-                fontSize: 9,
+                fontSize: 10,
                 color: 'var(--ink2)',
                 lineHeight: 1.8,
                 textAlign: 'center',
@@ -515,7 +515,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
                     background: 'var(--grn)',
                     color: 'var(--white)',
                     fontFamily: 'var(--f1)',
-                    fontSize: 8,
+                    fontSize: 9,
                     display: 'grid',
                     placeItems: 'center',
                     boxShadow:
@@ -554,7 +554,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
                 background: 'transparent',
                 color: 'var(--ink3)',
                 fontFamily: 'var(--f1)',
-                fontSize: 8,
+                fontSize: 9,
                 padding: 6,
                 cursor: revealStage === 'idle' ? 'pointer' : 'not-allowed',
                 border: 'none',
@@ -592,7 +592,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
                 gap: 8,
                 width: '100%',
                 fontFamily: 'var(--f1)',
-                fontSize: 8,
+                fontSize: 9,
               }}
             >
               {(['S', 'A', 'B', 'C'] as const).map((g) => {

@@ -85,7 +85,7 @@ function Sparkline({
           display: 'grid',
           placeItems: 'center',
           fontFamily: 'var(--f1)',
-          fontSize: 7,
+          fontSize: 8,
           color: 'var(--ink3)',
           background: 'var(--pap2)',
           letterSpacing: 0.3,
@@ -181,12 +181,12 @@ export default async function Page() {
             '-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),inset 0 3px 0 var(--ink2),8px 8px 0 var(--yel-dk)',
         }}
       >
-        <div style={{ fontSize: 31 }}>🇯🇵</div>
+        <div style={{ fontSize: 32 }}>🇯🇵</div>
         <div style={{ flex: 1 }}>
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: 1,
               color: 'var(--yel)',
             }}
@@ -196,7 +196,7 @@ export default async function Page() {
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 8,
+              fontSize: 9,
               letterSpacing: 0.3,
               color: 'rgba(255,255,255,.7)',
               marginTop: 6,
@@ -256,7 +256,7 @@ export default async function Page() {
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
                 ) : (
-                  <span style={{ fontSize: 36 }}>🃏</span>
+                  <span style={{ fontSize: 37 }}>🃏</span>
                 )}
               </div>
               <div className="sh-main">
@@ -265,7 +265,7 @@ export default async function Page() {
                     <span
                       style={{
                         fontFamily: 'var(--f1)',
-                        fontSize: 8,
+                        fontSize: 9,
                         padding: '2px 5px',
                         background: bg,
                         color: 'var(--white)',
@@ -283,7 +283,7 @@ export default async function Page() {
                   className="sh-desc"
                   style={{
                     fontFamily: 'var(--f1)',
-                    fontSize: 10,
+                    fontSize: 11,
                     color: 'var(--ink)',
                     marginTop: 6,
                     letterSpacing: 0.3,
@@ -294,7 +294,7 @@ export default async function Page() {
                 <div
                   style={{
                     fontFamily: 'var(--f1)',
-                    fontSize: 8,
+                    fontSize: 9,
                     color: 'var(--ink3)',
                     marginTop: 4,
                   }}

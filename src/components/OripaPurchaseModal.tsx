@@ -117,12 +117,12 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
             style={{ marginBottom: 0, padding: '10px 12px 8px' }}
           >
             <div className="ob-top" style={{ gap: 9 }}>
-              <div className="ob-icon" style={{ width: 44, height: 44, fontSize: 24 }}>
+              <div className="ob-icon" style={{ width: 44, height: 44, fontSize: 25 }}>
                 {box.emoji}
               </div>
               <div className="ob-meta">
-                <div className="ob-name" style={{ fontSize: 11, marginTop: 0 }}>{box.name}</div>
-                <div className="ob-desc" style={{ fontSize: 8, marginTop: 4 }}>{box.desc}</div>
+                <div className="ob-name" style={{ fontSize: 12, marginTop: 0 }}>{box.name}</div>
+                <div className="ob-desc" style={{ fontSize: 9, marginTop: 4 }}>{box.desc}</div>
               </div>
             </div>
             {box.stats && <ModalStatsRow stats={box.stats} />}
@@ -152,13 +152,13 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                 className={`avatar-tile${active ? ' active' : ''}`}
                 style={{ aspectRatio: 'auto', padding: '7px 6px', minHeight: 54, opacity: busy ? 0.5 : 1 }}
               >
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.5 }}>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: 0.5 }}>
                   {p.label}
                 </div>
                 <div
                   style={{
                     fontFamily: 'var(--f1)',
-                    fontSize: 9,
+                    fontSize: 10,
                     color: active ? 'var(--ink)' : 'var(--red)',
                     marginTop: 2,
                   }}
@@ -169,7 +169,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                   <div
                     style={{
                       fontFamily: 'var(--f1)',
-                      fontSize: 8,
+                      fontSize: 9,
                       color: 'var(--grn-dk)',
                       marginTop: 2,
                     }}
@@ -188,7 +188,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
               padding: '8px 10px',
               background: 'var(--pap2)',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               lineHeight: 1.55,
               boxShadow:
                 '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)',
@@ -211,7 +211,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                 marginTop: 4,
                 paddingTop: 4,
                 borderTop: '2px dashed var(--ink3)',
-                fontSize: 11,
+                fontSize: 12,
                 color: 'var(--red)',
               }}
             >
@@ -223,7 +223,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 marginTop: 3,
-                fontSize: 8,
+                fontSize: 9,
                 color: 'var(--ink3)',
               }}
             >
@@ -238,7 +238,7 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
                 padding: '4px 10px',
                 color: 'var(--red)',
                 fontFamily: 'var(--f1)',
-                fontSize: 8,
+                fontSize: 9,
                 textAlign: 'center',
               }}
             >
@@ -303,7 +303,7 @@ function ModalStatsRow({
         padding: '5px 7px',
         background: 'rgba(0,0,0,.18)',
         fontFamily: 'var(--f1)',
-        fontSize: 8,
+        fontSize: 9,
         letterSpacing: 0.3,
       }}
     >
@@ -367,7 +367,7 @@ function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
       <div
         style={{
           fontFamily: 'var(--f1)',
-          fontSize: 9,
+          fontSize: 10,
           letterSpacing: 0.4,
           color: 'var(--ink)',
           marginBottom: 4,
@@ -386,7 +386,7 @@ function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
                 alignItems: 'center',
                 gap: 6,
                 fontFamily: 'var(--f1)',
-                fontSize: 8,
+                fontSize: 9,
                 lineHeight: 1.4,
               }}
             >
@@ -399,13 +399,13 @@ function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
                   height: 15,
                   background: GRADE_COLOR[p.grade] ?? 'var(--ink3)',
                   color: 'var(--white)',
-                  fontSize: 7,
+                  fontSize: 8,
                   fontWeight: 'bold',
                 }}
               >
                 {p.grade}
               </span>
-              <span style={{ flexShrink: 0, fontSize: 11 }}>{p.emoji}</span>
+              <span style={{ flexShrink: 0, fontSize: 12 }}>{p.emoji}</span>
               <span
                 style={{
                   flex: 1,
@@ -423,7 +423,7 @@ function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
                 style={{
                   flexShrink: 0,
                   color: 'var(--ink3)',
-                  fontSize: 8,
+                  fontSize: 9,
                   letterSpacing: 0.3,
                 }}
               >

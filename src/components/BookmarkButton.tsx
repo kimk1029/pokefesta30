@@ -46,7 +46,7 @@ export function BookmarkButton({ tradeId, feedId, initial = false }: Props) {
         background: 'none',
         border: 'none',
         cursor: 'pointer',
-        fontSize: 17,
+        fontSize: 18,
         lineHeight: 1,
         padding: '4px',
         opacity: pending ? 0.5 : 1,

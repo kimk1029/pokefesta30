@@ -183,7 +183,7 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
           <div className="form-sect">
             <div className="form-label">
               💬 카카오톡 ID / 오픈채팅 링크{' '}
-              <span style={{ fontSize: 10, opacity: 0.6 }}>(선택)</span>
+              <span style={{ fontSize: 11, opacity: 0.6 }}>(선택)</span>
             </div>
             <TextInput
               placeholder="예) kakao_id 또는 https://open.kakao.com/o/..."
@@ -193,7 +193,7 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
           </div>
           <div className="form-sect">
             <div className="form-label">
-              📷 상품 사진 <span style={{ fontSize: 10, opacity: 0.6 }}>(선택)</span>
+              📷 상품 사진 <span style={{ fontSize: 11, opacity: 0.6 }}>(선택)</span>
             </div>
             <TradeImagePicker value={images} onChange={setImages} max={5} />
           </div>
@@ -214,7 +214,7 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
       {isFeed && (
         <div className="form-sect">
           <div className="form-label">
-            📷 사진 첨부 <span style={{ fontSize: 10, opacity: 0.6 }}>(선택, 최대 3장 · 펼쳐야 보임)</span>
+            📷 사진 첨부 <span style={{ fontSize: 11, opacity: 0.6 }}>(선택, 최대 3장 · 펼쳐야 보임)</span>
           </div>
           <TradeImagePicker
             value={images}
@@ -228,7 +228,7 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
       {error && (
         <div
           className="form-sect"
-          style={{ color: 'var(--red)', fontFamily: 'var(--f2)', fontSize: 16 }}
+          style={{ color: 'var(--red)', fontFamily: 'var(--f2)', fontSize: 17 }}
         >
           ⚠ {error}
         </div>
@@ -240,7 +240,7 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
           padding: '8px 12px',
           background: 'var(--pap2)',
           fontFamily: 'var(--f1)',
-          fontSize: 8,
+          fontSize: 9,
           color: 'var(--ink2)',
           letterSpacing: 0.3,
           lineHeight: 1.6,

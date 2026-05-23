@@ -92,7 +92,7 @@ export function AdminOripaTicketList({ initialItems, initialNextCursor, totalDra
         style={{
           marginBottom: 10,
           fontFamily: 'var(--f1)',
-          fontSize: 9,
+          fontSize: 10,
           color: 'var(--ink2)',
           letterSpacing: 0.5,
         }}
@@ -108,7 +108,7 @@ export function AdminOripaTicketList({ initialItems, initialNextCursor, totalDra
             background: 'var(--red)',
             color: 'var(--white)',
             fontFamily: 'var(--f1)',
-            fontSize: 9,
+            fontSize: 10,
             letterSpacing: 0.5,
             textAlign: 'center',
           }}
@@ -123,7 +123,7 @@ export function AdminOripaTicketList({ initialItems, initialNextCursor, totalDra
             padding: 24,
             textAlign: 'center',
             fontFamily: 'var(--f1)',
-            fontSize: 10,
+            fontSize: 11,
             color: 'var(--ink3)',
             background: 'var(--white)',
             boxShadow:
@@ -148,10 +148,10 @@ export function AdminOripaTicketList({ initialItems, initialNextCursor, totalDra
                   {t.packPrice ? ` · ${t.packPrice.toLocaleString()}P` : ''}
                 </span>
               </div>
-              <div style={{ marginTop: 6, fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink)' }}>
+              <div style={{ marginTop: 6, fontFamily: 'var(--f1)', fontSize: 12, color: 'var(--ink)' }}>
                 {t.prizeEmoji ?? '🎁'} {t.prizeName ?? '(이름없음)'}
               </div>
-              <div style={{ marginTop: 4, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>
+              <div style={{ marginTop: 4, fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)' }}>
                 {t.drawnAt ? new Date(t.drawnAt).toLocaleString('ko-KR', { hour12: false }) : '-'}
               </div>
             </div>
@@ -182,7 +182,7 @@ export function AdminOripaTicketList({ initialItems, initialNextCursor, totalDra
             style={{
               padding: '10px 18px',
               fontFamily: 'var(--f1)',
-              fontSize: 10,
+              fontSize: 11,
               letterSpacing: 0.5,
               background: 'var(--ink)',
               color: 'var(--yel)',
@@ -265,7 +265,7 @@ function UserPopup({ userId, onClose }: { userId: string; onClose: () => void })
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 700, color: 'var(--ink)', letterSpacing: 0.5 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 12, fontWeight: 700, color: 'var(--ink)', letterSpacing: 0.5 }}>
             👤 사용자 상세
           </div>
           <button
@@ -279,7 +279,7 @@ function UserPopup({ userId, onClose }: { userId: string; onClose: () => void })
               cursor: 'pointer',
               padding: '4px 8px',
               fontFamily: 'var(--f1)',
-              fontSize: 10,
+              fontSize: 11,
             }}
           >
             ✕
@@ -287,7 +287,7 @@ function UserPopup({ userId, onClose }: { userId: string; onClose: () => void })
         </div>
 
         {loading && (
-          <div style={{ padding: 20, textAlign: 'center', fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)' }}>
+          <div style={{ padding: 20, textAlign: 'center', fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)' }}>
             불러오는 중…
           </div>
         )}
@@ -298,7 +298,7 @@ function UserPopup({ userId, onClose }: { userId: string; onClose: () => void })
               background: 'var(--red)',
               color: 'var(--white)',
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 10,
               textAlign: 'center',
             }}
           >
@@ -306,7 +306,7 @@ function UserPopup({ userId, onClose }: { userId: string; onClose: () => void })
           </div>
         )}
         {user && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink)' }}>
             <Row k="이름" v={user.name} />
             <Row k="이메일" v={user.email ?? '-'} />
             <Row k="ID" v={user.id} mono />
@@ -346,7 +346,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
         marginTop: 6,
         paddingTop: 8,
         borderTop: '1px dashed rgba(0,0,0,.2)',
-        fontSize: 9,
+        fontSize: 10,
         color: 'var(--ink3)',
         letterSpacing: 0.5,
       }}
@@ -359,12 +359,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-      <div style={{ minWidth: 96, color: 'var(--ink3)', fontSize: 9 }}>{k}</div>
+      <div style={{ minWidth: 96, color: 'var(--ink3)', fontSize: 10 }}>{k}</div>
       <div
         style={{
           flex: 1,
           fontFamily: mono ? 'monospace' : 'var(--f1)',
-          fontSize: mono ? 9 : 10,
+          fontSize: mono ? 10 : 11,
           wordBreak: 'break-all',
           color: 'var(--ink)',
         }}
@@ -385,7 +385,7 @@ const rowBoxStyle: React.CSSProperties = {
 
 const chipStyle: React.CSSProperties = {
   fontFamily: 'var(--f1)',
-  fontSize: 8,
+  fontSize: 9,
   letterSpacing: 0.3,
   padding: '3px 6px',
   background: 'var(--ink)',
@@ -399,7 +399,7 @@ const userBtnStyle: React.CSSProperties = {
   border: 'none',
   padding: '6px 10px',
   fontFamily: 'var(--f1)',
-  fontSize: 9,
+  fontSize: 10,
   letterSpacing: 0.3,
   cursor: 'pointer',
   whiteSpace: 'nowrap',

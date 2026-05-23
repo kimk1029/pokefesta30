@@ -49,10 +49,10 @@ export default async function PackExplorerPage() {
               '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)',
           }}
         >
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 14, letterSpacing: 0.4 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 15, letterSpacing: 0.4 }}>
             포켓몬 카드 박스
           </div>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 7, lineHeight: 1.6 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', marginTop: 7, lineHeight: 1.6 }}>
             박스를 선택하면 해당 박스에 포함된 싱글카드 시세가 표시됩니다.
           </div>
         </div>
@@ -75,7 +75,7 @@ export default async function PackExplorerPage() {
                   flexShrink: 0,
                   background: pack.bg,
                   color: 'var(--white)',
-                  fontSize: 22,
+                  fontSize: 23,
                   boxShadow:
                     '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.35),3px 3px 0 var(--ink)',
                   overflow: 'hidden',
@@ -92,7 +92,7 @@ export default async function PackExplorerPage() {
                 <div
                   style={{
                     fontFamily: 'var(--f1)',
-                    fontSize: 12,
+                    fontSize: 13,
                     letterSpacing: 0.2,
                     whiteSpace: 'normal',
                     lineHeight: 1.45,
@@ -100,7 +100,7 @@ export default async function PackExplorerPage() {
                 >
                   {pack.name}
                 </div>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 5, lineHeight: 1.45 }}>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 5, lineHeight: 1.45 }}>
                   {pack.boxKoName}
                   <br />
                   {pack.boxName}
@@ -116,13 +116,13 @@ export default async function PackExplorerPage() {
                         background: 'var(--yel)',
                         color: 'var(--ink)',
                         fontFamily: 'var(--f1)',
-                        fontSize: 9,
+                        fontSize: 10,
                         letterSpacing: 0.3,
                         boxShadow:
                           '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
                       }}
                     >
-                      <span style={{ fontSize: 7, opacity: 0.7 }}>박스</span>
+                      <span style={{ fontSize: 8, opacity: 0.7 }}>박스</span>
                       <b>¥{pack.boxPrice.toLocaleString('ja-JP')}</b>
                     </span>
                   ) : (
@@ -133,7 +133,7 @@ export default async function PackExplorerPage() {
                         background: 'var(--pap2)',
                         color: 'var(--ink2)',
                         fontFamily: 'var(--f1)',
-                        fontSize: 8,
+                        fontSize: 9,
                         letterSpacing: 0.3,
                         boxShadow:
                           '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
@@ -144,7 +144,7 @@ export default async function PackExplorerPage() {
                   )}
                 </div>
               </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 14, color: 'var(--ink3)' }}>›</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 15, color: 'var(--ink3)' }}>›</div>
             </Link>
           ))}
         </div>

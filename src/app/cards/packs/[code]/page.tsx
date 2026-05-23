@@ -58,19 +58,19 @@ export default async function PackDetailPage({ params }: Params) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={pack.boxImageUrl} alt={pack.boxKoName ?? pack.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-              <span style={{ fontSize: 38 }}>{pack.emoji}</span>
+              <span style={{ fontSize: 39 }}>{pack.emoji}</span>
             )}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 13, letterSpacing: 0.5 }}>{pack.name}</div>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 14, letterSpacing: 0.5 }}>{pack.name}</div>
             {pack.boxName ? (
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 8, opacity: 0.78, marginTop: 5, lineHeight: 1.45 }}>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 9, opacity: 0.78, marginTop: 5, lineHeight: 1.45 }}>
                 {pack.boxKoName}
                 <br />
                 {pack.boxName}
               </div>
             ) : null}
-            <div style={{ fontFamily: 'var(--f1)', fontSize: 9, opacity: 0.85, marginTop: 6, letterSpacing: 0.3 }}>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 10, opacity: 0.85, marginTop: 6, letterSpacing: 0.3 }}>
               {pack.releasedAt ? `${pack.releasedAt} 출시 · ` : ''}싱글카드 {cards.length}개
             </div>
           </div>

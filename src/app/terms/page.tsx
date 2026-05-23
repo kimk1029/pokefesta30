@@ -230,7 +230,7 @@ export default function TermsPage() {
             <Link href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</Link>
           </P>
 
-          <P style={{ marginTop: 12, fontSize: 8, color: 'var(--ink3)' }}>
+          <P style={{ marginTop: 12, fontSize: 9, color: 'var(--ink3)' }}>
             본 약관 시행일: {UPDATED_AT}
           </P>
         </Doc>
@@ -264,7 +264,7 @@ function H({ children }: { children: React.ReactNode }) {
       style={{
         margin: '18px 0 8px',
         fontFamily: 'var(--f1)',
-        fontSize: 11,
+        fontSize: 12,
         letterSpacing: 0.5,
         color: 'var(--ink)',
       }}
@@ -286,7 +286,7 @@ function P({
       style={{
         margin: '0 0 8px',
         fontFamily: 'var(--f1)',
-        fontSize: 8,
+        fontSize: 9,
         lineHeight: 1.9,
         letterSpacing: 0.2,
         color: 'var(--ink2)',
@@ -305,7 +305,7 @@ function Ul({ children }: { children: React.ReactNode }) {
         margin: '0 0 8px',
         padding: '0 0 0 14px',
         fontFamily: 'var(--f1)',
-        fontSize: 8,
+        fontSize: 9,
         lineHeight: 1.9,
         letterSpacing: 0.2,
         color: 'var(--ink2)',
