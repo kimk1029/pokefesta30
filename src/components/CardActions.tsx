@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { snkrdunkApparelUrl } from '@/lib/snkrdunk';
+import { useToast } from '@/components/ToastProvider';
 
 interface Props {
   apparelId: number;
@@ -20,6 +21,7 @@ export function CardActions({ apparelId, cardName }: Props) {
   const [collectStatus, setCollectStatus] = useState<Status>('idle');
   const [favStatus, setFavStatus] = useState<Status>('idle');
   const [isFav, setIsFav] = useState<boolean>(false);
+  const toast = useToast();
 
   // 마운트 시 현재 관심 여부 확인 — toggle UI 일관성 위해.
   useEffect(() => {
@@ -62,11 +64,21 @@ export function CardActions({ apparelId, cardName }: Props) {
         goLogin();
         return;
       }
-      if (!r.ok) throw new Error(String(r.status));
+      if (!r.ok) {
+        // 서버가 { error, code, name, message } 로 더 자세한 정보를 줄 수 있음 — 그대로 노출.
+        const body = (await r.json().catch(() => null)) as
+          | { error?: string; code?: string; message?: string }
+          | null;
+        const detail = body?.message || body?.code || body?.error || `HTTP ${r.status}`;
+        throw new Error(detail);
+      }
       setCollectStatus('done');
+      toast.success('내 컬렉션에 추가되었습니다');
       setTimeout(() => setCollectStatus('idle'), 1500);
-    } catch {
+    } catch (err) {
       setCollectStatus('error');
+      const msg = err instanceof Error ? err.message : '추가 실패';
+      toast.error(`추가 실패: ${msg}`);
       setTimeout(() => setCollectStatus('idle'), 1500);
     }
   };
@@ -91,12 +103,21 @@ export function CardActions({ apparelId, cardName }: Props) {
         goLogin();
         return;
       }
-      if (!r.ok) throw new Error(String(r.status));
+      if (!r.ok) {
+        const body = (await r.json().catch(() => null)) as
+          | { error?: string; code?: string; message?: string }
+          | null;
+        const detail = body?.message || body?.code || body?.error || `HTTP ${r.status}`;
+        throw new Error(detail);
+      }
       setIsFav(wantOn);
       setFavStatus('done');
+      toast.success(wantOn ? '관심카드에 추가되었습니다' : '관심카드에서 제거되었습니다');
       setTimeout(() => setFavStatus('idle'), 800);
-    } catch {
+    } catch (err) {
       setFavStatus('error');
+      const msg = err instanceof Error ? err.message : '실패';
+      toast.error(`관심카드 ${wantOn ? '추가' : '제거'} 실패: ${msg}`);
       setTimeout(() => setFavStatus('idle'), 1200);
     }
   };

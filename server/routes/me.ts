@@ -124,8 +124,16 @@ router.post('/cards', async (req: Request, res: Response) => {
     });
     res.status(201).json({ data: created });
   } catch (err) {
-    console.error('[me.cards.POST]', err);
-    res.status(500).json({ error: 'internal' });
+    // 디버깅용 — Prisma 에러 코드/메시지를 응답에도 실어준다.
+    // (운영 중 발견된 500 원인 추적용. 향후 안정화되면 message 노출 빼도 됨.)
+    const e = err as { code?: string; message?: string; name?: string };
+    console.error('[me.cards.POST]', userId, 'err=', e?.name, e?.code, e?.message);
+    res.status(500).json({
+      error: 'internal',
+      code: e?.code ?? null,
+      name: e?.name ?? null,
+      message: e?.message ?? null,
+    });
   }
 });
 
@@ -173,8 +181,14 @@ router.post('/favorites', async (req: Request, res: Response) => {
     });
     res.status(201).json({ data: row });
   } catch (err) {
-    console.error('[me.favorites.POST]', err);
-    res.status(500).json({ error: 'internal' });
+    const e = err as { code?: string; message?: string; name?: string };
+    console.error('[me.favorites.POST]', userId, 'err=', e?.name, e?.code, e?.message);
+    res.status(500).json({
+      error: 'internal',
+      code: e?.code ?? null,
+      name: e?.name ?? null,
+      message: e?.message ?? null,
+    });
   }
 });
 
