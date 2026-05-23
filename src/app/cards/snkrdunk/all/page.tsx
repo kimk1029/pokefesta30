@@ -121,7 +121,7 @@ export default function Page() {
                 className="sh-title"
                 style={{
                   fontFamily: 'var(--f1)',
-                  fontSize: 10,
+                  fontSize: 11,
                   letterSpacing: 0.3,
                   lineHeight: 1.4,
                 }}

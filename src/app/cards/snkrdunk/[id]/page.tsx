@@ -324,7 +324,7 @@ export default async function Page({ params }: PageProps) {
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: 0.3,
               marginBottom: 4,
               lineHeight: 1.4,
@@ -337,7 +337,7 @@ export default async function Page({ params }: PageProps) {
             <div
               style={{
                 fontFamily: 'var(--f1)',
-                fontSize: 7,
+                fontSize: 8,
                 color: 'var(--ink3)',
                 letterSpacing: 0.2,
                 marginBottom: 8,

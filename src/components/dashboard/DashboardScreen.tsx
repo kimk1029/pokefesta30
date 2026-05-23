@@ -475,12 +475,12 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
                       ) : null}
                     </div>
                     <div style={{
-                      fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: 3,
+                      fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.2, marginBottom: 3,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{r.shortName}</div>
                     {showJp ? (
                       <div style={{
-                        fontFamily: 'var(--f1)', fontSize: 7, color: 'var(--ink3)',
+                        fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)',
                         letterSpacing: 0.2, marginBottom: 4,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{r.localizedName}</div>
@@ -642,7 +642,7 @@ function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
               <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
                 <div
                   style={{
-                    fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: 4,
+                    fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.2, marginBottom: 4,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}
                 >

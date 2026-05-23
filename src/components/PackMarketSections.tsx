@@ -78,8 +78,8 @@ function MarketSection({
     <div className="sect">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 13, letterSpacing: 0.4 }}>{title}</div>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 4 }}>{count}개 매물</div>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 14, letterSpacing: 0.4 }}>{title}</div>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 4 }}>{count}개 매물</div>
         </div>
         {sort && onSort ? (
           <select
@@ -166,12 +166,12 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
       <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
         <div
           style={{
-            fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0.2, marginBottom: jpTitle ? 3 : 6,
+            fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.2, marginBottom: jpTitle ? 3 : 6,
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
-            minHeight: 28,
+            minHeight: 30,
             lineHeight: 1.45,
             wordBreak: 'keep-all',
           }}
@@ -182,7 +182,7 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 7,
+              fontSize: 8,
               color: 'var(--ink3)',
               marginBottom: 6,
               whiteSpace: 'nowrap',
