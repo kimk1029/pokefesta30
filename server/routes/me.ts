@@ -16,6 +16,7 @@ import {
   countMyCards,
   getMyBookmarks,
   getMyCardsWithPrices,
+  getMyFavoritesWithPrices,
   getMyFeeds,
   getMyInventory,
   getMyTrades,
@@ -142,6 +143,17 @@ router.get('/favorites', async (req: Request, res: Response) => {
   }
 });
 
+// 관심카드 + 스니덩 시세/이미지 enrich. 관심카드 페이지 전용.
+router.get('/favorites/with-prices', async (req: Request, res: Response) => {
+  try {
+    const data = await getMyFavoritesWithPrices(req.user!.userId, 200);
+    res.json({ data });
+  } catch (err) {
+    console.error('[me.favorites.with-prices]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
 router.post('/favorites', async (req: Request, res: Response) => {
   const userId = req.user!.userId;
   const apparelId = Number((req.body as { snkrdunkApparelId?: unknown } | null)?.snkrdunkApparelId);
@@ -236,6 +248,19 @@ router.get('/portfolio', async (req: Request, res: Response) => {
   }
 });
 
+// NOTE: 정적 경로 (/cards/with-prices) 는 파라미터 경로 (/cards/:id) 보다
+// 먼저 등록해야 한다. Express 가 등록 순서대로 매치하므로, 반대 순서면
+// `:id = "with-prices"` 로 잡혀 컬렉션 페이지가 400 으로 깨진다.
+router.get('/cards/with-prices', async (req: Request, res: Response) => {
+  try {
+    const data = await getMyCardsWithPrices(req.user!.userId, 200);
+    res.json({ data });
+  } catch (err) {
+    console.error('[me.cards.with-prices]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
 router.get('/cards/:id', async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'invalid id' });
@@ -263,16 +288,6 @@ router.delete('/cards/:id', async (req: Request, res: Response) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[me.cards.DELETE]', err);
-    res.status(500).json({ error: 'internal' });
-  }
-});
-
-router.get('/cards/with-prices', async (req: Request, res: Response) => {
-  try {
-    const data = await getMyCardsWithPrices(req.user!.userId, 200);
-    res.json({ data });
-  } catch (err) {
-    console.error('[me.cards.with-prices]', err);
     res.status(500).json({ error: 'internal' });
   }
 });

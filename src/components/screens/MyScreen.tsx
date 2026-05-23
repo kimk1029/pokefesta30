@@ -21,6 +21,7 @@ interface Props {
 
 const ACTIVITY: Array<{ em: string; bg: string; lb: string; href: string }> = [
   { em: '🃏', bg: '#FB923C', lb: '내 카드', href: '/my/cards' },
+  { em: '⭐', bg: '#7C3AED', lb: '관심카드', href: '/my/favorites' },
   { em: '📝', bg: '#FFD23F', lb: '내가 쓴 거래글', href: '/my/trades' },
   { em: '🗣', bg: '#6B3FA0', lb: '내 피드', href: '/my/feeds' },
   { em: '💛', bg: '#3A5BD9', lb: '찜한 글', href: '/my/bookmarks' },

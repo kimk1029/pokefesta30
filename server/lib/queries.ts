@@ -21,6 +21,7 @@ import type {
   TradeStatus,
   TradeType,
 } from '@/lib/types';
+import { fetchSnkrdunkApparel } from '@/lib/snkrdunk';
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -262,6 +263,7 @@ export interface MyCardRow {
   cardId: string | null;
   ocrSetCode: string | null;
   ocrCardNumber: string | null;
+  snkrdunkApparelId: number | null;
   nickname: string | null;
   memo: string | null;
   gradeEstimate: string | null;
@@ -282,6 +284,7 @@ export async function getMyCards(userId: string, limit = 100): Promise<MyCardRow
       cardId: r.cardId,
       ocrSetCode: r.ocrSetCode,
       ocrCardNumber: r.ocrCardNumber,
+      snkrdunkApparelId: r.snkrdunkApparelId,
       nickname: r.nickname,
       memo: r.memo,
       gradeEstimate: r.gradeEstimate,
@@ -298,11 +301,16 @@ export async function getMyCards(userId: string, limit = 100): Promise<MyCardRow
 /**
  * 내 카드 + 각 카드의 최근 시세 스냅샷 (있으면) 결합.
  * 대시보드 포트폴리오 가치 계산용. 없는 카드는 price=0 으로 채워서 반환.
+ * snkrdunkApparelId 가 있는 카드는 스니덩 시세 (JPY) / 이미지 / 이름까지 함께 채운다.
  */
 export interface MyCardWithPrice extends MyCardRow {
   latestPrice: number;
   /** 최근 7개 스냅샷 평균값들 (오래된 → 최신). 데이터 부족 시 빈 배열. */
   trend: number[];
+  /** snkrdunkApparelId 가 있는 카드만 채워짐. */
+  snkrdunkName: string | null;
+  snkrdunkImageUrl: string | null;
+  snkrdunkMinPriceJpy: number;
 }
 
 export async function getMyCardsWithPrices(
@@ -312,14 +320,57 @@ export async function getMyCardsWithPrices(
   const cards = await getMyCards(userId, limit);
   if (cards.length === 0) return [];
 
+  // 스니덩 시세 enrich 준비 — apparelId 중복 제거.
+  const apparelIds = Array.from(
+    new Set(
+      cards
+        .map((c) => c.snkrdunkApparelId)
+        .filter((v): v is number => typeof v === 'number'),
+    ),
+  );
+  const apparelInfo = new Map<
+    number,
+    { name: string; imageUrl: string | null; minPrice: number }
+  >();
+  if (apparelIds.length > 0) {
+    await Promise.all(
+      apparelIds.map(async (id) => {
+        try {
+          const a = await fetchSnkrdunkApparel(id);
+          if (a) {
+            apparelInfo.set(id, {
+              name: a.localizedName || a.name || '',
+              imageUrl: a.imageUrl,
+              minPrice: typeof a.minPrice === 'number' && a.minPrice > 0 ? a.minPrice : 0,
+            });
+          }
+        } catch (err) {
+          console.warn('[getMyCardsWithPrices] apparel fetch failed', id, err);
+        }
+      }),
+    );
+  }
+
+  const enrichSnk = (c: MyCardRow) => {
+    if (!c.snkrdunkApparelId) {
+      return { snkrdunkName: null, snkrdunkImageUrl: null, snkrdunkMinPriceJpy: 0 };
+    }
+    const info = apparelInfo.get(c.snkrdunkApparelId);
+    return {
+      snkrdunkName: info?.name ?? null,
+      snkrdunkImageUrl: info?.imageUrl ?? null,
+      snkrdunkMinPriceJpy: info?.minPrice ?? 0,
+    };
+  };
+
   const cardIds = Array.from(
     new Set(cards.map((c) => c.cardId).filter((id): id is string => Boolean(id))),
   );
   if (cardIds.length === 0) {
-    return cards.map((c) => ({ ...c, latestPrice: 0, trend: [] }));
+    return cards.map((c) => ({ ...c, latestPrice: 0, trend: [], ...enrichSnk(c) }));
   }
 
-  // 카드별 최근 7건 시세 스냅샷
+  // 카드별 최근 7건 시세 스냅샷 (USD)
   let snapshots: Array<{ cardId: string; avg: number; fetchedAt: Date }> = [];
   try {
     snapshots = await prisma.cardPriceSnapshot.findMany({
@@ -340,13 +391,14 @@ export async function getMyCardsWithPrices(
   }
 
   return cards.map((c) => {
-    if (!c.cardId) return { ...c, latestPrice: 0, trend: [] };
+    const snk = enrichSnk(c);
+    if (!c.cardId) return { ...c, latestPrice: 0, trend: [], ...snk };
     const list = byCard.get(c.cardId) ?? [];
-    if (list.length === 0) return { ...c, latestPrice: 0, trend: [] };
+    if (list.length === 0) return { ...c, latestPrice: 0, trend: [], ...snk };
     // findMany 가 desc 정렬이라 첫 번째가 최신
     const latest = list[0].avg;
     const trend = list.slice(0, 7).map((s) => s.avg).reverse();
-    return { ...c, latestPrice: latest, trend };
+    return { ...c, latestPrice: latest, trend, ...snk };
   });
 }
 
@@ -357,6 +409,72 @@ export async function countMyCards(userId: string): Promise<number> {
     console.error('[countMyCards]', err);
     return 0;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* my favorites (FavoriteCard 테이블 — 자산 합계 제외)                  */
+/* ------------------------------------------------------------------ */
+
+export interface MyFavoriteRow {
+  id: number;
+  snkrdunkApparelId: number;
+  createdAt: string;
+  name: string | null;
+  imageUrl: string | null;
+  minPriceJpy: number;
+}
+
+export async function getMyFavoritesWithPrices(
+  userId: string,
+  limit = 200,
+): Promise<MyFavoriteRow[]> {
+  let rows: Array<{ id: number; snkrdunkApparelId: number; createdAt: Date }> = [];
+  try {
+    rows = await prisma.favoriteCard.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 500),
+      select: { id: true, snkrdunkApparelId: true, createdAt: true },
+    });
+  } catch (err) {
+    console.error('[getMyFavoritesWithPrices] db', err);
+    return [];
+  }
+  if (rows.length === 0) return [];
+
+  const uniqueIds = Array.from(new Set(rows.map((r) => r.snkrdunkApparelId)));
+  const info = new Map<
+    number,
+    { name: string; imageUrl: string | null; minPriceJpy: number }
+  >();
+  await Promise.all(
+    uniqueIds.map(async (id) => {
+      try {
+        const a = await fetchSnkrdunkApparel(id);
+        if (a) {
+          info.set(id, {
+            name: a.localizedName || a.name || '',
+            imageUrl: a.imageUrl,
+            minPriceJpy: typeof a.minPrice === 'number' && a.minPrice > 0 ? a.minPrice : 0,
+          });
+        }
+      } catch (err) {
+        console.warn('[getMyFavoritesWithPrices] apparel fetch failed', id, err);
+      }
+    }),
+  );
+
+  return rows.map((r) => {
+    const i = info.get(r.snkrdunkApparelId);
+    return {
+      id: r.id,
+      snkrdunkApparelId: r.snkrdunkApparelId,
+      createdAt: r.createdAt.toISOString(),
+      name: i?.name ?? null,
+      imageUrl: i?.imageUrl ?? null,
+      minPriceJpy: i?.minPriceJpy ?? 0,
+    };
+  });
 }
 
 export async function getMyFeeds(userId: string, limit = 30): Promise<FeedPost[]> {

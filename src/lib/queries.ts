@@ -5,6 +5,7 @@ export interface MyCardRow {
   cardId: string | null;
   ocrSetCode: string | null;
   ocrCardNumber: string | null;
+  snkrdunkApparelId: number | null;
   nickname: string | null;
   memo: string | null;
   gradeEstimate: string | null;
@@ -17,4 +18,17 @@ export interface MyCardWithPrice extends MyCardRow {
   latestPrice: number;
   /** 최근 7개 스냅샷 평균값들 (오래된 → 최신). 데이터 부족 시 빈 배열. */
   trend: number[];
+  /** snkrdunkApparelId 가 있을 때만 채워짐. */
+  snkrdunkName: string | null;
+  snkrdunkImageUrl: string | null;
+  snkrdunkMinPriceJpy: number;
+}
+
+export interface MyFavoriteRow {
+  id: number;
+  snkrdunkApparelId: number;
+  createdAt: string;
+  name: string | null;
+  imageUrl: string | null;
+  minPriceJpy: number;
 }

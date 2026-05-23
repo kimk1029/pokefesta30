@@ -19,15 +19,20 @@ interface Props {
 interface DisplayCard {
   src: MyCardWithPrice;
   catalog?: CardCatalogEntry;
-  /** 표시 이름 우선순위: nickname > catalog.name > OCR 식별자. */
+  /** 표시 이름 우선순위: nickname > snkrdunkName > catalog.name > OCR 식별자. */
   name: string;
-  /** UI 분류용 — 카탈로그 게임 (현재 카탈로그는 모두 포켓몬). */
+  /** UI 분류용 — 카탈로그 게임. snkrdunk-added 카드는 '포켓몬' 으로 분류. */
   game: string;
   /** 카탈로그 grade 가 우선 (S/A/B/C). 없으면 'C'. */
   rar: 'S' | 'A' | 'B' | 'C';
   /** 모의 그레이딩 라벨에서 PSA 숫자 추출. */
   gradeNum: number | null;
+  /** USD 가격 — 카드 카탈로그 스냅샷에서 옴. */
   price: number;
+  /** JPY 가격 — snkrdunkApparelId 가 있는 경우. */
+  priceJpy: number;
+  /** photoUrl > snkrdunkImageUrl. */
+  imageUrl: string | null;
 }
 
 const GAME_COLORS: Record<string, string> = {
@@ -54,19 +59,23 @@ export function MyCardsScreen({ cards: initial }: Props) {
     () =>
       cards.map((c) => {
         const catalog = c.cardId ? findCardEntry(c.cardId) : undefined;
+        const fromSnk = c.snkrdunkApparelId != null;
         return {
           src: c,
           catalog,
           name:
             c.nickname ||
+            c.snkrdunkName ||
             catalog?.name ||
             (c.ocrSetCode || c.ocrCardNumber
               ? `${c.ocrSetCode ?? '?'} ${c.ocrCardNumber ?? ''}`.trim()
               : '미식별 카드'),
-          game: catalog ? '포켓몬' : '기타',
+          game: catalog || fromSnk ? '포켓몬' : '기타',
           rar: (catalog?.grade as 'S' | 'A' | 'B' | 'C' | undefined) ?? 'C',
           gradeNum: parsePsa(c.gradeEstimate),
           price: c.latestPrice,
+          priceJpy: c.snkrdunkMinPriceJpy ?? 0,
+          imageUrl: c.photoUrl || c.snkrdunkImageUrl || null,
         };
       }),
     [cards],
@@ -88,13 +97,16 @@ export function MyCardsScreen({ cards: initial }: Props) {
           c.game.toLowerCase().includes(search.toLowerCase())),
     );
     if (sort === 'name') out = [...out].sort((a, b) => a.name.localeCompare(b.name));
-    if (sort === 'price') out = [...out].sort((a, b) => b.price - a.price);
+    // 가격 정렬은 USD * 150 + JPY 로 거칠게 정규화 — 통화 혼합 컬렉션에서 큰 순서가 어긋나지 않게.
+    if (sort === 'price')
+      out = [...out].sort((a, b) => b.price * 150 + b.priceJpy - (a.price * 150 + a.priceJpy));
     if (sort === 'grade') out = [...out].sort((a, b) => (b.gradeNum ?? 0) - (a.gradeNum ?? 0));
     // recent: createdAt desc — 이미 서버에서 desc 정렬돼 들어옴
     return out;
   }, [display, game, rar, search, sort]);
 
   const totalVal = filtered.reduce((s, c) => s + c.price, 0);
+  const totalJpy = filtered.reduce((s, c) => s + c.priceJpy, 0);
   const gradedN = filtered.filter((c) => c.gradeNum !== null).length;
   const memoN = filtered.filter((c) => Boolean(c.src.memo)).length;
 
@@ -132,7 +144,9 @@ export function MyCardsScreen({ cards: initial }: Props) {
       {/* Summary strip */}
       <div className="cv-strip">
         <div className="cv-strip-cell cv-strip-a">총 {filtered.length}장</div>
-        <div className="cv-strip-cell cv-strip-b">${fmtUsd(totalVal)}</div>
+        <div className="cv-strip-cell cv-strip-b">
+          {totalJpy > 0 ? `¥${totalJpy.toLocaleString('ja-JP')}` : `$${fmtUsd(totalVal)}`}
+        </div>
         <div className="cv-strip-cell cv-strip-c">그레이딩 {gradedN}</div>
       </div>
       <div className="cv-archive-line">
@@ -269,7 +283,7 @@ function GridView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
               <span className={`cv-rar cv-rar-${c.rar}`}>{c.rar}</span>
               {c.gradeNum !== null && <GradeBadge g={c.gradeNum} />}
             </div>
-            {c.price > 0 && <div className="cv-price">${fmtUsd(c.price)}</div>}
+            {priceLabel(c) && <div className="cv-price">{priceLabel(c)}</div>}
             <button
               type="button"
               onClick={() => onDelete(c.src.id)}
@@ -329,9 +343,9 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-              {c.price > 0 ? (
+              {priceLabel(c) ? (
                 <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: 0.3 }}>
-                  ${fmtUsd(c.price)}
+                  {priceLabel(c)}
                 </span>
               ) : (
                 <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>시세 없음</span>
@@ -389,7 +403,17 @@ function BinderView({ cards }: { cards: DisplayCard[] }) {
             style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
           >
             <div className="cv-binder-img" style={{ background: gameBg(c.game) }}>
-              {c.catalog?.emoji ?? '🃏'}
+              {c.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.imageUrl}
+                  alt={c.name}
+                  loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
+                />
+              ) : (
+                <>{c.catalog?.emoji ?? '🃏'}</>
+              )}
             </div>
             <div className="cv-binder-info">
               <div className="cv-binder-name" title={c.name}>
@@ -435,15 +459,25 @@ function AlbumView({ cards }: { cards: DisplayCard[] }) {
                 style={{ textDecoration: 'none', color: 'inherit' }}
               >
                 <div className="cv-album-img" style={{ background: gameBg(g) }}>
-                  {c.catalog?.emoji ?? '🃏'}
+                  {c.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={c.imageUrl}
+                      alt={c.name}
+                      loading="lazy"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
+                    />
+                  ) : (
+                    <>{c.catalog?.emoji ?? '🃏'}</>
+                  )}
                 </div>
                 <div className="cv-album-meta">
                   <div className="cv-binder-name" title={c.name}>
                     {c.name}
                   </div>
-                  {c.price > 0 && (
+                  {priceLabel(c) && (
                     <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--grn-dk)', letterSpacing: 0.2 }}>
-                      ${fmtUsd(c.price)}
+                      {priceLabel(c)}
                     </div>
                   )}
                 </div>
@@ -461,10 +495,10 @@ function AlbumView({ cards }: { cards: DisplayCard[] }) {
 function CardImg({ card, h }: { card: DisplayCard; h: number }) {
   return (
     <div className="cv-card-img" style={{ height: h, background: gameBg(card.game) }}>
-      {card.src.photoUrl ? (
+      {card.imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={card.src.photoUrl}
+          src={card.imageUrl}
           alt={card.name}
           loading="lazy"
           style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
@@ -494,6 +528,13 @@ function fmtUsd(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
+/** USD > JPY 우선. 둘 다 없으면 null. */
+function priceLabel(c: DisplayCard): string | null {
+  if (c.price > 0) return `$${fmtUsd(c.price)}`;
+  if (c.priceJpy > 0) return `¥${c.priceJpy.toLocaleString('ja-JP')}`;
+  return null;
+}
+
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -509,5 +550,6 @@ function parsePsa(label: string | null | undefined): number | null {
 }
 
 function detailHref(c: DisplayCard): string {
+  if (c.src.snkrdunkApparelId) return `/cards/snkrdunk/${c.src.snkrdunkApparelId}`;
   return c.catalog ? `/cards/search?id=${encodeURIComponent(c.catalog.id)}` : '/my/cards';
 }
