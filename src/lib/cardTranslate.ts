@@ -4,10 +4,16 @@
  * - eBay(영미권) 검색: translate(text, 'en')
  *
  * 정책:
- *   - 공백 기준 토큰 분리 → 사전 룩업 → 없으면 원본 유지
- *   - 대소문자 무시 매칭 (SAR / sar / Sar 모두 동일 처리)
- *   - 카드 코드(예: "SV1-045", "151/165") 같은 비언어 토큰은 자연스럽게 통과
+ *   - 입력을 사전 키로 *longest-first* 매칭하며 좌→우로 치환 (공백 토큰화 X)
+ *     → "리자몽홀로", "메가다크라이ex" 같은 붙여쓴 합성어도 정상 변환
+ *   - 매칭은 한글/일본어 부분은 그대로, 영문/숫자만 대소문자 무시 비교
+ *     → "EX" / "ex" 매칭은 되지만 "EXAMPLE" 안의 "EX" 처럼 영문 단어 중간
+ *        매칭은 피하기 위해, 영문 키는 양쪽이 단어 경계일 때만 치환
+ *   - 카드 코드(예: "SV1-045", "151/165")는 매칭되지 않아 그대로 통과
  *   - 사전에 없는 포켓몬명은 원문 유지 → 필요한 이름만 추가
+ *
+ * 발음 직독(transliteration)을 절대 하지 않는다 — 리자몽 → リザードン 처럼
+ * 정확한 일본어 표기를 반환하기 위해 사전 룩업만 사용.
  */
 
 interface Term {
@@ -197,6 +203,38 @@ const CARD_TERMS: Term[] = [
   { ko: '배지',      en: 'badge',       ja: 'バッジ' },
   { ko: '프레임',    en: 'frame',       ja: 'フレーム' },
   { ko: '몬스터볼',  en: 'poke ball',   ja: 'モンスターボール' },
+  { ko: '마스터볼',  en: 'master ball', ja: 'マスターボール' },
+  { ko: '미러',      en: 'mirror',      ja: 'ミラー' },
+  { ko: '슈링크',    en: 'shrink',      ja: 'シュリンク' },
+
+  // 자주 등장하는 카드 수식어 (포켓몬 이름 앞뒤로 붙는다)
+  { ko: '메가',      en: 'mega',        ja: 'メガ' },
+  { ko: '샤이니',    en: 'shiny',       ja: 'シャイニー' },
+  { ko: '컬러풀',    en: 'colorful',    ja: 'カラフル' },
+  { ko: '히어로즈',  en: 'heroes',      ja: 'ヒーローズ' },
+  { ko: '스타',      en: 'star',        ja: 'スター' },
+  { ko: '유니버스',  en: 'universe',    ja: 'ユニバース' },
+  { ko: '트레저',    en: 'treasure',    ja: 'トレジャー' },
+  { ko: '클라이맥스', en: 'climax',     ja: 'クライマックス' },
+  { ko: '아이',      en: 'eye',         ja: 'アイ' },
+  { ko: '어비스',    en: 'abyss',       ja: 'アビス' },
+  { ko: '브레이커',  en: 'breaker',     ja: 'ブレイカー' },
+  { ko: '브레이브',  en: 'brave',       ja: 'ブレイブ' },
+  { ko: '심포니아',  en: 'symphonia',   ja: 'シンフォニア' },
+  { ko: '아리나',    en: 'arena',       ja: 'アリーナ' },
+  { ko: '드라고나',  en: 'dragona',     ja: 'ドラゴーナ' },
+  { ko: '미라클',    en: 'miracle',     ja: 'ミラクル' },
+  { ko: '원더러',    en: 'wanderer',    ja: 'ワンダラー' },
+  { ko: '서프',      en: 'surf',        ja: 'サーフ' },
+  { ko: '레이징',    en: 'raging',      ja: 'レイジング' },
+  { ko: '플레어',    en: 'flare',       ja: 'フレア' },
+  { ko: '볼트',      en: 'volt',        ja: 'ボルト' },
+  { ko: '인페르노',  en: 'inferno',     ja: 'インフェルノ' },
+  { ko: '드림',      en: 'dream',       ja: 'ドリーム' },
+  { ko: '닌자',      en: 'ninja',       ja: 'ニンジャ' },
+  { ko: '스피너',    en: 'spinner',     ja: 'スピナー' },
+  { ko: '제로',      en: 'zero',        ja: 'ゼロ' },
+  { ko: '파트너즈',  en: 'partners',    ja: 'パートナーズ' },
 ];
 
 const ALL: Term[] = [...POKEMON, ...CARD_TERMS];
@@ -280,19 +318,65 @@ const CARD_NAME_PHRASES: Array<[RegExp, string]> = [
 
 export type TranslateTarget = 'en' | 'ja';
 
+/** ASCII 영문/숫자 (단어 경계 검사 용). */
+function isWordChar(ch: string | undefined): boolean {
+  if (!ch) return false;
+  return /[A-Za-z0-9]/.test(ch);
+}
+
 /**
- * 공백 토큰화 후 사전 룩업. 미매칭 토큰은 원문 유지.
- * 대소문자 무시 (SAR / sar / Sar 동일 처리).
- * 한글은 case 개념 없음 → toLowerCase 영향 없음.
+ * 사전 키들을 길이 내림차순으로 미리 정렬해두면 longest-first 매칭이 가능.
+ * 모듈 로드 시 1회만 빌드.
+ */
+const MAP_KEYS_BY_TARGET: Record<TranslateTarget, string[]> = {
+  ja: Object.keys(MAP_JA).sort((a, b) => b.length - a.length),
+  en: Object.keys(MAP_EN).sort((a, b) => b.length - a.length),
+};
+
+/**
+ * 입력 텍스트를 좌→우로 훑으며 사전 키 중 *가장 긴 것*을 우선 매칭해 치환.
+ *
+ * - 한글/일본어 키: 위치 i 에서 substring(i, k.length) 와 직접 비교 (case 무관)
+ * - 영문/숫자 키: 위치 i 에서 시작이 단어 경계여야 매칭 (좌측 직전, 우측 직후 모두
+ *   비-단어 문자거나 문자열 끝) — "EX" 가 "EXAMPLE" 의 EX 와 매칭되는 것을 방지
+ *
+ * 매칭 실패하면 한 글자 진행, 원본 그대로 출력.
+ *
+ * 발음 transliteration 은 절대 하지 않으며, 사전에 명시된 표기로만 변환한다.
  */
 export function translate(text: string, target: TranslateTarget): string {
   if (!text) return text;
   const map = target === 'en' ? MAP_EN : MAP_JA;
-  return text
-    .trim()
-    .split(/\s+/)
-    .map((tok) => map[tok.toLowerCase()] ?? tok)
-    .join(' ');
+  const keys = MAP_KEYS_BY_TARGET[target];
+  const lowered = text.toLowerCase();
+
+  let out = '';
+  let i = 0;
+  while (i < text.length) {
+    let matched = false;
+    for (const k of keys) {
+      const end = i + k.length;
+      if (end > text.length) continue;
+      if (lowered.slice(i, end) !== k) continue;
+
+      // 영문/숫자로 시작하는 키는 양쪽이 단어 경계여야 매칭.
+      if (isWordChar(k[0])) {
+        const prev = i > 0 ? text[i - 1] : undefined;
+        const next = end < text.length ? text[end] : undefined;
+        if (isWordChar(prev) || isWordChar(next)) continue;
+      }
+
+      out += map[k];
+      i = end;
+      matched = true;
+      break;
+    }
+    if (!matched) {
+      out += text[i];
+      i++;
+    }
+  }
+  return out;
 }
 
 export function translateKnownCardNameToKo(name: string): string {
