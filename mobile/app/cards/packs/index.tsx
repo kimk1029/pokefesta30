@@ -1,5 +1,5 @@
 /**
- * /cards/packs — 가격탐색 박스 리스트.
+ * /cards/packs — 시세확인 박스 리스트.
  *
  * 웹 src/app/cards/packs/page.tsx 와 동등.
  * CARD_PACKS 를 순회하며 각 팩의 apparel-group 박스 1건을 fetch (apparelCategoryId=14).
@@ -136,7 +136,7 @@ export default function PackExplorerScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <AppBar onBack={() => router.back()} title="가격탐색" />
+      <AppBar onBack={() => router.back()} title="시세확인" />
       {loading && !data ? (
         <LoadingState />
       ) : error ? (
@@ -175,21 +175,20 @@ export default function PackExplorerScreen() {
                 shadow={6}
                 hi="rgba(255,255,255,0.95)"
                 lo="rgba(0,0,0,0.25)"
-                inner={0}
+                inner={3}
               >
                 <View
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 10,
-                    padding: 2,
+                    padding: 10,
                   }}
                 >
-                  {/* 박스 이미지 — 패딩 50% 더 축소 (4→2), 이미지 더 큼 */}
                   <View
                     style={{
-                      width: 112,
-                      height: 112,
+                      width: 84,
+                      height: 84,
                       alignItems: 'center',
                       justifyContent: 'center',
                       backgroundColor: pack.bg,
@@ -205,10 +204,10 @@ export default function PackExplorerScreen() {
                         resizeMode="cover"
                       />
                     ) : (
-                      <Text style={{ fontSize: 44 }}>{pack.emoji}</Text>
+                      <Text style={{ fontSize: 34 }}>{pack.emoji}</Text>
                     )}
                   </View>
-                  <View style={{ flex: 1, minWidth: 0, paddingVertical: 2 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
                     <PixelText
                       variant="ko"
                       size={13}
@@ -218,52 +217,59 @@ export default function PackExplorerScreen() {
                     >
                       {pack.name}
                     </PixelText>
-                    {/* 한글 박스 이름 — fontWeight +1 (bold) */}
                     <PixelText
                       variant="ko"
-                      size={11}
-                      weight="bold"
+                      size={10}
                       color={colors.ink3}
-                      style={{ marginTop: 4, lineHeight: 15, fontWeight: '700' }}
+                      style={{ marginTop: 5, lineHeight: 15 }}
                       numberOfLines={1}
                     >
                       {pack.boxKoName}
                     </PixelText>
-                    {/* 일본어 원본명 — fontWeight -1 (얇게) */}
                     <PixelText
                       variant="ko"
-                      size={9}
+                      size={10}
                       color={colors.ink3}
-                      style={{ lineHeight: 13, opacity: 0.6, fontWeight: '300' }}
+                      style={{ lineHeight: 15 }}
                       numberOfLines={1}
                     >
                       {pack.boxName}
                     </PixelText>
-                    {/* 가격 — 빨강 컨테이너 (줄바꿈 금지) */}
-                    <View
-                      style={{
-                        alignSelf: 'flex-start',
-                        marginTop: 6,
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                        backgroundColor: pack.boxPrice > 0 ? colors.red : colors.ink3,
-                        borderColor: colors.ink,
-                        borderWidth: 2,
-                      }}
-                    >
-                      <PixelText
-                        variant="pixel"
-                        size={9}
-                        color={colors.white}
-                        style={{ letterSpacing: 0.3 }}
-                        numberOfLines={1}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 7 }}>
+                      {pack.boxPrice > 0 ? (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4,
+                            paddingHorizontal: 7,
+                            paddingVertical: 4,
+                            backgroundColor: colors.gold,
+                            borderColor: colors.ink,
+                            borderWidth: 1,
+                          }}
+                        >
+                          <PixelText variant="pixel" size={7} color={colors.ink} style={{ opacity: 0.7 }}>
+                            박스
+                          </PixelText>
+                          <PixelText variant="pixel" size={9} color={colors.ink} numberOfLines={1}>
+                            {formatCurrency(pack.boxPrice)}
+                          </PixelText>
+                        </View>
+                      ) : null}
+                      <View
+                        style={{
+                          paddingHorizontal: 6,
+                          paddingVertical: 3,
+                          backgroundColor: colors.pap2,
+                          borderColor: colors.ink,
+                          borderWidth: 1,
+                        }}
                       >
-                        {pack.boxPrice > 0
-                          ? formatCurrency(pack.boxPrice)
-                          : pack.releasedAt
-                            ? `${pack.releasedAt} 출시`
-                            : '출시일 확인 중'}
-                      </PixelText>
+                        <PixelText variant="pixel" size={8} color={colors.ink2} numberOfLines={1}>
+                          {pack.releasedAt ? `${pack.releasedAt} 출시` : '출시일 확인 중'}
+                        </PixelText>
+                      </View>
                     </View>
                   </View>
                   <PixelText variant="pixel" size={14} color={colors.ink3} style={{ paddingRight: 6 }}>

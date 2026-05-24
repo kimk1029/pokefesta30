@@ -11,10 +11,11 @@ interface Item {
 }
 
 const ITEMS: Item[] = [
-  { href: '/live',  color: 'r', icon: '📍', label: '현황' },
-  { href: '/trade', color: 'b', icon: '🤝', label: '거래' },
-  { href: '/cards', color: 'y', icon: '📊', label: '시세' },
-  { href: '/map',   color: 'g', icon: '🗺',  label: '지도' },
+  { href: '/scan', color: 'g', icon: '📷', label: '스캔' },
+  { href: '/cards', color: 'y', icon: '¥', label: '시세확인' },
+  { href: '/cards/mvc-auction', color: 'b', icon: '🔨', label: 'MVC경매' },
+  { href: '/cards/bunjang', color: 'r', icon: '🇰🇷', label: '국내마켓' },
+  { href: '/trade', color: 'g', icon: '🤝', label: '거래' },
 ];
 
 const BG: Record<Item['color'], string> = {
@@ -65,26 +66,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: space.gap,
     marginBottom: space.cg,
-    gap: 8,
+    gap: 6,
   },
   qi: {
     flex: 1,
     backgroundColor: colors.white,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
+    paddingVertical: 9,
+    paddingHorizontal: 1,
     alignItems: 'center',
     borderWidth: 3,
     borderColor: colors.ink,
   },
   icon: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: colors.ink,
   },
   iconText: {
-    fontSize: 22,
+    fontSize: 17,
   },
 });

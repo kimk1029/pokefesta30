@@ -521,11 +521,12 @@ export default function Home() {
         <View style={{ marginHorizontal: 14 }}>
           <SectHd title="바로가기" />
         </View>
-        <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 14, marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', gap: 6, marginHorizontal: 14, marginBottom: 12 }}>
           <QuickBtn icon="📷" label="스캔" bg={colors.grn} href="/scan" />
-          <QuickBtn icon="¥" label="가격탐색" bg={colors.gold} href="/cards/packs" />
-          <QuickBtn icon="🏷" label="마켓" bg={colors.orn} href="/feed" />
-          <QuickBtn icon="📦" label="컬렉션" bg={colors.blu} href="/my/cards" />
+          <QuickBtn icon="¥" label="시세확인" bg={colors.gold} href="/cards" />
+          <QuickBtn icon="🔨" label="MVC경매" bg={colors.blu} href="/cards/mvc-auction" />
+          <QuickBtn icon="🇰🇷" label="국내마켓" bg={colors.red} href="/cards/bunjang" />
+          <QuickBtn icon="🤝" label="거래" bg={colors.grn} href="/trade" />
         </View>
 
         {/* XP / Level — 로그인된 사용자만 표시 */}
@@ -937,12 +938,12 @@ function Block({
 function QuickBtn({ icon, label, bg, href }: { icon: string; label: string; bg: string; href: string }) {
   return (
     <View style={{ flex: 1 }}>
-      <PixelPress onPress={() => router.push(href as never)}>
-        <View style={{ paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center', gap: 7 }}>
+      <PixelPress onPress={() => router.push(href as never)} borderWidth={3} shadow={5} inner={3}>
+        <View style={{ paddingVertical: 9, paddingHorizontal: 1, alignItems: 'center', gap: 5, minWidth: 0 }}>
           <View
             style={{
-              width: 42,
-              height: 42,
+              width: 32,
+              height: 32,
               backgroundColor: bg,
               borderColor: colors.ink,
               borderWidth: 2,
@@ -950,9 +951,9 @@ function QuickBtn({ icon, label, bg, href }: { icon: string; label: string; bg: 
               justifyContent: 'center',
             }}
           >
-            <Text style={{ fontSize: 20 }}>{icon}</Text>
+            <Text style={{ fontSize: 17 }}>{icon}</Text>
           </View>
-          <PixelText variant="pixel" size={10} numberOfLines={1}>
+          <PixelText variant="pixel" size={8} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
             {label}
           </PixelText>
         </View>

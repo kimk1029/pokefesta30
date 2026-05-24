@@ -146,34 +146,6 @@ function fmt(n: number): string {
   return Math.round(n).toLocaleString();
 }
 
-/** 픽셀 카드 뭉치 아이콘 — 3장이 비스듬히 겹쳐 보이는 모양 (컬렉션 바로가기). */
-function CardStackPixel() {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 16 16"
-      style={{ shapeRendering: 'crispEdges' }}
-      aria-hidden
-    >
-      {/* 뒤쪽 카드 — 좌측, 살짝 위로 */}
-      <rect x="0" y="3" width="10" height="11" fill="#1A1A2E" />
-      <rect x="1" y="4" width="8" height="9" fill="#FFD23F" />
-      <rect x="2" y="5" width="6" height="2" fill="#FCE6A8" />
-      {/* 중간 카드 */}
-      <rect x="3" y="2" width="10" height="12" fill="#1A1A2E" />
-      <rect x="4" y="3" width="8" height="10" fill="#E63946" />
-      <rect x="5" y="4" width="6" height="2" fill="rgba(255,255,255,.45)" />
-      {/* 앞 카드 — 우측 */}
-      <rect x="6" y="1" width="10" height="13" fill="#1A1A2E" />
-      <rect x="7" y="2" width="8" height="11" fill="#3A5BD9" />
-      <rect x="8" y="3" width="6" height="2" fill="rgba(255,255,255,.45)" />
-      {/* 앞 카드 무늬 — 중앙 점 */}
-      <rect x="10" y="7" width="2" height="2" fill="#FFD23F" />
-    </svg>
-  );
-}
-
 export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs = [] }: Props) {
   const { format } = useCurrency();
   const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '3M'>('1M');
@@ -273,26 +245,25 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
         <HomeKoSearchBar />
       </div>
 
-      {/* ═══ QUICK ACTIONS — 자주 쓰는 4개 진입 ═══ */}
+      {/* ═══ QUICK ACTIONS ═══ */}
       <div className="sect">
         <div className="sect-hd"><h2>바로가기</h2></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 6 }}>
           {[
             { icon: '📷' as const, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
-            { icon: '¥' as const, lb: '가격탐색', bg: 'var(--gold)', href: '/cards/packs' },
-            { icon: '🔨' as const, lb: 'MVC 경매', bg: 'var(--red)', href: '/cards/mvc-auction' },
-            { icon: '🛒' as const, lb: '국내마켓', bg: 'var(--orn)', href: '/cards/bunjang' },
-            { icon: '🤝' as const, lb: '거래', bg: 'var(--pur)', href: '/trade' },
-            { icon: 'cards' as const, lb: '컬렉션', bg: 'var(--blu)', href: '/my/cards' },
+            { icon: '¥' as const, lb: '시세확인', bg: 'var(--gold)', href: '/cards' },
+            { icon: '🔨' as const, lb: 'MVC경매', bg: 'var(--blu)', href: '/cards/mvc-auction' },
+            { icon: '🇰🇷' as const, lb: '국내마켓', bg: 'var(--red)', href: '/cards/bunjang' },
+            { icon: '🤝' as const, lb: '거래', bg: 'var(--grn)', href: '/trade' },
           ].map(({ icon, lb, bg, href }) => (
             <Link key={lb} href={href} className="dash-quick">
               <div style={{
-                width: 42, height: 42, background: bg, display: 'grid', placeItems: 'center', fontSize: 21,
+                width: 32, height: 32, background: bg, display: 'grid', placeItems: 'center', fontSize: 17,
                 boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
               }}>
-                {icon === 'cards' ? <CardStackPixel /> : icon}
+                {icon}
               </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: .3 }}>{lb}</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0, whiteSpace: 'nowrap' }}>{lb}</div>
             </Link>
           ))}
         </div>

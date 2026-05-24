@@ -1,5 +1,5 @@
 /**
- * 모바일 가격탐색 팩 카탈로그.
+ * 모바일 시세확인 팩 카탈로그.
  * 웹 `src/lib/cardPacks.ts` 와 같은 스니커덩크 apparelGroupId 를 사용한다.
  */
 

@@ -1,0 +1,229 @@
+const NAVER_API = 'https://apis.naver.com';
+const CAFE_ORIGIN = 'https://cafe.naver.com';
+const BUNJANG_API = 'https://api.bunjang.co.kr';
+const BUNJANG_WEB = 'https://m.bunjang.co.kr';
+
+const MVC_CLUB_ID = 30418914;
+const MVC_AUCTION_MENU_ID = 63;
+const USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+export interface MvcAuctionItem {
+  articleId: number;
+  subject: string;
+  writerNickname: string;
+  commentCount: number;
+  readCount: number;
+  writtenAt: number;
+  writtenAgo: string;
+  thumbnailUrl: string | null;
+  costText: string;
+  sourceUrl: string;
+}
+
+export interface BunjangItem {
+  pid: string;
+  name: string;
+  price: number;
+  imageUrl: string | null;
+  location: string;
+  favCount: number;
+  updatedAt: number;
+  productUrl: string;
+}
+
+interface RawMvcArticle {
+  articleId?: number;
+  subject?: string;
+  writerNickname?: string;
+  commentCount?: number;
+  readCount?: number;
+  writeDateTimestamp?: number;
+  representImage?: string;
+  formattedCost?: string;
+  blindArticle?: boolean;
+}
+
+interface RawMvcList {
+  message?: {
+    result?: {
+      articleList?: RawMvcArticle[];
+    };
+  };
+}
+
+interface RawBunjangProduct {
+  pid?: string | number;
+  name?: string;
+  price?: string | number;
+  product_image?: string;
+  location?: string;
+  num_faved?: string | number;
+  update_time?: number;
+}
+
+interface RawBunjangList {
+  list?: RawBunjangProduct[];
+}
+
+export function mvcArticleUrl(articleId: number): string {
+  return `${CAFE_ORIGIN}/f-e/cafes/${MVC_CLUB_ID}/articles/${articleId}`;
+}
+
+export function bunjangSearchUrl(query: string): string {
+  return `${BUNJANG_WEB}/search/products?q=${encodeURIComponent(query)}`;
+}
+
+function relativeTimeKo(ts: number): string {
+  if (!ts || !Number.isFinite(ts)) return '';
+  const diff = Math.max(0, Date.now() - ts);
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return '방금 전';
+  if (min < 60) return `${min}분 전`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour}시간 전`;
+  const day = Math.floor(hour / 24);
+  if (day < 7) return `${day}일 전`;
+  const d = new Date(ts);
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function kstDateParts(now = Date.now()): { month: number; day: number } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(now));
+  return {
+    month: Number(parts.find((p) => p.type === 'month')?.value ?? 0),
+    day: Number(parts.find((p) => p.type === 'day')?.value ?? 0),
+  };
+}
+
+function isSameKstDay(ts: number): boolean {
+  if (!ts) return false;
+  const a = kstDateParts(ts);
+  const b = kstDateParts();
+  return a.month === b.month && a.day === b.day;
+}
+
+function isTodayDeadline(subject: string): boolean | null {
+  const today = kstDateParts();
+  const re = /(\d{1,2})\s*[\/.월]\s*(\d{1,2})/g;
+  let found = false;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(subject)) !== null) {
+    const month = Number(m[1]);
+    const day = Number(m[2]);
+    if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+    found = true;
+    if (month === today.month && day === today.day) return true;
+  }
+  return found ? false : null;
+}
+
+function stripDeadlinePrefix(subject: string): string {
+  return subject
+    .trim()
+    .replace(/^\s*[([{][^)\]}]*?(?:마감|\d{1,2}\s*[/.월]\s*\d{1,2})[^)\]}]*[)\]}]\s*[-–:_]?\s*/, '')
+    .replace(/^\s*\d{1,2}\s*[/.월]\s*\d{1,2}\s*일?\s*(?:당일)?마감\s*[-–:_]?\s*/, '')
+    .trim();
+}
+
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+}
+
+function cafeThumb(url: string | undefined): string | null {
+  if (!url) return null;
+  const clean = decodeHtmlEntities(url);
+  if (!/^https?:\/\//.test(clean)) return null;
+  return /[?&]type=/.test(clean) ? clean.replace(/([?&]type=)[^&]+/, '$1w300') : `${clean}?type=w300`;
+}
+
+function toNumber(value: string | number | undefined): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value !== 'string') return 0;
+  const n = Number(value.replace(/[^\d.-]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function bunjangImage(template: string | undefined): string | null {
+  if (!template) return null;
+  return template.replace('{cnt}', '1').replace('{res}', '300');
+}
+
+export async function fetchMvcAuctions(page = 1): Promise<MvcAuctionItem[]> {
+  const url =
+    `${NAVER_API}/cafe-web/cafe2/ArticleListV2dot1.json` +
+    `?search.clubid=${MVC_CLUB_ID}&search.menuid=${MVC_AUCTION_MENU_ID}` +
+    `&search.boardtype=L&search.page=${page}&search.perPage=50`;
+  const res = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      'Accept-Language': 'ko,en-US;q=0.8',
+      'User-Agent': USER_AGENT,
+      Referer: `${CAFE_ORIGIN}/f-e/cafes/${MVC_CLUB_ID}/menus/${MVC_AUCTION_MENU_ID}`,
+    },
+  });
+  if (!res.ok) throw new Error(`MVC ${res.status}`);
+  const raw = (await res.json()) as RawMvcList;
+  const rows = raw.message?.result?.articleList ?? [];
+  return rows
+    .filter((a) => !a.blindArticle && Number.isInteger(a.articleId))
+    .filter((a) => {
+      const subject = a.subject ?? '';
+      const verdict = isTodayDeadline(subject);
+      if (verdict === true) return true;
+      if (verdict === false) return false;
+      return isSameKstDay(a.writeDateTimestamp ?? 0);
+    })
+    .map((a) => {
+      const articleId = a.articleId ?? 0;
+      const writtenAt = a.writeDateTimestamp ?? 0;
+      return {
+        articleId,
+        subject: stripDeadlinePrefix(a.subject ?? '') || (a.subject ?? ''),
+        writerNickname: a.writerNickname ?? '',
+        commentCount: a.commentCount ?? 0,
+        readCount: a.readCount ?? 0,
+        writtenAt,
+        writtenAgo: relativeTimeKo(writtenAt),
+        thumbnailUrl: cafeThumb(a.representImage),
+        costText: (a.formattedCost ?? '').trim(),
+        sourceUrl: mvcArticleUrl(articleId),
+      };
+    });
+}
+
+export async function fetchBunjangItems(query = '포켓몬카드', page = 0): Promise<BunjangItem[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const url =
+    `${BUNJANG_API}/api/1/find_v2.json` +
+    `?q=${encodeURIComponent(q)}&order=score&page=${page}&n=40&stat_device=w&version=4`;
+  const res = await fetch(url, {
+    headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
+  });
+  if (!res.ok) throw new Error(`Bunjang ${res.status}`);
+  const raw = (await res.json()) as RawBunjangList;
+  return (raw.list ?? [])
+    .filter((p) => p.pid != null)
+    .map((p) => {
+      const pid = String(p.pid);
+      return {
+        pid,
+        name: (p.name ?? '').trim(),
+        price: toNumber(p.price),
+        imageUrl: bunjangImage(p.product_image),
+        location: (p.location ?? '').trim(),
+        favCount: toNumber(p.num_faved),
+        updatedAt: typeof p.update_time === 'number' ? p.update_time * 1000 : 0,
+        productUrl: `${BUNJANG_WEB}/products/${pid}`,
+      };
+    });
+}

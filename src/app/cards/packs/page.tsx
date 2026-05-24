@@ -11,7 +11,7 @@ interface ApparelGroupResp {
 }
 
 export const metadata = {
-  title: '가격탐색 · CardVault',
+  title: '시세확인 · CardVault',
   description: '포켓몬 카드 박스를 선택하고 해당 박스의 싱글카드 시세를 확인하세요.',
 };
 
@@ -39,7 +39,7 @@ export default async function PackExplorerPage() {
   return (
     <>
       <StatusBar />
-      <AppBar title="가격탐색" showBack backHref="/" />
+      <AppBar title="시세확인" showBack backHref="/" />
 
       <div className="sect">
         <div

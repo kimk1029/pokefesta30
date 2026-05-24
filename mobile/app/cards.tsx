@@ -40,7 +40,7 @@ export default function PriceInfoScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <AppBar title="시세 정보" />
+      <AppBar title="시세확인" />
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
         <View style={{ marginHorizontal: 14, marginTop: 14, marginBottom: 12 }}>
           <PixelFrame bg={colors.white} borderWidth={3} shadow={5} hi={null} lo={null}>
@@ -149,6 +149,7 @@ function PackRow({ pack }: { pack: PackWithHits }) {
           </PixelText>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
             <PricePill text={topPrice > 0 ? `대표 ¥${topPrice.toLocaleString('ja-JP')}` : '시세 확인 중'} />
+            {pack.releasedAt ? <MetaPill text={`${pack.releasedAt} 출시`} /> : null}
             {firstHit?.listingCountText ? <MetaPill text={`매물 ${firstHit.listingCountText}건`} /> : null}
           </View>
         </View>
@@ -160,8 +161,8 @@ function PackRow({ pack }: { pack: PackWithHits }) {
 
 function PricePill({ text }: { text: string }) {
   return (
-    <View style={[styles.pill, { backgroundColor: colors.red }]}>
-      <PixelText variant="pixel" size={8} color={colors.white}>{text}</PixelText>
+    <View style={[styles.pill, { backgroundColor: colors.gold }]}>
+      <PixelText variant="pixel" size={8} color={colors.ink}>{text}</PixelText>
     </View>
   );
 }
@@ -212,8 +213,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   thumb: {
-    width: 96,
-    height: 96,
+    width: 84,
+    height: 84,
     borderColor: colors.ink,
     borderWidth: 2,
     alignItems: 'center',
