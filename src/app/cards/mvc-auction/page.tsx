@@ -49,7 +49,7 @@ export default async function Page() {
               lineHeight: 1.6,
             }}
           >
-            진행 중인 경매 전체 · 23:00 마감 · 스크롤하면 계속 불러와요<br />
+            오늘 마감 경매만 · 23:00 종료 · 스크롤하면 계속 불러와요<br />
             <a
               href={`https://cafe.naver.com/${MVC_CAFE_URL}`}
               target="_blank"
@@ -63,7 +63,7 @@ export default async function Page() {
       </div>
 
       <div className="sect">
-        <SectionTitle title="진행 중인 경매" right={<AuctionCountdown />} />
+        <SectionTitle title="오늘 마감 경매" right={<AuctionCountdown />} />
         <MvcAuctionList initial={initial} />
       </div>
 

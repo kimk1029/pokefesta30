@@ -436,7 +436,7 @@ export function MvcAuctionList({ initial }: Props) {
             color: 'var(--ink3)',
           }}
         >
-          진행 중인 경매가 없습니다.
+          오늘 마감인 경매가 없습니다.
         </div>
       )}
 
@@ -451,7 +451,7 @@ export function MvcAuctionList({ initial }: Props) {
           letterSpacing: 0.5,
         }}
       >
-        {loading ? '불러오는 중…' : done ? `경매 ${items.length}건 · 끝` : ''}
+        {loading ? '불러오는 중…' : done ? `오늘 마감 경매 ${items.length}건 · 끝` : ''}
       </div>
     </>
   );

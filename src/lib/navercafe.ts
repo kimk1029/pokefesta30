@@ -331,12 +331,23 @@ export interface MvcAuctionPageResult {
 }
 
 /**
- * 경매 게시판 한 페이지 (필터 없음 — 게시판의 모든 글 그대로).
- * 게시판이 '진행 중인 카드 경매' 메뉴라 글 자체가 곧 활성 경매 목록.
+ * 경매 게시판 한 페이지 — 마감일이 '오늘(KST)'인 글만.
+ *   - 제목에 오늘 날짜 → 포함
+ *   - 제목에 다른 날짜 → 제외
+ *   - 날짜 판정 불가 → 오늘 작성된 글이면 포함
+ * hasNext 는 게시판 원본 기준이라, 호출자는 hasNext=false 까지 모든 페이지를
+ * 끝까지 로딩해야 오늘 마감 글이 누락되지 않음(조기 종료 없음).
  */
 export async function fetchMvcAuctionPage(page = 1): Promise<MvcAuctionPageResult> {
   const p = Number.isInteger(page) && page > 0 ? page : 1;
-  const { items, hasNext } = await fetchMvcAuctionList(p, 50);
+  const now = Date.now();
+  const { items: raw, hasNext } = await fetchMvcAuctionList(p, 50);
+  const items = raw.filter((it) => {
+    const verdict = isTodayDeadline(it.subject, now);
+    if (verdict === true) return true;
+    if (verdict === false) return false;
+    return isSameKstDay(it.writtenAt, now);
+  });
   return { items, hasNext, page: p };
 }
 
