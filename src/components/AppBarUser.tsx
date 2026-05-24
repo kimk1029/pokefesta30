@@ -13,16 +13,30 @@ export function AppBarUser() {
         <span
           style={{
             fontFamily: 'var(--f1)',
-            fontSize: 10,
             letterSpacing: 0.3,
-            color: 'var(--ink2)',
-            maxWidth: 96,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            display: 'inline-flex',
+            alignItems: 'baseline',
+            gap: 2,
+            maxWidth: 110,
+            minWidth: 0,
           }}
         >
-          {nick} 님
+          {/* 닉네임: 2pt 크고 굵게 */}
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: 'var(--ink)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: 92,
+            }}
+          >
+            {nick}
+          </span>
+          {/* 님: 원래 크기/굵기 그대로 */}
+          <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--ink2)', flexShrink: 0 }}>님</span>
         </span>
       )}
       <AppBarProfile />
