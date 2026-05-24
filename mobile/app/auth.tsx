@@ -24,17 +24,21 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const token = typeof params.token === 'string' ? params.token : '';
-    if (!token) {
-      router.replace('/login' as never);
-      return;
+    if (token) {
+      try {
+        setSession({
+          token,
+          expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+          baseUrl: getApiBaseUrl(),
+        });
+      } catch (e) {
+        console.warn('[auth] setSession failed', e);
+      }
+      const t = setTimeout(() => router.replace('/' as never), 200);
+      return () => clearTimeout(t);
     }
-    try {
-      setSession({ token, expiresAt: null, baseUrl: getApiBaseUrl() });
-    } catch (e) {
-      console.warn('[auth] setSession failed', e);
-    }
-    // 약간의 딜레이로 사용자가 처리 중인 걸 인지하도록.
-    const t = setTimeout(() => router.replace('/' as never), 250);
+    // 토큰이 아직 안 들어왔을 수 있다 (params 미해결). 잠깐 기다렸다가도 없으면 홈으로.
+    const t = setTimeout(() => router.replace('/' as never), 1500);
     return () => clearTimeout(t);
   }, [params.token]);
 
