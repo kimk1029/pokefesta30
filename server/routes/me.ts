@@ -21,7 +21,7 @@ import {
   getMyInventory,
   getMyTrades,
 } from '../lib/queries.js';
-import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory } from '@/lib/snkrdunk';
+import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
 import { runDailyCheckIn } from '../lib/checkIn.js';
 
 const router = Router();
@@ -255,6 +255,9 @@ router.get('/portfolio', async (req: Request, res: Response) => {
     // 어제 대비 등락 계산용 — '오늘 추가한 카드'는 어제 스냅샷에 없으므로 제외.
     // (오늘 추가분을 포함하면 자산 유입이 가격 상승처럼 잡혀 등락이 부풀려짐)
     let comparableTodayJpy = 0;
+    // 카드 리스트와 동일한 sales-chart 기준 등락. 오늘 추가분 제외, 어제부터 보유분만.
+    let heldPrevChart = 0; // 어제(직전 거래 포인트) 시세 합
+    let heldLastChart = 0; // 오늘(최신 포인트) 시세 합
     if (cards.length > 0) {
       // 같은 apparelId 가 여러 번 들어 있을 수 있으니 fetch 는 한 번만.
       const uniqueApparelIds: number[] = Array.from(
@@ -272,13 +275,17 @@ router.get('/portfolio', async (req: Request, res: Response) => {
         return sorted[Math.floor(sorted.length / 2)];
       };
       // apparel.minPrice (현재 최저) + sales history median (raw / psa10) 모두 수집.
-      const priceByApparel = new Map<number, { single: number; psa10: number }>();
+      const priceByApparel = new Map<
+        number,
+        { single: number; psa10: number; chartPrev: number; chartLast: number }
+      >();
       await Promise.all(
         uniqueApparelIds.map(async (id: number) => {
           try {
-            const [a, hist] = await Promise.all([
+            const [a, hist, chart] = await Promise.all([
               fetchSnkrdunkApparel(id),
               fetchSnkrdunkSalesHistory(id).catch(() => null),
+              fetchSnkrdunkSalesChart(id).catch(() => null),
             ]);
             const history = hist?.history ?? [];
             const pickPrices = (predicate: (badge: string) => boolean) =>
@@ -294,7 +301,11 @@ router.get('/portfolio', async (req: Request, res: Response) => {
               single = a.minPrice;
             }
             const psa10 = median(psa10Prices);
-            priceByApparel.set(id, { single, psa10 });
+            // 카드 리스트 등락과 동일 출처(sales-chart)의 마지막 두 포인트.
+            const pts = chart?.points ?? [];
+            const chartLast = pts.length >= 1 ? pts[pts.length - 1][1] : 0;
+            const chartPrev = pts.length >= 2 ? pts[pts.length - 2][1] : 0;
+            priceByApparel.set(id, { single, psa10, chartPrev, chartLast });
           } catch (err) {
             console.warn('[me.portfolio] apparel fetch failed', id, err);
           }
@@ -312,6 +323,11 @@ router.get('/portfolio', async (req: Request, res: Response) => {
         if (p.psa10 > 0) {
           totalPsa10Jpy += p.psa10;
           pricedPsa10Count += 1;
+        }
+        // 등락(차트 기준): 어제부터 보유 + 직전/최신 포인트 둘 다 있는 카드만.
+        if (!addedToday && p.chartPrev > 0 && p.chartLast > 0) {
+          heldPrevChart += p.chartPrev;
+          heldLastChart += p.chartLast;
         }
       }
     }
@@ -349,13 +365,18 @@ router.get('/portfolio', async (req: Request, res: Response) => {
       console.warn('[me.portfolio] snapshot upsert/read failed', err);
     }
 
-    // 등락은 '어제부터 보유한 카드'(comparableTodayJpy) 기준 — 오늘 추가분 제외해
-    // 순수 시세 변동만 반영. (표시 총액 totalJpy 에는 오늘 추가분 포함)
-    const changeAbsJpy = yesterdayJpy != null ? comparableTodayJpy - yesterdayJpy : null;
-    const changePct =
-      yesterdayJpy != null && yesterdayJpy > 0
-        ? ((comparableTodayJpy - yesterdayJpy) / yesterdayJpy) * 100
-        : null;
+    // 등락 — 오늘 추가분 제외. 우선순위:
+    //  1) sales-chart 기준(카드 리스트와 동일): 어제부터 보유분의 직전→최신 포인트 합 비교
+    //  2) 차트가 없으면 일일 스냅샷 폴백(comparableTodayJpy vs 어제 스냅샷)
+    let changeAbsJpy: number | null = null;
+    let changePct: number | null = null;
+    if (heldPrevChart > 0) {
+      changeAbsJpy = heldLastChart - heldPrevChart;
+      changePct = ((heldLastChart - heldPrevChart) / heldPrevChart) * 100;
+    } else if (yesterdayJpy != null && yesterdayJpy > 0) {
+      changeAbsJpy = comparableTodayJpy - yesterdayJpy;
+      changePct = ((comparableTodayJpy - yesterdayJpy) / yesterdayJpy) * 100;
+    }
 
     res.json({
       data: {
