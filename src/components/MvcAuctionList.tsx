@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { stripDeadlinePrefix, type MvcAuctionItem, type MvcAuctionTodayPage, type MvcLatestBid } from '@/lib/navercafe';
+import { FavoriteStar } from '@/components/FavoriteStar';
+import { useListingFavorites, type ListingFavorite } from '@/lib/useListingFavorites';
 
 const MAX_PAGE = 30; // 안전 상한
 const PAGES_PER_TRIGGER = 5; // 한 번 트리거에 빈 페이지를 건너뛰며 최대 탐색할 수
@@ -32,6 +34,40 @@ function fmtClock(ts: number): string {
 
 function fmtWon(n: number): string {
   return `${n.toLocaleString('ko-KR')}원`;
+}
+
+/** 관심목록 메타 → 라이브 항목에 없을 때 최소 렌더용 항목. */
+function favToItem(f: ListingFavorite): MvcAuctionItem {
+  return {
+    articleId: Number(f.externalId),
+    subject: f.title,
+    writerNickname: '',
+    commentCount: 0,
+    readCount: 0,
+    writtenAt: 0,
+    writtenAgo: '',
+    lastCommentedAt: 0,
+    thumbnailUrl: f.imageUrl,
+    costText: '',
+  };
+}
+
+/** 캐시된 호가로 합성 bid (라이브 호가가 아직 없을 때). */
+function synthBid(articleId: number, price: number | null): MvcLatestBid | undefined {
+  if (price == null) return undefined;
+  return { articleId, amount: price, content: '', writerNickname: '', writtenAt: 0, writtenClock: '', commentCount: 0 };
+}
+
+/** 라이브 항목 + 현재 호가 → 관심목록 저장 메타. */
+function favFromItem(item: MvcAuctionItem, bid: MvcLatestBid | null | undefined): ListingFavorite {
+  return {
+    source: 'mvc',
+    externalId: String(item.articleId),
+    title: stripDeadlinePrefix(item.subject) || item.subject,
+    imageUrl: item.thumbnailUrl,
+    price: bid?.amount ?? null,
+    url: `/cards/mvc-auction/${item.articleId}`,
+  };
 }
 
 function AuctionRow({
@@ -169,6 +205,8 @@ export function MvcAuctionList({ initial }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [updatedAt, setUpdatedAt] = useState(0);
+
+  const { isFav, toggle, favorites } = useListingFavorites('mvc');
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const busy = useRef(false);
@@ -346,16 +384,50 @@ export function MvcAuctionList({ initial }: Props) {
         </button>
       </div>
 
-      {items.map((item) => (
-        <AuctionRow
-          key={item.articleId}
-          item={item}
-          bid={bids[item.articleId]}
-          changed={changedIds.has(item.articleId)}
-        />
-      ))}
+      {(() => {
+        const favIds = new Set(favorites.map((f) => f.externalId));
+        const liveById = new Map(items.map((it) => [String(it.articleId), it]));
+        // 관심목록은 라이브 항목이 있으면 그걸로(최신), 없으면 캐시 메타로 합성.
+        const pinned = favorites.map((f) => liveById.get(f.externalId) ?? favToItem(f));
+        const rest = items.filter((it) => !favIds.has(String(it.articleId)));
 
-      {items.length === 0 && !loading && (
+        const renderRow = (item: MvcAuctionItem, pinnedRow: boolean) => {
+          const id = String(item.articleId);
+          const favMeta = favorites.find((f) => f.externalId === id);
+          const bid = bids[item.articleId] ?? (favMeta ? synthBid(item.articleId, favMeta.price) : undefined);
+          return (
+            <div key={`${pinnedRow ? 'p' : 'r'}-${id}`} style={{ position: 'relative' }}>
+              <AuctionRow item={item} bid={bid} changed={changedIds.has(item.articleId)} />
+              <FavoriteStar active={isFav(id)} onToggle={() => toggle(favFromItem(item, bids[item.articleId]))} />
+            </div>
+          );
+        };
+
+        return (
+          <>
+            {pinned.length > 0 && (
+              <>
+                <div
+                  style={{
+                    margin: '0 var(--gap) 6px',
+                    fontFamily: 'var(--f1)',
+                    fontSize: 10,
+                    letterSpacing: 0.5,
+                    color: 'var(--gold-dk,var(--ink2))',
+                  }}
+                >
+                  ★ 관심목록 {pinned.length}
+                </div>
+                {pinned.map((it) => renderRow(it, true))}
+                <div style={{ height: 8, borderBottom: '2px dashed var(--line)', margin: '0 var(--gap) 10px' }} />
+              </>
+            )}
+            {rest.map((it) => renderRow(it, false))}
+          </>
+        );
+      })()}
+
+      {items.length === 0 && favorites.length === 0 && !loading && (
         <div
           style={{
             margin: '0 var(--gap)',

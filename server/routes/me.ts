@@ -544,4 +544,87 @@ router.post('/inventory/buy', async (req: Request, res: Response) => {
   }
 });
 
+// ───── 외부 매물 관심목록 (MVC 경매 / 번개장터) ─────
+
+const LISTING_SOURCES = new Set(['mvc', 'bunjang']);
+
+/** GET /api/me/listing-favorites?source=mvc|bunjang (source 생략 시 전체) */
+router.get('/listing-favorites', async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  const source = typeof req.query.source === 'string' ? req.query.source : undefined;
+  if (source && !LISTING_SOURCES.has(source)) {
+    return res.status(400).json({ error: 'invalid source' });
+  }
+  try {
+    const rows = await prisma.listingFavorite.findMany({
+      where: { userId, ...(source ? { source } : {}) },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+    res.json({ data: rows });
+  } catch (err) {
+    console.error('[me.listing-favorites.GET]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+/** POST /api/me/listing-favorites — { source, externalId, title?, imageUrl?, price?, url? } */
+router.post('/listing-favorites', async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  const body = (req.body ?? {}) as {
+    source?: string;
+    externalId?: string | number;
+    title?: string;
+    imageUrl?: string | null;
+    price?: number | null;
+    url?: string;
+  };
+  const source = String(body.source ?? '');
+  const externalId = String(body.externalId ?? '').trim();
+  if (!LISTING_SOURCES.has(source) || !externalId) {
+    return res.status(400).json({ error: 'source, externalId 필요' });
+  }
+  const price =
+    typeof body.price === 'number' && Number.isFinite(body.price) ? Math.round(body.price) : null;
+  const data = {
+    title: (body.title ?? '').slice(0, 300),
+    imageUrl: body.imageUrl ? String(body.imageUrl).slice(0, 1000) : null,
+    price,
+    url: (body.url ?? '').slice(0, 1000),
+  };
+  try {
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { id: userId, name: defaultNameFor(userId) },
+    });
+    const row = await prisma.listingFavorite.upsert({
+      where: { userId_source_externalId: { userId, source, externalId } },
+      update: data,
+      create: { userId, source, externalId, ...data },
+    });
+    res.status(201).json({ data: row });
+  } catch (err) {
+    const e = err as { code?: string; message?: string; name?: string };
+    console.error('[me.listing-favorites.POST]', userId, e?.code, e?.message);
+    res.status(500).json({ error: 'internal', code: e?.code ?? null });
+  }
+});
+
+/** DELETE /api/me/listing-favorites/:source/:externalId */
+router.delete('/listing-favorites/:source/:externalId', async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  const { source, externalId } = req.params;
+  if (!LISTING_SOURCES.has(source) || !externalId) {
+    return res.status(400).json({ error: 'invalid params' });
+  }
+  try {
+    await prisma.listingFavorite.deleteMany({ where: { userId, source, externalId } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[me.listing-favorites.DELETE]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
 export default router;

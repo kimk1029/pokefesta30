@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import type { BunjangItem } from '@/lib/bunjang';
+import { FavoriteStar } from '@/components/FavoriteStar';
+import { useListingFavorites, type ListingFavorite } from '@/lib/useListingFavorites';
 
 function bunjangSearchUrl(query: string): string {
   return `https://m.bunjang.co.kr/search/products?q=${encodeURIComponent(query)}`;
@@ -103,6 +105,32 @@ function ItemRow({ item }: { item: BunjangItem }) {
   );
 }
 
+/** 관심목록 메타 → 검색 결과에 없을 때 최소 렌더용 항목. */
+function favToBunjangItem(f: ListingFavorite): BunjangItem {
+  return {
+    pid: f.externalId,
+    name: f.title,
+    price: f.price ?? 0,
+    imageUrl: f.imageUrl,
+    location: '',
+    favCount: 0,
+    updatedAt: 0,
+    ad: false,
+    productUrl: `https://m.bunjang.co.kr/products/${f.externalId}`,
+  };
+}
+
+function favFromBunjangItem(item: BunjangItem): ListingFavorite {
+  return {
+    source: 'bunjang',
+    externalId: item.pid,
+    title: item.name,
+    imageUrl: item.imageUrl,
+    price: item.price > 0 ? item.price : null,
+    url: `/cards/bunjang/${item.pid}`,
+  };
+}
+
 interface Props {
   initialItems: BunjangItem[];
   initialQuery: string;
@@ -113,6 +141,7 @@ export function BunjangBrowser({ initialItems, initialQuery }: Props) {
   const [activeQuery, setActiveQuery] = useState(initialQuery);
   const [items, setItems] = useState<BunjangItem[]>(initialItems);
   const [loading, setLoading] = useState(false);
+  const { isFav, toggle, favorites } = useListingFavorites('bunjang');
 
   async function submit(q: string) {
     const trimmed = q.trim();
@@ -195,6 +224,24 @@ export function BunjangBrowser({ initialItems, initialQuery }: Props) {
         </a>
       </div>
 
+      {/* 관심목록 (최상단 고정) */}
+      {favorites.length > 0 && (
+        <div className="sect">
+          <div className="sect-title">
+            <h2 style={{ margin: 0 }}>★ 관심목록 {favorites.length}</h2>
+          </div>
+          {favorites.map((f) => {
+            const item = favToBunjangItem(f);
+            return (
+              <div key={`fav-${f.externalId}`} style={{ position: 'relative' }}>
+                <ItemRow item={item} />
+                <FavoriteStar active onToggle={() => toggle(f)} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* 결과 */}
       <div className="sect">
         <div className="sect-title">
@@ -225,7 +272,14 @@ export function BunjangBrowser({ initialItems, initialQuery }: Props) {
             매물이 없습니다.
           </div>
         ) : (
-          items.map((item) => <ItemRow key={item.pid} item={item} />)
+          items
+            .filter((item) => !isFav(item.pid))
+            .map((item) => (
+              <div key={item.pid} style={{ position: 'relative' }}>
+                <ItemRow item={item} />
+                <FavoriteStar active={false} onToggle={() => toggle(favFromBunjangItem(item))} />
+              </div>
+            ))
         )}
       </div>
     </>
