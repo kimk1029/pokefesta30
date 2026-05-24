@@ -1,7 +1,7 @@
 import { View, StyleSheet, Pressable, type ViewProps } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { PixelText } from './PixelText';
-import { useThemeColors } from './ThemeProvider';
+import { useThemeColors, useThemeTextVariant } from './ThemeProvider';
 
 interface Props extends ViewProps {
   title?: string;
@@ -15,6 +15,7 @@ const SLOT = 38; // square hit-area for left/right buttons — keeps title cente
 
 export function AppBar({ title, right, left, onBack, style, ...rest }: Props) {
   const c = useThemeColors();
+  const textVariant = useThemeTextVariant();
   const leftSlot = onBack ? <ABtn onPress={onBack}>◀</ABtn> : left;
   const rightSlot = right;
   return (
@@ -22,12 +23,12 @@ export function AppBar({ title, right, left, onBack, style, ...rest }: Props) {
       <View style={styles.slot}>{leftSlot}</View>
       <View style={styles.center}>
         {title ? (
-          <PixelText variant="pixel" size={13} weight="bold" color={c.ink} style={styles.title} numberOfLines={1}>
+          <PixelText variant={textVariant} size={13} weight="bold" color={c.ink} style={styles.title} numberOfLines={1}>
             {title}
           </PixelText>
         ) : (
           <View style={styles.logoWrap}>
-            <PixelText variant="pixel" size={13} color={c.ink} style={{ letterSpacing: 1 }}>
+            <PixelText variant={textVariant} size={13} color={c.ink} style={{ letterSpacing: 1 }}>
               🃏 CardVault
             </PixelText>
           </View>

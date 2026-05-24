@@ -2285,13 +2285,20 @@ a{color:inherit;text-decoration:none;}
 
 /* PixelBall variant 토글 — pokemon SVG 가 기본, 다른 테마는 해당 SVG 만 표시 */
 .ball-themed > .ball-onepiece,
-.ball-themed > .ball-yugioh{display:none;}
+.ball-themed > .ball-yugioh,
+.ball-themed > .ball-sports{display:none;}
 [data-theme="onepiece"] .ball-themed > .ball-pokemon,
-[data-theme="onepiece"] .ball-themed > .ball-yugioh{display:none;}
+[data-theme="onepiece"] .ball-themed > .ball-yugioh,
+[data-theme="onepiece"] .ball-themed > .ball-sports{display:none;}
 [data-theme="onepiece"] .ball-themed > .ball-onepiece{display:block;}
 [data-theme="yugioh"] .ball-themed > .ball-pokemon,
-[data-theme="yugioh"] .ball-themed > .ball-onepiece{display:none;}
+[data-theme="yugioh"] .ball-themed > .ball-onepiece,
+[data-theme="yugioh"] .ball-themed > .ball-sports{display:none;}
 [data-theme="yugioh"] .ball-themed > .ball-yugioh{display:block;}
+[data-theme="sports"] .ball-themed > .ball-pokemon,
+[data-theme="sports"] .ball-themed > .ball-onepiece,
+[data-theme="sports"] .ball-themed > .ball-yugioh{display:none;}
+[data-theme="sports"] .ball-themed > .ball-sports{display:block;}
 
 /* ── FAB (탭바 중앙 버튼) ─────────────────────── */
 
@@ -2482,10 +2489,175 @@ a{color:inherit;text-decoration:none;}
   --red:#7C3AED;
   --red-lt:#A78BFA;
   --red-dk:#4C1D95;
+  --blu:#4C1D95;
+  --blu-lt:#7C3AED;
+  --blu-dk:#2E1065;
+  --paper:#F4E8FF;
+  --pap2:#E9D5FF;
+  --pap3:#C4B5FD;
+  --papdk:#6D28D9;
+  --white:#FFF7D6;
+  --ink:#241437;
+  --ink2:#3B0764;
+  --ink3:#6B21A8;
   --gold:#FFD23F;
   --gold-lt:#FCE6A8;
   --gold-dk:#B8860B;
 }
+[data-theme="yugioh"] .page-wrap{
+  background:#2E1065;
+  background-image:
+    linear-gradient(45deg,rgba(255,210,63,.14) 25%,transparent 25%),
+    linear-gradient(-45deg,rgba(255,210,63,.1) 25%,transparent 25%);
+  background-size:34px 34px;
+}
+[data-theme="yugioh"] .phone{
+  box-shadow:
+    -6px 0 0 var(--ink),6px 0 0 var(--ink),0 -6px 0 var(--ink),0 6px 0 var(--ink),
+    inset 0 0 0 3px var(--gold-lt),inset 0 0 0 6px var(--red),inset 0 0 0 9px var(--ink),
+    10px 10px 0 #160726;
+}
+[data-theme="yugioh"] .status,
+[data-theme="yugioh"] .appbar{
+  background:linear-gradient(180deg,#FFF7D6,#F4E8FF);
+  box-shadow:inset 0 -4px 0 var(--red),0 2px 0 var(--ink);
+}
+[data-theme="yugioh"] .tabbar{
+  background:linear-gradient(180deg,#241437,#160726);
+  box-shadow:inset 0 4px 0 var(--gold),inset 0 -4px 0 #05020A;
+}
+[data-theme="yugioh"] .sect-title,
+[data-theme="yugioh"] .sect-hd{
+  background:#241437;color:var(--gold);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 2px 0 #6D28D9,inset 0 -2px 0 #05020A,5px 5px 0 #B8860B;
+}
+[data-theme="yugioh"] .card,
+[data-theme="yugioh"] .qi,
+[data-theme="yugioh"] .dash-quick,
+[data-theme="yugioh"] .pack-list-item,
+[data-theme="yugioh"] .profile-card,
+[data-theme="yugioh"] .points-card,
+[data-theme="yugioh"] .my-item,
+[data-theme="yugioh"] .cv-manual-form,
+[data-theme="yugioh"] .cv-add-intro,
+[data-theme="yugioh"] .theme-pick-tile{
+  background:linear-gradient(180deg,#FFF7D6,#E9D5FF);
+  box-shadow:
+    -4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
+    inset 0 3px 0 #FFFDF2,inset 0 -4px 0 rgba(76,29,149,.25),
+    6px 6px 0 #B8860B;
+}
+[data-theme="onepiece"] input,
+[data-theme="onepiece"] textarea,
+[data-theme="onepiece"] select,
+[data-theme="onepiece"] .cv-manual-input{
+  background:#FFF8E5;
+  border:3px solid var(--ink);
+  box-shadow:inset 0 -3px 0 rgba(120,74,26,.18),3px 3px 0 #7A4A1A;
+  font-family:var(--f2);
+}
+[data-theme="yugioh"] input,
+[data-theme="yugioh"] textarea,
+[data-theme="yugioh"] select,
+[data-theme="yugioh"] .cv-manual-input{
+  background:#FFF7D6;
+  border:3px solid var(--ink);
+  box-shadow:inset 0 -3px 0 rgba(76,29,149,.2),3px 3px 0 #B8860B;
+  font-family:var(--f1);
+}
+
+/* sports — 스코어보드/잔디/스타디움 톤. 폰트는 한글 고딕 픽셀을 우선해 읽기 좋게. */
+[data-theme="sports"]{
+  --red:#DC2626;
+  --red-lt:#F87171;
+  --red-dk:#7F1D1D;
+  --yel:#FACC15;
+  --yel-lt:#FEF08A;
+  --yel-dk:#A16207;
+  --gold:#FACC15;
+  --gold-lt:#FEF08A;
+  --gold-dk:#A16207;
+  --blu:#2563EB;
+  --blu-lt:#60A5FA;
+  --blu-dk:#1E3A8A;
+  --grn:#16A34A;
+  --grn-lt:#86EFAC;
+  --grn-dk:#14532D;
+  --paper:#F7F8EA;
+  --pap2:#DDE7C7;
+  --pap3:#B7C99A;
+  --papdk:#647D3A;
+  --white:#FFFFFF;
+  --f1:'Galmuri11','Press Start 2P',monospace;
+}
+
+[data-theme="sports"] .page-wrap{
+  background:#14532D;
+  background-image:
+    linear-gradient(90deg,rgba(255,255,255,.16) 1px,transparent 1px),
+    linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px);
+  background-size:44px 44px,22px 22px;
+}
+[data-theme="sports"] .phone{
+  box-shadow:
+    -6px 0 0 var(--ink),6px 0 0 var(--ink),0 -6px 0 var(--ink),0 6px 0 var(--ink),
+    inset 0 0 0 3px #FFFFFF,inset 0 0 0 7px var(--grn),inset 0 0 0 10px var(--ink),
+    10px 10px 0 #0B2F1A;
+}
+[data-theme="sports"] .status,
+[data-theme="sports"] .appbar{
+  background:#F7F8EA;
+  box-shadow:inset 0 -4px 0 var(--grn),0 2px 0 var(--ink);
+}
+[data-theme="sports"] .tabbar{
+  background:#111827;
+  box-shadow:inset 0 4px 0 var(--grn),inset 0 -4px 0 #000;
+}
+[data-theme="sports"] .sect-title,
+[data-theme="sports"] .sect-hd{
+  background:#111827;color:#FFFFFF;
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 2px 0 #374151,inset 0 -2px 0 #000,5px 5px 0 var(--grn-dk);
+}
+[data-theme="sports"] .card,
+[data-theme="sports"] .qi,
+[data-theme="sports"] .dash-quick,
+[data-theme="sports"] .pack-list-item,
+[data-theme="sports"] .profile-card,
+[data-theme="sports"] .points-card,
+[data-theme="sports"] .my-item,
+[data-theme="sports"] .cv-manual-form,
+[data-theme="sports"] .cv-add-intro,
+[data-theme="sports"] .theme-pick-tile{
+  background:linear-gradient(180deg,#FFFFFF,#EEF4DD);
+  box-shadow:
+    -3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 4px 0 #FFFFFF,inset 0 -4px 0 rgba(20,83,45,.18),
+    5px 5px 0 var(--grn-dk);
+}
+[data-theme="sports"] input,
+[data-theme="sports"] textarea,
+[data-theme="sports"] select,
+[data-theme="sports"] .cv-manual-input{
+  background:#FFFFFF;
+  border:3px solid var(--ink);
+  box-shadow:inset 0 -3px 0 rgba(20,83,45,.18),3px 3px 0 var(--grn-dk);
+  font-family:var(--f2);
+}
+[data-theme="sports"] .fab-circle{
+  background:
+    radial-gradient(circle at 50% 50%,#FFFFFF 0 34%,transparent 35%),
+    linear-gradient(90deg,transparent 44%,var(--ink) 44% 56%,transparent 56%),
+    linear-gradient(0deg,transparent 44%,var(--ink) 44% 56%,transparent 56%),
+    var(--white);
+  border-radius:50%;
+  box-shadow:inset 0 -4px 0 rgba(20,83,45,.2),5px 5px 0 var(--ink);
+}
+[data-theme="sports"] .fab-circle::before{
+  width:0;height:0;border:0;background:transparent;box-shadow:none;
+}
+[data-theme="sports"] .fab-tab span{color:#FFFFFF;}
 
 /* ── 테마 픽커 모달 ─────────────────────── */
 .theme-pick-grid{display:flex;flex-direction:column;gap:8px;}

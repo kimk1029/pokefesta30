@@ -5,6 +5,7 @@
  * - pokemon  : 몬스터볼
  * - onepiece : 위에서 본 루피의 밀짚모자 (탄 brim + 빨강 띠)
  * - yugioh   : 천년 퍼즐 — 위에서 본 황금 사각 + 호루스의 눈
+ * - sports   : 흰 공 + 잔디색 라인
  *
  * SSR 안전 — 어떤 테마든 첫 페인트에서 정확히 한 variant 만 보임.
  */
@@ -116,6 +117,36 @@ export function PixelBall({ size = 22 }: { size?: number }) {
         <rect x="3" y="4" width="4" height="1" fill="#1A1A2E" />
         <rect x="4" y="5" width="2" height="1" fill="#1A1A2E" />
         <rect x="4" y="4" width="2" height="1" fill="#FFFFFF" />
+      </svg>
+
+      {/* sports variant — 경기장 공 아이콘 */}
+      <svg
+        className="ball-sports"
+        width={size}
+        height={size}
+        viewBox="0 0 10 10"
+        style={{ shapeRendering: 'crispEdges' }}
+      >
+        <rect x="3" y="0" width="4" height="1" fill="#111827" />
+        <rect x="2" y="1" width="1" height="1" fill="#111827" />
+        <rect x="7" y="1" width="1" height="1" fill="#111827" />
+        <rect x="1" y="2" width="1" height="1" fill="#111827" />
+        <rect x="8" y="2" width="1" height="1" fill="#111827" />
+        <rect x="0" y="3" width="1" height="4" fill="#111827" />
+        <rect x="9" y="3" width="1" height="4" fill="#111827" />
+        <rect x="1" y="7" width="1" height="1" fill="#111827" />
+        <rect x="8" y="7" width="1" height="1" fill="#111827" />
+        <rect x="2" y="8" width="1" height="1" fill="#111827" />
+        <rect x="7" y="8" width="1" height="1" fill="#111827" />
+        <rect x="3" y="9" width="4" height="1" fill="#111827" />
+        <rect x="3" y="1" width="4" height="1" fill="#FFFFFF" />
+        <rect x="2" y="2" width="6" height="1" fill="#FFFFFF" />
+        <rect x="1" y="3" width="8" height="4" fill="#FFFFFF" />
+        <rect x="2" y="7" width="6" height="1" fill="#FFFFFF" />
+        <rect x="3" y="8" width="4" height="1" fill="#FFFFFF" />
+        <rect x="4" y="1" width="2" height="8" fill="#16A34A" />
+        <rect x="1" y="4" width="8" height="2" fill="#16A34A" />
+        <rect x="4" y="4" width="2" height="2" fill="#FFFFFF" />
       </svg>
     </span>
   );

@@ -4,9 +4,10 @@ import { router, usePathname } from 'expo-router';
 import { colors } from '@/theme/tokens';
 import { PixelText } from './PixelText';
 import { PokeballSpinner } from './PokeballSpinner';
+import { SportsBall } from './SportsBall';
 import { StrawHatBall } from './StrawHatBall';
 import { TabIcon, type TabIconName } from './TabIcon';
-import { useTheme, useThemeColors } from './ThemeProvider';
+import { useTheme, useThemeColors, useThemeTextVariant } from './ThemeProvider';
 
 type TabId = 'home' | 'collection' | 'fab' | 'community' | 'my';
 
@@ -70,6 +71,7 @@ interface TabBtnProps {
 
 function TabBtn({ on, label, icon, href }: TabBtnProps) {
   const c = useThemeColors();
+  const textVariant = useThemeTextVariant();
   const scale = useRef(new Animated.Value(1)).current;
   const onIn = () =>
     Animated.spring(scale, { toValue: 0.86, useNativeDriver: true, friction: 6, tension: 240 }).start();
@@ -86,7 +88,7 @@ function TabBtn({ on, label, icon, href }: TabBtnProps) {
         {on ? <View style={[styles.activeDot, { backgroundColor: c.gold }]} /> : null}
         <TabIcon name={icon} color={on ? c.gold : c.pap3} size={24} />
         <PixelText
-          variant="pixel"
+          variant={textVariant}
           size={11}
           color={on ? c.gold : c.pap3}
           style={{ marginTop: 5, letterSpacing: 0.5 }}
@@ -107,6 +109,7 @@ interface FabProps {
 function FabTab({ on, label, href }: FabProps) {
   const { theme } = useTheme();
   const c = useThemeColors();
+  const textVariant = useThemeTextVariant();
   const spin = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const lift = useRef(new Animated.Value(0)).current;
@@ -244,10 +247,16 @@ function FabTab({ on, label, href }: FabProps) {
             ]}
           />
         ) : null}
-        {theme === 'onepiece' ? <StrawHatBall size={62} /> : <PokeballSpinner size={62} />}
+        {theme === 'onepiece' ? (
+          <StrawHatBall size={62} />
+        ) : theme === 'sports' ? (
+          <SportsBall size={62} />
+        ) : (
+          <PokeballSpinner size={62} />
+        )}
       </Animated.View>
       <PixelText
-        variant="pixel"
+        variant={textVariant}
         size={11}
         color={on ? c.gold : c.pap3}
         style={{ marginTop: 38, letterSpacing: 0.5 }}

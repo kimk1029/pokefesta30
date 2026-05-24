@@ -45,7 +45,13 @@ export function PixelPress({
   const { theme } = useTheme();
   const faceBg = bg === colors.white ? c.white : bg;
   const edge = border === colors.ink ? c.ink : border;
-  const midShadow = theme === 'onepiece' ? 'rgba(122,74,26,0.62)' : 'rgba(15,23,42,0.55)';
+  const midShadow = theme === 'onepiece'
+    ? 'rgba(122,74,26,0.62)'
+    : theme === 'yugioh'
+      ? 'rgba(184,134,11,0.68)'
+      : theme === 'sports'
+        ? 'rgba(20,83,45,0.58)'
+        : 'rgba(15,23,42,0.55)';
   return (
     <Pressable {...rest}>
       {(state) => {

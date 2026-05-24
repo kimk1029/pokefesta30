@@ -1,7 +1,7 @@
 import { View, Pressable, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { PixelText } from '../PixelText';
-import { useThemeColors } from '../ThemeProvider';
+import { useThemeColors, useThemeTextVariant } from '../ThemeProvider';
 
 interface Props {
   title: string;
@@ -14,6 +14,7 @@ interface Props {
  */
 export function SectHd({ title, more, onMore }: Props) {
   const c = useThemeColors();
+  const textVariant = useThemeTextVariant();
   const shadow = 5;
   return (
     <View style={[styles.wrap, { marginRight: shadow, marginBottom: 12 }]}>
@@ -31,12 +32,12 @@ export function SectHd({ title, more, onMore }: Props) {
         ]}
       />
       <View style={[styles.body, { backgroundColor: c.ink, borderColor: c.ink }]}>
-        <PixelText variant="pixel" size={12} weight="bold" color={c.gold} style={{ flex: 1 }}>
+        <PixelText variant={textVariant} size={12} weight="bold" color={c.gold} style={{ flex: 1 }}>
           {title}
         </PixelText>
         {more && onMore ? (
           <Pressable onPress={onMore}>
-            <PixelText variant="pixel" size={9} color={c.pap3}>
+            <PixelText variant={textVariant} size={9} color={c.pap3}>
               {more}
             </PixelText>
           </Pressable>
