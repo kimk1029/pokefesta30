@@ -353,11 +353,11 @@ router.get('/portfolio', async (req: Request, res: Response) => {
       // (yesterdayKey 는 폴백 라벨용 — 어제 정확한 키가 없어도 동작.)
       void yesterdayKey;
 
-      // 차트용 30일 히스토리 (오래된 → 최신).
+      // 차트용 히스토리 (오래된 → 최신). 클라이언트에서 일/주/월 단위로 집계한다.
       const rows = await prisma.portfolioDailySnapshot.findMany({
         where: { userId },
         orderBy: { date: 'desc' },
-        take: 30,
+        take: 365,
         select: { date: true, totalJpy: true },
       });
       history = rows.reverse().map((r) => ({ date: r.date, totalJpy: r.totalJpy }));

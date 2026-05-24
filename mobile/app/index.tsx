@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Image, ScrollView, View, Pressable, Text } from 'react-native';
-import Svg, { Circle, Path, Polyline } from 'react-native-svg';
+import Svg, { Circle, Path, Polyline, Rect } from 'react-native-svg';
 import { router } from 'expo-router';
 import { AppBar, ABtn } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
@@ -88,7 +88,24 @@ const XP_CURRENT = 340;
 const XP_MAX = 500;
 const TRADES = 3;
 
-const PERIOD_DAYS: Record<'1W' | '1M' | '3M', number> = { '1W': 7, '1M': 30, '3M': 90 };
+type PortfolioChartMode = 'day' | 'week' | 'month';
+
+interface PortfolioPoint {
+  date: string;
+  totalJpy: number;
+}
+
+const PORTFOLIO_MODE_LABEL: Record<PortfolioChartMode, string> = {
+  day: '일',
+  week: '주',
+  month: '월',
+};
+
+const PORTFOLIO_MODE_HELP: Record<PortfolioChartMode, string> = {
+  day: '일별 평가액',
+  week: '주별 평가액',
+  month: '월별 평가액',
+};
 
 /**
  * 컬렉션 일별 종합 가격을 계산. 카드별 trend[](최근 N일 평균 시세)을 합산.
@@ -109,6 +126,45 @@ function computeDailyTotals(cards: Array<{ latestPrice?: number; trend?: number[
   return out;
 }
 
+function dateKeyShift(daysAgo: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+}
+
+function syntheticPortfolioHistory(values: number[]): PortfolioPoint[] {
+  return values.map((totalJpy, i) => ({
+    date: dateKeyShift(values.length - 1 - i),
+    totalJpy,
+  }));
+}
+
+function weekKey(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return date;
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function aggregatePortfolioHistory(
+  history: PortfolioPoint[],
+  mode: PortfolioChartMode,
+): PortfolioPoint[] {
+  if (mode === 'day') return history.slice(-30);
+  const limit = mode === 'week' ? 26 : 12;
+  const keyOf = mode === 'week'
+    ? (point: PortfolioPoint) => weekKey(point.date)
+    : (point: PortfolioPoint) => point.date.slice(0, 7);
+  const grouped = new Map<string, PortfolioPoint>();
+  for (const point of history) {
+    grouped.set(keyOf(point), point);
+  }
+  return Array.from(grouped.values()).slice(-limit);
+}
+
 const ACTIVITY: { icon: string; c: string; txt: string; time: string; pt: string }[] = [
   { icon: '🔥', c: colors.grn, txt: '리자몽 EX 가격 ▲ +8%', time: '10분 전', pt: '+5P' },
   { icon: '📷', c: colors.blu, txt: '카이바 슈라이 스캔 완료', time: '1시간 전', pt: '+10P' },
@@ -119,13 +175,13 @@ const ACTIVITY: { icon: string; c: string; txt: string; time: string; pt: string
 export default function Home() {
   const authed = useAuthed();
   const { format: formatCurrency } = useCurrency();
-  const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '3M'>('1M');
+  const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
   const [activeGame, setActiveGame] = useState<string>('전체');
   // 관심 카드(favorite=true)는 포트폴리오 합계 / 차트 / 통계에서 제외.
   const ownedAll = useCollection();
   const owned = ownedAll.filter((c) => !c.favorite);
 
-  // 서버 일별 스냅샷 (KST 정각 reset) — totalJpy / changePct / 30일 history.
+  // 서버 일별 스냅샷 (KST 정각 reset) — totalJpy / changePct / history.
   // 인증 시에만 동작. 미인증 / 실패 시 폴백으로 로컬 useCollection 사용.
   const [serverPortfolio, setServerPortfolio] = useState<PortfolioSummary | null>(null);
   useEffect(() => {
@@ -163,16 +219,17 @@ export default function Home() {
     val: owned.filter((c) => c.game === g).reduce((a, c) => a + cardKrw(c, priceMode), 0),
   }));
 
-  // 컬렉션 일별 종합 가격 (오래된→최신). 서버 히스토리(스냅샷)가 있으면 그걸 사용,
-  // 없으면 owned 카드의 trend 로 폴백.
-  const periodDays = PERIOD_DAYS[chartPeriod];
+  // 컬렉션 평가액 차트 (오래된→최신). 서버 일별 스냅샷을 일/주/월 종가로 집계.
   const ownedForChart = owned.map((c) => ({
     latestPrice: cardKrw(c, priceMode),
     trend: Array.isArray(c.trend) ? c.trend : [],
   }));
-  const realHistory = (serverPortfolio?.history ?? []).map((h) => h.totalJpy);
-  const chartData =
-    realHistory.length >= 2 ? realHistory.slice(-periodDays) : computeDailyTotals(ownedForChart, periodDays);
+  const realHistory = serverPortfolio?.history ?? [];
+  const chartPoints = aggregatePortfolioHistory(
+    realHistory.length >= 2 ? realHistory : syntheticPortfolioHistory(computeDailyTotals(ownedForChart, 30)),
+    chartMode,
+  );
+  const chartData = chartPoints.map((point) => point.totalJpy);
   const gradedPct = owned.length > 0 ? Math.round((graded.length / owned.length) * 100) : 0;
 
   // Background refresh: for every owned card with a snkrdunkApparelId (or
@@ -405,27 +462,27 @@ export default function Home() {
           {/* Chart — 컬렉션 일별 종합 가격 꺾은선 */}
           <PortfolioLineChart data={chartData} height={64} />
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.25)">
-              {chartPeriod === '1W' ? '7일' : chartPeriod === '1M' ? '30일' : '90일'} 전
+              {PORTFOLIO_MODE_HELP[chartMode]}
             </PixelText>
             <View style={{ flexDirection: 'row', gap: 5 }}>
-              {(['1W', '1M', '3M'] as const).map((p) => {
-                const on = chartPeriod === p;
+              {(['day', 'week', 'month'] as const).map((mode) => {
+                const on = chartMode === mode;
                 return (
                   <Pressable
-                    key={p}
-                    onPress={() => setChartPeriod(p)}
+                    key={mode}
+                    onPress={() => setChartMode(mode)}
                     style={{
                       paddingHorizontal: 9,
-                      paddingVertical: 3,
+                      paddingVertical: 4,
                       backgroundColor: on ? colors.gold : 'rgba(255,255,255,0.06)',
                       borderColor: on ? colors.ink : 'rgba(255,255,255,0.12)',
                       borderWidth: 1,
                     }}
                   >
                     <PixelText variant="pixel" size={9} color={on ? colors.ink : 'rgba(255,255,255,0.35)'}>
-                      {p}
+                      {PORTFOLIO_MODE_LABEL[mode]}
                     </PixelText>
                   </Pressable>
                 );
@@ -525,7 +582,7 @@ export default function Home() {
           <QuickBtn icon="📷" label="스캔" bg={colors.grn} href="/scan" />
           <QuickBtn icon="¥" label="시세확인" bg={colors.gold} href="/cards" />
           <QuickBtn icon="🔨" label="MVC경매" bg={colors.blu} href="/cards/mvc-auction" />
-          <QuickBtn icon="🇰🇷" label="국내마켓" bg={colors.red} href="/cards/bunjang" />
+          <QuickBtn icon={<KoreaMarketIcon />} label="국내마켓" bg={colors.red} href="/cards/bunjang" />
           <QuickBtn icon="🤝" label="거래" bg={colors.grn} href="/trade" />
         </View>
 
@@ -935,7 +992,22 @@ function Block({
   );
 }
 
-function QuickBtn({ icon, label, bg, href }: { icon: string; label: string; bg: string; href: string }) {
+function KoreaMarketIcon() {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 22 22">
+      <Rect x={3} y={7} width={16} height={12} fill={colors.ink} />
+      <Rect x={5} y={9} width={12} height={8} fill={colors.white} />
+      <Rect x={7} y={4} width={8} height={3} fill={colors.ink} />
+      <Rect x={8} y={2} width={6} height={3} fill={colors.white} />
+      <Rect x={9} y={11} width={4} height={4} fill={colors.red} />
+      <Rect x={11} y={13} width={4} height={4} fill={colors.blu} />
+      <Rect x={6} y={11} width={2} height={2} fill={colors.ink} />
+      <Rect x={15} y={14} width={2} height={2} fill={colors.ink} />
+    </Svg>
+  );
+}
+
+function QuickBtn({ icon, label, bg, href }: { icon: ReactNode; label: string; bg: string; href: string }) {
   return (
     <View style={{ flex: 1 }}>
       <PixelPress onPress={() => router.push(href as never)} borderWidth={3} shadow={5} inner={3}>
@@ -951,9 +1023,9 @@ function QuickBtn({ icon, label, bg, href }: { icon: string; label: string; bg: 
               justifyContent: 'center',
             }}
           >
-            <Text style={{ fontSize: 17 }}>{icon}</Text>
+            {typeof icon === 'string' ? <Text style={{ fontSize: 17 }}>{icon}</Text> : icon}
           </View>
-          <PixelText variant="pixel" size={8} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
+          <PixelText variant="pixel" size={9} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
             {label}
           </PixelText>
         </View>

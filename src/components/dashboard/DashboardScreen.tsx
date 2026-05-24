@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { AppBarUser } from '@/components/AppBarUser';
 import { useCurrency } from '@/components/CurrencyProvider';
@@ -77,7 +78,24 @@ const XP_CURRENT = 340;
 const XP_MAX = 500;
 const XP_WEEK = 80;
 const TRADES_THIS_WEEK = 3;
-const PERIOD_DAYS: Record<'1W' | '1M' | '3M', number> = { '1W': 7, '1M': 30, '3M': 90 };
+type PortfolioChartMode = 'day' | 'week' | 'month';
+
+interface PortfolioPoint {
+  date: string;
+  totalJpy: number;
+}
+
+const PORTFOLIO_MODE_LABEL: Record<PortfolioChartMode, string> = {
+  day: '일',
+  week: '주',
+  month: '월',
+};
+
+const PORTFOLIO_MODE_HELP: Record<PortfolioChartMode, string> = {
+  day: '일별 평가액',
+  week: '주별 평가액',
+  month: '월별 평가액',
+};
 
 /**
  * 컬렉션 전체의 일별 종합 가격(JPY 기준)을 계산.
@@ -105,6 +123,67 @@ function computeDailyTotals(
     }
   }
   return out;
+}
+
+function dateKeyShift(daysAgo: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+}
+
+function syntheticPortfolioHistory(values: number[]): PortfolioPoint[] {
+  return values.map((totalJpy, i) => ({
+    date: dateKeyShift(values.length - 1 - i),
+    totalJpy,
+  }));
+}
+
+function weekKey(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return date;
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function aggregatePortfolioHistory(
+  history: PortfolioPoint[],
+  mode: PortfolioChartMode,
+): PortfolioPoint[] {
+  if (mode === 'day') return history.slice(-30);
+  const limit = mode === 'week' ? 26 : 12;
+  const keyOf = mode === 'week'
+    ? (point: PortfolioPoint) => weekKey(point.date)
+    : (point: PortfolioPoint) => point.date.slice(0, 7);
+  const grouped = new Map<string, PortfolioPoint>();
+  for (const point of history) {
+    // 주식 차트의 종가처럼 해당 주/월의 마지막 스냅샷을 대표값으로 사용한다.
+    grouped.set(keyOf(point), point);
+  }
+  return Array.from(grouped.values()).slice(-limit);
+}
+
+function KoreaMarketIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 22 22"
+      aria-hidden
+      style={{ display: 'block', shapeRendering: 'crispEdges' }}
+    >
+      <rect x="3" y="7" width="16" height="12" fill="#0F172A" />
+      <rect x="5" y="9" width="12" height="8" fill="#FFFFFF" />
+      <rect x="7" y="4" width="8" height="3" fill="#0F172A" />
+      <rect x="8" y="2" width="6" height="3" fill="#FFFFFF" />
+      <rect x="9" y="11" width="4" height="4" fill="#E63946" />
+      <rect x="11" y="13" width="4" height="4" fill="#3A5BD9" />
+      <rect x="6" y="11" width="2" height="2" fill="#0F172A" />
+      <rect x="15" y="14" width="2" height="2" fill="#0F172A" />
+    </svg>
+  );
 }
 const ACTIVITY = [
   { icon: '🔥', c: 'var(--grn)', txt: '리자몽 EX 가격 ▲ +8%', time: '10분 전', pt: '+5P' },
@@ -148,7 +227,7 @@ function fmt(n: number): string {
 
 export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs = [] }: Props) {
   const { format } = useCurrency();
-  const [chartPeriod, setChartPeriod] = useState<'1W' | '1M' | '3M'>('1M');
+  const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
   const [activeGame, setActiveGame] = useState<string>('전체');
 
   // 실시간 포트폴리오 — 서버 일별 스냅샷 기반 등락 + history (KST 정각 reset).
@@ -156,7 +235,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
     totalJpy: number;
     changeAbsJpy: number | null;
     changePct: number | null;
-    history: number[];
+    history: PortfolioPoint[];
   } | null>(null);
   useEffect(() => {
     let alive = true;
@@ -177,7 +256,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
           totalJpy: j.data.totalJpy,
           changeAbsJpy: j.data.changeAbsJpy,
           changePct: j.data.changePct,
-          history: (j.data.history ?? []).map((h) => h.totalJpy),
+          history: j.data.history ?? [],
         });
       } catch {
         /* 비로그인 등 — 폴백 (computeDailyTotals) 사용 */
@@ -214,13 +293,15 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
     val: owned.filter((c) => c.game === g).reduce((a, c) => a + c.price, 0),
   }));
 
-  // 컬렉션 일별 종합 가격 (오래된→최신)
-  const periodDays = PERIOD_DAYS[chartPeriod];
-  // 실 데이터 (스냅샷 history) 가 있으면 그걸 우선, 없으면 card.trend 기반 폴백.
-  const fallbackChart = computeDailyTotals(cards, periodDays);
+  // 컬렉션 평가액 차트 (오래된→최신). 서버 일별 스냅샷을 주식 차트처럼 일/주/월 종가로 집계한다.
+  const fallbackChart = computeDailyTotals(cards, 30);
   const realHistory = portfolio?.history ?? [];
   const useReal = realHistory.length >= 2;
-  const chartData = useReal ? realHistory.slice(-periodDays) : fallbackChart;
+  const chartPoints = aggregatePortfolioHistory(
+    useReal ? realHistory : syntheticPortfolioHistory(fallbackChart),
+    chartMode,
+  );
+  const chartData = chartPoints.map((point) => point.totalJpy);
   const totalVal = useReal && portfolio ? portfolio.totalJpy : chartData[chartData.length - 1] ?? 0;
   const firstVal = chartData[0] ?? totalVal;
   const change = totalVal - firstVal;
@@ -231,43 +312,10 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
       : firstVal > 0
         ? Math.round((change / firstVal) * 100)
         : 0;
-  const maxC = Math.max(...chartData, 1);
-  const minC = Math.min(...chartData);
-
   return (
     <>
       <StatusBar />
       <AppBar right={<AppBarUser />} />
-
-      {/* ═══ SEARCH (KR → JP → snkrdunk) — 최상단 진입점 ═══ */}
-      <div className="sect">
-        <div className="sect-hd"><h2>카드 검색</h2></div>
-        <HomeKoSearchBar />
-      </div>
-
-      {/* ═══ QUICK ACTIONS ═══ */}
-      <div className="sect">
-        <div className="sect-hd"><h2>바로가기</h2></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 6 }}>
-          {[
-            { icon: '📷' as const, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
-            { icon: '¥' as const, lb: '시세확인', bg: 'var(--gold)', href: '/cards' },
-            { icon: '🔨' as const, lb: 'MVC경매', bg: 'var(--blu)', href: '/cards/mvc-auction' },
-            { icon: '🇰🇷' as const, lb: '국내마켓', bg: 'var(--red)', href: '/cards/bunjang' },
-            { icon: '🤝' as const, lb: '거래', bg: 'var(--grn)', href: '/trade' },
-          ].map(({ icon, lb, bg, href }) => (
-            <Link key={lb} href={href} className="dash-quick">
-              <div style={{
-                width: 32, height: 32, background: bg, display: 'grid', placeItems: 'center', fontSize: 17,
-                boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
-              }}>
-                {icon}
-              </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 9, letterSpacing: 0, whiteSpace: 'nowrap' }}>{lb}</div>
-            </Link>
-          ))}
-        </div>
-      </div>
 
       {/* ═══ HERO: PORTFOLIO CARD ═══ */}
       <div style={{
@@ -322,27 +370,27 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
             width={300}
             height={64}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 5, gap: 8 }}>
             <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.25)', letterSpacing: .3 }}>
-              {chartPeriod === '1W' ? '7일' : chartPeriod === '1M' ? '30일' : '90일'} 전
+              {PORTFOLIO_MODE_HELP[chartMode]}
             </div>
             <div style={{ display: 'flex', gap: 5 }}>
-              {(['1W', '1M', '3M'] as const).map((p) => (
+              {(['day', 'week', 'month'] as const).map((mode) => (
                 <button
-                  key={p}
+                  key={mode}
                   type="button"
-                  onClick={() => setChartPeriod(p)}
+                  onClick={() => setChartMode(mode)}
                   style={{
-                    padding: '3px 9px', fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: .5, cursor: 'pointer',
-                    background: chartPeriod === p ? 'var(--gold)' : 'rgba(255,255,255,.06)',
-                    color: chartPeriod === p ? 'var(--ink)' : 'rgba(255,255,255,.35)',
-                    boxShadow: chartPeriod === p
+                    padding: '4px 9px', fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: .5, cursor: 'pointer',
+                    background: chartMode === mode ? 'var(--gold)' : 'rgba(255,255,255,.06)',
+                    color: chartMode === mode ? 'var(--ink)' : 'rgba(255,255,255,.35)',
+                    boxShadow: chartMode === mode
                       ? '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)'
                       : '0 0 0 1px rgba(255,255,255,.12)',
                     border: 'none',
                   }}
                 >
-                  {p}
+                  {PORTFOLIO_MODE_LABEL[mode]}
                 </button>
               ))}
             </div>
@@ -361,6 +409,35 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
               <div style={{ fontFamily: 'var(--f1)', fontSize: 12, color: c, letterSpacing: .3, marginBottom: 5 }}>{v}</div>
               <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.3)', letterSpacing: .3 }}>{l}</div>
             </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ═══ ACTION ZONE: SEARCH + SHORTCUTS ═══ */}
+      <div style={{ margin: '0 var(--gap) var(--cg)' }}>
+        <div className="sect-hd" style={{ marginBottom: 8 }}><h2>카드 검색</h2></div>
+        <HomeKoSearchBar />
+      </div>
+
+      <div style={{ margin: '0 var(--gap) var(--cg)' }}>
+        <div className="sect-hd" style={{ marginBottom: 8 }}><h2>바로가기</h2></div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 6 }}>
+          {([
+            { icon: '📷' as ReactNode, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
+            { icon: '¥' as ReactNode, lb: '시세확인', bg: 'var(--gold)', href: '/cards' },
+            { icon: '🔨' as ReactNode, lb: 'MVC경매', bg: 'var(--blu)', href: '/cards/mvc-auction' },
+            { icon: <KoreaMarketIcon />, lb: '국내마켓', bg: 'var(--red)', href: '/cards/bunjang' },
+            { icon: '🤝' as ReactNode, lb: '거래', bg: 'var(--grn)', href: '/trade' },
+          ]).map(({ icon, lb, bg, href }) => (
+            <Link key={lb} href={href} className="dash-quick">
+              <div style={{
+                width: 32, height: 32, background: bg, display: 'grid', placeItems: 'center', fontSize: 17,
+                boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
+              }}>
+                {icon}
+              </div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, lineHeight: 1.1, letterSpacing: 0, whiteSpace: 'nowrap' }}>{lb}</div>
+            </Link>
           ))}
         </div>
       </div>
