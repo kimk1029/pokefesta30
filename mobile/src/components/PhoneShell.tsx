@@ -5,6 +5,7 @@ import { colors } from '@/theme/tokens';
 import { StatusBar } from './StatusBar';
 import { Tabbar } from './Tabbar';
 import { useChrome } from './ChromeContext';
+import { useThemeColors, useTheme } from './ThemeProvider';
 
 interface Props {
   children: React.ReactNode;
@@ -17,12 +18,25 @@ interface Props {
 export function PhoneShell({ children }: Props) {
   const pathname = usePathname();
   const { hidden } = useChrome();
+  const { theme } = useTheme();
+  const c = useThemeColors();
   const isLogin = pathname?.startsWith('/login');
   const isFullscreen = isLogin || hidden;
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: c.pap2 }]}>
       <SafeAreaView
-        style={styles.shell}
+        style={[
+          styles.shell,
+          {
+            backgroundColor: c.paper,
+            ...(Platform.OS === 'web'
+              ? {
+                  borderColor: c.ink,
+                  shadowColor: theme === 'onepiece' ? c.ornDk : c.ink,
+                }
+              : {}),
+          },
+        ]}
         edges={isFullscreen ? [] : ['top', 'bottom']}
       >
         {!isFullscreen ? <StatusBar /> : null}

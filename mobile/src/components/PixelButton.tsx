@@ -1,5 +1,6 @@
 import { Pressable, type PressableProps, View, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
+import { useThemeColors } from './ThemeProvider';
 
 interface Props extends PressableProps {
   bg?: string;
@@ -23,6 +24,9 @@ export function PixelButton({
   children,
   ...rest
 }: Props) {
+  const c = useThemeColors();
+  const faceBg = bg === colors.white ? c.white : bg;
+  const edge = border === colors.ink ? c.ink : border;
   return (
     <Pressable {...rest}>
       {({ pressed }) => {
@@ -42,7 +46,7 @@ export function PixelButton({
               style={[
                 StyleSheet.absoluteFillObject,
                 {
-                  backgroundColor: border,
+                  backgroundColor: edge,
                   top: off,
                   left: off,
                   right: -off,
@@ -52,8 +56,8 @@ export function PixelButton({
             />
             <View
               style={{
-                backgroundColor: bg,
-                borderColor: border,
+                backgroundColor: faceBg,
+                borderColor: edge,
                 borderWidth,
                 padding,
               }}

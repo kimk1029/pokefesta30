@@ -1,21 +1,24 @@
 import { View, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { PixelText } from './PixelText';
+import { useThemeColors, useTheme } from './ThemeProvider';
 
 /**
  * Cardvault status — gold band with logo + ♥×3 + 9:41.
  */
 export function StatusBar() {
+  const c = useThemeColors();
+  const { theme } = useTheme();
   return (
-    <View style={styles.bar}>
-      <PixelText variant="pixel" size={9} color={colors.ink} style={{ letterSpacing: 1 }}>
-        🃏 CARDVAULT
+    <View style={[styles.bar, { backgroundColor: c.gold, borderBottomColor: c.ink }]}>
+      <PixelText variant="pixel" size={9} color={c.ink} style={{ letterSpacing: 1 }}>
+        {theme === 'onepiece' ? '☠ GRAND LINE' : '🃏 CARDVAULT'}
       </PixelText>
-      <PixelText variant="pixel" size={9} color={colors.ink} style={{ letterSpacing: 1 }}>
-        ♥×3   9:41
+      <PixelText variant="pixel" size={9} color={c.ink} style={{ letterSpacing: 1 }}>
+        {theme === 'onepiece' ? '☀×3   9:41' : '♥×3   9:41'}
       </PixelText>
-      <View pointerEvents="none" style={styles.hi} />
-      <View pointerEvents="none" style={styles.lo} />
+      <View pointerEvents="none" style={[styles.hi, { backgroundColor: c.goldLt }]} />
+      <View pointerEvents="none" style={[styles.lo, { backgroundColor: c.goldDk }]} />
     </View>
   );
 }

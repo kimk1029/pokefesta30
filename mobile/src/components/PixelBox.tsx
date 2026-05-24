@@ -1,5 +1,6 @@
 import { View, type ViewProps, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
+import { useThemeColors } from './ThemeProvider';
 
 interface Props extends ViewProps {
   bg?: string;
@@ -28,10 +29,13 @@ export function PixelBox({
   children,
   ...rest
 }: Props) {
+  const c = useThemeColors();
+  const faceBg = bg === colors.white ? c.white : bg;
+  const edge = border === colors.ink ? c.ink : border;
   const inner = (
     <View
       style={[
-        { backgroundColor: bg, borderColor: border, borderWidth },
+        { backgroundColor: faceBg, borderColor: edge, borderWidth },
       ]}
       {...rest}
     >
@@ -80,7 +84,7 @@ export function PixelBox({
         style={[
           StyleSheet.absoluteFillObject,
           {
-            backgroundColor: border,
+            backgroundColor: edge,
             top: shadowOffset,
             left: shadowOffset,
             right: -shadowOffset,

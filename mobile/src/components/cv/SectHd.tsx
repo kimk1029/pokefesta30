@@ -1,6 +1,7 @@
 import { View, Pressable, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { PixelText } from '../PixelText';
+import { useThemeColors } from '../ThemeProvider';
 
 interface Props {
   title: string;
@@ -12,6 +13,7 @@ interface Props {
  * Dark section header — "var(--ink)" body with gold text + bottom-right gold-dk hard shadow.
  */
 export function SectHd({ title, more, onMore }: Props) {
+  const c = useThemeColors();
   const shadow = 5;
   return (
     <View style={[styles.wrap, { marginRight: shadow, marginBottom: 12 }]}>
@@ -20,7 +22,7 @@ export function SectHd({ title, more, onMore }: Props) {
         style={[
           StyleSheet.absoluteFillObject,
           {
-            backgroundColor: colors.goldDk,
+            backgroundColor: c.goldDk,
             top: shadow,
             left: shadow,
             right: -shadow,
@@ -28,20 +30,20 @@ export function SectHd({ title, more, onMore }: Props) {
           },
         ]}
       />
-      <View style={styles.body}>
-        <PixelText variant="pixel" size={12} weight="bold" color={colors.gold} style={{ flex: 1 }}>
+      <View style={[styles.body, { backgroundColor: c.ink, borderColor: c.ink }]}>
+        <PixelText variant="pixel" size={12} weight="bold" color={c.gold} style={{ flex: 1 }}>
           {title}
         </PixelText>
         {more && onMore ? (
           <Pressable onPress={onMore}>
-            <PixelText variant="pixel" size={9} color={colors.pap3}>
+            <PixelText variant="pixel" size={9} color={c.pap3}>
               {more}
             </PixelText>
           </Pressable>
         ) : null}
       </View>
       {/* inset top + bottom strokes */}
-      <View pointerEvents="none" style={styles.insetTop} />
+      <View pointerEvents="none" style={[styles.insetTop, { backgroundColor: c.ink2 }]} />
       <View pointerEvents="none" style={styles.insetBot} />
     </View>
   );

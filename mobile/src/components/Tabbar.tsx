@@ -6,7 +6,7 @@ import { PixelText } from './PixelText';
 import { PokeballSpinner } from './PokeballSpinner';
 import { StrawHatBall } from './StrawHatBall';
 import { TabIcon, type TabIconName } from './TabIcon';
-import { useTheme } from './ThemeProvider';
+import { useTheme, useThemeColors } from './ThemeProvider';
 
 type TabId = 'home' | 'collection' | 'fab' | 'community' | 'my';
 
@@ -38,10 +38,12 @@ function activeId(pathname: string): TabId | '' {
 export function Tabbar() {
   const pathname = usePathname();
   const active = activeId(pathname);
+  const { theme } = useTheme();
+  const c = useThemeColors();
 
   return (
-    <View style={styles.bar}>
-      <View pointerEvents="none" style={styles.topAccent} />
+    <View style={[styles.bar, { backgroundColor: theme === 'onepiece' ? c.bluDk : c.ink, borderTopColor: c.ink }]}>
+      <View pointerEvents="none" style={[styles.topAccent, { backgroundColor: c.gold }]} />
       {TABS.map((t) => {
         const isOn = active === t.id;
         if (t.fab) return <FabTab key={t.id} on={isOn} label={t.label} href={t.href} />;
@@ -67,6 +69,7 @@ interface TabBtnProps {
 }
 
 function TabBtn({ on, label, icon, href }: TabBtnProps) {
+  const c = useThemeColors();
   const scale = useRef(new Animated.Value(1)).current;
   const onIn = () =>
     Animated.spring(scale, { toValue: 0.86, useNativeDriver: true, friction: 6, tension: 240 }).start();
@@ -80,12 +83,12 @@ function TabBtn({ on, label, icon, href }: TabBtnProps) {
       onPress={() => router.push(href as never)}
     >
       <Animated.View style={[styles.tabInner, { transform: [{ scale }] }]}>
-        {on ? <View style={styles.activeDot} /> : null}
-        <TabIcon name={icon} color={on ? colors.gold : colors.pap3} size={24} />
+        {on ? <View style={[styles.activeDot, { backgroundColor: c.gold }]} /> : null}
+        <TabIcon name={icon} color={on ? c.gold : c.pap3} size={24} />
         <PixelText
           variant="pixel"
           size={11}
-          color={on ? colors.gold : colors.pap3}
+          color={on ? c.gold : c.pap3}
           style={{ marginTop: 5, letterSpacing: 0.5 }}
         >
           {label}
@@ -103,9 +106,11 @@ interface FabProps {
 
 function FabTab({ on, label, href }: FabProps) {
   const { theme } = useTheme();
+  const c = useThemeColors();
   const spin = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const lift = useRef(new Animated.Value(0)).current;
+  const stretch = useRef(new Animated.Value(0)).current;
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -120,30 +125,50 @@ function FabTab({ on, label, href }: FabProps) {
     spin.setValue(0);
     scale.setValue(1);
     lift.setValue(0);
+    stretch.setValue(0);
+    const scaleSequence = theme === 'onepiece'
+      ? Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 0.74,
+            duration: 90,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 1.34,
+            duration: 210,
+            easing: Easing.out(Easing.back(2.4)),
+            useNativeDriver: true,
+          }),
+          Animated.spring(scale, {
+            toValue: 1,
+            useNativeDriver: true,
+            friction: 4,
+            tension: 95,
+          }),
+        ])
+      : Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 0.72,
+            duration: 90,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 1.5,
+            duration: 220,
+            easing: Easing.out(Easing.back(2.2)),
+            useNativeDriver: true,
+          }),
+          Animated.spring(scale, {
+            toValue: 1,
+            useNativeDriver: true,
+            friction: 4,
+            tension: 90,
+          }),
+        ]);
     Animated.parallel([
-      Animated.sequence([
-        // 1) anticipation — 빠르게 살짝 눌림
-        Animated.timing(scale, {
-          toValue: 0.72,
-          duration: 90,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        // 2) action — 크게 부풀어오름 (back easing 으로 살짝 오버슛)
-        Animated.timing(scale, {
-          toValue: 1.5,
-          duration: 220,
-          easing: Easing.out(Easing.back(2.2)),
-          useNativeDriver: true,
-        }),
-        // 3) settle — 스프링으로 자연스러운 복귀
-        Animated.spring(scale, {
-          toValue: 1,
-          useNativeDriver: true,
-          friction: 4,
-          tension: 90,
-        }),
-      ]),
+      scaleSequence,
       // 점프 — 위로 솟구쳤다 내려옴
       Animated.sequence([
         Animated.timing(lift, {
@@ -159,34 +184,72 @@ function FabTab({ on, label, href }: FabProps) {
           tension: 110,
         }),
       ]),
-      // 회전 — 2바퀴, 끝에 가속·감속 곡선
-      Animated.timing(spin, {
-        toValue: 1,
-        duration: 780,
-        easing: Easing.bezier(0.12, 0.85, 0.25, 1),
-        useNativeDriver: true,
-      }),
+      theme === 'onepiece'
+        ? Animated.sequence([
+            Animated.timing(stretch, {
+              toValue: 1,
+              duration: 260,
+              easing: Easing.out(Easing.back(1.8)),
+              useNativeDriver: true,
+            }),
+            Animated.timing(stretch, {
+              toValue: 0,
+              duration: 360,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver: true,
+            }),
+          ])
+        : Animated.timing(spin, {
+            toValue: 1,
+            duration: 780,
+            easing: Easing.bezier(0.12, 0.85, 0.25, 1),
+            useNativeDriver: true,
+          }),
     ]).start(() => {
       if (isMounted.current) router.push(href as never);
     });
   };
 
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '720deg'] });
+  const rotate = theme === 'onepiece'
+    ? stretch.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['0deg', '-13deg', '10deg'] })
+    : spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '720deg'] });
+  const hatScaleX = theme === 'onepiece'
+    ? stretch.interpolate({ inputRange: [0, 0.35, 1], outputRange: [1, 1.22, 0.96] })
+    : 1;
+  const hatScaleY = theme === 'onepiece'
+    ? stretch.interpolate({ inputRange: [0, 0.35, 1], outputRange: [1, 0.82, 1.06] })
+    : 1;
+  const armScale = stretch.interpolate({ inputRange: [0, 1], outputRange: [0.05, 1.7] });
+  const armOpacity = stretch.interpolate({ inputRange: [0, 0.12, 0.76, 1], outputRange: [0, 1, 0.9, 0] });
 
   return (
     <Pressable style={styles.tab} onPress={onPress}>
       <Animated.View
         style={[
           styles.fabCircle,
-          { transform: [{ translateY: lift }, { scale }, { rotate }] },
+          { transform: [{ translateY: lift }, { scale }, { scaleX: hatScaleX }, { scaleY: hatScaleY }, { rotate }] },
         ]}
       >
+        {theme === 'onepiece' ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.rubberArm,
+              {
+                backgroundColor: c.ornLt,
+                borderColor: c.ink,
+                opacity: armOpacity,
+                transform: [{ scaleX: armScale }],
+              },
+            ]}
+          />
+        ) : null}
         {theme === 'onepiece' ? <StrawHatBall size={62} /> : <PokeballSpinner size={62} />}
       </Animated.View>
       <PixelText
         variant="pixel"
         size={11}
-        color={on ? colors.gold : colors.pap3}
+        color={on ? c.gold : c.pap3}
         style={{ marginTop: 38, letterSpacing: 0.5 }}
       >
         {label}
@@ -244,5 +307,11 @@ const styles = StyleSheet.create({
     height: 64,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  rubberArm: {
+    position: 'absolute',
+    width: 78,
+    height: 8,
+    borderWidth: 2,
   },
 });

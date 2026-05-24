@@ -7,6 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useTheme } from '../ThemeProvider';
 
 interface Props extends PressableProps {
   bg?: string;
@@ -40,6 +41,11 @@ export function PixelPress({
   style,
   ...rest
 }: Props) {
+  const c = useThemeColors();
+  const { theme } = useTheme();
+  const faceBg = bg === colors.white ? c.white : bg;
+  const edge = border === colors.ink ? c.ink : border;
+  const midShadow = theme === 'onepiece' ? 'rgba(122,74,26,0.62)' : 'rgba(15,23,42,0.55)';
   return (
     <Pressable {...rest}>
       {(state) => {
@@ -56,7 +62,7 @@ export function PixelPress({
                 style={[
                   StyleSheet.absoluteFillObject,
                   {
-                    backgroundColor: border,
+                    backgroundColor: edge,
                     top: off,
                     left: off,
                     right: -off,
@@ -72,7 +78,7 @@ export function PixelPress({
                 style={[
                   StyleSheet.absoluteFillObject,
                   {
-                    backgroundColor: 'rgba(15,23,42,0.55)',
+                    backgroundColor: midShadow,
                     top: dropOff,
                     left: dropOff,
                     right: -dropOff,
@@ -84,8 +90,8 @@ export function PixelPress({
             <View
               style={[
                 {
-                  backgroundColor: bg,
-                  borderColor: border,
+                  backgroundColor: faceBg,
+                  borderColor: edge,
                   borderWidth,
                   transform: [
                     { translateX: pressed ? shadow - off : 0 },

@@ -1,6 +1,7 @@
 import { View, StyleSheet, Pressable, type ViewProps } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { PixelText } from './PixelText';
+import { useThemeColors } from './ThemeProvider';
 
 interface Props extends ViewProps {
   title?: string;
@@ -13,26 +14,27 @@ interface Props extends ViewProps {
 const SLOT = 38; // square hit-area for left/right buttons — keeps title centered
 
 export function AppBar({ title, right, left, onBack, style, ...rest }: Props) {
+  const c = useThemeColors();
   const leftSlot = onBack ? <ABtn onPress={onBack}>◀</ABtn> : left;
   const rightSlot = right;
   return (
-    <View style={[styles.bar, style]} {...rest}>
+    <View style={[styles.bar, { backgroundColor: c.paper, borderBottomColor: c.ink }, style]} {...rest}>
       <View style={styles.slot}>{leftSlot}</View>
       <View style={styles.center}>
         {title ? (
-          <PixelText variant="pixel" size={13} weight="bold" color={colors.ink} style={styles.title} numberOfLines={1}>
+          <PixelText variant="pixel" size={13} weight="bold" color={c.ink} style={styles.title} numberOfLines={1}>
             {title}
           </PixelText>
         ) : (
           <View style={styles.logoWrap}>
-            <PixelText variant="pixel" size={13} color={colors.ink} style={{ letterSpacing: 1 }}>
+            <PixelText variant="pixel" size={13} color={c.ink} style={{ letterSpacing: 1 }}>
               🃏 CardVault
             </PixelText>
           </View>
         )}
       </View>
       <View style={styles.slot}>{rightSlot}</View>
-      <View pointerEvents="none" style={styles.bevel} />
+      <View pointerEvents="none" style={[styles.bevel, { backgroundColor: c.pap3 }]} />
     </View>
   );
 }
@@ -43,6 +45,7 @@ interface ABtnProps {
 }
 
 export function ABtn({ onPress, children }: ABtnProps) {
+  const c = useThemeColors();
   const shadow = 4;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [
@@ -57,7 +60,7 @@ export function ABtn({ onPress, children }: ABtnProps) {
               style={[
                 StyleSheet.absoluteFillObject,
                 {
-                  backgroundColor: colors.ink,
+                  backgroundColor: c.ink,
                   top: shadow,
                   left: shadow,
                   right: -shadow,
@@ -66,8 +69,8 @@ export function ABtn({ onPress, children }: ABtnProps) {
               ]}
             />
           ) : null}
-          <View style={abtnStyles.body}>
-            <PixelText variant="pixel" size={14} color={colors.ink}>
+          <View style={[abtnStyles.body, { backgroundColor: c.white, borderColor: c.ink }]}>
+            <PixelText variant="pixel" size={14} color={c.ink}>
               {children as string}
             </PixelText>
             {!pressed ? <View pointerEvents="none" style={abtnStyles.hi} /> : null}

@@ -2309,7 +2309,7 @@ a{color:inherit;text-decoration:none;}
 }
 [data-theme="onepiece"] .fab-circle::before{display:none;}
 [data-theme="onepiece"] .fab-circle:active{
-  transform:translate(3px,3px);
+  transform:translate(3px,3px) scaleX(1.16) scaleY(.86);
   box-shadow:
     inset 0 -4px 0 rgba(0,0,0,.12),
     2px 2px 0 var(--ink);
@@ -2319,7 +2319,30 @@ a{color:inherit;text-decoration:none;}
     inset 0 -4px 0 rgba(0,0,0,.12),
     5px 5px 0 var(--ink);
 }
+[data-theme="onepiece"] .fab-circle.fab-click{
+  animation:pf-rubber-hat .72s steps(8);
+}
+[data-theme="onepiece"] .fab-circle.fab-click::after{
+  content:'';position:absolute;left:-22px;right:-22px;top:28px;height:8px;
+  background:var(--orn-lt);border:3px solid var(--ink);z-index:1;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.32),inset 0 -2px 0 rgba(0,0,0,.18);
+  animation:pf-rubber-arms .72s steps(8);
+}
 [data-theme="onepiece"] .fab-tab span{color:#F4D272;}
+@keyframes pf-rubber-hat{
+  0%{transform:scale(1) translateY(0);}
+  18%{transform:scaleX(1.34) scaleY(.72) translateY(8px);}
+  42%{transform:scaleX(.78) scaleY(1.28) translateY(-14px);}
+  66%{transform:scaleX(1.12) scaleY(.9) translateY(2px);}
+  100%{transform:scale(1) translateY(0);}
+}
+@keyframes pf-rubber-arms{
+  0%{opacity:0;transform:scaleX(.1);}
+  18%{opacity:1;transform:scaleX(1.4);}
+  42%{opacity:1;transform:scaleX(2.1);}
+  75%{opacity:.7;transform:scaleX(.7);}
+  100%{opacity:0;transform:scaleX(.1);}
+}
 
 /* yugioh 테마 — 천년 퍼즐 정사각 + 호루스의 눈 가로 줄 */
 [data-theme="yugioh"] .fab-circle{
@@ -2381,6 +2404,77 @@ a{color:inherit;text-decoration:none;}
   --orn:#F4783D;
   --orn-lt:#FFA070;
   --orn-dk:#9B3B0A;
+  --red:#D92332;
+  --red-lt:#FF6B6B;
+  --red-dk:#8F1620;
+  --grn:#2FBF8F;
+  --grn-lt:#78E2BD;
+  --grn-dk:#0D6B55;
+}
+
+[data-theme="onepiece"] .page-wrap{
+  background:#E7C980;
+  background-image:
+    linear-gradient(rgba(120,79,22,.12) 2px,transparent 2px),
+    linear-gradient(90deg,rgba(120,79,22,.12) 2px,transparent 2px);
+  background-size:28px 28px;
+}
+[data-theme="onepiece"] .phone{
+  background:var(--paper);
+  box-shadow:
+    -6px 0 0 var(--ink),6px 0 0 var(--ink),0 -6px 0 var(--ink),0 6px 0 var(--ink),
+    inset 0 0 0 3px #FCE6A8,inset 0 0 0 6px var(--gold-dk),inset 0 0 0 9px var(--ink),
+    11px 11px 0 #7A4A1A;
+}
+[data-theme="onepiece"] .status{
+  background:linear-gradient(90deg,var(--gold),#F4783D);
+  box-shadow:inset 0 2px 0 #FCE6A8,inset 0 -2px 0 var(--orn-dk);
+}
+[data-theme="onepiece"] .appbar{
+  background:linear-gradient(180deg,#FFF4D3,var(--paper));
+  box-shadow:inset 0 -4px 0 var(--gold-dk),0 2px 0 var(--ink);
+}
+[data-theme="onepiece"] .tabbar{
+  background:linear-gradient(180deg,#0B3F70,#082B4D);
+  box-shadow:inset 0 4px 0 var(--gold),inset 0 -4px 0 #061D35;
+}
+[data-theme="onepiece"] .sect-title,
+[data-theme="onepiece"] .sect-hd{
+  background:#0B3F70;color:var(--gold);
+  box-shadow:-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),
+    inset 0 2px 0 #1B6FB8,inset 0 -2px 0 #061D35,5px 5px 0 var(--orn-dk);
+}
+[data-theme="onepiece"] .card,
+[data-theme="onepiece"] .qi,
+[data-theme="onepiece"] .dash-quick,
+[data-theme="onepiece"] .pack-list-item,
+[data-theme="onepiece"] .profile-card,
+[data-theme="onepiece"] .points-card,
+[data-theme="onepiece"] .my-item,
+[data-theme="onepiece"] .cv-manual-form,
+[data-theme="onepiece"] .cv-add-intro,
+[data-theme="onepiece"] .theme-pick-tile{
+  background:linear-gradient(180deg,#FFF8E5,#F7E1A8);
+  box-shadow:
+    -4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
+    inset 0 3px 0 #FFFDF2,inset 0 -4px 0 rgba(120,74,26,.24),
+    6px 6px 0 #7A4A1A;
+}
+[data-theme="onepiece"] .qi-icon,
+[data-theme="onepiece"] .appbar-right,
+[data-theme="onepiece"] .appbar-back{
+  box-shadow:
+    -2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),
+    inset 0 2px 0 rgba(255,255,255,.45),inset 0 -3px 0 rgba(120,74,26,.3),
+    3px 3px 0 #7A4A1A;
+}
+[data-theme="onepiece"] .hero-wrap,
+[data-theme="onepiece"] .cv-port,
+[data-theme="onepiece"] .oripa-hero{
+  box-shadow:
+    -4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
+    inset 0 4px 0 rgba(255,255,255,.24),inset 0 -4px 0 rgba(9,45,77,.35),
+    8px 8px 0 #7A4A1A;
 }
 
 /* yugioh — 보라/황금 톤. 빨강 액센트는 보라로, 노랑은 채도 높은 황금으로. */

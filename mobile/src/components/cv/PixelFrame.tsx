@@ -1,5 +1,6 @@
 import { View, type ViewProps, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useTheme } from '../ThemeProvider';
 
 interface Props extends ViewProps {
   bg?: string;
@@ -30,6 +31,11 @@ export function PixelFrame({
   children,
   ...rest
 }: Props) {
+  const c = useThemeColors();
+  const { theme } = useTheme();
+  const faceBg = bg === colors.white ? c.white : bg;
+  const edge = border === colors.ink ? c.ink : border;
+  const midShadow = theme === 'onepiece' ? 'rgba(122,74,26,0.62)' : 'rgba(15,23,42,0.55)';
   const drop = Math.max(2, shadow - 2);
   return (
     <View
@@ -43,7 +49,7 @@ export function PixelFrame({
           style={[
             StyleSheet.absoluteFillObject,
             {
-              backgroundColor: border,
+              backgroundColor: edge,
               top: shadow,
               left: shadow,
               right: -shadow,
@@ -59,7 +65,7 @@ export function PixelFrame({
           style={[
             StyleSheet.absoluteFillObject,
             {
-              backgroundColor: 'rgba(15,23,42,0.55)',
+              backgroundColor: midShadow,
               top: drop,
               left: drop,
               right: -drop,
@@ -70,8 +76,8 @@ export function PixelFrame({
       ) : null}
       <View
         style={{
-          backgroundColor: bg,
-          borderColor: border,
+          backgroundColor: faceBg,
+          borderColor: edge,
           borderWidth,
         }}
       >
