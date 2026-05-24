@@ -580,7 +580,7 @@ export default function Home() {
         </View>
         <View style={{ flexDirection: 'row', gap: 6, marginHorizontal: 14, marginBottom: 12 }}>
           <QuickBtn icon="📷" label="스캔" bg={colors.grn} href="/scan" />
-          <QuickBtn icon="¥" label="시세확인" bg={colors.gold} href="/cards" />
+          <QuickBtn icon="¥" label="시세확인" bg={colors.gold} href="/cards/packs" />
           <QuickBtn icon="🔨" label="MVC경매" bg={colors.blu} href="/cards/mvc-auction" />
           <QuickBtn icon={<KoreaMarketIcon />} label="국내마켓" bg={colors.red} href="/cards/bunjang" />
           <QuickBtn icon="🤝" label="거래" bg={colors.grn} href="/trade" />

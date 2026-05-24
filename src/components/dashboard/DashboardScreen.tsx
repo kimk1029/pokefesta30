@@ -424,7 +424,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 6 }}>
           {([
             { icon: '📷' as ReactNode, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
-            { icon: '¥' as ReactNode, lb: '시세확인', bg: 'var(--gold)', href: '/cards' },
+            { icon: '¥' as ReactNode, lb: '시세확인', bg: 'var(--gold)', href: '/cards/packs' },
             { icon: '🔨' as ReactNode, lb: 'MVC경매', bg: 'var(--blu)', href: '/cards/mvc-auction' },
             { icon: <KoreaMarketIcon />, lb: '국내마켓', bg: 'var(--red)', href: '/cards/bunjang' },
             { icon: '🤝' as ReactNode, lb: '거래', bg: 'var(--grn)', href: '/trade' },

@@ -29,7 +29,7 @@ function KoreaMarketIcon() {
 
 const ITEMS: Item[] = [
   { href: '/scan', color: 'g', icon: '📷', label: '스캔' },
-  { href: '/cards', color: 'y', icon: '¥', label: '시세확인' },
+  { href: '/cards/packs', color: 'y', icon: '¥', label: '시세확인' },
   { href: '/cards/mvc-auction', color: 'b', icon: '🔨', label: 'MVC경매' },
   { href: '/cards/bunjang', color: 'r', icon: <KoreaMarketIcon />, label: '국내마켓' },
   { href: '/trade', color: 'g', icon: '🤝', label: '거래' },
