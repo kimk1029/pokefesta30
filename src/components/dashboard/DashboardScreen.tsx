@@ -281,8 +281,8 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
             { icon: '📷' as const, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
             { icon: '¥' as const, lb: '가격탐색', bg: 'var(--gold)', href: '/cards/packs' },
             { icon: '🔨' as const, lb: 'MVC 경매', bg: 'var(--red)', href: '/cards/mvc-auction' },
-            { icon: '₩' as const, lb: '국내시세', bg: 'var(--orn)', href: '/cards/bunjang' },
-            { icon: '🛒' as const, lb: '국내마켓', bg: 'var(--pur)', href: '/trade' },
+            { icon: '🛒' as const, lb: '국내마켓', bg: 'var(--orn)', href: '/cards/bunjang' },
+            { icon: '🤝' as const, lb: '거래', bg: 'var(--pur)', href: '/trade' },
             { icon: 'cards' as const, lb: '컬렉션', bg: 'var(--blu)', href: '/my/cards' },
           ].map(({ icon, lb, bg, href }) => (
             <Link key={lb} href={href} className="dash-quick">
