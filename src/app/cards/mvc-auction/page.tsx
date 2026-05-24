@@ -1,0 +1,173 @@
+import Link from 'next/link';
+import { AppBar } from '@/components/ui/AppBar';
+import { SectionTitle } from '@/components/ui/SectionTitle';
+import { StatusBar } from '@/components/ui/StatusBar';
+import {
+  fetchMvcAuctionList,
+  MVC_CAFE_URL,
+  type MvcAuctionItem,
+} from '@/lib/navercafe';
+
+export const dynamic = 'force-dynamic';
+
+export const metadata = {
+  title: 'MVC 경매 | 포케30',
+};
+
+function AuctionRow({ item }: { item: MvcAuctionItem }) {
+  return (
+    <Link
+      href={`/cards/mvc-auction/${item.articleId}`}
+      className="shop-card"
+      style={{ textDecoration: 'none', color: 'inherit' }}
+    >
+      <div
+        className="sh-icon"
+        style={{
+          width: 84,
+          height: 84,
+          background: 'var(--ink2)',
+          color: 'var(--white)',
+          overflow: 'hidden',
+          alignSelf: 'stretch',
+        }}
+      >
+        {item.thumbnailUrl ? (
+          // 외부(네이버 카페) 이미지는 일반 <img> 사용
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.thumbnailUrl}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          <span style={{ fontSize: 30, display: 'grid', placeItems: 'center', height: '100%' }}>🔨</span>
+        )}
+      </div>
+      <div className="sh-main">
+        <div
+          className="sh-title"
+          style={{
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            lineHeight: 1.4,
+          }}
+        >
+          {item.subject}
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--f1)',
+            fontSize: 10,
+            color: 'var(--ink3)',
+            marginTop: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span>{item.writerNickname}</span>
+          <span>· {item.writtenAgo}</span>
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--f1)',
+            fontSize: 10,
+            color: 'var(--ink2)',
+            marginTop: 6,
+            display: 'flex',
+            gap: 12,
+          }}
+        >
+          <span>💬 {item.commentCount}</span>
+          <span>👁 {item.readCount}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+export default async function Page() {
+  const { items } = await fetchMvcAuctionList(1, 30);
+
+  return (
+    <>
+      <StatusBar />
+      <AppBar title="MVC 경매" showBack backHref="/" />
+
+      <div style={{ height: 14 }} />
+
+      <div
+        style={{
+          margin: '0 var(--gap) var(--cg)',
+          padding: '14px 16px',
+          background: 'linear-gradient(135deg,var(--ink),var(--ink2))',
+          color: 'var(--white)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          boxShadow:
+            '-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),inset 0 3px 0 var(--ink2),8px 8px 0 var(--yel-dk)',
+        }}
+      >
+        <div style={{ fontSize: 32 }}>🔨</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: 1, color: 'var(--yel)' }}>
+            포켓몬카드 MVC 경매
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--f1)',
+              fontSize: 9,
+              letterSpacing: 0.3,
+              color: 'rgba(255,255,255,.7)',
+              marginTop: 6,
+              lineHeight: 1.6,
+            }}
+          >
+            진행 중인 경매 {items.length}건 · 네이버 카페 실시간<br />
+            글을 누르면 본문과 입찰 댓글을 볼 수 있어요
+          </div>
+        </div>
+      </div>
+
+      <div className="sect">
+        <SectionTitle
+          title="진행 중인 경매"
+          right={
+            <a
+              href={`https://cafe.naver.com/${MVC_CAFE_URL}`}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="more"
+              style={{ textDecoration: 'none' }}
+            >
+              카페 열기 →
+            </a>
+          }
+        />
+        {items.length === 0 ? (
+          <div
+            style={{
+              margin: '0 var(--gap)',
+              padding: '40px 16px',
+              textAlign: 'center',
+              fontFamily: 'var(--f1)',
+              fontSize: 11,
+              color: 'var(--ink3)',
+            }}
+          >
+            경매 글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+          </div>
+        ) : (
+          items.map((item) => <AuctionRow key={item.articleId} item={item} />)
+        )}
+      </div>
+
+      <div style={{ height: 80 }} />
+    </>
+  );
+}

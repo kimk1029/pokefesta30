@@ -276,11 +276,13 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
       {/* ═══ QUICK ACTIONS — 자주 쓰는 4개 진입 ═══ */}
       <div className="sect">
         <div className="sect-hd"><h2>바로가기</h2></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
           {[
             { icon: '📷' as const, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
             { icon: '¥' as const, lb: '가격탐색', bg: 'var(--gold)', href: '/cards/packs' },
-            { icon: '🛒' as const, lb: '마켓', bg: 'var(--orn)', href: '/feed' },
+            { icon: '🔨' as const, lb: 'MVC 경매', bg: 'var(--red)', href: '/cards/mvc-auction' },
+            { icon: '₩' as const, lb: '국내시세', bg: 'var(--orn)', href: '/cards/bunjang' },
+            { icon: '🛒' as const, lb: '마켓', bg: 'var(--pur)', href: '/feed' },
             { icon: 'cards' as const, lb: '컬렉션', bg: 'var(--blu)', href: '/my/cards' },
           ].map(({ icon, lb, bg, href }) => (
             <Link key={lb} href={href} className="dash-quick">
