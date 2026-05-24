@@ -7,25 +7,70 @@
  * 토큰을 추출 → [[session]] 모듈에 저장.
  */
 import { useState } from 'react';
-import { View, ScrollView, Pressable, Text, Modal, Alert, StatusBar } from 'react-native';
+import { View, ScrollView, Pressable, Text, Alert, StatusBar } from 'react-native';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { PixelText } from '@/components/PixelText';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { PixelBall } from '@/components/PixelBall';
-import { AuthWebView, type AuthProvider } from '@/components/AuthWebView';
 import { colors } from '@/theme/tokens';
 import { getApiBaseUrl } from '@/lib/apiClient';
 import { setSession, isAuthenticated } from '@/lib/session';
 
-export default function LoginScreen() {
-  const [provider, setProvider] = useState<AuthProvider | null>(null);
+type AuthProvider = 'kakao' | 'naver' | 'google';
 
-  const onSuccess = (token: string, baseUrl: string) => {
-    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-    setSession({ token, expiresAt, baseUrl });
-    setProvider(null);
-    Alert.alert('로그인 성공', '메인으로 이동합니다.');
-    router.replace('/' as never);
+const WEB_OAUTH_ORIGIN =
+  process.env.EXPO_PUBLIC_WEB_OAUTH_ORIGIN ?? getApiBaseUrl();
+const DEEP_LINK = 'pokefesta30://auth';
+
+function tokenFromUrl(url: string): string | null {
+  const i = url.indexOf('token=');
+  if (i === -1) return null;
+  try {
+    const raw = url.slice(i + 'token='.length).split('&')[0].split('#')[0];
+    const t = decodeURIComponent(raw);
+    return t && t.length > 0 ? t : null;
+  } catch {
+    return null;
+  }
+}
+
+export default function LoginScreen() {
+  const [busy, setBusy] = useState(false);
+
+  /**
+   * Expo 권장 OAuth — 시스템 인증 세션을 열고, 서버가 redirect 하는
+   * pokefesta30://auth?token=… 를 결과 URL 로 직접 받는다. 딥링크 라우팅이나
+   * WebView 인터셉트에 의존하지 않아 404 가 날 수 없다.
+   */
+  const startLogin = async (provider: AuthProvider) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const authUrl = `${WEB_OAUTH_ORIGIN}/auth/${provider}?platform=mobile`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, DEEP_LINK);
+      if (result.type === 'success' && result.url) {
+        const token = tokenFromUrl(result.url);
+        if (token) {
+          setSession({
+            token,
+            expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+            baseUrl: getApiBaseUrl(),
+          });
+          router.replace('/' as never);
+          return;
+        }
+        Alert.alert('로그인 실패', '토큰을 받지 못했어요.');
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+        // 사용자가 닫음 — 조용히 무시
+      } else {
+        Alert.alert('로그인 실패', '인증을 완료하지 못했어요.');
+      }
+    } catch (e) {
+      Alert.alert('로그인 오류', e instanceof Error ? e.message : '알 수 없는 오류');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -95,7 +140,7 @@ export default function LoginScreen() {
             icon="💬"
             name="카카오로 시작하기"
             desc="카카오 계정으로 간편 로그인"
-            onPress={() => setProvider('kakao')}
+            onPress={() => startLogin('kakao')}
           />
           <LoginBtn
             bg="#03C75A"
@@ -103,7 +148,7 @@ export default function LoginScreen() {
             icon="N"
             name="네이버로 시작하기"
             desc="네이버 계정으로 간편 로그인"
-            onPress={() => setProvider('naver')}
+            onPress={() => startLogin('naver')}
           />
           <LoginBtn
             bg={colors.white}
@@ -111,7 +156,7 @@ export default function LoginScreen() {
             icon="G"
             name="구글로 시작하기"
             desc="Google 계정으로 간편 로그인"
-            onPress={() => setProvider('google')}
+            onPress={() => startLogin('google')}
           />
         </View>
 
@@ -146,12 +191,6 @@ export default function LoginScreen() {
           API: {getApiBaseUrl()}
         </PixelText>
       </ScrollView>
-
-      <Modal visible={provider !== null} animationType="slide" onRequestClose={() => setProvider(null)}>
-        {provider ? (
-          <AuthWebView provider={provider} onCancel={() => setProvider(null)} onSuccess={onSuccess} />
-        ) : null}
-      </Modal>
     </View>
   );
 }
