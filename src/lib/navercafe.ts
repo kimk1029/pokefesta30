@@ -61,6 +61,10 @@ export interface MvcArticleDetail {
   /** 본문에 포함된 이미지 URL 목록. */
   images: string[];
   comments: MvcCommentItem[];
+  /** 가장 최근 댓글(최종호가). 댓글 없으면 null. */
+  latestBid: MvcCommentItem | null;
+  /** 최종호가 금액(원). 숫자 파싱 실패 시 null. */
+  latestBidAmount: number | null;
   /** 카페 원문 바로가기 URL. */
   sourceUrl: string;
 }
@@ -68,6 +72,90 @@ export interface MvcArticleDetail {
 /** 카페 게시글 원문(신규 f-e UI) URL. */
 export function mvcArticleUrl(articleId: number): string {
   return `${CAFE_ORIGIN}/f-e/cafes/${MVC_CLUB_ID}/articles/${articleId}`;
+}
+
+/** KST(Asia/Seoul) 기준 연·월·일. */
+export function kstDateParts(now = Date.now()): { y: number; m: number; d: number } {
+  const s = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(now));
+  const [y, m, d] = s.split('-').map(Number);
+  return { y, m, d };
+}
+
+/** KST 기준 ts 와 now 가 같은 날짜인지. */
+export function isSameKstDay(ts: number, now = Date.now()): boolean {
+  if (!ts) return false;
+  const a = kstDateParts(ts);
+  const b = kstDateParts(now);
+  return a.y === b.y && a.m === b.m && a.d === b.d;
+}
+
+/** KST 기준 now 가 속한 날의 00:00 (epoch ms). */
+export function kstDayStartMs(now = Date.now()): number {
+  const { y, m, d } = kstDateParts(now);
+  // Date.UTC = 해당 달력일의 UTC 자정. KST 자정은 그보다 9시간 빠름.
+  return Date.UTC(y, m - 1, d) - 9 * 3_600_000;
+}
+
+// 제목 속 "5/24", "5.24", "05/24", "5월24일", "5월 24일" 형태의 날짜.
+const DEADLINE_DATE_RE = /(\d{1,2})\s*[\/.월]\s*(\d{1,2})/g;
+
+/**
+ * 제목에서 마감 날짜를 추출해 오늘(KST)인지 판정.
+ *   true  = 오늘 마감으로 보이는 날짜가 있음
+ *   false = 날짜가 있지만 오늘이 아님
+ *   null  = 유효한 날짜를 못 찾음 (판정 불가)
+ */
+export function isTodayDeadline(subject: string, now = Date.now()): boolean | null {
+  if (!subject) return null;
+  const today = kstDateParts(now);
+  const re = new RegExp(DEADLINE_DATE_RE.source, DEADLINE_DATE_RE.flags);
+  let m: RegExpExecArray | null;
+  let foundValid = false;
+  while ((m = re.exec(subject)) !== null) {
+    const mm = Number(m[1]);
+    const dd = Number(m[2]);
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) continue;
+    foundValid = true;
+    if (mm === today.m && dd === today.d) return true;
+  }
+  return foundValid ? false : null;
+}
+
+/**
+ * 경매 댓글(호가) 문자열에서 금액(원)을 추출. 못 찾으면 null.
+ *   "60000" → 60000, "5,000원" → 5000, "1만" → 10000, "1만5천" → 15000
+ */
+export function parseBidAmount(content: string): number | null {
+  if (!content) return null;
+  const s = content.replace(/,/g, '').trim();
+  // 한글 단위 (만/천) 조합
+  const unit = s.match(/(\d+)\s*만(?:\s*(\d+)\s*천)?/);
+  if (unit) {
+    const man = Number(unit[1]) * 10000;
+    const cheon = unit[2] ? Number(unit[2]) * 1000 : 0;
+    return man + cheon;
+  }
+  const cheonOnly = s.match(/^(\d+)\s*천$/);
+  if (cheonOnly) return Number(cheonOnly[1]) * 1000;
+  // 순수 숫자 (앞쪽 우선)
+  const num = s.match(/\d{2,}/);
+  if (num) {
+    const n = Number(num[0]);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  return null;
+}
+
+/** 네이버 카페 썸네일 URL의 type 파라미터를 원하는 크기로 교체(없으면 추가). */
+export function upscaleCafeThumb(url: string, type = 'f300_300'): string {
+  if (!url) return url;
+  if (/[?&]type=/.test(url)) return url.replace(/([?&]type=)[^&]+/, `$1${type}`);
+  return `${url}${url.includes('?') ? '&' : '?'}type=${type}`;
 }
 
 /** epoch ms → 한국어 상대시간 ("방금 전" / "12분 전" / "3시간 전" / "2일 전" / "2026.05.24"). */
@@ -167,11 +255,46 @@ export async function fetchMvcAuctionList(
         readCount: a.readCount ?? 0,
         writtenAt,
         writtenAgo: relativeTimeKo(writtenAt, now),
-        thumbnailUrl: normalizeCafeImage(a.representImage),
+        thumbnailUrl: normalizeListThumb(a.representImage),
         costText: (a.formattedCost ?? '').trim(),
       };
     });
   return { items, hasNext: Boolean(result.hasNext) };
+}
+
+export interface MvcAuctionTodayPage {
+  /** 오늘(KST) 마감으로 판정된 글만. */
+  items: MvcAuctionItem[];
+  /** 필터 전 원본 글 수 (이 페이지). */
+  rawCount: number;
+  /** 카페 API 기준 다음 페이지 존재 여부. */
+  hasNext: boolean;
+  /** 이 페이지의 글이 모두 '오늘 마감 윈도우'보다 오래됨 → 더 볼 필요 없음. */
+  reachedOld: boolean;
+  page: number;
+}
+
+/**
+ * 오늘(KST) 마감 경매만 추린 페이지.
+ *   - 제목에 오늘 날짜 → 포함
+ *   - 제목에 다른 날짜 → 제외
+ *   - 날짜 판정 불가 → 오늘 작성된 글이면 포함
+ * reachedOld: 글 목록은 최신순이라, 이 페이지의 가장 최근 글조차
+ *   (오늘-2일) 이전이면 이후 페이지는 볼 필요가 없음(무한스크롤 종료 신호).
+ */
+export async function fetchMvcAuctionToday(page = 1): Promise<MvcAuctionTodayPage> {
+  const now = Date.now();
+  const { items: raw, hasNext } = await fetchMvcAuctionList(page, 50);
+  const items = raw.filter((it) => {
+    const verdict = isTodayDeadline(it.subject, now);
+    if (verdict === true) return true;
+    if (verdict === false) return false;
+    return isSameKstDay(it.writtenAt, now); // 판정 불가 → 오늘 작성분만
+  });
+  const newestWritten = raw.reduce((mx, it) => Math.max(mx, it.writtenAt), 0);
+  const cutoff = kstDayStartMs(now) - 2 * 86_400_000;
+  const reachedOld = newestWritten > 0 && newestWritten < cutoff;
+  return { items, rawCount: raw.length, hasNext, reachedOld, page };
 }
 
 interface RawArticleResponse {
@@ -242,6 +365,11 @@ export async function fetchMvcArticle(
     comments = await collectAllComments(articleId, comments, maxComments, now);
   }
 
+  // 댓글은 시간 오름차순 → 마지막(가장 최근) 유효 댓글이 최종호가.
+  const latestBid =
+    [...comments].reverse().find((c) => !c.deleted && c.content) ?? null;
+  const latestBidAmount = latestBid ? parseBidAmount(latestBid.content) : null;
+
   return {
     articleId,
     subject: (article.subject ?? '').trim(),
@@ -253,6 +381,8 @@ export async function fetchMvcArticle(
     contentText: htmlToText(html),
     images: extractImages(html),
     comments,
+    latestBid,
+    latestBidAmount,
     sourceUrl: mvcArticleUrl(articleId),
   };
 }
@@ -316,12 +446,12 @@ export function htmlToText(html: string): string {
   return s.trim();
 }
 
-/** 카페 썸네일 URL의 type 파라미터를 목록용 크기로 정규화. */
-function normalizeCafeImage(url: string | undefined | null): string | null {
+/** 목록 썸네일: 저해상 type=f100_100 → f300_300 으로 업스케일. */
+function normalizeListThumb(url: string | undefined | null): string | null {
   if (!url) return null;
   const clean = decodeHtmlEntities(url);
   if (!/^https?:\/\//.test(clean)) return null;
-  return clean;
+  return upscaleCafeThumb(clean, 'f300_300');
 }
 
 function decodeHtmlEntities(s: string): string {
