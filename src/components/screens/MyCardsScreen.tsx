@@ -67,7 +67,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
   const [cards, setCards] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
-  const [view, setView] = useState<ViewMode>('grid');
+  const [view, setView] = useState<ViewMode>('list');
   const [search, setSearch] = useState('');
   const [game, setGame] = useState('전체');
   const [rar, setRar] = useState<RarFilter>('all');
@@ -478,8 +478,11 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
             )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
               {priceLabel(c, format) ? (
-                <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: 0.3 }}>
-                  {priceLabel(c, format)}
+                <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                  <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: 0.3 }}>
+                    {priceLabel(c, format)}
+                  </span>
+                  <ChangeBadge trend={c.src.trend} />
                 </span>
               ) : (
                 <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>시세 없음</span>
@@ -518,6 +521,23 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
               </div>
             </div>
           </div>
+          {c.src.trend.length >= 2 && (
+            <div
+              style={{
+                flexShrink: 0,
+                alignSelf: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: 3,
+              }}
+            >
+              <MiniSparkline points={c.src.trend} />
+              <span style={{ fontFamily: 'var(--f1)', fontSize: 7, color: 'var(--ink3)', letterSpacing: 0.2 }}>
+                최근 추이
+              </span>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -686,6 +706,66 @@ function priceLabel(c: DisplayCard, format: (jpy: number) => string): string | n
   if (c.price > 0) return `$${fmtUsd(c.price)}`;
   if (c.priceJpy > 0) return format(c.priceJpy);
   return null;
+}
+
+/** 어제(직전 스냅샷) 대비 등락율. trend 가 2개 미만이면 null. */
+function changeFromTrend(trend: number[]): { pct: number; dir: 'up' | 'down' | 'flat' } | null {
+  if (!Array.isArray(trend) || trend.length < 2) return null;
+  const prev = trend[trend.length - 2];
+  const last = trend[trend.length - 1];
+  if (!(prev > 0)) return null;
+  const pct = ((last - prev) / prev) * 100;
+  const dir = pct > 0.05 ? 'up' : pct < -0.05 ? 'down' : 'flat';
+  return { pct, dir };
+}
+
+/** 리스트 행 우측 미니 시세 차트. 색은 전체 추이(첫→끝) 기준. */
+function MiniSparkline({ points }: { points: number[] }) {
+  const w = 60;
+  const h = 26;
+  if (!Array.isArray(points) || points.length < 2) return null;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const stepX = w / (points.length - 1);
+  const yOf = (v: number) => h - ((v - min) / range) * (h - 4) - 2;
+  const d = points
+    .map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * stepX).toFixed(1)},${yOf(v).toFixed(1)}`)
+    .join(' ');
+  const up = points[points.length - 1] >= points[0];
+  const color = up ? 'var(--red)' : 'var(--blu)';
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} style={{ display: 'block' }} aria-hidden="true">
+      <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={(points.length - 1) * stepX} cy={yOf(points[points.length - 1])} r="2" fill={color} />
+    </svg>
+  );
+}
+
+const CHANGE_COLOR: Record<'up' | 'down' | 'flat', string> = {
+  up: 'var(--red)',
+  down: 'var(--blu)',
+  flat: 'var(--ink3)',
+};
+const CHANGE_ARROW: Record<'up' | 'down' | 'flat', string> = { up: '▲', down: '▼', flat: '–' };
+
+/** 가격 옆 등락율 배지. */
+function ChangeBadge({ trend }: { trend: number[] }) {
+  const ch = changeFromTrend(trend);
+  if (!ch) return null;
+  return (
+    <span
+      style={{
+        marginLeft: 6,
+        fontFamily: 'var(--f1)',
+        fontSize: 9,
+        letterSpacing: 0.2,
+        color: CHANGE_COLOR[ch.dir],
+      }}
+    >
+      {CHANGE_ARROW[ch.dir]} {Math.abs(ch.pct).toFixed(1)}%
+    </span>
+  );
 }
 
 function fmtDate(iso: string): string {
