@@ -32,9 +32,25 @@ export interface MvcAuctionItem {
   writtenAt: number;
   /** 작성 시각 한국어 상대표기 ("3분 전" 등). */
   writtenAgo: string;
+  /** 마지막 댓글(입찰) 시각 (epoch ms). 댓글 없으면 0. */
+  lastCommentedAt: number;
   thumbnailUrl: string | null;
   /** 마켓글 가격 표기 ("1,000원" 등). 없으면 빈 문자열. */
   costText: string;
+}
+
+export interface MvcLatestBid {
+  articleId: number;
+  /** 최신 댓글에서 파싱한 호가(원). 숫자 변환 실패 시 null. */
+  amount: number | null;
+  /** 최신 댓글 원문. */
+  content: string;
+  writerNickname: string;
+  /** 최신 댓글 시각 (epoch ms). */
+  writtenAt: number;
+  /** "오늘 21:33" / "05/24 21:33" 형태 정확 시각. */
+  writtenClock: string;
+  commentCount: number;
 }
 
 export interface MvcCommentItem {
@@ -158,6 +174,25 @@ export function upscaleCafeThumb(url: string, type = 'f300_300'): string {
   return `${url}${url.includes('?') ? '&' : '?'}type=${type}`;
 }
 
+/** KST 기준 정확 시각: 오늘이면 "오늘 21:33", 아니면 "05/24 21:33". */
+export function kstClock(ts: number, now = Date.now()): string {
+  if (!ts || !Number.isFinite(ts)) return '';
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Seoul',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date(ts));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+  const mm = get('month');
+  const dd = get('day');
+  const hh = get('hour');
+  const mi = get('minute');
+  return isSameKstDay(ts, now) ? `오늘 ${hh}:${mi}` : `${mm}/${dd} ${hh}:${mi}`;
+}
+
 /** epoch ms → 한국어 상대시간 ("방금 전" / "12분 전" / "3시간 전" / "2일 전" / "2026.05.24"). */
 export function relativeTimeKo(ts: number, now = Date.now()): string {
   if (!ts || !Number.isFinite(ts)) return '';
@@ -175,10 +210,16 @@ export function relativeTimeKo(ts: number, now = Date.now()): string {
   return `${d.getFullYear()}.${mm}.${dd}`;
 }
 
-async function fetchCafeJson<T>(url: string, articleId?: number): Promise<T | null> {
+async function fetchCafeJson<T>(
+  url: string,
+  articleId?: number,
+  opts: { fresh?: boolean } = {},
+): Promise<T | null> {
   const referer = articleId
     ? mvcArticleUrl(articleId)
     : `${CAFE_ORIGIN}/f-e/cafes/${MVC_CLUB_ID}/menus/${MVC_AUCTION_MENU_ID}`;
+  // fresh=true 면 캐시 우회(새로고침), 아니면 revalidate 캐시.
+  const cacheOpt = opts.fresh ? { cache: 'no-store' as const } : { next: { revalidate: REVALIDATE_SEC } };
   try {
     const res = await fetch(url, {
       headers: {
@@ -187,7 +228,7 @@ async function fetchCafeJson<T>(url: string, articleId?: number): Promise<T | nu
         'User-Agent': USER_AGENT,
         Referer: referer,
       },
-      next: { revalidate: REVALIDATE_SEC },
+      ...cacheOpt,
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) {
@@ -208,6 +249,7 @@ interface RawListArticle {
   commentCount?: number;
   readCount?: number;
   writeDateTimestamp?: number;
+  lastCommentedTimestamp?: number;
   representImage?: string;
   formattedCost?: string;
   blindArticle?: boolean;
@@ -255,6 +297,7 @@ export async function fetchMvcAuctionList(
         readCount: a.readCount ?? 0,
         writtenAt,
         writtenAgo: relativeTimeKo(writtenAt, now),
+        lastCommentedAt: a.lastCommentedTimestamp ?? 0,
         thumbnailUrl: normalizeListThumb(a.representImage),
         costText: (a.formattedCost ?? '').trim(),
       };
@@ -295,6 +338,58 @@ export async function fetchMvcAuctionToday(page = 1): Promise<MvcAuctionTodayPag
   const cutoff = kstDayStartMs(now) - 2 * 86_400_000;
   const reachedOld = newestWritten > 0 && newestWritten < cutoff;
   return { items, rawCount: raw.length, hasNext, reachedOld, page };
+}
+
+interface RawLatestCommentsResponse {
+  result?: {
+    comments?: { items?: RawComment[] };
+    displayCommentCount?: number;
+  };
+}
+
+/**
+ * 한 글의 최신 댓글(최종호가) 한 건. orderBy=desc 로 가장 최근 댓글이 맨 앞.
+ * @param fresh true 면 캐시 우회(새로고침).
+ */
+export async function fetchMvcLatestBid(
+  articleId: number,
+  opts: { fresh?: boolean } = {},
+): Promise<MvcLatestBid | null> {
+  if (!Number.isInteger(articleId) || articleId <= 0) return null;
+  const url =
+    `${NAVER_API}/cafe-web/cafe-articleapi/v2/cafes/${MVC_CLUB_ID}/articles/${articleId}` +
+    `/comments/pages/1?requestFrom=A&orderBy=desc&page=1`;
+  const raw = await fetchCafeJson<RawLatestCommentsResponse>(url, articleId, { fresh: opts.fresh });
+  const items = raw?.result?.comments?.items ?? [];
+  const commentCount = raw?.result?.displayCommentCount ?? items.length;
+  // desc 순서에서 삭제되지 않은 첫 댓글 = 최신 유효 호가.
+  const latest = items.find((c) => !c.isDeleted && (c.content ?? '').trim());
+  if (!latest) return null;
+  const content = (latest.content ?? '').trim();
+  const writtenAt = latest.updateDate ?? 0;
+  return {
+    articleId,
+    amount: parseBidAmount(content),
+    content,
+    writerNickname: latest.writer?.nick ?? '',
+    writtenAt,
+    writtenClock: kstClock(writtenAt),
+    commentCount,
+  };
+}
+
+/** 여러 글의 최신 호가를 병렬 조회 (호출량 보호를 위해 25건으로 제한). */
+export async function fetchMvcLatestBids(
+  articleIds: number[],
+  opts: { fresh?: boolean } = {},
+): Promise<Record<number, MvcLatestBid | null>> {
+  const ids = articleIds.filter((id) => Number.isInteger(id) && id > 0).slice(0, 25);
+  const results = await Promise.all(ids.map((id) => fetchMvcLatestBid(id, opts)));
+  const map: Record<number, MvcLatestBid | null> = {};
+  ids.forEach((id, i) => {
+    map[id] = results[i];
+  });
+  return map;
 }
 
 interface RawArticleResponse {
