@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
 import {
@@ -72,7 +72,51 @@ export function MyCardsScreen({ cards: initial }: Props) {
   const [game, setGame] = useState('전체');
   const [rar, setRar] = useState<RarFilter>('all');
   const [sort, setSort] = useState<SortBy>('recent');
+  // 스니덩 카드(apparelId 有, 서버 trend 비어있음)는 sales-chart API로 추이를 받아 채움.
+  const [snkrTrends, setSnkrTrends] = useState<Record<number, number[]>>({});
   const router = useRouter();
+
+  useEffect(() => {
+    const ids = Array.from(
+      new Set(
+        cards
+          .filter((c) => c.snkrdunkApparelId != null && (!c.trend || c.trend.length < 2))
+          .map((c) => c.snkrdunkApparelId as number),
+      ),
+    ).slice(0, 120);
+    if (ids.length === 0) return;
+    let alive = true;
+    (async () => {
+      const POOL = 6;
+      for (let i = 0; i < ids.length && alive; i += POOL) {
+        const batch = ids.slice(i, i + POOL);
+        const results = await Promise.all(
+          batch.map(async (id) => {
+            try {
+              const r = await fetch(`/api/snkrdunk/apparels/${id}/sales-chart`, { cache: 'no-store' });
+              if (!r.ok) return [id, [] as number[]] as const;
+              const j = (await r.json()) as { data?: { points?: Array<[number, number]> } };
+              const pts = (j.data?.points ?? [])
+                .map((p) => p[1])
+                .filter((n) => typeof n === 'number' && n > 0);
+              return [id, pts] as const;
+            } catch {
+              return [id, [] as number[]] as const;
+            }
+          }),
+        );
+        if (!alive) return;
+        setSnkrTrends((prev) => {
+          const next = { ...prev };
+          for (const [id, pts] of results) next[id] = pts;
+          return next;
+        });
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [cards]);
 
   const display: DisplayCard[] = useMemo(
     () =>
@@ -296,7 +340,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
       ) : view === 'grid' ? (
         <GridView cards={filtered} onDelete={onDelete} />
       ) : view === 'list' ? (
-        <ListView cards={filtered} onDelete={onDelete} />
+        <ListView cards={filtered} onDelete={onDelete} snkrTrends={snkrTrends} />
       ) : view === 'album' ? (
         <AlbumView cards={filtered} />
       ) : (
@@ -412,11 +456,27 @@ function GridItem({ c, onDelete }: { c: DisplayCard; onDelete: (id: number) => v
   );
 }
 
-function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: number) => void }) {
+function ListView({
+  cards,
+  onDelete,
+  snkrTrends,
+}: {
+  cards: DisplayCard[];
+  onDelete: (id: number) => void;
+  snkrTrends: Record<number, number[]>;
+}) {
   const { format } = useCurrency();
+  // 서버 trend 가 있으면 그걸, 없으면(스니덩) sales-chart 로 받은 추이를 사용.
+  const trendOf = (c: DisplayCard): number[] => {
+    if (c.src.trend && c.src.trend.length >= 2) return c.src.trend;
+    const id = c.src.snkrdunkApparelId;
+    return id != null ? (snkrTrends[id] ?? []) : [];
+  };
   return (
     <div style={{ margin: '0 var(--gap)' }}>
-      {cards.map((c) => (
+      {cards.map((c) => {
+        const trend = trendOf(c);
+        return (
         <div key={c.src.id} className="cv-list-card" style={{ minWidth: 0 }}>
           <Link href={detailHref(c)} style={{ display: 'block', flexShrink: 0 }}>
             <div
@@ -482,7 +542,7 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
                   <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: 0.3 }}>
                     {priceLabel(c, format)}
                   </span>
-                  <ChangeBadge trend={c.src.trend} />
+                  <ChangeBadge trend={trend} />
                 </span>
               ) : (
                 <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>시세 없음</span>
@@ -521,7 +581,7 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
               </div>
             </div>
           </div>
-          {c.src.trend.length >= 2 && (
+          {trend.length >= 2 && (
             <div
               style={{
                 flexShrink: 0,
@@ -532,14 +592,15 @@ function ListView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
                 gap: 3,
               }}
             >
-              <MiniSparkline points={c.src.trend} />
+              <MiniSparkline points={trend} />
               <span style={{ fontFamily: 'var(--f1)', fontSize: 7, color: 'var(--ink3)', letterSpacing: 0.2 }}>
                 최근 추이
               </span>
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
