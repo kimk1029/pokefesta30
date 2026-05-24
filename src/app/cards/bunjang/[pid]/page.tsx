@@ -58,7 +58,14 @@ export default async function Page({ params }: { params: { pid: string } }) {
 
       {/* 이미지 */}
       {product.images.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, background: 'var(--ink2)' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            margin: '14px var(--gap) 0',
+          }}
+        >
           {product.images.map((src) => (
             // 외부(번개장터) 이미지
             // eslint-disable-next-line @next/next/no-img-element
@@ -68,7 +75,13 @@ export default async function Page({ params }: { params: { pid: string } }) {
               alt={product.name}
               loading="lazy"
               referrerPolicy="no-referrer"
-              style={{ width: '100%', height: 'auto', display: 'block' }}
+              style={{
+                display: 'block',
+                width: '100%',
+                maxWidth: '100%',
+                height: 'auto',
+                border: '2px solid var(--line)',
+              }}
             />
           ))}
         </div>
