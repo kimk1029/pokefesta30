@@ -20,7 +20,8 @@ import { getApiBaseUrl } from '@/lib/apiClient';
 
 type AuthProvider = 'kakao' | 'naver' | 'google';
 
-const WEB_OAUTH_ORIGIN = process.env.EXPO_PUBLIC_WEB_OAUTH_ORIGIN ?? getApiBaseUrl();
+const WEB_OAUTH_ORIGIN =
+  process.env.EXPO_PUBLIC_WEB_OAUTH_ORIGIN ?? 'https://www.poke-30.com';
 const DEEP_LINK = 'pokefesta30://auth';
 
 function tokenFromUrl(url: string): string | null {

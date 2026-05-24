@@ -19,8 +19,11 @@ import { setSession, isAuthenticated } from '@/lib/session';
 
 type AuthProvider = 'kakao' | 'naver' | 'google';
 
+// OAuth 시작 오리진 — 기본값은 https 웹 (카카오/네이버/구글 콘솔에 등록된 https
+// Redirect URI 도메인과 일치해야 provider 가 콜백을 허용). EXPO_PUBLIC_WEB_OAUTH_ORIGIN
+// 로 override 가능. (일반 API 호출은 apiClient 가 그대로 Synology 직통.)
 const WEB_OAUTH_ORIGIN =
-  process.env.EXPO_PUBLIC_WEB_OAUTH_ORIGIN ?? getApiBaseUrl();
+  process.env.EXPO_PUBLIC_WEB_OAUTH_ORIGIN ?? 'https://www.poke-30.com';
 const DEEP_LINK = 'pokefesta30://auth';
 
 function tokenFromUrl(url: string): string | null {
