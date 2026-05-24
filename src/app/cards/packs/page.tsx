@@ -106,8 +106,8 @@ export default async function PackExplorerPage() {
                   <br />
                   {pack.boxName}
                 </div>
-                <div style={{ marginTop: 7 }}>
-                  {pack.boxPrice > 0 ? (
+                <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  {pack.boxPrice > 0 && (
                     <span
                       style={{
                         display: 'inline-flex',
@@ -126,23 +126,23 @@ export default async function PackExplorerPage() {
                       <span style={{ fontSize: 8, opacity: 0.7 }}>박스</span>
                       <b><Price jpy={pack.boxPrice} /></b>
                     </span>
-                  ) : (
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        padding: '2px 6px',
-                        background: 'var(--pap2)',
-                        color: 'var(--ink2)',
-                        fontFamily: 'var(--f1)',
-                        fontSize: 9,
-                        letterSpacing: 0.3,
-                        boxShadow:
-                          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-                      }}
-                    >
-                      {pack.releasedAt ? `${pack.releasedAt} 출시` : '출시일 확인 중'}
-                    </span>
                   )}
+                  {/* 출시일은 항상 표시 (박스 시세 유무와 무관) */}
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      padding: '2px 6px',
+                      background: 'var(--pap2)',
+                      color: 'var(--ink2)',
+                      fontFamily: 'var(--f1)',
+                      fontSize: 9,
+                      letterSpacing: 0.3,
+                      boxShadow:
+                        '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                    }}
+                  >
+                    {pack.releasedAt ? `${pack.releasedAt} 출시` : '출시일 확인 중'}
+                  </span>
                 </div>
               </div>
               <div style={{ fontFamily: 'var(--f1)', fontSize: 15, color: 'var(--ink3)' }}>›</div>

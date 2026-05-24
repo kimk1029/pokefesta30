@@ -139,6 +139,9 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
   const koTitle = hit.koName || hit.shortName;
   const jpTitle = hit.name && hit.name !== koTitle ? hit.name : null;
   const hasPrice = hit.minPrice > 0;
+  const priceStr = hasPrice ? format(hit.minPrice) : '시세 없음';
+  // 박스(1/3폭)를 넘지 않도록 글자수에 따라 폰트 축소.
+  const priceFont = priceStr.length > 12 ? 8 : priceStr.length > 10 ? 9 : priceStr.length > 8 ? 10 : 11;
   return (
     <Link
       href={`/cards/snkrdunk/${hit.apparelId}`}
@@ -199,16 +202,20 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
         <div
           style={{
             display: 'inline-block',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
             padding: '3px 6px',
             background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
             color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
             fontFamily: 'var(--f1)',
-            fontSize: 11,
+            fontSize: priceFont,
             letterSpacing: 0.3,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
             boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
           }}
         >
-          {hasPrice ? format(hit.minPrice) : '시세 없음'}
+          {priceStr}
         </div>
         <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 5, letterSpacing: 0.3, minHeight: 12 }}>
           {hit.lastSaleText ? `최근 ${hit.lastSaleText}` : hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}

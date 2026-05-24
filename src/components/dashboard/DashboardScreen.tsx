@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { AppBarProfile } from '@/components/AppBarProfile';
+import { AppBarUser } from '@/components/AppBarUser';
 import { useCurrency } from '@/components/CurrencyProvider';
 import type { HeroSlideData } from '@/components/HeroSlider';
 import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
@@ -265,7 +265,7 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
   return (
     <>
       <StatusBar />
-      <AppBar right={<AppBarProfile />} />
+      <AppBar right={<AppBarUser />} />
 
       {/* ═══ SEARCH (KR → JP → snkrdunk) — 최상단 진입점 ═══ */}
       <div className="sect">

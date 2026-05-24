@@ -48,6 +48,8 @@ interface DisplayCard {
   price: number;
   /** JPY 가격 — snkrdunkApparelId 가 있는 경우. */
   priceJpy: number;
+  /** PSA10 모드인데 PSA10 시세가 없는 경우 — 가격 자리에 '-' 표기. */
+  psa10Missing: boolean;
   /** photoUrl > snkrdunkImageUrl. */
   imageUrl: string | null;
 }
@@ -72,6 +74,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
   const [game, setGame] = useState('전체');
   const [rar, setRar] = useState<RarFilter>('all');
   const [sort, setSort] = useState<SortBy>('recent');
+  const [tab, setTab] = useState<'mine' | 'fav'>('mine'); // 내 카드 / 관심카드
   // 스니덩 카드(apparelId 有, 서버 trend 비어있음)는 sales-chart API로 추이를 받아 채움.
   const [snkrTrends, setSnkrTrends] = useState<Record<number, number[]>>({});
   const router = useRouter();
@@ -137,12 +140,13 @@ export function MyCardsScreen({ cards: initial }: Props) {
           game: catalog || fromSnk ? '포켓몬' : '기타',
           rar: detectRarity(c.nickname, c.snkrdunkName, catalog?.name),
           gradeNum: parsePsa(c.gradeEstimate),
-          price: c.latestPrice,
-          // priceMode 에 따라 single 또는 PSA10 가격 표시 (PSA10 데이터 없으면 single 폴백).
+          price: priceMode === 'psa10' ? 0 : c.latestPrice,
+          // PSA10 모드: PSA10 시세만 사용(없으면 '-'). 싱글 모드: single/USD.
           priceJpy:
-            priceMode === 'psa10' && c.pricePsa10Jpy > 0
-              ? c.pricePsa10Jpy
+            priceMode === 'psa10'
+              ? (c.pricePsa10Jpy > 0 ? c.pricePsa10Jpy : 0)
               : c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0,
+          psa10Missing: priceMode === 'psa10' && !(c.pricePsa10Jpy > 0),
           imageUrl: c.photoUrl || c.snkrdunkImageUrl || null,
         };
       }),
@@ -208,6 +212,21 @@ export function MyCardsScreen({ cards: initial }: Props) {
         }
       />
       <div style={{ height: 12 }} />
+
+      {/* 내 카드 / 관심카드 탭 */}
+      <div className="cv-subseg" style={{ marginBottom: 10 }}>
+        <button type="button" className={tab === 'mine' ? 'on' : ''} onClick={() => setTab('mine')}>
+          내 카드
+        </button>
+        <button type="button" className={tab === 'fav' ? 'on' : ''} onClick={() => setTab('fav')}>
+          ★ 관심카드
+        </button>
+      </div>
+
+      {tab === 'fav' ? (
+        <FavoritesView />
+      ) : (
+      <>
 
       {/* 좌우 오버플로 가드 — 내부 요소가 viewport 밖으로 새지 않도록. */}
       <div style={{ overflowX: 'hidden' }}>
@@ -348,9 +367,131 @@ export function MyCardsScreen({ cards: initial }: Props) {
       )}
 
       </div>{/* /overflow guard */}
+      </>
+      )}
 
       <div className="bggap" />
     </>
+  );
+}
+
+/* ---------------- favorites (관심카드) ---------------- */
+
+interface FavRow {
+  id: number;
+  snkrdunkApparelId: number;
+  name: string | null;
+  imageUrl: string | null;
+  minPriceJpy: number;
+}
+
+function FavoritesView() {
+  const { format } = useCurrency();
+  const [rows, setRows] = useState<FavRow[]>([]);
+  const [state, setState] = useState<'loading' | 'done' | 'error'>('loading');
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch('/api/me/favorites/with-prices', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (!alive) return;
+        if (!r.ok) {
+          setState('error');
+          return;
+        }
+        const j = (await r.json()) as { data?: FavRow[] };
+        setRows(j.data ?? []);
+        setState('done');
+      } catch {
+        if (alive) setState('error');
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (state === 'loading') {
+    return <div className="cv-empty">관심카드 불러오는 중…</div>;
+  }
+  if (state === 'error') {
+    return <div className="cv-empty">관심카드를 불러오지 못했어요</div>;
+  }
+  if (rows.length === 0) {
+    return (
+      <div className="cv-empty">
+        관심카드가 없어요
+        <br />
+        <Link href="/cards/snkrdunk" style={{ color: 'var(--ink)', textDecoration: 'underline' }}>
+          시세에서 ★ 로 추가해보세요
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <div className="sect">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: 10,
+        }}
+      >
+        {rows.map((f) => {
+          const has = f.minPriceJpy > 0;
+          return (
+            <Link
+              key={f.id}
+              href={`/cards/snkrdunk/${f.snkrdunkApparelId}`}
+              className="pack-grid-card"
+              style={{ borderTop: '4px solid var(--gold)' }}
+            >
+              <div style={{ aspectRatio: '63 / 88', background: 'var(--pap2)', overflow: 'hidden' }}>
+                {f.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={f.imageUrl}
+                    alt={f.name ?? ''}
+                    loading="lazy"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                ) : (
+                  <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+                    <span style={{ fontSize: 37 }}>🃏</span>
+                  </div>
+                )}
+              </div>
+              <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
+                <div
+                  style={{
+                    fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.2, marginBottom: 5,
+                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden', minHeight: 28, lineHeight: 1.45, wordBreak: 'keep-all',
+                  }}
+                >
+                  {f.name ?? '관심 카드'}
+                </div>
+                <div
+                  style={{
+                    display: 'inline-block', maxWidth: '100%', padding: '3px 6px',
+                    background: has ? 'var(--ink)' : 'var(--pap2)',
+                    color: has ? 'var(--gold)' : 'var(--ink3)',
+                    fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.3, whiteSpace: 'nowrap',
+                    boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                  }}
+                >
+                  {has ? format(f.minPriceJpy) : '시세 없음'}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -434,24 +575,42 @@ function GridItem({ c, onDelete }: { c: DisplayCard; onDelete: (id: number) => v
           </div>
         </div>
       </Link>
-      <button
-        type="button"
-        onClick={() => onDelete(c.src.id)}
-        style={{
-          width: '100%',
-          padding: '5px 0',
-          background: 'var(--white)',
-          color: 'var(--red)',
-          fontFamily: 'var(--f1)',
-          fontSize: 9,
-          letterSpacing: 0.3,
-          border: 0,
-          borderTop: '3px solid var(--ink)',
-          cursor: 'pointer',
-        }}
-      >
-        ✕ 삭제
-      </button>
+      <div style={{ display: 'flex', borderTop: '3px solid var(--ink)' }}>
+        <Link
+          href={`/write/trade?userCardId=${c.src.id}`}
+          style={{
+            flex: 1,
+            padding: '6px 0',
+            textAlign: 'center',
+            background: 'var(--ink)',
+            color: 'var(--gold)',
+            fontFamily: 'var(--f1)',
+            fontSize: 9,
+            letterSpacing: 0.3,
+            textDecoration: 'none',
+            borderRight: '2px solid var(--ink)',
+          }}
+        >
+          거래
+        </Link>
+        <button
+          type="button"
+          onClick={() => onDelete(c.src.id)}
+          style={{
+            flex: 1,
+            padding: '6px 0',
+            background: 'var(--white)',
+            color: 'var(--red)',
+            fontFamily: 'var(--f1)',
+            fontSize: 9,
+            letterSpacing: 0.3,
+            border: 0,
+            cursor: 'pointer',
+          }}
+        >
+          ✕ 삭제
+        </button>
+      </div>
     </div>
   );
 }
@@ -536,9 +695,10 @@ function ListView({
                 📝 {c.src.memo}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+            {/* 금액 + 등락률 — 한 줄, 줄바꿈 없음 */}
+            <div style={{ marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden' }}>
               {priceLabel(c, format) ? (
-                <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'baseline', maxWidth: '100%' }}>
                   <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: 0.3 }}>
                     {priceLabel(c, format)}
                   </span>
@@ -547,57 +707,40 @@ function ListView({
               ) : (
                 <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>시세 없음</span>
               )}
-              <div style={{ display: 'flex', gap: 6 }}>
-                <Link
-                  href={`/write/trade?userCardId=${c.src.id}`}
-                  style={{
-                    padding: '4px 7px',
-                    background: 'var(--ink)',
-                    color: 'var(--gold)',
-                    fontFamily: 'var(--f1)',
-                    fontSize: 8,
-                    letterSpacing: 0.3,
-                    textDecoration: 'none',
-                  }}
-                >
-                  거래
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => onDelete(c.src.id)}
-                  style={{
-                    padding: '4px 7px',
-                    background: 'var(--white)',
-                    color: 'var(--red)',
-                    fontFamily: 'var(--f1)',
-                    fontSize: 8,
-                    letterSpacing: 0.3,
-                    border: '2px solid var(--ink)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  삭제
-                </button>
-              </div>
             </div>
           </div>
-          {trend.length >= 2 && (
-            <div
-              style={{
-                flexShrink: 0,
-                alignSelf: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-end',
-                gap: 3,
-              }}
-            >
-              <MiniSparkline points={trend} />
-              <span style={{ fontFamily: 'var(--f1)', fontSize: 7, color: 'var(--ink3)', letterSpacing: 0.2 }}>
-                최근 추이
-              </span>
+
+          {/* 우측: 차트(있으면) + 그 아래 거래/삭제 (입체 버튼) */}
+          <div
+            style={{
+              flexShrink: 0,
+              alignSelf: 'stretch',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              gap: 6,
+            }}
+          >
+            {trend.length >= 2 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                <MiniSparkline points={trend} />
+                <span style={{ fontFamily: 'var(--f1)', fontSize: 7, color: 'var(--ink3)', letterSpacing: 0.2 }}>
+                  최근 추이
+                </span>
+              </div>
+            ) : (
+              <div />
+            )}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Link href={`/write/trade?userCardId=${c.src.id}`} className="cv-lc-btn cv-lc-btn-trade">
+                거래
+              </Link>
+              <button type="button" onClick={() => onDelete(c.src.id)} className="cv-lc-btn cv-lc-btn-del">
+                삭제
+              </button>
             </div>
-          )}
+          </div>
         </div>
         );
       })}
@@ -764,6 +907,7 @@ function fmtUsd(v: number): string {
 
 /** USD > JPY 우선. 둘 다 없으면 null. JPY 는 currency 모드에 따라 ¥/₩ 자동 표시. */
 function priceLabel(c: DisplayCard, format: (jpy: number) => string): string | null {
+  if (c.psa10Missing) return '-'; // PSA10 모드인데 PSA10 시세 없음
   if (c.price > 0) return `$${fmtUsd(c.price)}`;
   if (c.priceJpy > 0) return format(c.priceJpy);
   return null;
