@@ -196,6 +196,8 @@ export default async function Page({ params }: { params: { id: string } }) {
               src={src}
               alt=""
               loading="lazy"
+              // 네이버 이미지 CDN은 우리 도메인 referer를 403 차단 → referer 미전송
+              referrerPolicy="no-referrer"
               style={{ width: '100%', height: 'auto', display: 'block', border: '2px solid var(--line)' }}
             />
           ))}

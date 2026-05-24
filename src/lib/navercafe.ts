@@ -168,10 +168,28 @@ export function parseBidAmount(content: string): number | null {
 }
 
 /** 네이버 카페 썸네일 URL의 type 파라미터를 원하는 크기로 교체(없으면 추가). */
-export function upscaleCafeThumb(url: string, type = 'f300_300'): string {
+export function upscaleCafeThumb(url: string, type = 'w300'): string {
   if (!url) return url;
   if (/[?&]type=/.test(url)) return url.replace(/([?&]type=)[^&]+/, `$1${type}`);
   return `${url}${url.includes('?') ? '&' : '?'}type=${type}`;
+}
+
+/**
+ * 제목 앞쪽의 마감 날짜 표기를 제거 (오늘 마감만 보여주므로 중복 정보).
+ *   "(5/24마감) 일판 보아행콕"  → "일판 보아행콕"
+ *   "(5월24일 마감) 셀러브레이션" → "셀러브레이션"
+ *   "5월24일 마감 2021 Celeb"   → "2021 Celeb"
+ *   "(05/24 당일마감)_피카츄"    → "피카츄"
+ */
+export function stripDeadlinePrefix(subject: string): string {
+  if (!subject) return '';
+  let s = subject.trim();
+  // 1) 선두 괄호 [( ] 안에 '마감' 또는 날짜가 든 경우 통째로 제거
+  s = s.replace(/^\s*[([{][^)\]}]*?(?:마감|\d{1,2}\s*[/.월]\s*\d{1,2})[^)\]}]*[)\]}]\s*[-–:_]?\s*/, '');
+  // 2) 괄호 없이 '5/24 마감' / '5월24일 마감' 형태가 선두에 온 경우
+  s = s.replace(/^\s*\d{1,2}\s*[/.월]\s*\d{1,2}\s*일?\s*(?:당일)?마감\s*[-–:_]?\s*/, '');
+  s = s.trim();
+  return s || subject.trim();
 }
 
 /** KST 기준 정확 시각: 오늘이면 "오늘 21:33", 아니면 "05/24 21:33". */
@@ -541,12 +559,12 @@ export function htmlToText(html: string): string {
   return s.trim();
 }
 
-/** 목록 썸네일: 저해상 type=f100_100 → f300_300 으로 업스케일. */
+/** 목록 썸네일: type=f100_100(저해상) → w300 으로 교체 (네이버 CDN 지원 타입). */
 function normalizeListThumb(url: string | undefined | null): string | null {
   if (!url) return null;
   const clean = decodeHtmlEntities(url);
   if (!/^https?:\/\//.test(clean)) return null;
-  return upscaleCafeThumb(clean, 'f300_300');
+  return upscaleCafeThumb(clean, 'w300');
 }
 
 function decodeHtmlEntities(s: string): string {

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MvcAuctionItem, MvcAuctionTodayPage, MvcLatestBid } from '@/lib/navercafe';
+import { stripDeadlinePrefix, type MvcAuctionItem, type MvcAuctionTodayPage, type MvcLatestBid } from '@/lib/navercafe';
 
 const MAX_PAGE = 30; // 안전 상한
 const PAGES_PER_TRIGGER = 5; // 한 번 트리거에 빈 페이지를 건너뛰며 최대 탐색할 수
@@ -78,6 +78,8 @@ function AuctionRow({
             src={item.thumbnailUrl}
             alt=""
             loading="lazy"
+            // 네이버 이미지 CDN은 우리 도메인 referer를 403 차단 → referer 미전송
+            referrerPolicy="no-referrer"
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         ) : (
@@ -95,7 +97,7 @@ function AuctionRow({
             lineHeight: 1.4,
           }}
         >
-          {item.subject}
+          {stripDeadlinePrefix(item.subject)}
         </div>
 
         {/* 최종호가 */}
