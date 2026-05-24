@@ -43,12 +43,15 @@ export default function NotFound() {
     if (consume(fromParam)) return;
 
     // 라우터가 쿼리를 못 살렸으면 원본 URL 에서 직접 추출.
+    // RN(Hermes) 는 URLSearchParams 미지원 → 수동 파싱.
     Linking.getInitialURL()
       .then((url) => {
-        if (!url || !url.includes('token=')) return;
-        const q = url.split('?')[1] ?? '';
+        if (!url) return;
+        const i = url.indexOf('token=');
+        if (i === -1) return;
         try {
-          consume(new URLSearchParams(q).get('token'));
+          const raw = url.slice(i + 'token='.length).split('&')[0].split('#')[0];
+          consume(decodeURIComponent(raw));
         } catch {
           // ignore
         }

@@ -24,12 +24,14 @@ import { colors } from '@/theme/tokens';
  * 않고 직접 처리. WebView 인터셉트가 놓치거나 OS 가 cold-start 로 앱을 열어도
  * 여기서 토큰을 잡아 세션 저장 후 홈으로 보낸다.
  */
+// React Native(Hermes) 는 URLSearchParams 를 완전히 지원하지 않아 수동 파싱.
 function extractToken(url: string | null): string | null {
-  if (!url || !url.includes('token=')) return null;
+  if (!url) return null;
+  const i = url.indexOf('token=');
+  if (i === -1) return null;
   try {
-    const q = url.split('?')[1] ?? '';
-    const params = new URLSearchParams(q);
-    const t = params.get('token');
+    const raw = url.slice(i + 'token='.length).split('&')[0].split('#')[0];
+    const t = decodeURIComponent(raw);
     return t && t.length > 0 ? t : null;
   } catch {
     return null;
