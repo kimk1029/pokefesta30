@@ -21,7 +21,7 @@ import type {
   TradeStatus,
   TradeType,
 } from '@/lib/types';
-import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory } from '@/lib/snkrdunk';
+import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -353,15 +353,18 @@ export async function getMyCardsWithPrices(
       imageUrl: string | null;
       priceSingleJpy: number;
       pricePsa10Jpy: number;
+      /** sales-chart 일별 시세 시리즈(오래된→최신). 차트/등락 통일용. */
+      trendJpy: number[];
     }
   >();
   if (apparelIds.length > 0) {
     await Promise.all(
       apparelIds.map(async (id) => {
         try {
-          const [a, hist] = await Promise.all([
+          const [a, hist, chart] = await Promise.all([
             fetchSnkrdunkApparel(id),
             fetchSnkrdunkSalesHistory(id).catch(() => null),
+            fetchSnkrdunkSalesChart(id).catch(() => null),
           ]);
           if (!a) return;
           const history = hist?.history ?? [];
@@ -372,9 +375,12 @@ export async function getMyCardsWithPrices(
               .filter((h) => predicate((h.condition || h.label || '').trim()))
               .map((h) => h.price)
               .slice(0, 7);
-          const rawPrices = pickPrices((b) => !PSA_ANY_RE.test(b));
           const psa10Prices = pickPrices((b) => PSA10_RE.test(b));
-          let single = median(rawPrices);
+          // 가격 통일: sales-chart 일별 최신 포인트(=오늘 거래 기준가)를 우선 사용.
+          const trendJpy = (chart?.points ?? [])
+            .map((p) => p[1])
+            .filter((n) => typeof n === 'number' && n > 0);
+          let single = trendJpy.length > 0 ? trendJpy[trendJpy.length - 1] : median(pickPrices((b) => !PSA_ANY_RE.test(b)));
           if (single === 0 && typeof a.minPrice === 'number' && a.minPrice > 0) {
             single = a.minPrice; // 데이터 없으면 현재 최저매물 폴백
           }
@@ -384,6 +390,7 @@ export async function getMyCardsWithPrices(
             imageUrl: a.imageUrl,
             priceSingleJpy: single,
             pricePsa10Jpy: psa10,
+            trendJpy,
           });
         } catch (err) {
           console.warn('[getMyCardsWithPrices] apparel fetch failed', id, err);
@@ -412,11 +419,14 @@ export async function getMyCardsWithPrices(
     };
   };
 
+  const snkTrend = (c: MyCardRow): number[] =>
+    c.snkrdunkApparelId ? (apparelInfo.get(c.snkrdunkApparelId)?.trendJpy ?? []) : [];
+
   const cardIds = Array.from(
     new Set(cards.map((c) => c.cardId).filter((id): id is string => Boolean(id))),
   );
   if (cardIds.length === 0) {
-    return cards.map((c) => ({ ...c, latestPrice: 0, trend: [], ...enrichSnk(c) }));
+    return cards.map((c) => ({ ...c, latestPrice: 0, trend: snkTrend(c), ...enrichSnk(c) }));
   }
 
   // 카드별 최근 7건 시세 스냅샷 (USD)
@@ -441,9 +451,10 @@ export async function getMyCardsWithPrices(
 
   return cards.map((c) => {
     const snk = enrichSnk(c);
-    if (!c.cardId) return { ...c, latestPrice: 0, trend: [], ...snk };
+    // 스니덩 카드: sales-chart 일별 시리즈를 trend 로 노출(리스트 차트·등락 통일).
+    if (!c.cardId) return { ...c, latestPrice: 0, trend: snkTrend(c), ...snk };
     const list = byCard.get(c.cardId) ?? [];
-    if (list.length === 0) return { ...c, latestPrice: 0, trend: [], ...snk };
+    if (list.length === 0) return { ...c, latestPrice: 0, trend: snkTrend(c), ...snk };
     // findMany 가 desc 정렬이라 첫 번째가 최신
     const latest = list[0].avg;
     const trend = list.slice(0, 7).map((s) => s.avg).reverse();

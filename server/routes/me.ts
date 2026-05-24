@@ -294,17 +294,17 @@ router.get('/portfolio', async (req: Request, res: Response) => {
                 .filter((h) => predicate((h.condition || h.label || '').trim()))
                 .map((h) => h.price)
                 .slice(0, 7);
-            const rawPrices = pickPrices((b) => !PSA_ANY_RE.test(b));
             const psa10Prices = pickPrices((b) => PSA10_RE.test(b));
-            let single = median(rawPrices);
+            // 가격 통일: sales-chart 마지막 두 포인트(어제/오늘 거래 기준가).
+            const pts = chart?.points ?? [];
+            const chartLast = pts.length >= 1 ? pts[pts.length - 1][1] : 0;
+            const chartPrev = pts.length >= 2 ? pts[pts.length - 2][1] : 0;
+            // 표시/합산 단가도 차트 최신값(오늘 가격) 우선, 없으면 median→최저매물.
+            let single = chartLast > 0 ? chartLast : median(pickPrices((b) => !PSA_ANY_RE.test(b)));
             if (single === 0 && a && typeof a.minPrice === 'number' && a.minPrice > 0) {
               single = a.minPrice;
             }
             const psa10 = median(psa10Prices);
-            // 카드 리스트 등락과 동일 출처(sales-chart)의 마지막 두 포인트.
-            const pts = chart?.points ?? [];
-            const chartLast = pts.length >= 1 ? pts[pts.length - 1][1] : 0;
-            const chartPrev = pts.length >= 2 ? pts[pts.length - 2][1] : 0;
             priceByApparel.set(id, { single, psa10, chartPrev, chartLast });
           } catch (err) {
             console.warn('[me.portfolio] apparel fetch failed', id, err);
