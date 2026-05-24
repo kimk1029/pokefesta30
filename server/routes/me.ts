@@ -243,14 +243,18 @@ router.get('/portfolio', async (req: Request, res: Response) => {
   try {
     const cards = await prisma.userCard.findMany({
       where: { userId, snkrdunkApparelId: { not: null } },
-      select: { id: true, snkrdunkApparelId: true },
+      select: { id: true, snkrdunkApparelId: true, createdAt: true },
     });
     const totalCount = await countMyCards(userId);
+    const today = kstDateKey();
 
     let totalJpy = 0;
     let totalPsa10Jpy = 0;
     let pricedCount = 0;
     let pricedPsa10Count = 0;
+    // 어제 대비 등락 계산용 — '오늘 추가한 카드'는 어제 스냅샷에 없으므로 제외.
+    // (오늘 추가분을 포함하면 자산 유입이 가격 상승처럼 잡혀 등락이 부풀려짐)
+    let comparableTodayJpy = 0;
     if (cards.length > 0) {
       // 같은 apparelId 가 여러 번 들어 있을 수 있으니 fetch 는 한 번만.
       const uniqueApparelIds: number[] = Array.from(
@@ -299,9 +303,11 @@ router.get('/portfolio', async (req: Request, res: Response) => {
       for (const c of cards) {
         const p = c.snkrdunkApparelId != null ? priceByApparel.get(c.snkrdunkApparelId) : null;
         if (!p) continue;
+        const addedToday = kstDateKey(c.createdAt) === today;
         if (p.single > 0) {
           totalJpy += p.single;
           pricedCount += 1;
+          if (!addedToday) comparableTodayJpy += p.single;
         }
         if (p.psa10 > 0) {
           totalPsa10Jpy += p.psa10;
@@ -309,8 +315,6 @@ router.get('/portfolio', async (req: Request, res: Response) => {
         }
       }
     }
-
-    const today = kstDateKey();
 
     // 오늘자 스냅샷 upsert — KST 정각 넘어가면 새 행. 같은 날 호출은 update.
     let yesterdayJpy: number | null = null;
@@ -345,10 +349,12 @@ router.get('/portfolio', async (req: Request, res: Response) => {
       console.warn('[me.portfolio] snapshot upsert/read failed', err);
     }
 
-    const changeAbsJpy = yesterdayJpy != null ? totalJpy - yesterdayJpy : null;
+    // 등락은 '어제부터 보유한 카드'(comparableTodayJpy) 기준 — 오늘 추가분 제외해
+    // 순수 시세 변동만 반영. (표시 총액 totalJpy 에는 오늘 추가분 포함)
+    const changeAbsJpy = yesterdayJpy != null ? comparableTodayJpy - yesterdayJpy : null;
     const changePct =
       yesterdayJpy != null && yesterdayJpy > 0
-        ? ((totalJpy - yesterdayJpy) / yesterdayJpy) * 100
+        ? ((comparableTodayJpy - yesterdayJpy) / yesterdayJpy) * 100
         : null;
 
     res.json({
