@@ -135,3 +135,126 @@ export async function fetchBunjangSearch(
 
 /** 홈/기본 노출용 키워드. */
 export const BUNJANG_DEFAULT_KEYWORD = '포켓몬카드';
+
+// ───────────────────────── 상품 상세 ─────────────────────────
+
+export interface BunjangProduct {
+  pid: string;
+  name: string;
+  price: number;
+  /** 정가(있으면). price와 다르면 할인 표기 가능. */
+  originPrice: number;
+  description: string;
+  images: string[];
+  /** "새상품" | "중고" | 원문. */
+  conditionText: string;
+  /** "판매중" | "예약중" | "판매완료" | 원문. */
+  saleStatusText: string;
+  category: string;
+  freeShipping: boolean;
+  /** 기본 배송비(원). 0이면 미표기/무료. */
+  shippingFee: number;
+  favCount: number;
+  viewCount: number;
+  commentCount: number;
+  /** 갱신 시각 (epoch ms). */
+  updatedAt: number;
+  shopName: string;
+  productUrl: string;
+}
+
+interface RawDetail {
+  data?: {
+    product?: {
+      pid?: string | number;
+      name?: string;
+      price?: string | number;
+      originPrice?: string | number;
+      description?: string;
+      imageUrl?: string;
+      imageCount?: number;
+      condition?: string;
+      saleStatus?: string;
+      category?: { name?: string };
+      trade?: {
+        freeShipping?: boolean;
+        shippingSpecs?: Record<string, { fee?: number }>;
+      };
+      metrics?: {
+        favoriteCount?: number;
+        viewCount?: number;
+        commentCount?: number;
+      };
+      updatedAt?: string;
+    };
+    shop?: { name?: string };
+  };
+}
+
+const CONDITION_KO: Record<string, string> = { NEW: '새상품', USED: '중고' };
+const SALE_STATUS_KO: Record<string, string> = {
+  SELLING: '판매중',
+  RESERVED: '예약중',
+  SOLD: '판매완료',
+  SOLD_OUT: '판매완료',
+};
+
+/** 번개장터 이미지 템플릿(..._{cnt}_..._w{res}.jpg)을 imageCount 만큼 전개. */
+function buildBunjangImages(template: string | undefined, count: number | undefined): string[] {
+  if (!template) return [];
+  const n = Math.min(Math.max(count ?? 1, 1), 12);
+  const out: string[] = [];
+  for (let i = 1; i <= n; i++) {
+    out.push(template.replace('{cnt}', String(i)).replace('{res}', '600'));
+  }
+  return out;
+}
+
+/** 번개장터 상품 상세. */
+export async function fetchBunjangProduct(pid: string): Promise<BunjangProduct | null> {
+  const id = String(pid).trim();
+  if (!/^\d+$/.test(id)) return null;
+  const url = `${BUNJANG_API}/api/pms/v3/products-detail/${id}?viewerUid=-1`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': USER_AGENT,
+        Referer: `${BUNJANG_WEB}/products/${id}`,
+      },
+      next: { revalidate: REVALIDATE_SEC },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) {
+      console.error('[bunjang] detail non-OK', res.status, id);
+      return null;
+    }
+    const data = (await res.json()) as RawDetail;
+    const p = data.data?.product;
+    if (!p || p.pid == null) return null;
+    const fee = p.trade?.shippingSpecs?.DEFAULT?.fee ?? 0;
+    const updatedMs = p.updatedAt ? Date.parse(p.updatedAt) : 0;
+    return {
+      pid: String(p.pid),
+      name: (p.name ?? '').trim(),
+      price: toNumber(p.price),
+      originPrice: toNumber(p.originPrice),
+      description: (p.description ?? '').trim(),
+      images: buildBunjangImages(p.imageUrl, p.imageCount),
+      conditionText: p.condition ? (CONDITION_KO[p.condition] ?? p.condition) : '',
+      saleStatusText: p.saleStatus ? (SALE_STATUS_KO[p.saleStatus] ?? p.saleStatus) : '',
+      category: p.category?.name ?? '',
+      freeShipping: Boolean(p.trade?.freeShipping),
+      shippingFee: Number.isFinite(fee) ? fee : 0,
+      favCount: p.metrics?.favoriteCount ?? 0,
+      viewCount: p.metrics?.viewCount ?? 0,
+      commentCount: p.metrics?.commentCount ?? 0,
+      updatedAt: Number.isFinite(updatedMs) ? updatedMs : 0,
+      shopName: data.data?.shop?.name ?? '',
+      productUrl: bunjangProductUrl(String(p.pid)),
+    };
+  } catch (err) {
+    console.error('[bunjang] detail fetch failed', id, err);
+    return null;
+  }
+}

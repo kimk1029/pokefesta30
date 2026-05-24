@@ -192,7 +192,7 @@ export function stripDeadlinePrefix(subject: string): string {
   return s || subject.trim();
 }
 
-/** KST 기준 정확 시각: 오늘이면 "오늘 21:33", 아니면 "05/24 21:33". */
+/** KST 기준 정확 시각(초까지): 오늘이면 "오늘 21:33:07", 아니면 "05/24 21:33:07". */
 export function kstClock(ts: number, now = Date.now()): string {
   if (!ts || !Number.isFinite(ts)) return '';
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -201,14 +201,14 @@ export function kstClock(ts: number, now = Date.now()): string {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
     hour12: false,
   }).formatToParts(new Date(ts));
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
   const mm = get('month');
   const dd = get('day');
-  const hh = get('hour');
-  const mi = get('minute');
-  return isSameKstDay(ts, now) ? `오늘 ${hh}:${mi}` : `${mm}/${dd} ${hh}:${mi}`;
+  const time = `${get('hour')}:${get('minute')}:${get('second')}`;
+  return isSameKstDay(ts, now) ? `오늘 ${time}` : `${mm}/${dd} ${time}`;
 }
 
 /** epoch ms → 한국어 상대시간 ("방금 전" / "12분 전" / "3시간 전" / "2일 전" / "2026.05.24"). */

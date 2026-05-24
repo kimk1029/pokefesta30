@@ -11,7 +11,7 @@ const REFRESH_COOLDOWN = 20; // 새로고침 쿨다운(초)
 
 type BidMap = Record<number, MvcLatestBid | null>;
 
-/** 클라이언트용 KST 정확 시각: 오늘이면 "오늘 21:33", 아니면 "05/24 21:33". */
+/** 클라이언트용 KST 정확 시각(초까지): "오늘 21:33:07" / "05/24 21:33:07". */
 function fmtClock(ts: number): string {
   if (!ts) return '';
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -20,13 +20,14 @@ function fmtClock(ts: number): string {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
     hour12: false,
   }).formatToParts(new Date(ts));
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
   const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date(ts));
-  const hm = `${get('hour')}:${get('minute')}`;
-  return today === day ? `오늘 ${hm}` : `${get('month')}/${get('day')} ${hm}`;
+  const time = `${get('hour')}:${get('minute')}:${get('second')}`;
+  return today === day ? `오늘 ${time}` : `${get('month')}/${get('day')} ${time}`;
 }
 
 function fmtWon(n: number): string {

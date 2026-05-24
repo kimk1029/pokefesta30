@@ -2,6 +2,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { MvcAuctionList } from '@/components/MvcAuctionList';
+import { AuctionCountdown } from '@/components/AuctionCountdown';
 import { fetchMvcAuctionToday, MVC_CAFE_URL } from '@/lib/navercafe';
 
 export const dynamic = 'force-dynamic';
@@ -48,27 +49,21 @@ export default async function Page() {
               lineHeight: 1.6,
             }}
           >
-            오늘 마감 경매만 · 스크롤하면 계속 불러와요<br />
-            글을 누르면 본문과 최종호가(입찰 댓글)를 볼 수 있어요
+            오늘 마감 경매만 · 23:00 종료 · 스크롤하면 계속 불러와요<br />
+            <a
+              href={`https://cafe.naver.com/${MVC_CAFE_URL}`}
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{ color: 'var(--yel)', textDecoration: 'underline' }}
+            >
+              네이버 카페 열기 →
+            </a>
           </div>
         </div>
       </div>
 
       <div className="sect">
-        <SectionTitle
-          title="오늘 마감 경매"
-          right={
-            <a
-              href={`https://cafe.naver.com/${MVC_CAFE_URL}`}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="more"
-              style={{ textDecoration: 'none' }}
-            >
-              카페 열기 →
-            </a>
-          }
-        />
+        <SectionTitle title="오늘 마감 경매" right={<AuctionCountdown />} />
         <MvcAuctionList initial={initial} />
       </div>
 

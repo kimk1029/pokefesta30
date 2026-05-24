@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import type { BunjangItem } from '@/lib/bunjang';
 
@@ -27,10 +28,8 @@ function fmtAgo(ms: number): string {
 
 function ItemRow({ item }: { item: BunjangItem }) {
   return (
-    <a
-      href={item.productUrl}
-      target="_blank"
-      rel="noreferrer noopener"
+    <Link
+      href={`/cards/bunjang/${item.pid}`}
       className="shop-card"
       style={{ textDecoration: 'none', color: 'inherit' }}
     >
@@ -100,7 +99,7 @@ function ItemRow({ item }: { item: BunjangItem }) {
           {item.updatedAt > 0 && <span>{fmtAgo(item.updatedAt)}</span>}
         </div>
       </div>
-    </a>
+    </Link>
   );
 }
 
