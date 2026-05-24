@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { stripDeadlinePrefix, type MvcAuctionItem, type MvcAuctionTodayPage, type MvcLatestBid } from '@/lib/navercafe';
+import { stripDeadlinePrefix, type MvcAuctionItem, type MvcAuctionPageResult, type MvcLatestBid } from '@/lib/navercafe';
 import { FavoriteStar } from '@/components/FavoriteStar';
 import { useListingFavorites, type ListingFavorite } from '@/lib/useListingFavorites';
 
@@ -190,7 +190,7 @@ function AuctionRow({
 }
 
 interface Props {
-  initial: MvcAuctionTodayPage;
+  initial: MvcAuctionPageResult;
 }
 
 export function MvcAuctionList({ initial }: Props) {
@@ -198,9 +198,7 @@ export function MvcAuctionList({ initial }: Props) {
   const [bids, setBids] = useState<BidMap>({});
   const [changedIds, setChangedIds] = useState<Set<number>>(new Set());
   const [page, setPage] = useState(initial.page);
-  const [done, setDone] = useState(
-    !initial.hasNext || initial.reachedOld || initial.page >= MAX_PAGE,
-  );
+  const [done, setDone] = useState(!initial.hasNext || initial.page >= MAX_PAGE);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -246,7 +244,7 @@ export function MvcAuctionList({ initial }: Props) {
       for (let i = 0; i < PAGES_PER_TRIGGER; i++) {
         nextPage += 1;
         const res = await fetch(`/api/navercafe/list?page=${nextPage}`);
-        const data = (await res.json()) as MvcAuctionTodayPage;
+        const data = (await res.json()) as MvcAuctionPageResult;
         const fresh = (data.items ?? []).filter((it) => {
           if (seen.current.has(it.articleId)) return false;
           seen.current.add(it.articleId);
@@ -256,7 +254,7 @@ export function MvcAuctionList({ initial }: Props) {
           setItems((prev) => [...prev, ...fresh]);
           loadBids(fresh, false);
         }
-        const noMore = !data.hasNext || data.reachedOld || nextPage >= MAX_PAGE;
+        const noMore = !data.hasNext || nextPage >= MAX_PAGE;
         if (noMore) {
           setDone(true);
           break;
@@ -280,7 +278,7 @@ export function MvcAuctionList({ initial }: Props) {
       // 1) 새 경매 글 (1페이지) 반영
       try {
         const res = await fetch('/api/navercafe/list?page=1');
-        const data = (await res.json()) as MvcAuctionTodayPage;
+        const data = (await res.json()) as MvcAuctionPageResult;
         const fresh = (data.items ?? []).filter((it) => !seen.current.has(it.articleId));
         if (fresh.length > 0) {
           fresh.forEach((it) => seen.current.add(it.articleId));
@@ -438,7 +436,7 @@ export function MvcAuctionList({ initial }: Props) {
             color: 'var(--ink3)',
           }}
         >
-          오늘 마감인 경매가 없습니다.
+          진행 중인 경매가 없습니다.
         </div>
       )}
 
@@ -453,7 +451,7 @@ export function MvcAuctionList({ initial }: Props) {
           letterSpacing: 0.5,
         }}
       >
-        {loading ? '불러오는 중…' : done ? `오늘 마감 경매 ${items.length}건 · 끝` : ''}
+        {loading ? '불러오는 중…' : done ? `경매 ${items.length}건 · 끝` : ''}
       </div>
     </>
   );

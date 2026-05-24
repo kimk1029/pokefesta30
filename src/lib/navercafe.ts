@@ -323,39 +323,21 @@ export async function fetchMvcAuctionList(
   return { items, hasNext: Boolean(result.hasNext) };
 }
 
-export interface MvcAuctionTodayPage {
-  /** 오늘(KST) 마감으로 판정된 글만. */
+export interface MvcAuctionPageResult {
   items: MvcAuctionItem[];
-  /** 필터 전 원본 글 수 (이 페이지). */
-  rawCount: number;
   /** 카페 API 기준 다음 페이지 존재 여부. */
   hasNext: boolean;
-  /** 이 페이지의 글이 모두 '오늘 마감 윈도우'보다 오래됨 → 더 볼 필요 없음. */
-  reachedOld: boolean;
   page: number;
 }
 
 /**
- * 오늘(KST) 마감 경매만 추린 페이지.
- *   - 제목에 오늘 날짜 → 포함
- *   - 제목에 다른 날짜 → 제외
- *   - 날짜 판정 불가 → 오늘 작성된 글이면 포함
- * reachedOld: 글 목록은 최신순이라, 이 페이지의 가장 최근 글조차
- *   (오늘-2일) 이전이면 이후 페이지는 볼 필요가 없음(무한스크롤 종료 신호).
+ * 경매 게시판 한 페이지 (필터 없음 — 게시판의 모든 글 그대로).
+ * 게시판이 '진행 중인 카드 경매' 메뉴라 글 자체가 곧 활성 경매 목록.
  */
-export async function fetchMvcAuctionToday(page = 1): Promise<MvcAuctionTodayPage> {
-  const now = Date.now();
-  const { items: raw, hasNext } = await fetchMvcAuctionList(page, 50);
-  const items = raw.filter((it) => {
-    const verdict = isTodayDeadline(it.subject, now);
-    if (verdict === true) return true;
-    if (verdict === false) return false;
-    return isSameKstDay(it.writtenAt, now); // 판정 불가 → 오늘 작성분만
-  });
-  const newestWritten = raw.reduce((mx, it) => Math.max(mx, it.writtenAt), 0);
-  const cutoff = kstDayStartMs(now) - 2 * 86_400_000;
-  const reachedOld = newestWritten > 0 && newestWritten < cutoff;
-  return { items, rawCount: raw.length, hasNext, reachedOld, page };
+export async function fetchMvcAuctionPage(page = 1): Promise<MvcAuctionPageResult> {
+  const p = Number.isInteger(page) && page > 0 ? page : 1;
+  const { items, hasNext } = await fetchMvcAuctionList(p, 50);
+  return { items, hasNext, page: p };
 }
 
 interface RawLatestCommentsResponse {
@@ -380,8 +362,12 @@ export async function fetchMvcLatestBid(
   const raw = await fetchCafeJson<RawLatestCommentsResponse>(url, articleId, { fresh: opts.fresh });
   const items = raw?.result?.comments?.items ?? [];
   const commentCount = raw?.result?.displayCommentCount ?? items.length;
-  // desc 순서에서 삭제되지 않은 첫 댓글 = 최신 유효 호가.
-  const latest = items.find((c) => !c.isDeleted && (c.content ?? '').trim());
+  // 정렬 가정에 의존하지 않고 '최대 updateDate' 유효 댓글 선택 → 상세와 동일 기준.
+  let latest: RawComment | null = null;
+  for (const c of items) {
+    if (c.isDeleted || !(c.content ?? '').trim()) continue;
+    if (!latest || (c.updateDate ?? 0) > (latest.updateDate ?? 0)) latest = c;
+  }
   if (!latest) return null;
   const content = (latest.content ?? '').trim();
   const writtenAt = latest.updateDate ?? 0;
@@ -436,6 +422,7 @@ interface RawComment {
 interface RawCommentsResponse {
   result?: {
     comments?: { items?: RawComment[] };
+    hasNext?: boolean;
   };
 }
 
@@ -470,17 +457,12 @@ export async function fetchMvcArticle(
   const writtenAt = article.writeDate ?? 0;
   const commentCount = article.commentCount ?? 0;
 
-  // 본문 응답에 첫 페이지 댓글이 함께 옴. 더 있으면 추가 페이지 조회.
-  const firstComments = raw?.result?.comments?.items ?? [];
-  const maxComments = opts.maxComments ?? 200;
-  let comments = firstComments.map((c) => mapComment(c, now));
-  if (comments.length < Math.min(commentCount, maxComments) && firstComments.length > 0) {
-    comments = await collectAllComments(articleId, comments, maxComments, now);
-  }
+  // 본문 응답의 embed 댓글은 앞 일부만 와서 신뢰 불가 → v2 댓글 API로 전부 직접 조회.
+  const maxComments = opts.maxComments ?? 500;
+  const comments = await fetchAllComments(articleId, maxComments, now);
 
-  // 댓글은 시간 오름차순 → 마지막(가장 최근) 유효 댓글이 최종호가.
-  const latestBid =
-    [...comments].reverse().find((c) => !c.deleted && c.content) ?? null;
+  // 최종호가 = 가장 최근 댓글(최대 writtenAt). 정렬 가정에 의존하지 않음 → 리스트와 일치.
+  const latestBid = pickLatestComment(comments);
   const latestBidAmount = latestBid ? parseBidAmount(latestBid.content) : null;
 
   return {
@@ -500,15 +482,25 @@ export async function fetchMvcArticle(
   };
 }
 
-async function collectAllComments(
+/** 가장 최근(최대 writtenAt) 유효 댓글 = 최종호가. 삭제/빈 댓글 제외. */
+function pickLatestComment(comments: MvcCommentItem[]): MvcCommentItem | null {
+  let best: MvcCommentItem | null = null;
+  for (const c of comments) {
+    if (c.deleted || !c.content) continue;
+    if (!best || c.writtenAt > best.writtenAt) best = c;
+  }
+  return best;
+}
+
+/** v2 댓글 API로 전 페이지 수집 (asc, hasNext 따라 진행, 중복 제거, cap 제한). */
+async function fetchAllComments(
   articleId: number,
-  seed: MvcCommentItem[],
   cap: number,
   now: number,
 ): Promise<MvcCommentItem[]> {
-  const out = [...seed];
-  const seen = new Set(out.map((c) => c.id));
-  for (let page = 2; page <= 20 && out.length < cap; page++) {
+  const out: MvcCommentItem[] = [];
+  const seen = new Set<number>();
+  for (let page = 1; page <= 30 && out.length < cap; page++) {
     const url =
       `${NAVER_API}/cafe-web/cafe-articleapi/v2/cafes/${MVC_CLUB_ID}/articles/${articleId}` +
       `/comments/pages/${page}?requestFrom=A&orderBy=asc&page=${page}`;
@@ -522,7 +514,7 @@ async function collectAllComments(
       out.push(mapComment(c, now));
       added++;
     }
-    if (added === 0) break;
+    if (!raw?.result?.hasNext || added === 0) break;
   }
   return out.slice(0, cap);
 }
