@@ -30,22 +30,34 @@ export function AuthWebView({ provider, onCancel, onSuccess }: Props) {
   const baseUrl = getApiBaseUrl();
   const startUrl = `${WEB_OAUTH_ORIGIN}/auth/${provider}?platform=mobile`;
 
-  const onShouldStartLoad = (req: { url: string }) => {
-    if (req.url.startsWith(DEEP_LINK_SCHEME)) {
-      try {
-        const u = new URL(req.url);
-        const token = u.searchParams.get('token');
-        if (token) {
-          onSuccess(token, baseUrl);
-        } else {
-          Alert.alert('로그인 실패', '토큰을 받지 못했어요.');
-        }
-      } catch {
-        Alert.alert('로그인 실패', '응답 URL 을 해석하지 못했어요.');
-      }
-      return false;
+  let handled = false;
+  const tryHandle = (url: string): boolean => {
+    if (handled || !url.startsWith(DEEP_LINK_SCHEME)) return false;
+    // token= 가 들어있으면 직접 파싱 (new URL 이 커스텀 스킴에서 host 파싱이 들쭉날쭉).
+    const qIdx = url.indexOf('token=');
+    if (qIdx === -1) return false;
+    const token = decodeURIComponent(url.slice(qIdx + 6).split('&')[0]);
+    if (token) {
+      handled = true;
+      onSuccess(token, baseUrl);
     }
     return true;
+  };
+
+  const onShouldStartLoad = (req: { url: string }) => {
+    if (req.url.startsWith(DEEP_LINK_SCHEME)) {
+      if (!tryHandle(req.url)) {
+        Alert.alert('로그인 실패', '토큰을 받지 못했어요.');
+      }
+      return false; // WebView 가 커스텀 스킴을 로드하지 않도록 차단
+    }
+    return true;
+  };
+
+  // Android 일부 케이스에서 302→커스텀스킴이 onShouldStartLoad 를 건너뛰므로
+  // 네비게이션 상태 변화에서도 한 번 더 체크.
+  const onNavStateChange = (st: { url?: string }) => {
+    if (st.url) tryHandle(st.url);
   };
 
   return (
@@ -81,6 +93,7 @@ export function AuthWebView({ provider, onCancel, onSuccess }: Props) {
       <WebView
         source={{ uri: startUrl }}
         onShouldStartLoadWithRequest={onShouldStartLoad}
+        onNavigationStateChange={onNavStateChange}
         javaScriptEnabled
         domStorageEnabled
         incognito={false}
