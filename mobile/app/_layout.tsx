@@ -39,26 +39,23 @@ function extractToken(url: string | null): string | null {
 }
 
 function useOAuthDeepLink() {
+  // useURL() 은 초기 URL + 이후 url 이벤트를 모두 reactive 하게 돌려줘서
+  // getInitialURL 이 expo-router 에 의해 소비된 경우에도 동작한다.
+  const url = Linking.useURL();
   useEffect(() => {
-    const handle = (url: string | null) => {
-      const token = extractToken(url);
-      if (!token) return;
-      try {
-        setSession({
-          token,
-          expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-          baseUrl: getApiBaseUrl(),
-        });
-      } catch (e) {
-        console.warn('[deeplink] setSession failed', e);
-      }
-      // 약간 지연시켜 라우터가 마운트된 뒤 이동.
-      setTimeout(() => router.replace('/' as never), 60);
-    };
-    Linking.getInitialURL().then(handle).catch(() => undefined);
-    const sub = Linking.addEventListener('url', (e) => handle(e.url));
-    return () => sub.remove();
-  }, []);
+    const token = extractToken(url);
+    if (!token) return;
+    try {
+      setSession({
+        token,
+        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+        baseUrl: getApiBaseUrl(),
+      });
+    } catch (e) {
+      console.warn('[deeplink] setSession failed', e);
+    }
+    setTimeout(() => router.replace('/' as never), 60);
+  }, [url]);
 }
 
 // preventAutoHideAsync 를 호출하지 않음 → splash 가 JS 로드되면 자동으로 사라짐.

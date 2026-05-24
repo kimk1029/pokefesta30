@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { Price } from '@/components/Price';
-import { PriceModeToggle } from '@/components/PriceModeToggle';
 import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -349,12 +348,6 @@ export default async function Page({ params }: PageProps) {
               {apparel.localizedName}
             </div>
           ) : null}
-          {/* 싱글 / PSA10 토글 — PSA10 데이터 있을 때만. 모드는 컬렉션/포트폴리오까지 공유. */}
-          {psa10Avg.avg > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-              <PriceModeToggle hasPsa10={psa10Avg.avg > 0} />
-            </div>
-          )}
           {/* 싱글카드 / PSA10 — 라벨을 위, 금액을 아래로 분리한 2-컬럼. */}
           <div
             style={{
@@ -370,12 +363,10 @@ export default async function Page({ params }: PageProps) {
               <div style={{ fontSize: 8, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>싱글카드</div>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 11,
                   color: 'var(--red)',
-                  lineHeight: 1,
+                  lineHeight: 1.1,
                   whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
                 }}
               >
                 <Price jpy={rawAvg.avg} empty="—" />
@@ -385,12 +376,10 @@ export default async function Page({ params }: PageProps) {
               <div style={{ fontSize: 8, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>PSA10</div>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 11,
                   color: psa10Avg.avg > 0 ? 'var(--gold-dk)' : 'var(--ink3)',
-                  lineHeight: 1,
+                  lineHeight: 1.1,
                   whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
                 }}
               >
                 <Price jpy={psa10Avg.avg} empty="—" />
@@ -400,13 +389,11 @@ export default async function Page({ params }: PageProps) {
           <div
             style={{
               fontFamily: 'var(--f1)',
-              fontSize: 9,
+              fontSize: 8,
               color: 'var(--ink3)',
               marginTop: 6,
-              letterSpacing: 0.3,
+              letterSpacing: 0.2,
               whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
             }}
           >
             최저매물 <Price jpy={apparel.minPrice} empty="—" />

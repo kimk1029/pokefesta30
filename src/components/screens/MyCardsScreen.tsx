@@ -63,7 +63,7 @@ const GAME_COLORS: Record<string, string> = {
 
 export function MyCardsScreen({ cards: initial }: Props) {
   const { format } = useCurrency();
-  const { mode: priceMode } = usePriceMode();
+  const { mode: priceMode, setMode: setPriceMode } = usePriceMode();
   const [cards, setCards] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -219,7 +219,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
         ))}
       </div>
 
-      {/* Sort */}
+      {/* Sort + 싱글/PSA10 토글 (PSA10 시세 있는 카드가 하나라도 있을 때만) */}
       <div className="cv-toolbar">
         <div style={{ flex: 1, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {(
@@ -240,6 +240,29 @@ export function MyCardsScreen({ cards: initial }: Props) {
             </button>
           ))}
         </div>
+        {cards.some((c) => (c.pricePsa10Jpy ?? 0) > 0) && (
+          <div style={{ display: 'flex', boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)' }}>
+            {(['single', 'psa10'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setPriceMode(m)}
+                style={{
+                  padding: '6px 9px',
+                  border: 0,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--f1)',
+                  fontSize: 9,
+                  letterSpacing: 0.3,
+                  background: priceMode === m ? 'var(--gold)' : 'var(--white)',
+                  color: priceMode === m ? 'var(--ink)' : 'var(--ink3)',
+                }}
+              >
+                {m === 'single' ? '싱글' : 'PSA10'}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* View mode tabs (카드검색 결과 헤더 톤 — pixel-press subseg) */}
