@@ -73,10 +73,7 @@ export function parseKreamSearchHtml(html: string): KreamItem[] {
   return out;
 }
 
-/** KREAM 검색. 실패/차단 시 빈 배열. */
-export async function fetchKreamSearch(query: string): Promise<KreamItem[]> {
-  const q = query.trim();
-  if (!q) return [];
+async function fetchKreamRaw(q: string): Promise<KreamItem[]> {
   try {
     const res = await fetch(kreamSearchUrl(q), {
       headers: {
@@ -97,4 +94,58 @@ export async function fetchKreamSearch(query: string): Promise<KreamItem[]> {
     console.error('[kream] fetch failed', q, err);
     return [];
   }
+}
+
+// ── 서버 프로세스 인메모리 캐시 ──
+// KREAM은 같은 IP 반복 요청을 500/차단하므로, 검색어당 결과를 일정 시간 캐시해
+// 실제 KREAM 요청 빈도를 크게 낮춘다. 성공은 길게, 빈/실패는 짧게 캐시(곧 복구 시도).
+interface CacheEntry {
+  ts: number;
+  ttl: number;
+  items: KreamItem[];
+}
+const SUCCESS_TTL = 30 * 60 * 1000; // 30분
+const EMPTY_TTL = 5 * 60 * 1000; // 빈/차단 응답은 5분만 (그 사이 KREAM 재호출 안 함)
+const MAX_ENTRIES = 300;
+const cache = new Map<string, CacheEntry>();
+const inflight = new Map<string, Promise<KreamItem[]>>();
+
+/**
+ * KREAM 검색 (캐시됨). 같은 검색어는 TTL 동안 KREAM에 재요청하지 않고,
+ * 동시 요청은 in-flight 하나로 합친다. 실패/차단 시 빈 배열.
+ */
+export async function fetchKreamSearch(query: string): Promise<KreamItem[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const now = Date.now();
+
+  const cached = cache.get(q);
+  if (cached && now - cached.ts < cached.ttl) return cached.items;
+
+  const pending = inflight.get(q);
+  if (pending) return pending;
+
+  const p = (async () => {
+    try {
+      const items = await fetchKreamRaw(q);
+      cache.set(q, { ts: Date.now(), ttl: items.length > 0 ? SUCCESS_TTL : EMPTY_TTL, items });
+      // 오래된 항목 정리 (메모리 상한)
+      if (cache.size > MAX_ENTRIES) {
+        let oldestKey: string | null = null;
+        let oldestTs = Infinity;
+        for (const [k, v] of cache) {
+          if (v.ts < oldestTs) {
+            oldestTs = v.ts;
+            oldestKey = k;
+          }
+        }
+        if (oldestKey) cache.delete(oldestKey);
+      }
+      return items;
+    } finally {
+      inflight.delete(q);
+    }
+  })();
+  inflight.set(q, p);
+  return p;
 }
