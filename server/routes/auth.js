@@ -77,6 +77,22 @@ router.post('/logout', (_req, res) => {
   res.json({ ok: true });
 });
 
+// 모바일 인앱 WebView 로그인 브리지.
+// 콜백이 성공 시 이 https 경로로 리다이렉트하면, 앱의 WebView 가 이 URL 네비게이션
+// 에서 token 을 가로채 세션을 저장한다(페이지는 실제로 로드하지 않음). 커스텀 스킴
+// (pokefesta30://) 302 는 WebView 가 OS intent 로 넘겨 앱 라우팅이 깨지는 문제가 있어
+// https 경로로 우회한다. WebView 가 실제로 로드하는 경우를 대비한 최소 페이지도 제공.
+// 주의: 와일드카드 `/:provider` 보다 먼저 선언해야 매칭된다.
+router.get('/app-callback', (_req, res) => {
+  res
+    .type('html')
+    .send(
+      '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<title>로그인 완료</title>' +
+        '<body style="font-family:sans-serif;text-align:center;padding-top:48px;color:#333">로그인 완료. 앱으로 돌아갑니다…</body>',
+    );
+});
+
 router.get('/:provider', (req, res) => {
   const provider = getProvider(req.params.provider);
   if (!provider) return res.status(404).json({ error: 'unknown provider' });
@@ -129,8 +145,10 @@ router.get('/callback/:provider', async (req, res) => {
     });
 
     if (state.p === 'mobile') {
-      const url = `${MOBILE_SCHEME}://auth?token=${encodeURIComponent(token)}`;
-      return res.redirect(url);
+      // 앱 내부 WebView 가 가로챌 수 있도록 커스텀 스킴 대신 https 경로(같은 오리진)로
+      // 리다이렉트. WebView 는 이 네비게이션에서 token 을 추출해 세션 저장 후 홈으로
+      // 이동하며 페이지는 로드하지 않는다. (커스텀 스킴 302 → WebView intent → 404 회피)
+      return res.redirect(`/auth/app-callback?token=${encodeURIComponent(token)}`);
     }
 
     setSessionCookie(res, token);

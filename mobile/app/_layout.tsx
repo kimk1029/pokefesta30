@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Stack, router } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
@@ -15,47 +15,42 @@ import { PriceModeProvider } from '@/lib/priceMode';
 import { CurrencyProvider } from '@/components/CurrencyProvider';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ToastProvider } from '@/components/ToastProvider';
-import { setSession } from '@/lib/session';
-import { getApiBaseUrl } from '@/lib/apiClient';
+import { extractOAuthToken, persistTokenAndGoHome } from '@/lib/oauth';
 import { colors } from '@/theme/tokens';
 
 /**
- * OAuth 딥링크 (pokefesta30://auth?token=…) 를 expo-router 경로 매칭에 의존하지
- * 않고 직접 처리. WebView 인터셉트가 놓치거나 OS 가 cold-start 로 앱을 열어도
- * 여기서 토큰을 잡아 세션 저장 후 홈으로 보낸다.
+ * OAuth 딥링크 (pokefesta30://auth?token=…) 폴백 처리.
+ *
+ * 정상 흐름에서는 로그인 화면의 WebBrowser.openAuthSessionAsync 가 리다이렉트를
+ * 가로채 토큰을 직접 받는다. 하지만 OS 가 cold-start 로 앱을 pokefesta30://auth
+ * 딥링크로 직접 열거나 인증 세션이 리다이렉트를 놓친 경우를 대비해 여기서도
+ * 토큰을 잡아 세션 저장 후 홈으로 보낸다.
  */
-// React Native(Hermes) 는 URLSearchParams 를 완전히 지원하지 않아 수동 파싱.
-function extractToken(url: string | null): string | null {
-  if (!url) return null;
-  const i = url.indexOf('token=');
-  if (i === -1) return null;
-  try {
-    const raw = url.slice(i + 'token='.length).split('&')[0].split('#')[0];
-    const t = decodeURIComponent(raw);
-    return t && t.length > 0 ? t : null;
-  } catch {
-    return null;
-  }
-}
-
 function useOAuthDeepLink() {
-  // useURL() 은 초기 URL + 이후 url 이벤트를 모두 reactive 하게 돌려줘서
-  // getInitialURL 이 expo-router 에 의해 소비된 경우에도 동작한다.
-  const url = Linking.useURL();
-  useEffect(() => {
-    const token = extractToken(url);
+  const handle = (incoming: string | null | undefined) => {
+    const token = extractOAuthToken(incoming ?? null);
     if (!token) return;
     try {
-      setSession({
-        token,
-        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-        baseUrl: getApiBaseUrl(),
-      });
+      persistTokenAndGoHome(token);
     } catch (e) {
-      console.warn('[deeplink] setSession failed', e);
+      console.warn('[deeplink] persist token failed', e);
     }
-    setTimeout(() => router.replace('/' as never), 60);
+  };
+
+  // 1) reactive useURL — cold-start 초기 URL 및 일부 warm 이벤트.
+  const url = Linking.useURL();
+  useEffect(() => {
+    handle(url);
   }, [url]);
+
+  // 2) addEventListener + getInitialURL — warm 재전달(onNewIntent) 보강.
+  // 실제 OAuth 플로우는 브라우저가 앱을 foreground 로 끌어올리는 warm 전달이라
+  // useURL() 이 놓치는 경우가 있어 직접 구독한다.
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url: u }) => handle(u));
+    Linking.getInitialURL().then(handle).catch(() => {});
+    return () => sub.remove();
+  }, []);
 }
 
 // preventAutoHideAsync 를 호출하지 않음 → splash 가 JS 로드되면 자동으로 사라짐.

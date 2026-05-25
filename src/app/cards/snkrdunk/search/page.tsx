@@ -1,68 +1,10 @@
-import Link from 'next/link';
-import { Price } from '@/components/Price';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { serverFetch } from '@/lib/apiServer';
-import { translate, translateKnownCardNameToKo } from '@/lib/cardTranslate';
+import { translate } from '@/lib/cardTranslate';
+import { searchSnkrdunkPage } from './actions';
+import { SearchResults } from './SearchResults';
 
 export const dynamic = 'force-dynamic';
-
-interface SearchResult {
-  apparelId: number;
-  name: string;
-  imageUrl: string | null;
-  priceText: string;
-}
-
-interface ApparelDetail {
-  apparelId: number;
-  name: string;
-  localizedName?: string;
-  imageUrl: string | null;
-  minPrice: number;
-  listingCount: number;
-  listingCountText: string;
-}
-
-interface HydratedHit {
-  apparelId: number;
-  koName: string;
-  jpName: string;
-  imageUrl: string | null;
-  minPrice: number;
-  listingCountText: string;
-}
-
-const ACCENT = '#1B2E89';
-
-async function hydrateBatch(results: SearchResult[]): Promise<HydratedHit[]> {
-  const out: HydratedHit[] = new Array(results.length);
-  const CONCURRENCY = 6;
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(CONCURRENCY, results.length) }, async () => {
-    while (true) {
-      const idx = cursor++;
-      if (idx >= results.length) return;
-      const r = results[idx];
-      const ar = await serverFetch<{ data: ApparelDetail | null }>(
-        `/api/snkrdunk/apparels/${r.apparelId}`,
-        { auth: false },
-      );
-      const apparel = ar.data?.data ?? null;
-      const jp = apparel?.localizedName ?? apparel?.name ?? r.name;
-      out[idx] = {
-        apparelId: r.apparelId,
-        koName: translateKnownCardNameToKo(jp) || jp,
-        jpName: jp,
-        imageUrl: apparel?.imageUrl ?? r.imageUrl,
-        minPrice: apparel?.minPrice ?? 0,
-        listingCountText: apparel?.listingCountText ?? '',
-      };
-    }
-  });
-  await Promise.all(workers);
-  return out.filter(Boolean);
-}
 
 export default async function Page({
   searchParams,
@@ -73,22 +15,10 @@ export default async function Page({
   const q = (sp.q ?? '').trim();
   const ja = q ? translate(q, 'ja') : '';
 
-  let hits: HydratedHit[] = [];
-  if (ja) {
-    const r = await serverFetch<{ results: SearchResult[] }>(
-      `/api/snkrdunk/search?q=${encodeURIComponent(ja)}`,
-      { auth: false },
-    );
-    const raw = r.data?.results ?? [];
-    hits = raw.length > 0 ? await hydrateBatch(raw) : [];
-  }
-
-  // 매물 있는 카드 우선, 가격 높은 순.
-  hits.sort((a, b) => {
-    if (a.minPrice > 0 && b.minPrice === 0) return -1;
-    if (a.minPrice === 0 && b.minPrice > 0) return 1;
-    return b.minPrice - a.minPrice;
-  });
+  // 첫 페이지만 서버에서 미리 채우고, 이후 "더 보기"는 클라이언트가 서버액션으로 페이지를 늘려간다.
+  const { hits: initialHits, hasMore: initialHasMore } = ja
+    ? await searchSnkrdunkPage(ja, 1)
+    : { hits: [], hasMore: false };
 
   return (
     <>
@@ -195,150 +125,13 @@ export default async function Page({
                 🇯🇵 JA: <b style={{ color: 'var(--red)' }}>{ja}</b>
               </>
             ) : null}
-            <br />
-            검색 결과 <b>{hits.length}건</b>
           </div>
 
-          {hits.length === 0 ? (
-            <div
-              style={{
-                margin: '0 var(--gap) var(--cg)',
-                padding: 30,
-                textAlign: 'center',
-                background: 'var(--white)',
-                fontFamily: 'var(--f1)',
-                fontSize: 10,
-                color: 'var(--ink3)',
-                boxShadow:
-                  '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
-              }}
-            >
-              검색 결과가 없습니다
-            </div>
-          ) : (
-            <div className="sect">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 15, letterSpacing: 0.4 }}>
-                    싱글카드 시세
-                  </div>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 4 }}>
-                    {hits.length}개 매물
-                  </div>
-                </div>
-              </div>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                  gap: 10,
-                }}
-              >
-                {hits.map((hit) => (
-                  <SearchHitCard key={hit.apparelId} hit={hit} />
-                ))}
-              </div>
-            </div>
-          )}
+          <SearchResults ja={ja} initialHits={initialHits} initialHasMore={initialHasMore} />
         </>
       )}
 
       <div className="bggap" />
     </>
-  );
-}
-
-function SearchHitCard({ hit }: { hit: HydratedHit }) {
-  const koTitle = hit.koName || hit.jpName;
-  const jpTitle = hit.jpName && hit.jpName !== koTitle ? hit.jpName : null;
-  const hasPrice = hit.minPrice > 0;
-  return (
-    <Link
-      href={`/cards/snkrdunk/${hit.apparelId}`}
-      className="pack-grid-card"
-      style={{ borderTop: `4px solid ${ACCENT}` }}
-    >
-      <div
-        style={{
-          aspectRatio: '63 / 88',
-          background: 'var(--pap2)',
-          overflow: 'hidden',
-        }}
-      >
-        {hit.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={hit.imageUrl}
-            alt={koTitle}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-        ) : (
-          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-            <span style={{ fontSize: 37 }}>🃏</span>
-          </div>
-        )}
-      </div>
-      <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
-        <div
-          style={{
-            fontFamily: 'var(--f1)',
-            fontSize: 11,
-            letterSpacing: 0.2,
-            marginBottom: jpTitle ? 3 : 6,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            minHeight: 30,
-            lineHeight: 1.45,
-            wordBreak: 'keep-all',
-          }}
-        >
-          {koTitle}
-        </div>
-        {jpTitle ? (
-          <div
-            style={{
-              fontFamily: 'var(--f1)',
-              fontSize: 9,
-              color: 'var(--ink3)',
-              marginBottom: 6,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              lineHeight: 1.5,
-            }}
-          >
-            {jpTitle}
-          </div>
-        ) : null}
-        <div
-          style={{
-            display: 'inline-block',
-            padding: '3px 6px',
-            background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
-            color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
-            fontFamily: 'var(--f1)',
-            fontSize: 11,
-            letterSpacing: 0.3,
-            boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-          }}
-        >
-          {hasPrice ? <Price jpy={hit.minPrice} /> : '시세 없음'}
-        </div>
-        <div
-          style={{
-            fontFamily: 'var(--f1)',
-            fontSize: 9,
-            color: 'var(--ink3)',
-            marginTop: 5,
-            letterSpacing: 0.3,
-            minHeight: 12,
-          }}
-        >
-          {hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
-        </div>
-      </div>
-    </Link>
   );
 }

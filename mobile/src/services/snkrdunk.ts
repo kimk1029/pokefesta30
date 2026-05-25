@@ -371,6 +371,9 @@ export interface SnkrdunkSearchResult {
 const SEARCH_ITEM_RE =
   /<a[^>]*href="https:\/\/snkrdunk\.com\/apparels\/(\d+)"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/g;
 
+/** 검색 한 페이지당 파싱 상한. 이 수만큼 차면 다음 페이지가 더 있다고 간주. */
+export const SNKRDUNK_SEARCH_LIMIT = 40;
+
 function decodeHtmlEntities(s: string): string {
   return s
     .replace(/&amp;/g, '&')
@@ -394,7 +397,7 @@ function parseSnkrdunkSearchHtml(html: string): SnkrdunkSearchResult[] {
     const name = sepIdx > 0 ? ariaLabel.slice(0, sepIdx).trim() : ariaLabel.trim();
     const priceText = sepIdx > 0 ? `¥${ariaLabel.slice(sepIdx + 4).trim()}` : '';
     out.push({ apparelId: id, name, imageUrl: m[3] || null, priceText });
-    if (out.length >= 40) break;
+    if (out.length >= SNKRDUNK_SEARCH_LIMIT) break;
   }
   return out;
 }
@@ -420,11 +423,16 @@ export async function fetchSnkrdunkBrowse(page = 1): Promise<SnkrdunkSearchResul
   }
 }
 
-/** Free-text search — used to recover an apparelId for legacy collection
- *  cards that were saved before we persisted snkrdunkApparelId. */
-export async function searchSnkrdunkByQuery(query: string): Promise<SnkrdunkSearchResult[]> {
+/** Free-text search. `page` 로 스니덩 검색 페이지네이션(2,3…)을 직접 넘긴다 —
+ *  검색 화면 "더 보기"가 다음 페이지를 이어 받는 데 쓰인다. (legacy 컬렉션 카드의
+ *  apparelId 복구에도 사용 — 그 경우 page 생략 = 1페이지.) */
+export async function searchSnkrdunkByQuery(
+  query: string,
+  page = 1,
+): Promise<SnkrdunkSearchResult[]> {
   if (!query || !query.trim()) return [];
-  const url = `${SNKRDUNK_ORIGIN}/search?keywords=${encodeURIComponent(query.trim())}`;
+  const p = Number.isInteger(page) && page > 1 ? `&page=${page}` : '';
+  const url = `${SNKRDUNK_ORIGIN}/search?keywords=${encodeURIComponent(query.trim())}${p}`;
   try {
     const res = await fetch(url, {
       headers: {

@@ -395,6 +395,9 @@ export function downsamplePricePoints(
 const SEARCH_ITEM_RE =
   /<a[^>]*href="https:\/\/snkrdunk\.com\/apparels\/(\d+)"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/g;
 
+/** 검색 한 페이지당 파싱 상한. 이 수만큼 차면 다음 페이지(page+1)가 더 있다고 간주. */
+export const SNKRDUNK_SEARCH_LIMIT = 40;
+
 /** HTML 파서 — 검색 결과 카드를 추출. */
 export function parseSnkrdunkSearchHtml(html: string): SnkrdunkSearchResult[] {
   const seen = new Set<number>();
@@ -412,7 +415,7 @@ export function parseSnkrdunkSearchHtml(html: string): SnkrdunkSearchResult[] {
     const name = sepIdx > 0 ? ariaLabel.slice(0, sepIdx).trim() : ariaLabel.trim();
     const priceText = sepIdx > 0 ? `¥${ariaLabel.slice(sepIdx + 4).trim()}` : '';
     out.push({ apparelId: id, name, imageUrl: m[3] || null, priceText });
-    if (out.length >= 40) break;
+    if (out.length >= SNKRDUNK_SEARCH_LIMIT) break;
   }
   return out;
 }

@@ -20,7 +20,8 @@ export function PhoneShell({ children }: Props) {
   const { hidden } = useChrome();
   const { theme } = useTheme();
   const c = useThemeColors();
-  const isLogin = pathname?.startsWith('/login');
+  // 로그인/OAuth WebView 는 전체화면 — status/tabbar 숨김.
+  const isLogin = pathname?.startsWith('/login') || pathname?.startsWith('/oauth');
   const isFullscreen = isLogin || hidden;
   return (
     <View style={[styles.root, { backgroundColor: c.pap2 }]}>

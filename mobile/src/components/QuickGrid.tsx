@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { View, Pressable, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { router } from 'expo-router';
 import { colors, space } from '@/theme/tokens';
 import { PixelText } from './PixelText';
+import { PixelPress } from './cv/PixelPress';
 
 interface Item {
   href: string;
@@ -28,7 +29,7 @@ function KoreaMarketIcon() {
 }
 
 const ITEMS: Item[] = [
-  { href: '/scan', color: 'g', icon: '📷', label: '스캔' },
+  { href: '/cards/grading', color: 'g', icon: '📷', label: '스캔' },
   { href: '/cards/packs', color: 'y', icon: '¥', label: '시세확인' },
   { href: '/cards/mvc-auction', color: 'b', icon: '🔨', label: 'MVC경매' },
   { href: '/cards/bunjang', color: 'r', icon: <KoreaMarketIcon />, label: '국내마켓' },
@@ -53,13 +54,14 @@ export function QuickGrid() {
   return (
     <View style={styles.grid}>
       {ITEMS.map((it) => (
-        <Pressable
+        <PixelPress
           key={it.label}
           onPress={() => router.push(it.href as never)}
-          style={({ pressed }) => [
-            styles.qi,
-            pressed && { transform: [{ translateX: 2 }, { translateY: 2 }] },
-          ]}
+          borderWidth={3}
+          shadow={5}
+          inner={3}
+          style={styles.qi}
+          innerStyle={styles.qiFace}
         >
           <View style={[styles.icon, { backgroundColor: BG[it.color] }]}>
             {typeof it.icon === 'string' ? (
@@ -76,7 +78,7 @@ export function QuickGrid() {
           >
             {it.label}
           </PixelText>
-        </Pressable>
+        </PixelPress>
       ))}
     </View>
   );
@@ -85,18 +87,18 @@ export function QuickGrid() {
 const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     marginHorizontal: space.gap,
     marginBottom: space.cg,
-    gap: 6,
   },
   qi: {
-    flex: 1,
+    width: '19%',
+  },
+  qiFace: {
     backgroundColor: colors.white,
     paddingVertical: 9,
     paddingHorizontal: 1,
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: colors.ink,
   },
   icon: {
     width: 32,

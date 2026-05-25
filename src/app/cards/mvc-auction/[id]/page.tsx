@@ -47,7 +47,7 @@ function TopBidBanner({ article }: { article: MvcArticleDetail }) {
               textShadow: '3px 3px 0 rgba(0,0,0,.4)',
             }}
           >
-            {article.latestBidAmount != null ? fmtWon(article.latestBidAmount) : bid.content}
+            {bid.content ? bid.content : article.latestBidAmount != null ? fmtWon(article.latestBidAmount) : ''}
           </div>
           <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.85)', marginTop: 6 }}>
             {bid.writerNickname || '익명'} · {bid.writtenAgo}

@@ -1,6 +1,7 @@
 import { View, type ViewProps, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { useThemeColors } from './ThemeProvider';
+import { PixelDeco } from './cv/PixelDeco';
 
 interface Props extends ViewProps {
   bg?: string;
@@ -8,20 +9,19 @@ interface Props extends ViewProps {
   borderWidth?: number;
   shadowOffset?: number;
   noShadow?: boolean;
-  hi?: string;
-  lo?: string;
+  hi?: string | null;
+  lo?: string | null;
 }
 
 /**
- * 픽셀 카드/버튼 — 4방향 검정 보더 + 우하단 hard shadow
- *  + 상단 inset 하이라이트(흰색 라인) + 하단 inset 어둠(검은 라인)
- * 원본 CSS box-shadow의 다층 inset 효과를 layered View로 재현.
+ * 픽셀 카드/버튼 — 웹 `.card`의 4방향 외곽선(꼭지점 한 칸 빔) + 단일 우하단 하드 섀도
+ *  + 상/좌 하이라이트 + 하/우 음영. 모서리는 꼭지점을 비운 큰 픽셀 노치.
  */
 export function PixelBox({
   bg = colors.white,
   border = colors.ink,
-  borderWidth = 3,
-  shadowOffset = 4,
+  borderWidth = 4,
+  shadowOffset = 6,
   noShadow = false,
   hi = 'rgba(255,255,255,0.85)',
   lo = 'rgba(0,0,0,0.18)',
@@ -32,38 +32,14 @@ export function PixelBox({
   const c = useThemeColors();
   const faceBg = bg === colors.white ? c.white : bg;
   const edge = border === colors.ink ? c.ink : border;
+  const cut = borderWidth;
+  const loThick = Math.max(2, borderWidth);
   const inner = (
-    <View
-      style={[
-        { backgroundColor: faceBg, borderColor: edge, borderWidth },
-      ]}
-      {...rest}
-    >
-      {/* inset top highlight */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 3,
-          backgroundColor: hi,
-        }}
-      />
-      {/* inset bottom shadow */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 3,
-          backgroundColor: lo,
-        }}
-      />
-      {children}
+    <View style={styles.face} {...rest}>
+      <PixelDeco faceBg={faceBg} edge={edge} cut={cut} hi={hi} lo={lo} inner={3} loThick={loThick} />
+      <View style={{ borderWidth: cut, borderColor: 'transparent', backgroundColor: 'transparent' }}>
+        {children}
+      </View>
     </View>
   );
 
@@ -71,27 +47,13 @@ export function PixelBox({
     return <View style={style}>{inner}</View>;
   }
   return (
-    <View
-      style={[
-        styles.wrap,
-        { marginRight: shadowOffset, marginBottom: shadowOffset },
-        style,
-      ]}
-    >
-      {/* hard offset shadow */}
+    <View style={[styles.wrap, { marginRight: shadowOffset, marginBottom: shadowOffset }, style]}>
       <View
         pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFillObject,
-          {
-            backgroundColor: edge,
-            top: shadowOffset,
-            left: shadowOffset,
-            right: -shadowOffset,
-            bottom: -shadowOffset,
-          },
-        ]}
-      />
+        style={[StyleSheet.absoluteFillObject, { top: shadowOffset, left: shadowOffset, right: -shadowOffset, bottom: -shadowOffset }]}
+      >
+        <PixelDeco faceBg={edge} edge={edge} cut={cut} border={false} />
+      </View>
       {inner}
     </View>
   );
@@ -99,4 +61,5 @@ export function PixelBox({
 
 const styles = StyleSheet.create({
   wrap: { position: 'relative' },
+  face: { position: 'relative' },
 });

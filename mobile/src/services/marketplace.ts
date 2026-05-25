@@ -200,6 +200,90 @@ export async function fetchMvcAuctions(page = 1): Promise<MvcAuctionItem[]> {
     });
 }
 
+/** 한 경매글의 '최종호가'(최신 댓글). 웹 navercafe.fetchMvcLatestBid 의 모바일 포팅. */
+export interface MvcLatestBid {
+  articleId: number;
+  /** 최신 댓글에서 파싱한 호가(원). 실패 시 null. */
+  amount: number | null;
+  content: string;
+  commentCount: number;
+  writtenAt: number;
+}
+
+interface RawComment {
+  content?: string;
+  isDeleted?: boolean;
+  updateDate?: number;
+}
+interface RawLatestCommentsResponse {
+  result?: { comments?: { items?: RawComment[] }; displayCommentCount?: number };
+}
+
+/** 댓글 본문에서 호가(원) 파싱 — "12만3천" / "123,000" 등. */
+export function parseBidAmount(content: string): number | null {
+  if (!content) return null;
+  const s = content.replace(/,/g, '').trim();
+  const unit = s.match(/(\d+)\s*만(?:\s*(\d+)\s*천)?/);
+  if (unit) {
+    const man = Number(unit[1]) * 10000;
+    const cheon = unit[2] ? Number(unit[2]) * 1000 : 0;
+    return man + cheon;
+  }
+  const cheonOnly = s.match(/^(\d+)\s*천$/);
+  if (cheonOnly) return Number(cheonOnly[1]) * 1000;
+  const num = s.match(/\d{2,}/);
+  if (num) {
+    const n = Number(num[0]);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  return null;
+}
+
+export async function fetchMvcLatestBid(articleId: number): Promise<MvcLatestBid | null> {
+  if (!Number.isInteger(articleId) || articleId <= 0) return null;
+  const url =
+    `${NAVER_API}/cafe-web/cafe-articleapi/v2/cafes/${MVC_CLUB_ID}/articles/${articleId}` +
+    `/comments/pages/1?requestFrom=A&orderBy=desc&page=1`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'Accept-Language': 'ko,en-US;q=0.8',
+        'User-Agent': USER_AGENT,
+        Referer: `${CAFE_ORIGIN}/f-e/cafes/${MVC_CLUB_ID}/articles/${articleId}`,
+      },
+    });
+    if (!res.ok) return null;
+    const raw = (await res.json()) as RawLatestCommentsResponse;
+    const items = raw?.result?.comments?.items ?? [];
+    const commentCount = raw?.result?.displayCommentCount ?? items.length;
+    // 정렬 가정 없이 최대 updateDate 의 유효 댓글 = 최종호가.
+    let latest: RawComment | null = null;
+    for (const c of items) {
+      if (c.isDeleted || !(c.content ?? '').trim()) continue;
+      if (!latest || (c.updateDate ?? 0) > (latest.updateDate ?? 0)) latest = c;
+    }
+    if (!latest) return null;
+    const content = (latest.content ?? '').trim();
+    return { articleId, amount: parseBidAmount(content), content, commentCount, writtenAt: latest.updateDate ?? 0 };
+  } catch {
+    return null;
+  }
+}
+
+/** 여러 글의 최신 호가를 병렬 조회 (호출량 보호로 25건 제한). */
+export async function fetchMvcLatestBids(
+  articleIds: number[],
+): Promise<Record<number, MvcLatestBid | null>> {
+  const ids = articleIds.filter((id) => Number.isInteger(id) && id > 0).slice(0, 25);
+  const results = await Promise.all(ids.map((id) => fetchMvcLatestBid(id)));
+  const map: Record<number, MvcLatestBid | null> = {};
+  ids.forEach((id, i) => {
+    map[id] = results[i];
+  });
+  return map;
+}
+
 export async function fetchBunjangItems(query = '포켓몬카드', page = 0): Promise<BunjangItem[]> {
   const q = query.trim();
   if (!q) return [];

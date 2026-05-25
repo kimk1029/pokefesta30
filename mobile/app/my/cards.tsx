@@ -15,8 +15,11 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
+import { PixelFrame } from '@/components/cv/PixelFrame';
+import { PixelPress } from '@/components/cv/PixelPress';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { useCurrency } from '@/components/CurrencyProvider';
@@ -91,6 +94,21 @@ function parsePsa(label: string | null | undefined): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/* ── 등락률(change rate) — 웹 MyCardsScreen 과 동일 로직 ── */
+type Dir = 'up' | 'down' | 'flat';
+function changeFromTrend(trend: number[] | undefined): { pct: number; dir: Dir } | null {
+  if (!Array.isArray(trend) || trend.length < 2) return null;
+  const prev = trend[trend.length - 2];
+  const last = trend[trend.length - 1];
+  if (!(prev > 0)) return null;
+  const pct = ((last - prev) / prev) * 100;
+  const dir: Dir = pct > 0.05 ? 'up' : pct < -0.05 ? 'down' : 'flat';
+  return { pct, dir };
+}
+// 한국 관습: 상승=빨강, 하락=파랑.
+const CHANGE_COLOR: Record<Dir, string> = { up: colors.red, down: colors.blu, flat: colors.ink3 };
+const CHANGE_ARROW: Record<Dir, string> = { up: '▲', down: '▼', flat: '–' };
+
 function useAuthed(): boolean {
   const [authed, setAuthed] = useState(() => isAuthenticated());
   useEffect(() => subscribeSession(() => setAuthed(isAuthenticated())), []);
@@ -103,7 +121,7 @@ export default function MyCardsScreen() {
   const { mode: priceMode } = usePriceMode();
   const toast = useToast();
 
-  const [view, setView] = useState<ViewMode>('grid');
+  const [view, setView] = useState<ViewMode>('list');
   const [search, setSearch] = useState('');
   const [rar, setRar] = useState<RarFilter>('all');
   const [sort, setSort] = useState<SortBy>('recent');
@@ -200,64 +218,83 @@ export default function MyCardsScreen() {
             </View>
 
             {/* 검색 */}
-            <View style={styles.search}>
-              <PixelText variant="pixel" size={14}>🔍</PixelText>
-              <TextInput
-                value={search}
-                onChangeText={setSearch}
-                placeholder="카드명 검색..."
-                placeholderTextColor={colors.ink3}
-                style={styles.searchInput}
-              />
+            <View style={{ paddingHorizontal: space.gap, marginBottom: 2 }}>
+              <PixelFrame shadow={5} inner={3}>
+                <View style={styles.searchRow}>
+                  <PixelText variant="pixel" size={14}>🔍</PixelText>
+                  <TextInput
+                    value={search}
+                    onChangeText={setSearch}
+                    placeholder="카드명 검색..."
+                    placeholderTextColor={colors.ink3}
+                    style={styles.searchInput}
+                  />
+                </View>
+              </PixelFrame>
             </View>
 
-            {/* 등급 탭 (컬렉션에 존재하는 등급만) */}
+            {/* 등급 탭 (컬렉션에 존재하는 등급만) — 웹 .chip 3D */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chipRow}
             >
               {(['all', ...presentRarities] as RarFilter[]).map((r) => (
-                <Pressable
+                <PixelPress
                   key={r}
                   onPress={() => setRar(r)}
-                  style={[styles.chip, rar === r && styles.chipOn]}
+                  bg={rar === r ? colors.gold : colors.white}
+                  borderWidth={3}
+                  shadow={rar === r ? 2 : 4}
+                  inner={2}
                 >
-                  <PixelText
-                    variant="pixel"
-                    size={9}
-                    color={rar === r ? colors.ink : colors.ink}
-                  >
-                    {r === 'all' ? 'ALL' : r}
-                  </PixelText>
-                </Pressable>
+                  <View style={styles.chipInner}>
+                    <PixelText variant="pixel" size={9} color={colors.ink}>
+                      {r === 'all' ? 'ALL' : r}
+                    </PixelText>
+                  </View>
+                </PixelPress>
               ))}
             </ScrollView>
 
-            {/* 정렬 */}
+            {/* 정렬 — 웹 .chip 3D */}
             <View style={styles.toolbar}>
               {SORT_TABS.map(([k, lb]) => (
-                <Pressable key={k} onPress={() => setSort(k)} style={[styles.sortBtn, sort === k && styles.sortBtnOn]}>
-                  <PixelText variant="pixel" size={9} color={sort === k ? colors.gold : colors.ink}>
-                    {lb}
-                  </PixelText>
-                </Pressable>
+                <PixelPress
+                  key={k}
+                  onPress={() => setSort(k)}
+                  bg={sort === k ? colors.ink : colors.white}
+                  borderWidth={3}
+                  shadow={sort === k ? 2 : 4}
+                  inner={2}
+                  hi={sort === k ? null : 'rgba(255,255,255,0.85)'}
+                >
+                  <View style={styles.sortInner}>
+                    <PixelText variant="pixel" size={9} color={sort === k ? colors.gold : colors.ink}>
+                      {lb}
+                    </PixelText>
+                  </View>
+                </PixelPress>
               ))}
             </View>
 
-            {/* 뷰 탭 */}
-            <View style={styles.subseg}>
-              {VIEW_TABS.map(([k, lb]) => (
-                <Pressable
-                  key={k}
-                  onPress={() => setView(k)}
-                  style={[styles.subsegBtn, view === k && styles.subsegBtnOn]}
-                >
-                  <PixelText variant="pixel" size={10} color={view === k ? colors.ink : colors.pap3}>
-                    {lb}
-                  </PixelText>
-                </Pressable>
-              ))}
+            {/* 뷰 탭 — 웹 .cv-subseg (ink 컨테이너 + 입체) */}
+            <View style={{ paddingHorizontal: space.gap, marginBottom: space.cg }}>
+              <PixelFrame bg={colors.ink} shadow={4} hi={null} lo={null} borderWidth={3}>
+                <View style={styles.subseg}>
+                  {VIEW_TABS.map(([k, lb]) => (
+                    <Pressable
+                      key={k}
+                      onPress={() => setView(k)}
+                      style={[styles.subsegBtn, view === k && styles.subsegBtnOn]}
+                    >
+                      <PixelText variant="pixel" size={10} color={view === k ? colors.ink : colors.pap3}>
+                        {lb}
+                      </PixelText>
+                    </Pressable>
+                  ))}
+                </View>
+              </PixelFrame>
             </View>
 
             {/* 뷰 본문 */}
@@ -296,30 +333,32 @@ function GridView({
   return (
     <View style={styles.grid}>
       {items.map((d) => (
-        <View key={d.src.id} style={styles.gridItem}>
-          <Pressable onPress={() => onPress(d)}>
-            <CardImage d={d} aspect />
-            <View style={{ padding: 7 }}>
-              <PixelText variant="ko" size={10} numberOfLines={2} weight="bold">
-                {d.name}
-              </PixelText>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
-                <RarBadgeMini rar={d.rar} />
-                {d.gradeNum != null && (
-                  <PixelText variant="pixel" size={8} color={colors.goldDk}>
-                    P{d.gradeNum}
-                  </PixelText>
-                )}
+        <PixelFrame key={d.src.id} shadow={5} inner={3} style={styles.gridCell}>
+          <View>
+            <Pressable onPress={() => onPress(d)}>
+              <CardImage d={d} aspect />
+              <View style={{ padding: 7 }}>
+                <PixelText variant="ko" size={10} numberOfLines={2} weight="bold">
+                  {d.name}
+                </PixelText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
+                  <RarBadgeMini rar={d.rar} />
+                  {d.gradeNum != null && (
+                    <PixelText variant="pixel" size={8} color={colors.goldDk}>
+                      P{d.gradeNum}
+                    </PixelText>
+                  )}
+                </View>
+                <PixelText variant="pixel" size={10} color={colors.grnDk} style={{ marginTop: 5 }}>
+                  {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
+                </PixelText>
               </View>
-              <PixelText variant="pixel" size={10} color={colors.grnDk} style={{ marginTop: 5 }}>
-                {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
-              </PixelText>
-            </View>
-          </Pressable>
-          <Pressable onPress={() => onDelete(d.src.id)} style={styles.deleteBtn}>
-            <PixelText variant="pixel" size={9} color={colors.red}>✕ 삭제</PixelText>
-          </Pressable>
-        </View>
+            </Pressable>
+            <Pressable onPress={() => onDelete(d.src.id)} style={styles.deleteBtn}>
+              <PixelText variant="pixel" size={9} color={colors.red}>✕ 삭제</PixelText>
+            </Pressable>
+          </View>
+        </PixelFrame>
       ))}
     </View>
   );
@@ -335,33 +374,114 @@ function ListView({
 }) {
   return (
     <View style={{ paddingHorizontal: space.gap }}>
-      {items.map((d) => (
-        <Pressable key={d.src.id} onPress={() => onPress(d)} style={styles.listItem}>
-          <CardImage d={d} thumb />
-          <View style={{ flex: 1 }}>
-            <PixelText variant="ko" size={11} weight="bold" numberOfLines={1}>
-              {d.name}
-            </PixelText>
-            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 5 }}>
-              <RarBadgeMini rar={d.rar} />
-              {d.gradeNum != null && (
-                <PixelText variant="pixel" size={8} color={colors.goldDk}>
-                  PSA {d.gradeNum}
-                </PixelText>
-              )}
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
-              <PixelText variant="pixel" size={10} color={colors.grnDk}>
-                {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
-              </PixelText>
-              <Pressable onPress={() => onDelete(d.src.id)}>
-                <PixelText variant="pixel" size={9} color={colors.red}>✕</PixelText>
+      {items.map((d) => {
+        const trend = d.src.trend;
+        return (
+          <PixelFrame key={d.src.id} shadow={6} style={{ marginBottom: space.cg }}>
+            <View style={styles.listInner}>
+              {/* 썸네일 + 본문 (탭하면 상세) */}
+              <Pressable onPress={() => onPress(d)} style={styles.listMain}>
+                <CardImage d={d} thumb />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <PixelText variant="ko" size={11} weight="bold" numberOfLines={1}>
+                    {d.name}
+                  </PixelText>
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 5 }}>
+                    <RarBadgeMini rar={d.rar} />
+                    {d.gradeNum != null && (
+                      <PixelText variant="pixel" size={8} color={colors.goldDk}>
+                        PSA {d.gradeNum}
+                      </PixelText>
+                    )}
+                  </View>
+                  {/* 시세 + 등락률 */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
+                    <PixelText variant="pixel" size={10} color={colors.grnDk}>
+                      {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
+                    </PixelText>
+                    <ChangeBadge trend={trend} />
+                  </View>
+                </View>
               </Pressable>
+
+              {/* 우측: 미니 차트 + 거래/삭제 */}
+              <View style={styles.listSide}>
+                {trend && trend.length >= 2 ? (
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <MiniSparkline points={trend} />
+                    <PixelText variant="pixel" size={7} color={colors.ink3} style={{ marginTop: 2 }}>
+                      최근 추이
+                    </PixelText>
+                  </View>
+                ) : null}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                  <PixelPress
+                    onPress={() => router.push(`/write/trade?userCardId=${d.src.id}` as never)}
+                    bg={colors.ink}
+                    borderWidth={2}
+                    shadow={2}
+                    inner={2}
+                    hi="rgba(255,255,255,0.25)"
+                    lo={null}
+                  >
+                    <View style={{ paddingHorizontal: 9, paddingVertical: 5 }}>
+                      <PixelText variant="pixel" size={8} color={colors.gold}>거래</PixelText>
+                    </View>
+                  </PixelPress>
+                  <PixelPress
+                    onPress={() => onDelete(d.src.id)}
+                    bg={colors.white}
+                    borderWidth={2}
+                    shadow={2}
+                    inner={2}
+                    hi="rgba(255,255,255,0.25)"
+                    lo={null}
+                  >
+                    <View style={{ paddingHorizontal: 9, paddingVertical: 5 }}>
+                      <PixelText variant="pixel" size={8} color={colors.red}>삭제</PixelText>
+                    </View>
+                  </PixelPress>
+                </View>
+              </View>
             </View>
-          </View>
-        </Pressable>
-      ))}
+          </PixelFrame>
+        );
+      })}
     </View>
+  );
+}
+
+function ChangeBadge({ trend }: { trend: number[] | undefined }) {
+  const ch = changeFromTrend(trend);
+  if (!ch) return null;
+  return (
+    <PixelText variant="pixel" size={8} color={CHANGE_COLOR[ch.dir]} style={{ marginLeft: 6 }}>
+      {CHANGE_ARROW[ch.dir]} {Math.abs(ch.pct).toFixed(1)}%
+    </PixelText>
+  );
+}
+
+function MiniSparkline({ points }: { points: number[] }) {
+  const w = 60;
+  const h = 26;
+  if (!Array.isArray(points) || points.length < 2) return null;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const stepX = w / (points.length - 1);
+  const yOf = (v: number) => h - ((v - min) / range) * (h - 4) - 2;
+  const d = points
+    .map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * stepX).toFixed(1)},${yOf(v).toFixed(1)}`)
+    .join(' ');
+  const up = points[points.length - 1] >= points[0];
+  const color = up ? colors.red : colors.blu;
+  const lastX = (points.length - 1) * stepX;
+  const lastY = yOf(points[points.length - 1]);
+  return (
+    <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+      <Path d={d} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx={lastX} cy={lastY} r={2} fill={color} />
+    </Svg>
   );
 }
 
@@ -458,53 +578,35 @@ function StripCell({ text, bg, fg }: { text: string; bg: string; fg: string }) {
 
 /* ────────────── styles ────────────── */
 const styles = StyleSheet.create({
+  // 웹 .cv-strip — 셀 상/하단에만 3px ink 라인 (좌우/드롭 없음).
   strip: {
     flexDirection: 'row',
     marginHorizontal: space.gap,
     marginTop: 14,
     marginBottom: space.cg,
-    borderWidth: 3,
+  },
+  stripCell: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderTopWidth: 3,
+    borderBottomWidth: 3,
     borderColor: colors.ink,
   },
-  stripCell: { flex: 1, paddingVertical: 9, alignItems: 'center' },
-  search: {
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
     paddingHorizontal: 12,
-    marginHorizontal: space.gap,
-    marginBottom: space.cg,
-    borderWidth: 3,
-    borderColor: colors.ink,
     gap: 8,
   },
   searchInput: { flex: 1, fontFamily: fonts.ko, fontSize: 14, color: colors.ink, paddingVertical: 10 },
-  chipRow: { paddingHorizontal: space.gap, gap: 6, alignItems: 'center', marginBottom: 8 },
-  chip: {
-    paddingHorizontal: 10,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.white,
-    borderColor: colors.ink,
-    borderWidth: 2,
-  },
-  chipOn: { backgroundColor: colors.gold },
-  toolbar: { flexDirection: 'row', gap: 4, marginHorizontal: space.gap, marginBottom: space.cg },
-  sortBtn: {
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    backgroundColor: colors.white,
-    borderColor: colors.ink,
-    borderWidth: 2,
-  },
-  sortBtnOn: { backgroundColor: colors.ink },
+  chipRow: { paddingHorizontal: space.gap, gap: 8, alignItems: 'center', marginBottom: 10, paddingTop: 8 },
+  chipInner: { paddingHorizontal: 10, height: 26, alignItems: 'center', justifyContent: 'center' },
+  toolbar: { flexDirection: 'row', gap: 8, marginHorizontal: space.gap, marginBottom: space.cg },
+  sortInner: { paddingHorizontal: 10, paddingVertical: 6 },
   subseg: {
     flexDirection: 'row',
-    backgroundColor: colors.ink,
     padding: 3,
-    marginHorizontal: space.gap,
-    marginBottom: space.cg,
     gap: 3,
   },
   subsegBtn: {
@@ -514,7 +616,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink2,
   },
   subsegBtnOn: { backgroundColor: colors.gold },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: space.gap, gap: 8 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: space.gap },
+  gridCell: { width: '30%' },
   gridItem: {
     width: '31%',
     backgroundColor: colors.white,
@@ -528,14 +631,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 2,
     borderTopColor: colors.ink,
   },
-  listItem: {
+  listInner: {
     flexDirection: 'row',
-    gap: 12,
-    backgroundColor: colors.white,
-    padding: 12,
-    marginBottom: space.cg,
-    borderWidth: 3,
-    borderColor: colors.ink,
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
+  listMain: { flex: 1, flexDirection: 'row', gap: 12, minWidth: 0 },
+  listSide: { flexShrink: 0, alignItems: 'flex-end' },
   filmTile: { width: 100 },
 });

@@ -82,14 +82,18 @@ function AuctionRow({
   const hasComments = item.commentCount > 0;
   // 시각: 최신 호가 시각 > 마지막 댓글 시각 > 작성 시각
   const timeTs = bid?.writtenAt || item.lastCommentedAt || item.writtenAt;
+  // 최종호가 칸엔 최신 입찰 '댓글 원문'을 그대로 노출. 댓글이 비어 있으면(관심목록
+  // 스냅샷 등) 파싱 금액으로 폴백.
   const bidLabel =
     bid == null
       ? hasComments
         ? '…'
         : '입찰 없음'
-      : bid.amount != null
-        ? fmtWon(bid.amount)
-        : bid.content;
+      : bid.content
+        ? bid.content
+        : bid.amount != null
+          ? fmtWon(bid.amount)
+          : '입찰';
 
   return (
     <Link
@@ -211,12 +215,8 @@ export function MvcAuctionList({ initial }: Props) {
   const seen = useRef<Set<number>>(new Set(initial.items.map((i) => i.articleId)));
   const bidsRef = useRef<BidMap>({});
 
-  // 최종호가 배치 조회 (댓글 있는 글만). fresh=true 면 캐시 우회.
-  const loadBids = useCallback(async (targets: MvcAuctionItem[], fresh: boolean): Promise<BidMap> => {
-    const ids = targets
-      .filter((it) => it.commentCount > 0)
-      .map((it) => it.articleId)
-      .filter((id) => fresh || !(id in bidsRef.current));
+  // 주어진 articleId 들의 최종호가를 배치 조회. fresh=true 면 캐시 우회.
+  const fetchBids = useCallback(async (ids: number[], fresh: boolean): Promise<BidMap> => {
     const collected: BidMap = {};
     for (let i = 0; i < ids.length; i += BID_CHUNK) {
       const chunk = ids.slice(i, i + BID_CHUNK);
@@ -234,6 +234,18 @@ export function MvcAuctionList({ initial }: Props) {
     }
     return collected;
   }, []);
+
+  // 라이브 목록용 — 댓글 있는 글만. fresh=true 면 캐시 우회.
+  const loadBids = useCallback(
+    (targets: MvcAuctionItem[], fresh: boolean): Promise<BidMap> => {
+      const ids = targets
+        .filter((it) => it.commentCount > 0)
+        .map((it) => it.articleId)
+        .filter((id) => fresh || !(id in bidsRef.current));
+      return fetchBids(ids, fresh);
+    },
+    [fetchBids],
+  );
 
   const loadMore = useCallback(async () => {
     if (busy.current || done) return;
@@ -287,10 +299,14 @@ export function MvcAuctionList({ initial }: Props) {
       } catch {
         /* noop */
       }
-      // 2) 로딩된 모든 글의 최종호가 fresh 갱신 + 변경 감지
+      // 2) 로딩된 모든 글 + 관심목록의 최종호가 fresh 갱신 + 변경 감지
       const before = { ...bidsRef.current };
       const all = [...items];
       const updated = await loadBids(all, true);
+      const favIds = favorites
+        .map((f) => Number(f.externalId))
+        .filter((id) => Number.isInteger(id) && id > 0 && !(id in updated));
+      if (favIds.length > 0) Object.assign(updated, await fetchBids(favIds, true));
       const changed = new Set<number>();
       for (const idStr of Object.keys(updated)) {
         const id = Number(idStr);
@@ -304,7 +320,7 @@ export function MvcAuctionList({ initial }: Props) {
       setRefreshing(false);
       setCooldown(REFRESH_COOLDOWN);
     }
-  }, [refreshing, cooldown, items, loadBids]);
+  }, [refreshing, cooldown, items, loadBids, favorites, fetchBids]);
 
   // 초기 최종호가 로딩
   useEffect(() => {
@@ -312,6 +328,18 @@ export function MvcAuctionList({ initial }: Props) {
     setUpdatedAt(Date.now());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 관심목록 항목은 라이브 리스트에 없을 수 있어(오래된 경매) commentCount 필터에 걸려
+  // 호가가 갱신되지 않고 추가 당시 스냅샷 가격이 남는다. 관심 항목 id 들은 항상
+  // 별도로 fresh 호가를 직접 조회해 리스트에서도 상세와 동일한 최신가를 보이게 한다.
+  const favKey = favorites.map((f) => f.externalId).join(',');
+  useEffect(() => {
+    const ids = favorites
+      .map((f) => Number(f.externalId))
+      .filter((id) => Number.isInteger(id) && id > 0);
+    if (ids.length > 0) fetchBids(ids, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [favKey, fetchBids]);
 
   // 쿨다운 카운트다운
   useEffect(() => {
@@ -392,7 +420,14 @@ export function MvcAuctionList({ initial }: Props) {
         const renderRow = (item: MvcAuctionItem, pinnedRow: boolean) => {
           const id = String(item.articleId);
           const favMeta = favorites.find((f) => f.externalId === id);
-          const bid = bids[item.articleId] ?? (favMeta ? synthBid(item.articleId, favMeta.price) : undefined);
+          // fresh 호가를 한 번이라도 받았으면(없음=null 포함) 그걸 신뢰. 아직 못 받았을 때만
+          // 관심목록 스냅샷 가격으로 임시 대체.
+          const bid =
+            item.articleId in bids
+              ? bids[item.articleId]
+              : favMeta
+                ? synthBid(item.articleId, favMeta.price)
+                : undefined;
           return (
             <div key={`${pinnedRow ? 'p' : 'r'}-${id}`} style={{ position: 'relative' }}>
               <AuctionRow item={item} bid={bid} changed={changedIds.has(item.articleId)} />

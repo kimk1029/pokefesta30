@@ -32,6 +32,7 @@ interface MenuItem {
   label: string;
   desc?: string;
   badge?: string;
+  disabled?: boolean;
   onPress?: () => void;
 }
 
@@ -67,65 +68,35 @@ export default function MyScreen() {
   const tradeCount = summary?.counts.tradeCount ?? 0;
   const savedCount = summary?.counts.savedCount ?? 0;
 
+  // 웹 마이페이지(/my)와 동일한 메뉴 구성.
   const sections: MenuSection[] = [
     {
       title: '내 활동',
       items: [
-        { icon: '📦', label: '내 컬렉션', desc: `${cardCount}장 보유 중`, onPress: () => router.push('/my/cards' as never) },
-        { icon: '📝', label: '내 피드', desc: '내가 쓴 커뮤니티 글', onPress: () => router.push('/my/feeds' as never) },
-        { icon: '🛒', label: '내 거래글', desc: `${tradeCount}건`, onPress: () => router.push('/my/trades' as never) },
-        { icon: '🔖', label: '찜한 글', desc: `${savedCount}건`, onPress: () => router.push('/my/bookmarks' as never) },
-        { icon: '💬', label: '쪽지함', desc: '거래 채팅', onPress: () => router.push('/my/messages' as never) },
-        { icon: '🏆', label: '카드 스캔 · 그레이딩', desc: 'PSA · BGS · CGC', onPress: () => router.push('/scan' as never) },
+        { icon: '✉️', label: '쪽지함', desc: '거래 채팅', onPress: () => router.push('/my/messages' as never) },
+        { icon: '🃏', label: '내 카드', desc: `${cardCount}장 보유 중`, onPress: () => router.push('/my/cards' as never) },
+        { icon: '⭐', label: '관심카드', desc: '찜한 시세 카드', onPress: () => router.push('/my/favorites' as never) },
+        { icon: '📝', label: '내가 쓴 거래글', desc: `${tradeCount}건`, onPress: () => router.push('/my/trades' as never) },
+        { icon: '🗣', label: '내 피드', desc: '내가 쓴 커뮤니티 글', onPress: () => router.push('/my/feeds' as never) },
+        { icon: '💛', label: '찜한 글', desc: `${savedCount}건`, onPress: () => router.push('/my/bookmarks' as never) },
       ],
     },
     {
-      title: '포인트 · 샵',
+      title: '상점 바로가기',
       items: [
-        { icon: '🏪', label: '꾸미기 샵', desc: '아바타·배경·테두리', onPress: () => router.push('/my/shop' as never) },
-        { icon: '🎲', label: '오리파 뽑기', desc: '포인트로 박스 뽑기', onPress: () => router.push('/my/oripa' as never) },
-        { icon: '🪙', label: '포인트', desc: `${points.toLocaleString('ko-KR')}P 보유` },
+        { icon: '🛒', label: '포케30 상점', desc: '아바타·배경·테두리', onPress: () => router.push('/my/shop' as never) },
+        { icon: '🎲', label: '오리파 · 뽑기', desc: '포인트로 박스 뽑기', onPress: () => router.push('/my/oripa' as never) },
       ],
     },
-    {
-      title: '계정',
-      items: [
-        { icon: '👤', label: '프로필 편집', desc: userName },
-        { icon: '🔔', label: '알림 설정', desc: '거래·시세·시스템' },
-        { icon: '🔐', label: '보안 / 비밀번호' },
-        ...(authed
-          ? [{
-              icon: '🚪',
-              label: '로그아웃',
-              onPress: () => {
-                setSession(null);
-                router.replace('/login' as never);
-              },
-            } as MenuItem]
-          : [{
-              icon: '🔓',
-              label: '로그인',
-              onPress: () => router.push('/login' as never),
-            } as MenuItem]),
-      ],
-    },
-    {
-      title: '지원',
-      items: [
-        { icon: '❓', label: '자주 묻는 질문', onPress: () => router.push('/my/faq' as never) },
-        { icon: '📜', label: '공지사항', badge: 'NEW', onPress: () => router.push('/my/notices' as never) },
-        { icon: '📨', label: '1:1 문의' },
-        { icon: '🛡', label: '약관 및 정책' },
-      ],
-    },
-    {
-      title: '앱 정보',
-      items: [
-        { icon: '🌐', label: '언어', desc: '한국어' },
-        { icon: '🌙', label: '테마', desc: '레트로 픽셀' },
-        { icon: '📱', label: '버전 정보', desc: 'v0.1.0' },
-      ],
-    },
+  ];
+
+  // 설정 섹션의 내비게이션 항목 (통화/테마는 전용 컴포넌트로 별도 렌더).
+  const settingsNav: MenuItem[] = [
+    { icon: '📢', label: '공지사항', badge: 'NEW', onPress: () => router.push('/my/notices' as never) },
+    { icon: '❓', label: 'FAQ · 자주 묻는 질문', onPress: () => router.push('/my/faq' as never) },
+    { icon: '📜', label: '이용약관', onPress: () => router.push('/legal?doc=terms' as never) },
+    { icon: '🔒', label: '개인정보처리방침', onPress: () => router.push('/legal?doc=privacy' as never) },
+    { icon: '🔔', label: '알림 설정', desc: '준비중', disabled: true },
   ];
 
   return (
@@ -201,11 +172,38 @@ export default function MyScreen() {
           </View>
         ))}
 
-        {/* 환경설정 — 통화/테마 */}
+        {/* 설정 — 통화/테마 토글 + 공지/FAQ/약관/개인정보/알림 (웹과 동일) */}
         <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
-          <SectHd title="환경설정" />
+          <SectHd title="설정" />
           <CurrencySettingsItem />
           <ThemeSettingsItem />
+          <PixelFrame>
+            <View>
+              {settingsNav.map((item, i) => (
+                <View key={item.label}>
+                  <MenuRow item={item} />
+                  {i < settingsNav.length - 1 ? <View style={{ height: 1, backgroundColor: colors.pap3, marginHorizontal: 14 }} /> : null}
+                </View>
+              ))}
+            </View>
+          </PixelFrame>
+        </View>
+
+        {/* 로그아웃 */}
+        <View style={{ marginHorizontal: 14, marginBottom: 8 }}>
+          <PixelPress
+            onPress={() => {
+              setSession(null);
+              router.replace('/login' as never);
+            }}
+            bg={colors.white}
+            shadow={4}
+          >
+            <View style={{ paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 14 }}>🚪</Text>
+              <PixelText variant="ko" size={12} color={colors.ink3} weight="bold">로그아웃</PixelText>
+            </View>
+          </PixelPress>
         </View>
       </ScrollView>
     </View>
@@ -222,9 +220,18 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function MenuRow({ item }: { item: MenuItem }) {
+  const disabled = item.disabled === true;
   return (
-    <PixelPress onPress={item.onPress ?? (() => undefined)} bg={colors.white} hi={null} lo={null} shadow={0} borderWidth={0} inner={0}>
-      <View style={{ paddingHorizontal: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <PixelPress
+      onPress={disabled ? () => undefined : (item.onPress ?? (() => undefined))}
+      bg={colors.white}
+      hi={null}
+      lo={null}
+      shadow={0}
+      borderWidth={0}
+      inner={0}
+    >
+      <View style={{ paddingHorizontal: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: disabled ? 0.45 : 1 }}>
         <View style={{ width: 36, height: 36, backgroundColor: colors.pap3, borderColor: colors.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 18 }}>{item.icon}</Text>
         </View>
@@ -239,7 +246,7 @@ function MenuRow({ item }: { item: MenuItem }) {
             <PixelText variant="pixel" size={9} color={colors.white} weight="bold">{item.badge}</PixelText>
           </View>
         ) : null}
-        <PixelText variant="pixel" size={14} color={colors.ink3}>▶</PixelText>
+        {!disabled ? <PixelText variant="pixel" size={14} color={colors.ink3}>▶</PixelText> : null}
       </View>
     </PixelPress>
   );

@@ -1,6 +1,7 @@
-import { View, StyleSheet, Pressable, type ViewProps } from 'react-native';
+import { View, StyleSheet, type ViewProps } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { PixelText } from './PixelText';
+import { PixelPress } from './cv/PixelPress';
 import { useThemeColors, useThemeTextVariant } from './ThemeProvider';
 
 interface Props extends ViewProps {
@@ -47,59 +48,34 @@ interface ABtnProps {
 
 export function ABtn({ onPress, children }: ABtnProps) {
   const c = useThemeColors();
-  const shadow = 4;
+  // 다른 픽셀 박스와 동일한 노치 코너 + 단일 하드 드롭섀도 (꼭지점 빔).
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [
-      abtnStyles.wrap,
-      { marginRight: shadow, marginBottom: shadow, transform: [{ translateX: pressed ? shadow : 0 }, { translateY: pressed ? shadow : 0 }] },
-    ]}>
-      {({ pressed }) => (
-        <>
-          {!pressed ? (
-            <View
-              pointerEvents="none"
-              style={[
-                StyleSheet.absoluteFillObject,
-                {
-                  backgroundColor: c.ink,
-                  top: shadow,
-                  left: shadow,
-                  right: -shadow,
-                  bottom: -shadow,
-                },
-              ]}
-            />
-          ) : null}
-          <View style={[abtnStyles.body, { backgroundColor: c.white, borderColor: c.ink }]}>
-            <PixelText variant="pixel" size={14} color={c.ink}>
-              {children as string}
-            </PixelText>
-            {!pressed ? <View pointerEvents="none" style={abtnStyles.hi} /> : null}
-          </View>
-        </>
-      )}
-    </Pressable>
+    <PixelPress
+      onPress={onPress}
+      bg={c.white}
+      border={c.ink}
+      borderWidth={3}
+      shadow={4}
+      inner={3}
+      hi="rgba(255,255,255,0.9)"
+      lo={null}
+    >
+      <View style={abtnStyles.body}>
+        <PixelText variant="pixel" size={14} color={c.ink}>
+          {children as string}
+        </PixelText>
+      </View>
+    </PixelPress>
   );
 }
 
 const abtnStyles = StyleSheet.create({
-  wrap: { position: 'relative' },
+  // 28 + 좌우 투명 보더(3*2) = 34 ≈ 기존 SLOT-4 크기.
   body: {
-    width: SLOT - 4,
-    height: SLOT - 4,
-    backgroundColor: colors.white,
-    borderColor: colors.ink,
-    borderWidth: 3,
+    width: SLOT - 10,
+    height: SLOT - 10,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  hi: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.9)',
   },
 });
 

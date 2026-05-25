@@ -1,6 +1,7 @@
 import { Pressable, type PressableProps, View, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { useThemeColors } from './ThemeProvider';
+import { PixelDeco } from './cv/PixelDeco';
 
 interface Props extends PressableProps {
   bg?: string;
@@ -11,14 +12,14 @@ interface Props extends PressableProps {
 }
 
 /**
- * 픽셀 외곽선 + 우하단 hard shadow 버튼.
- * pressed 상태에서 그림자가 줄어들어 "눌리는" 느낌.
+ * 웹 버튼과 같은 4방향 외곽선(꼭지점 한 칸 빔) + 단일 우하단 하드 섀도 버튼.
+ * pressed 상태에서 면이 그림자 자리로 내려앉는다.
  */
 export function PixelButton({
   bg = colors.white,
   border = colors.ink,
-  borderWidth = 3,
-  shadowOffset = 4,
+  borderWidth = 4,
+  shadowOffset = 6,
   padding = 10,
   style,
   children,
@@ -27,42 +28,45 @@ export function PixelButton({
   const c = useThemeColors();
   const faceBg = bg === colors.white ? c.white : bg;
   const edge = border === colors.ink ? c.ink : border;
+  const cut = borderWidth;
+  const loThick = Math.max(2, borderWidth);
   return (
     <Pressable {...rest}>
       {({ pressed }) => {
-        const off = pressed ? Math.max(1, shadowOffset - 2) : shadowOffset;
-        const styleVal =
-          typeof style === 'function' ? style({ pressed }) : style;
+        const off = pressed ? 1 : shadowOffset;
+        const styleVal = typeof style === 'function' ? style({ pressed }) : style;
         return (
-          <View
-            style={[
-              styles.wrap,
-              { marginRight: off, marginBottom: off },
-              styleVal,
-            ]}
-          >
+          <View style={[styles.wrap, { marginRight: off, marginBottom: off }, styleVal]}>
             <View
               pointerEvents="none"
+              style={[StyleSheet.absoluteFillObject, { top: off, left: off, right: -off, bottom: -off }]}
+            >
+              <PixelDeco faceBg={edge} edge={edge} cut={cut} border={false} />
+            </View>
+            <View
               style={[
-                StyleSheet.absoluteFillObject,
+                styles.face,
                 {
-                  backgroundColor: edge,
-                  top: off,
-                  left: off,
-                  right: -off,
-                  bottom: -off,
+                  transform: [
+                    { translateX: pressed ? shadowOffset - off : 0 },
+                    { translateY: pressed ? shadowOffset - off : 0 },
+                  ],
                 },
               ]}
-            />
-            <View
-              style={{
-                backgroundColor: faceBg,
-                borderColor: edge,
-                borderWidth,
-                padding,
-              }}
             >
-              {children as React.ReactNode}
+              <PixelDeco
+                faceBg={faceBg}
+                edge={edge}
+                cut={cut}
+                hi="rgba(255,255,255,0.85)"
+                lo="rgba(0,0,0,0.18)"
+                inner={3}
+                loThick={loThick}
+                pressed={pressed}
+              />
+              <View style={{ borderWidth: cut, borderColor: 'transparent', backgroundColor: 'transparent', padding }}>
+                {children as React.ReactNode}
+              </View>
             </View>
           </View>
         );
@@ -73,4 +77,5 @@ export function PixelButton({
 
 const styles = StyleSheet.create({
   wrap: { position: 'relative' },
+  face: { position: 'relative' },
 });

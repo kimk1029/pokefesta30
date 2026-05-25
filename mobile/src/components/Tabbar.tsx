@@ -22,7 +22,7 @@ interface Tab {
 const TABS: Tab[] = [
   { id: 'home', label: '홈', icon: 'home', href: '/' },
   { id: 'collection', label: '컬렉션', icon: 'collection', href: '/my/cards' },
-  { id: 'fab', label: '스캔', href: '/scan', fab: true },
+  { id: 'fab', label: '추가', href: '/cards/add', fab: true },
   { id: 'community', label: '커뮤니티', icon: 'community', href: '/feed' },
   { id: 'my', label: '마이', icon: 'my', href: '/my' },
 ];
@@ -30,6 +30,8 @@ const TABS: Tab[] = [
 function activeId(pathname: string): TabId | '' {
   if (pathname === '/' || pathname === '') return 'home';
   if (pathname.startsWith('/my/cards')) return 'collection';
+  if (pathname.startsWith('/cards/add')) return 'fab';
+  if (pathname.startsWith('/cards/grading')) return 'fab';
   if (pathname.startsWith('/scan')) return 'fab';
   if (pathname.startsWith('/feed') || pathname.startsWith('/trade')) return 'community';
   if (pathname.startsWith('/my')) return 'my';

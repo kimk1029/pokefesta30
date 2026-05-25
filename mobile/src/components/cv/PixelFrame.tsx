@@ -1,149 +1,69 @@
 import { View, type ViewProps, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
-import { useThemeColors, useTheme } from '../ThemeProvider';
+import { useThemeColors } from '../ThemeProvider';
+import { PixelDeco } from './PixelDeco';
 
 interface Props extends ViewProps {
   bg?: string;
   border?: string;
   borderWidth?: number;
   shadow?: number;
+  /** 드롭섀도 색 (기본 = border 색). 섹션 헤더는 gold-dk 등으로 지정. */
+  shadowColor?: string;
   hi?: string | null;
   lo?: string | null;
   inner?: number;
 }
 
 /**
- * 4-sided pixel bevel:
- *   • top + left bright highlight (raised edge)
- *   • bottom + right dark step (drop face)
- *   • deeper offset hard shadow under everything (ground)
- * The face sits "on top" of the shadow with a noticeable depth.
+ * 웹 globals.css `.card` 의 픽셀 박스 입체 처리를 RN에서 재현.
+ *
+ * 웹 recipe (.card):
+ *   box-shadow:
+ *     -4px 0 0 ink, 4px 0 0 ink, 0 -4px 0 ink, 0 4px 0 ink,   ← 4방향 ink 테두리(대각 없음 → 꼭지점 빔)
+ *     inset 0 3px 0 rgba(255,255,255,.85),                    ← 상단 하이라이트
+ *     inset 0 -4px 0 rgba(0,0,0,.18),                         ← 하단 음영
+ *     6px 6px 0 ink;                                          ← 단일 하드 드롭섀도
+ *
+ * 핵심: 테두리를 4개 띠로 그려 **네 꼭지점 한 칸이 비어(배경 노출)** 큰 픽셀 노치가 생긴다.
+ *       드롭섀도도 동일하게 꼭지점이 빈 단일 솔리드 ink 면(중간 단계 없음).
  */
 export function PixelFrame({
   bg = colors.white,
   border = colors.ink,
   borderWidth = 4,
-  shadow = 8,
-  hi = 'rgba(255,255,255,0.95)',
-  lo = 'rgba(0,0,0,0.32)',
-  inner = 5,
+  shadow = 6,
+  shadowColor,
+  hi = 'rgba(255,255,255,0.85)',
+  lo = 'rgba(0,0,0,0.18)',
+  inner = 3,
   style,
   children,
   ...rest
 }: Props) {
   const c = useThemeColors();
-  const { theme } = useTheme();
   const faceBg = bg === colors.white ? c.white : bg;
   const edge = border === colors.ink ? c.ink : border;
-  const midShadow = theme === 'onepiece'
-    ? 'rgba(122,74,26,0.62)'
-    : theme === 'yugioh'
-      ? 'rgba(184,134,11,0.68)'
-      : theme === 'sports'
-        ? 'rgba(20,83,45,0.58)'
-        : 'rgba(15,23,42,0.55)';
-  const drop = Math.max(2, shadow - 2);
+  const shadowFill = shadowColor ?? edge;
+  const loThick = Math.max(2, inner + 1); // 웹: 하단 음영(4px)이 상단 하이라이트(3px)보다 한 칸 두껍다
+  const cut = borderWidth;
   return (
-    <View
-      {...rest}
-      style={[styles.wrap, { marginRight: shadow, marginBottom: shadow }, style]}
-    >
-      {/* deepest ground shadow */}
+    <View {...rest} style={[styles.wrap, { marginRight: shadow, marginBottom: shadow }, style]}>
+      {/* 꼭지점 빈 단일 하드 드롭섀도 */}
       {shadow > 0 ? (
         <View
           pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFillObject,
-            {
-              backgroundColor: edge,
-              top: shadow,
-              left: shadow,
-              right: -shadow,
-              bottom: -shadow,
-            },
-          ]}
-        />
+          style={[StyleSheet.absoluteFillObject, { top: shadow, left: shadow, right: -shadow, bottom: -shadow }]}
+        >
+          <PixelDeco faceBg={shadowFill} edge={shadowFill} cut={cut} border={false} />
+        </View>
       ) : null}
-      {/* mid-step (gives more depth than a single shadow plane) */}
-      {shadow > 2 ? (
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFillObject,
-            {
-              backgroundColor: midShadow,
-              top: drop,
-              left: drop,
-              right: -drop,
-              bottom: -drop,
-            },
-          ]}
-        />
-      ) : null}
-      <View
-        style={{
-          backgroundColor: faceBg,
-          borderColor: edge,
-          borderWidth,
-        }}
-      >
-        {/* top inset highlight */}
-        {hi ? (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: inner,
-              backgroundColor: hi,
-            }}
-          />
-        ) : null}
-        {/* left inset highlight */}
-        {hi ? (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: 0,
-              width: Math.max(2, inner - 1),
-              backgroundColor: hi,
-            }}
-          />
-        ) : null}
-        {/* bottom inset shadow */}
-        {lo ? (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: inner,
-              backgroundColor: lo,
-            }}
-          />
-        ) : null}
-        {/* right inset shadow */}
-        {lo ? (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              right: 0,
-              width: Math.max(2, inner - 1),
-              backgroundColor: lo,
-            }}
-          />
-        ) : null}
-        {children}
+      <View style={styles.face}>
+        <PixelDeco faceBg={faceBg} edge={edge} cut={cut} hi={hi} lo={lo} inner={inner} loThick={loThick} />
+        {/* 투명 테두리로 콘텐츠를 테두리 안쪽으로 들여놓는다(기존 borderWidth 와 동일한 인셋) */}
+        <View style={{ borderWidth: cut, borderColor: 'transparent', backgroundColor: 'transparent' }}>
+          {children}
+        </View>
       </View>
     </View>
   );
@@ -151,4 +71,5 @@ export function PixelFrame({
 
 const styles = StyleSheet.create({
   wrap: { position: 'relative' },
+  face: { position: 'relative' },
 });

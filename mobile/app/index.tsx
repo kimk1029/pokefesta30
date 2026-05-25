@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Image, ScrollView, View, Pressable, Text } from 'react-native';
+import { Image, ScrollView, View, Pressable, Text, TextInput } from 'react-native';
 import Svg, { Circle, Path, Polyline, Rect } from 'react-native-svg';
 import { router } from 'expo-router';
 import { AppBar, ABtn } from '@/components/AppBar';
@@ -177,6 +177,7 @@ export default function Home() {
   const { format: formatCurrency } = useCurrency();
   const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
   const [activeGame, setActiveGame] = useState<string>('전체');
+  const [homeSearch, setHomeSearch] = useState('');
   // 관심 카드(favorite=true)는 포트폴리오 합계 / 차트 / 통계에서 제외.
   const ownedAll = useCollection();
   const owned = ownedAll.filter((c) => !c.favorite);
@@ -332,6 +333,12 @@ export default function Home() {
       alive = false;
     };
   }, []);
+
+  const submitHomeSearch = () => {
+    const q = homeSearch.trim();
+    if (!q) return;
+    router.push(`/cards/snkrdunk/search?q=${encodeURIComponent(q)}` as never);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
@@ -574,20 +581,89 @@ export default function Home() {
         )}
         </View>
 
-        {/* Section: 바로가기 (Quick Actions) — 포트폴리오 바로 아래 */}
+        {/* Section: 카드 검색 — 웹 메인과 동일하게 포트폴리오 바로 아래 */}
+        <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
+          <SectHd title="카드 검색" />
+          <PixelFrame borderWidth={3} shadow={5} inner={3}>
+            <View
+              style={{
+                height: 44,
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: colors.white,
+              }}
+            >
+              <PixelText variant="pixel" size={12} color={colors.ink3} style={{ marginLeft: 12 }}>
+                🔍
+              </PixelText>
+              <TextInput
+                value={homeSearch}
+                onChangeText={setHomeSearch}
+                onSubmitEditing={submitHomeSearch}
+                returnKeyType="search"
+                inputMode="search"
+                placeholder="한국어로 카드 검색 (예: 리자몽, 피카츄)"
+                placeholderTextColor={colors.ink4}
+                style={{
+                  flex: 1,
+                  height: '100%',
+                  paddingHorizontal: 9,
+                  color: colors.ink,
+                  fontFamily: 'Galmuri11',
+                  fontSize: 11,
+                }}
+              />
+              {homeSearch ? (
+                <Pressable
+                  onPress={() => setHomeSearch('')}
+                  style={{ width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <PixelText variant="pixel" size={10} color={colors.ink3}>
+                    X
+                  </PixelText>
+                </Pressable>
+              ) : null}
+              <Pressable
+                onPress={submitHomeSearch}
+                style={{
+                  width: 32,
+                  height: 32,
+                  marginRight: 6,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: colors.ink,
+                  borderColor: colors.ink,
+                  borderWidth: 1,
+                }}
+              >
+                <PixelText variant="pixel" size={12} color={colors.gold}>
+                  ▶
+                </PixelText>
+              </Pressable>
+            </View>
+          </PixelFrame>
+        </View>
+
+        {/* Section: 바로가기 (Quick Actions) */}
         <View style={{ marginHorizontal: 14 }}>
           <SectHd title="바로가기" />
         </View>
-        <View style={{ flexDirection: 'row', gap: 6, marginHorizontal: 14, marginBottom: 12 }}>
-          <QuickBtn icon="📷" label="스캔" bg={colors.grn} href="/scan" />
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            marginHorizontal: 14,
+            marginBottom: 12,
+          }}
+        >
+          <QuickBtn icon="📷" label="스캔" bg={colors.grn} href="/cards/grading" />
           <QuickBtn icon="¥" label="시세확인" bg={colors.gold} href="/cards/packs" />
           <QuickBtn icon="🔨" label="MVC경매" bg={colors.blu} href="/cards/mvc-auction" />
           <QuickBtn icon={<KoreaMarketIcon />} label="국내마켓" bg={colors.red} href="/cards/bunjang" />
           <QuickBtn icon="🤝" label="거래" bg={colors.grn} href="/trade" />
         </View>
 
-        {/* XP / Level — 로그인된 사용자만 표시 */}
-        {authed && (
+        {/* XP / Level — 웹 메인과 동일하게 항상 표시 */}
         <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
           <PixelFrame bg={colors.white}>
             <View style={{ padding: 13 }}>
@@ -669,7 +745,6 @@ export default function Home() {
             </View>
           </PixelFrame>
         </View>
-        )}
 
         {/* Section: 핵심 지표 */}
         <View style={{ marginHorizontal: 14 }}>
@@ -765,7 +840,7 @@ export default function Home() {
               <SectHd
                 title="🔥 인기 카드들"
                 more="전체보기 →"
-                onMore={() => router.push('/cards/snkrdunk/all' as never)}
+                onMore={() => router.push('/cards/snkrdunk' as never)}
               />
             </View>
             <ScrollView
@@ -1009,9 +1084,9 @@ function KoreaMarketIcon() {
 
 function QuickBtn({ icon, label, bg, href }: { icon: ReactNode; label: string; bg: string; href: string }) {
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ width: '19%' }}>
       <PixelPress onPress={() => router.push(href as never)} borderWidth={3} shadow={5} inner={3}>
-        <View style={{ paddingVertical: 9, paddingHorizontal: 1, alignItems: 'center', gap: 5, minWidth: 0 }}>
+        <View style={{ paddingVertical: 8, paddingHorizontal: 0, alignItems: 'center', gap: 5, minWidth: 0 }}>
           <View
             style={{
               width: 32,
@@ -1025,7 +1100,7 @@ function QuickBtn({ icon, label, bg, href }: { icon: ReactNode; label: string; b
           >
             {typeof icon === 'string' ? <Text style={{ fontSize: 17 }}>{icon}</Text> : icon}
           </View>
-          <PixelText variant="pixel" size={9} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
+          <PixelText variant="pixel" size={8} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
             {label}
           </PixelText>
         </View>

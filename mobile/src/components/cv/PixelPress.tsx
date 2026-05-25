@@ -7,7 +7,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { colors } from '@/theme/tokens';
-import { useThemeColors, useTheme } from '../ThemeProvider';
+import { useThemeColors } from '../ThemeProvider';
+import { PixelDeco } from './PixelDeco';
 
 interface Props extends PressableProps {
   bg?: string;
@@ -24,17 +25,21 @@ interface Props extends PressableProps {
 }
 
 /**
- * Pressable 3D pixel button — top/left highlight + bottom/right shadow + offset hard shadow.
- * On press: face translates into the shadow space, giving a satisfying "click" depression.
+ * 웹 globals.css `.my-item` / `.pri-btn` 의 누름 가능한 픽셀 버튼을 재현.
+ *
+ * 평상시: 4방향 ink 테두리(꼭지점 한 칸 빔) + 상/좌 하이라이트 + 하/우 음영 + 꼭지점 빈 단일 하드 드롭섀도.
+ * 누를 때: 웹 `:active{transform:translate(Npx,Npx); box-shadow ... Npx Npx 0 ink}` 처럼
+ *          면이 드롭섀도 자리로 내려앉으며 섀도가 거의 사라진다.
+ * 모서리는 radius 가 아니라 꼭지점 한 칸을 비운 큰 픽셀 노치(배경 노출).
  */
 export function PixelPress({
   bg = colors.white,
   border = colors.ink,
   borderWidth = 4,
-  shadow = 8,
-  hi = 'rgba(255,255,255,0.95)',
-  lo = 'rgba(0,0,0,0.32)',
-  inner = 5,
+  shadow = 6,
+  hi = 'rgba(255,255,255,0.85)',
+  lo = 'rgba(0,0,0,0.18)',
+  inner = 3,
   innerStyle,
   wrapStyle,
   children,
@@ -42,126 +47,52 @@ export function PixelPress({
   ...rest
 }: Props) {
   const c = useThemeColors();
-  const { theme } = useTheme();
   const faceBg = bg === colors.white ? c.white : bg;
   const edge = border === colors.ink ? c.ink : border;
-  const midShadow = theme === 'onepiece'
-    ? 'rgba(122,74,26,0.62)'
-    : theme === 'yugioh'
-      ? 'rgba(184,134,11,0.68)'
-      : theme === 'sports'
-        ? 'rgba(20,83,45,0.58)'
-        : 'rgba(15,23,42,0.55)';
+  const loThick = Math.max(2, inner + 1);
+  const cut = borderWidth;
   return (
     <Pressable {...rest}>
       {(state) => {
         const pressed = state.pressed;
         const off = pressed ? 1 : shadow;
-        const dropOff = pressed ? 1 : Math.max(2, shadow - 2);
         const styleVal = typeof style === 'function' ? style(state) : style;
         return (
           <View style={[styles.wrap, { marginRight: off, marginBottom: off }, wrapStyle, styleVal]}>
-            {/* deepest ground shadow */}
+            {/* 꼭지점 빈 단일 하드 드롭섀도 */}
             {shadow > 0 ? (
               <View
                 pointerEvents="none"
-                style={[
-                  StyleSheet.absoluteFillObject,
-                  {
-                    backgroundColor: edge,
-                    top: off,
-                    left: off,
-                    right: -off,
-                    bottom: -off,
-                  },
-                ]}
-              />
-            ) : null}
-            {/* mid-step shadow plane */}
-            {shadow > 2 && !pressed ? (
-              <View
-                pointerEvents="none"
-                style={[
-                  StyleSheet.absoluteFillObject,
-                  {
-                    backgroundColor: midShadow,
-                    top: dropOff,
-                    left: dropOff,
-                    right: -dropOff,
-                    bottom: -dropOff,
-                  },
-                ]}
-              />
+                style={[StyleSheet.absoluteFillObject, { top: off, left: off, right: -off, bottom: -off }]}
+              >
+                <PixelDeco faceBg={edge} edge={edge} cut={cut} border={false} />
+              </View>
             ) : null}
             <View
               style={[
+                styles.face,
                 {
-                  backgroundColor: faceBg,
-                  borderColor: edge,
-                  borderWidth,
                   transform: [
                     { translateX: pressed ? shadow - off : 0 },
                     { translateY: pressed ? shadow - off : 0 },
                   ],
                 },
-                innerStyle,
               ]}
             >
-              {/* top + left highlight (raised edge) */}
-              {hi && !pressed ? (
-                <>
-                  <View
-                    pointerEvents="none"
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: inner,
-                      backgroundColor: hi,
-                    }}
-                  />
-                  <View
-                    pointerEvents="none"
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      bottom: 0,
-                      left: 0,
-                      width: Math.max(2, inner - 1),
-                      backgroundColor: hi,
-                    }}
-                  />
-                </>
-              ) : null}
-              {/* bottom + right shadow (drop face) */}
-              {lo ? (
-                <>
-                  <View
-                    pointerEvents="none"
-                    style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: inner,
-                      backgroundColor: lo,
-                    }}
-                  />
-                  <View
-                    pointerEvents="none"
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      bottom: 0,
-                      right: 0,
-                      width: Math.max(2, inner - 1),
-                      backgroundColor: lo,
-                    }}
-                  />
-                </>
-              ) : null}
-              {children as React.ReactNode}
+              <PixelDeco
+                faceBg={faceBg}
+                edge={edge}
+                cut={cut}
+                hi={hi}
+                lo={lo}
+                inner={inner}
+                loThick={loThick}
+                pressed={pressed}
+              />
+              {/* 투명 테두리로 콘텐츠를 테두리 안쪽으로 들여놓는다(기존 borderWidth 와 동일한 인셋) */}
+              <View style={[{ borderWidth: cut, borderColor: 'transparent', backgroundColor: 'transparent' }, innerStyle]}>
+                {children as React.ReactNode}
+              </View>
             </View>
           </View>
         );
@@ -172,4 +103,5 @@ export function PixelPress({
 
 const styles = StyleSheet.create({
   wrap: { position: 'relative' },
+  face: { position: 'relative' },
 });

@@ -19,9 +19,13 @@ router.get('/browse', async (req: Request, res: Response) => {
 
 router.get('/search', async (req: Request, res: Response) => {
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-  if (!q) return res.json({ results: [] });
-  const results = await fetchSnkrdunkSearch(q);
-  res.json({ results });
+  const pageRaw = Number(req.query.page ?? 1);
+  const page = Math.max(1, Math.min(50, Number.isFinite(pageRaw) ? pageRaw : 1));
+  if (!q) return res.json({ page, results: [], hasMore: false });
+  const results = await fetchSnkrdunkSearch(q, page);
+  // 스니덩 SSR은 페이지당 결과 수가 일정치 않다(보통 <40). 결과가 하나라도 있으면
+  // 다음 페이지를 시도하게 두고, 클라이언트가 "새 항목 0개"면 멈춘다.
+  res.json({ page, results, hasMore: results.length > 0 });
 });
 
 function parseApparelId(raw: unknown, res: Response): number | null {

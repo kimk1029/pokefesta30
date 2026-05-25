@@ -1,6 +1,6 @@
-import { View, Pressable, StyleSheet } from 'react-native';
-import { colors } from '@/theme/tokens';
+import { View, Pressable } from 'react-native';
 import { PixelText } from '../PixelText';
+import { PixelFrame } from './PixelFrame';
 import { useThemeColors, useThemeTextVariant } from '../ThemeProvider';
 
 interface Props {
@@ -10,28 +10,25 @@ interface Props {
 }
 
 /**
- * Dark section header — "var(--ink)" body with gold text + bottom-right gold-dk hard shadow.
+ * Dark section header — ink 박스 + 골드 하드 드롭섀도 + 상/하 베벨.
+ * 다른 픽셀 박스와 동일하게 꼭지점 한 칸이 빈 큰-픽셀 노치 코너([[PixelFrame]] → [[PixelDeco]]).
  */
 export function SectHd({ title, more, onMore }: Props) {
   const c = useThemeColors();
   const textVariant = useThemeTextVariant();
-  const shadow = 5;
   return (
-    <View style={[styles.wrap, { marginRight: shadow, marginBottom: 12 }]}>
-      <View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFillObject,
-          {
-            backgroundColor: c.goldDk,
-            top: shadow,
-            left: shadow,
-            right: -shadow,
-            bottom: -shadow,
-          },
-        ]}
-      />
-      <View style={[styles.body, { backgroundColor: c.ink, borderColor: c.ink }]}>
+    <PixelFrame
+      bg={c.ink}
+      border={c.ink}
+      shadowColor={c.goldDk}
+      borderWidth={3}
+      shadow={5}
+      hi={c.ink2}
+      lo="#000"
+      inner={2}
+      style={{ marginBottom: 12 }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7 }}>
         <PixelText variant={textVariant} size={12} weight="bold" color={c.gold} style={{ flex: 1 }}>
           {title}
         </PixelText>
@@ -43,38 +40,6 @@ export function SectHd({ title, more, onMore }: Props) {
           </Pressable>
         ) : null}
       </View>
-      {/* inset top + bottom strokes */}
-      <View pointerEvents="none" style={[styles.insetTop, { backgroundColor: c.ink2 }]} />
-      <View pointerEvents="none" style={styles.insetBot} />
-    </View>
+    </PixelFrame>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { position: 'relative' },
-  body: {
-    backgroundColor: colors.ink,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderColor: colors.ink,
-    borderWidth: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  insetTop: {
-    position: 'absolute',
-    top: 3,
-    left: 3,
-    right: 3,
-    height: 2,
-    backgroundColor: colors.ink2,
-  },
-  insetBot: {
-    position: 'absolute',
-    bottom: 3,
-    left: 3,
-    right: 3,
-    height: 2,
-    backgroundColor: '#000',
-  },
-});

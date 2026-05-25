@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api, ApiError } from '@/lib/apiClient';
 import { useToast } from '@/components/ToastProvider';
+import { PixelPress } from '@/components/cv/PixelPress';
 import { colors, fonts } from '@/theme/tokens';
 
 interface Props {
@@ -116,33 +117,60 @@ export function CardActions({ apparelId, cardName }: Props) {
 
   return (
     <View style={styles.row}>
-      <Pressable
+      <PixelPress
         onPress={addToCollection}
         disabled={collectStatus === 'loading'}
-        style={[styles.btn, { backgroundColor: colors.blu }]}
+        bg={colors.blu}
+        borderWidth={3}
+        shadow={4}
+        hi="rgba(255,255,255,0.35)"
+        lo="rgba(0,0,0,0.25)"
+        wrapStyle={styles.flex}
+        innerStyle={styles.face}
       >
         <Text style={styles.icon}>{isCollected ? '✅' : '📦'}</Text>
-        <Text style={styles.label}>내 컬렉션</Text>
-        <Text style={styles.desc}>
+        <Text style={[styles.label, styles.onColor]} numberOfLines={1}>
+          내컬렉션
+        </Text>
+        <Text style={[styles.desc, styles.onColor]}>
           {collectStatus === 'loading' ? '...' : isCollected ? '✓' : '추가'}
         </Text>
-      </Pressable>
-      <Pressable
+      </PixelPress>
+      <PixelPress
         onPress={toggleFavorite}
         disabled={favStatus === 'loading'}
-        style={[styles.btn, { backgroundColor: colors.pur }]}
+        bg={colors.pur}
+        borderWidth={3}
+        shadow={4}
+        hi="rgba(255,255,255,0.35)"
+        lo="rgba(0,0,0,0.25)"
+        wrapStyle={styles.flex}
+        innerStyle={styles.face}
       >
         <Text style={styles.icon}>{isFav ? '★' : '⭐'}</Text>
-        <Text style={styles.label}>관심카드</Text>
-        <Text style={styles.desc}>
+        <Text style={[styles.label, styles.onColor]} numberOfLines={1}>
+          관심카드
+        </Text>
+        <Text style={[styles.desc, styles.onColor]}>
           {favStatus === 'loading' ? '...' : isFav ? '✓' : '추가'}
         </Text>
-      </Pressable>
-      <Pressable onPress={openSnkrdunk} style={[styles.btn, { backgroundColor: colors.ink }]}>
-        <Text style={[styles.icon, { color: colors.gold }]}>↗</Text>
-        <Text style={[styles.label, { color: colors.gold }]}>SNKDUNK</Text>
-        <Text style={[styles.desc, { color: colors.gold }]}>열기</Text>
-      </Pressable>
+      </PixelPress>
+      <PixelPress
+        onPress={openSnkrdunk}
+        bg={colors.ink}
+        borderWidth={3}
+        shadow={4}
+        hi="rgba(255,255,255,0.2)"
+        lo="rgba(0,0,0,0.35)"
+        wrapStyle={styles.flex}
+        innerStyle={styles.face}
+      >
+        <Text style={[styles.icon, styles.gold]}>↗</Text>
+        <Text style={[styles.label, styles.gold]} numberOfLines={1}>
+          SNKDUNK
+        </Text>
+        <Text style={[styles.desc, styles.gold]}>열기</Text>
+      </PixelPress>
     </View>
   );
 }
@@ -154,19 +182,32 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
     marginVertical: 12,
   },
-  btn: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
+  flex: { flex: 1 },
+  // 아이콘·텍스트·상태를 한 줄로 — 세로로 얇은 버튼.
+  face: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    shadowColor: colors.ink,
-    shadowOpacity: 1,
-    shadowOffset: { width: 3, height: 3 },
-    shadowRadius: 0,
-    elevation: 3,
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 6,
   },
-  icon: { color: colors.white, fontSize: 18 },
-  label: { color: colors.white, fontFamily: fonts.pixel, fontSize: 9, letterSpacing: 0.3 },
-  desc: { color: colors.white, fontFamily: fonts.pixel, fontSize: 8, letterSpacing: 0.3 },
+  icon: { color: colors.white, fontSize: 14, lineHeight: 16, flexShrink: 0 },
+  label: {
+    fontFamily: fonts.ko,
+    fontSize: 11,
+    letterSpacing: 0.2,
+    includeFontPadding: false,
+    flexShrink: 1,
+  },
+  desc: {
+    fontFamily: fonts.ko,
+    fontSize: 10,
+    letterSpacing: 0.2,
+    includeFontPadding: false,
+    opacity: 0.85,
+    flexShrink: 0,
+  },
+  onColor: { color: colors.white },
+  gold: { color: colors.gold },
 });
