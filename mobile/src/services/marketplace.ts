@@ -2,6 +2,7 @@ const NAVER_API = 'https://apis.naver.com';
 const CAFE_ORIGIN = 'https://cafe.naver.com';
 const BUNJANG_API = 'https://api.bunjang.co.kr';
 const BUNJANG_WEB = 'https://m.bunjang.co.kr';
+const KREAM_ORIGIN = 'https://kream.co.kr';
 
 const MVC_CLUB_ID = 30418914;
 const MVC_AUCTION_MENU_ID = 63;
@@ -318,4 +319,70 @@ export async function fetchBunjangItems(query = '포켓몬카드', page = 0): Pr
         productUrl: `${BUNJANG_WEB}/products/${pid}`,
       };
     });
+}
+
+// ────────────────────────────────────────────────────────────
+// KREAM (Nuxt SSR HTML 스크래핑 — JSON API는 403, 헤드리스 안티봇 차단)
+// ────────────────────────────────────────────────────────────
+export interface KreamItem {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl: string | null;
+  productUrl: string;
+}
+
+export function kreamSearchUrl(query: string): string {
+  return `${KREAM_ORIGIN}/search?keyword=${encodeURIComponent(query)}`;
+}
+
+/** KREAM 검색 SSR HTML 파서 — 카드는 data-sdui-id="product_card/<id>", 이름은 img alt, 가격은 `숫자원`. */
+function parseKreamSearchHtml(html: string): KreamItem[] {
+  const noc = html.replace(/<!--[\s\S]*?-->/g, '');
+  const segs = noc.split('product_card/');
+  const seen = new Set<string>();
+  const out: KreamItem[] = [];
+  for (let i = 1; i < segs.length; i++) {
+    const seg = segs[i];
+    const id = (seg.match(/^(\d+)/) || [])[1];
+    if (!id || seen.has(id)) continue;
+    const alt = decodeHtmlEntities((seg.match(/alt="([^"]*)"/) || [])[1] || '');
+    const name = alt
+      .replace(/\s+/g, ' ')
+      .replace(/^포켓몬\s?TCG\s*/i, '')
+      .replace(/^Pokemon\s?TCG\s*/i, '')
+      .replace(/\s*\([A-Za-z0-9][^()]*\)\s*$/, '')
+      .trim();
+    const text = seg.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
+    const pm = text.match(/([\d,]{2,})\s*원/);
+    const price = pm ? Number(pm[1].replace(/,/g, '')) : 0;
+    const rawImg = (seg.match(/srcset="(https:\/\/kream-phinf[^" ]+)"/) || [])[1] || '';
+    const imageUrl = rawImg ? decodeHtmlEntities(rawImg) : null;
+    if (!name && !price) continue;
+    seen.add(id);
+    out.push({ id, name: name || '(이름 없음)', price, imageUrl, productUrl: `${KREAM_ORIGIN}/products/${id}` });
+    if (out.length >= 40) break;
+  }
+  return out;
+}
+
+/** KREAM 검색. 차단/실패 시 빈 배열(호출부는 'KREAM에서 검색' 이동 버튼을 항상 노출). */
+export async function fetchKreamItems(query: string): Promise<KreamItem[]> {
+  const q = query.trim();
+  if (!q) return [];
+  try {
+    const res = await fetch(kreamSearchUrl(q), {
+      headers: {
+        'User-Agent': USER_AGENT,
+        'Accept-Language': 'ko',
+        Accept: 'text/html',
+        Referer: `${KREAM_ORIGIN}/`,
+      },
+      signal: abortAfter(10000),
+    });
+    if (!res.ok) return [];
+    return parseKreamSearchHtml(await res.text());
+  } catch {
+    return [];
+  }
 }

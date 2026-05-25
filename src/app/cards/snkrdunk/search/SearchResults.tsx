@@ -4,15 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Price } from '@/components/Price';
 import type { BunjangItem } from '@/lib/bunjang';
+import { kreamSearchUrl, type KreamItem } from '@/lib/kream';
 import { searchSnkrdunkPage, type HydratedHit } from './actions';
 
 const ACCENT = '#1B2E89';
 
 type Category = 'snkrdunk' | 'bunjang' | 'kream';
-
-function kreamSearchUrl(q: string): string {
-  return `https://kream.co.kr/search?keyword=${encodeURIComponent(q)}`;
-}
 
 export function SearchResults({
   q,
@@ -40,6 +37,11 @@ export function SearchResults({
   const [bj, setBj] = useState<BunjangItem[]>([]);
   const [bjLoading, setBjLoading] = useState(false);
   const [bjLoaded, setBjLoaded] = useState(false);
+
+  // KREAM (한국어 원본 검색, SSR 스크래핑, 탭 진입 시 지연 로딩)
+  const [kr, setKr] = useState<KreamItem[]>([]);
+  const [krLoading, setKrLoading] = useState(false);
+  const [krLoaded, setKrLoaded] = useState(false);
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -98,6 +100,30 @@ export function SearchResults({
     };
   }, [cat, q, bjLoaded, bjLoading]);
 
+  // KREAM 지연 로딩 (SSR 스크래핑 — 차단/실패 시 빈 배열 → 이동 버튼 폴백)
+  useEffect(() => {
+    if (cat !== 'kream' || !q || krLoaded || krLoading) return;
+    let alive = true;
+    setKrLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/kream/search?q=${encodeURIComponent(q)}`);
+        const data = (await res.json()) as { items?: KreamItem[] };
+        if (alive) setKr(data.items ?? []);
+      } catch {
+        if (alive) setKr([]);
+      } finally {
+        if (alive) {
+          setKrLoaded(true);
+          setKrLoading(false);
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [cat, q, krLoaded, krLoading]);
+
   return (
     <div className="sect">
       {/* 카테고리 탭 */}
@@ -114,7 +140,12 @@ export function SearchResults({
           active={cat === 'bunjang'}
           onClick={() => setCat('bunjang')}
         />
-        <TabButton label="KREAM" sub="바로가기" active={cat === 'kream'} onClick={() => setCat('kream')} />
+        <TabButton
+          label="KREAM"
+          sub={krLoaded ? `${kr.length}건` : 'KREAM'}
+          active={cat === 'kream'}
+          onClick={() => setCat('kream')}
+        />
       </div>
 
       {cat === 'snkrdunk' ? (
@@ -151,7 +182,7 @@ export function SearchResults({
           </>
         )
       ) : (
-        <KreamPanel q={q} />
+        <KreamPanel q={q} items={kr} loading={krLoading} />
       )}
     </div>
   );
@@ -229,23 +260,30 @@ function EmptyBox({ text }: { text: string }) {
   );
 }
 
-function KreamPanel({ q }: { q: string }) {
+function KreamPanel({ q, items, loading }: { q: string; items: KreamItem[]; loading: boolean }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div
-        style={{
-          padding: 16,
-          background: 'var(--white)',
-          fontFamily: 'var(--f1)',
-          fontSize: 10,
-          color: 'var(--ink3)',
-          lineHeight: 1.8,
-          boxShadow:
-            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
-        }}
-      >
-        KREAM은 앱 내 직접 리스팅이 제한돼 있어, KREAM에서 바로 검색 결과를 확인할 수 있어요.
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {loading ? (
+        <StatusNote text="불러오는 중…" />
+      ) : items.length > 0 ? (
+        items.map((item) => <KreamCard key={item.id} item={item} />)
+      ) : (
+        <div
+          style={{
+            padding: 16,
+            background: 'var(--white)',
+            fontFamily: 'var(--f1)',
+            fontSize: 10,
+            color: 'var(--ink3)',
+            lineHeight: 1.8,
+            boxShadow:
+              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
+          }}
+        >
+          KREAM 결과를 불러오지 못했습니다. 아래에서 KREAM 검색을 직접 열 수 있어요.
+        </div>
+      )}
+      {/* KREAM은 차단에 취약해 결과가 비어도 항상 이동 버튼 제공 */}
       <a
         href={kreamSearchUrl(q)}
         target="_blank"
@@ -254,6 +292,7 @@ function KreamPanel({ q }: { q: string }) {
           display: 'block',
           textAlign: 'center',
           padding: '13px 0',
+          marginTop: 4,
           background: 'var(--ink)',
           color: 'var(--gold)',
           textDecoration: 'none',
@@ -267,6 +306,52 @@ function KreamPanel({ q }: { q: string }) {
         KREAM에서 “{q}” 검색 →
       </a>
     </div>
+  );
+}
+
+function KreamCard({ item }: { item: KreamItem }) {
+  return (
+    <a
+      href={item.productUrl}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="shop-card"
+      style={{ textDecoration: 'none', color: 'inherit' }}
+    >
+      <div
+        className="sh-icon"
+        style={{ width: 84, height: 84, background: 'var(--ink2)', overflow: 'hidden', alignSelf: 'stretch' }}
+      >
+        {item.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.imageUrl}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          <span style={{ fontSize: 28, display: 'grid', placeItems: 'center', height: '100%' }}>🃏</span>
+        )}
+      </div>
+      <div className="sh-main">
+        <div
+          className="sh-title"
+          style={{
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            lineHeight: 1.4,
+          }}
+        >
+          {item.name}
+        </div>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 14, color: 'var(--red)', marginTop: 6, letterSpacing: 0.3 }}>
+          {item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
+        </div>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 6 }}>KREAM</div>
+      </div>
+    </a>
   );
 }
 

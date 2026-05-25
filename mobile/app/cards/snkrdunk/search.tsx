@@ -13,7 +13,13 @@ import {
   type SnkrdunkApparel,
   type SnkrdunkSearchResult,
 } from '@/services/snkrdunk';
-import { bunjangSearchUrl, fetchBunjangItems, type BunjangItem } from '@/services/marketplace';
+import {
+  bunjangSearchUrl,
+  fetchBunjangItems,
+  fetchKreamItems,
+  type BunjangItem,
+  type KreamItem,
+} from '@/services/marketplace';
 import { localizeCardName } from '@/lib/cardNameKo';
 import { koToJaSearch } from '@/lib/cardSearchJa';
 
@@ -75,17 +81,24 @@ export default function SnkrdunkSearchScreen() {
   const [bunjangLoaded, setBunjangLoaded] = useState(false);
   const [bunjangError, setBunjangError] = useState<string | null>(null);
 
+  // KREAM (한국어 원본 검색, SSR 스크래핑)
+  const [kream, setKream] = useState<KreamItem[]>([]);
+  const [kreamLoading, setKreamLoading] = useState(false);
+  const [kreamLoaded, setKreamLoaded] = useState(false);
+
   const jaQuery = useMemo(() => koToJaSearch(initialQuery), [initialQuery]);
 
   useEffect(() => {
     setQuery(initialQuery);
   }, [initialQuery]);
 
-  // 쿼리 변경 시 번개장터 캐시 초기화 (탭 진입 시 다시 로딩)
+  // 쿼리 변경 시 번개장터/KREAM 캐시 초기화 (탭 진입 시 다시 로딩)
   useEffect(() => {
     setBunjang([]);
     setBunjangLoaded(false);
     setBunjangError(null);
+    setKream([]);
+    setKreamLoaded(false);
   }, [initialQuery]);
 
   // SNKRDUNK 첫 페이지
@@ -139,6 +152,28 @@ export default function SnkrdunkSearchScreen() {
       alive = false;
     };
   }, [cat, initialQuery, bunjangLoaded, bunjangLoading]);
+
+  // KREAM 탭 첫 진입 시 지연 로딩 (SSR 스크래핑 — 차단/실패 시 빈 배열 → 이동 버튼 폴백)
+  useEffect(() => {
+    if (cat !== 'kream' || !initialQuery || kreamLoaded || kreamLoading) return;
+    let alive = true;
+    setKreamLoading(true);
+    fetchKreamItems(initialQuery)
+      .then((items) => {
+        if (!alive) return;
+        setKream(items);
+        setKreamLoaded(true);
+      })
+      .catch(() => {
+        if (alive) setKreamLoaded(true);
+      })
+      .finally(() => {
+        if (alive) setKreamLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [cat, initialQuery, kreamLoaded, kreamLoading]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || loading || !hasMore || !jaQuery) return;
@@ -225,7 +260,7 @@ export default function SnkrdunkSearchScreen() {
               />
               <CatTab
                 label="KREAM"
-                sub="바로가기"
+                sub={kreamLoaded ? `${kream.length}건` : 'KREAM'}
                 active={cat === 'kream'}
                 onPress={() => setCat('kream')}
               />
@@ -280,7 +315,7 @@ export default function SnkrdunkSearchScreen() {
                 </View>
               )
             ) : (
-              <KreamPanel query={initialQuery} />
+              <KreamPanel query={initialQuery} items={kream} loading={kreamLoading} />
             )}
           </>
         )}
@@ -378,19 +413,23 @@ function SnkrdunkRow({ hit }: { hit: Hit }) {
   );
 }
 
-function KreamPanel({ query }: { query: string }) {
+function KreamPanel({ query, items, loading }: { query: string; items: KreamItem[]; loading: boolean }) {
   return (
-    <View style={{ gap: 12 }}>
-      <PixelFrame bg={colors.white} borderWidth={3} shadow={5}>
-        <View style={{ padding: 14, gap: 8 }}>
-          <PixelText variant="ko" size={12} weight="bold">
-            KREAM
-          </PixelText>
-          <PixelText variant="ko" size={10} color={colors.ink3} style={{ lineHeight: 16 }}>
-            KREAM은 앱 내 직접 리스팅이 제한돼 있어, KREAM에서 바로 검색 결과를 확인할 수 있어요.
-          </PixelText>
-        </View>
-      </PixelFrame>
+    <View style={{ gap: 10 }}>
+      {loading ? (
+        <Spinner />
+      ) : items.length > 0 ? (
+        items.map((item) => <KreamRow key={item.id} item={item} />)
+      ) : (
+        <PixelFrame bg={colors.white} borderWidth={3} shadow={5}>
+          <View style={{ padding: 14 }}>
+            <PixelText variant="ko" size={10} color={colors.ink3} style={{ lineHeight: 16 }}>
+              KREAM 결과를 불러오지 못했습니다. 아래에서 KREAM 검색을 직접 열 수 있어요.
+            </PixelText>
+          </View>
+        </PixelFrame>
+      )}
+      {/* KREAM은 차단에 취약해 결과가 비어도 항상 이동 버튼 제공 */}
       <PixelPress
         onPress={() => Linking.openURL(kreamSearchUrl(query))}
         bg={colors.ink}
@@ -398,6 +437,7 @@ function KreamPanel({ query }: { query: string }) {
         shadow={5}
         hi={null}
         lo={null}
+        wrapStyle={{ marginTop: 2 }}
       >
         <View style={{ paddingVertical: 13, alignItems: 'center' }}>
           <PixelText variant="ko" size={10} color={colors.gold}>
@@ -406,6 +446,51 @@ function KreamPanel({ query }: { query: string }) {
         </View>
       </PixelPress>
     </View>
+  );
+}
+
+function KreamRow({ item }: { item: KreamItem }) {
+  return (
+    <PixelPress
+      onPress={() => Linking.openURL(item.productUrl)}
+      bg={colors.white}
+      borderWidth={3}
+      shadow={5}
+      hi={null}
+      lo={null}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 }}>
+        <View
+          style={{
+            width: 76,
+            height: 76,
+            backgroundColor: colors.pap2,
+            borderColor: colors.ink,
+            borderWidth: 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          ) : (
+            <Text style={{ fontSize: 24 }}>🃏</Text>
+          )}
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <PixelText variant="ko" size={12} weight="bold" numberOfLines={2} style={{ lineHeight: 16 }}>
+            {item.name}
+          </PixelText>
+          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 5 }}>
+            KREAM
+          </PixelText>
+        </View>
+        <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
+          {item.price > 0 ? `₩${item.price.toLocaleString('ko-KR')}` : '가격문의'}
+        </PixelText>
+      </View>
+    </PixelPress>
   );
 }
 
