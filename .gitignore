@@ -22,3 +22,6 @@ mobile/.env
 mobile/.env.local
 mobile/.env.*.local
 
+
+# Claude Code local artifacts
+.claude/
