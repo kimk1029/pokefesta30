@@ -278,6 +278,46 @@ const CHARACTERS: Term[] = [
   { ko: '냐옹',     ja: 'ニャース',     en: 'Meowth' },         // 구어체 — 공식명 '나옹'은 PokeAPI 사전
   { ko: '로켓단',   ja: 'ロケット団',   en: 'Team Rocket' },
   { ko: '한지우',   ja: 'サトシ',       en: 'Ash' },            // 무인편 주인공
+  // 관동 체육관 관장 (나무위키/포켓몬위키 확인)
+  { ko: '마티스',   ja: 'マチス',       en: 'Lt. Surge' },
+  { ko: '민화',     ja: 'エリカ',       en: 'Erika' },
+  { ko: '독수',     ja: 'キョウ',       en: 'Koga' },
+  { ko: '강연',     ja: 'カツラ',       en: 'Blaine' },
+  { ko: '초련',     ja: 'ナツメ',       en: 'Sabrina' },
+  // 애니 로켓단 삼인방 + 라이벌/동료 (한국 더빙명 ↔ 일본명)
+  { ko: '로사',     ja: 'ムサシ',       en: 'Jessie' },
+  { ko: '로이',     ja: 'コジロウ',     en: 'James' },
+  { ko: '웅',       ja: 'タケシ',       en: 'Brock' },
+  { ko: '오바람',   ja: 'シゲル',       en: 'Gary' },
+  { ko: '봄이',     ja: 'ハルカ',       en: 'May' },
+  { ko: '빛나',     ja: 'ヒカリ',       en: 'Dawn' },
+  { ko: '세레나',   ja: 'セレナ',       en: 'Serena' },
+  { ko: '고우',     ja: 'ゴウ',         en: 'Goh' },
+  // 챔피언 / 빌런 두목 / 박사
+  { ko: '목호',     ja: 'ワタル',       en: 'Lance' },
+  { ko: '단델',     ja: 'ダンデ',       en: 'Leon' },
+  { ko: '게치스',   ja: 'ゲーチス',     en: 'Ghetsis' },
+  { ko: '플라드리', ja: 'フラダリ',     en: 'Lysandre' },
+  { ko: '오박사',   ja: 'オーキド',     en: 'Prof. Oak' },
+  // 빌런 두목 (검색 확인)
+  { ko: '마적',     ja: 'マツブサ',     en: 'Maxie' },          // 마그마단
+  { ko: '아강',     ja: 'アオギリ',     en: 'Archie' },         // 아쿠아단
+  { ko: '로즈',     ja: 'ローズ',       en: 'Rose' },           // 마크로코스모스
+  // 챔피언
+  { ko: '대엽',     ja: 'ミクリ',       en: 'Wallace' },        // 호연
+  { ko: '노간주',   ja: 'アデク',       en: 'Alder' },          // 하나
+  { ko: '백연',     ja: 'カルネ',       en: 'Diantha' },        // 칼로스
+  { ko: '네모',     ja: 'ネモ',         en: 'Nemona' },         // 팔데아
+  // 칼로스/하나/알로라 동료·캡틴
+  { ko: '시트론',   ja: 'シトロン',     en: 'Clemont' },
+  { ko: '유리카',   ja: 'ユリーカ',     en: 'Bonnie' },
+  { ko: '아이리스', ja: 'アイリス',     en: 'Iris' },
+  { ko: '덴트',     ja: 'デント',       en: 'Cilan' },
+  { ko: '마오',     ja: 'マオ',         en: 'Mallow' },
+  { ko: '스이렌',   ja: 'スイレン',     en: 'Lana' },
+  { ko: '카키',     ja: 'カキ',         en: 'Kiawe' },
+  { ko: '마마네',   ja: 'マーマネ',     en: 'Sophocles' },
+  { ko: '코하루',   ja: 'コハル',       en: 'Chloe' },
 ];
 
 const ALL: Term[] = [...POKEMON, ...CARD_TERMS, ...CHARACTERS];
