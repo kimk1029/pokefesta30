@@ -284,6 +284,13 @@ export async function fetchMvcLatestBids(
   return map;
 }
 
+/** 응답이 없을 때 무한 대기하지 않도록 ms 후 abort 하는 시그널. */
+function abortAfter(ms: number): AbortSignal {
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
+
 export async function fetchBunjangItems(query = '포켓몬카드', page = 0): Promise<BunjangItem[]> {
   const q = query.trim();
   if (!q) return [];
@@ -292,6 +299,7 @@ export async function fetchBunjangItems(query = '포켓몬카드', page = 0): Pr
     `?q=${encodeURIComponent(q)}&order=score&page=${page}&n=40&stat_device=w&version=4`;
   const res = await fetch(url, {
     headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
+    signal: abortAfter(10000),
   });
   if (!res.ok) throw new Error(`Bunjang ${res.status}`);
   const raw = (await res.json()) as RawBunjangList;
