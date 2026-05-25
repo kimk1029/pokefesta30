@@ -76,10 +76,18 @@ export function SearchResults({
     return () => io.disconnect();
   }, [cat, hasMore, loadMore]);
 
-  // 번개장터 지연 로딩
+  // 번개장터 — 검색 시 즉시 로딩(다른 탭에 있어도 탭에 건수가 뜨도록).
+  // 주의: loading 상태를 deps 에 넣지 말 것 — setLoading 으로 effect 가 재실행되며
+  // cleanup 이 진행 중 fetch 를 취소해 무한 로딩이 됐던 버그.
   useEffect(() => {
-    if (cat !== 'bunjang' || !q || bjLoaded || bjLoading) return;
+    if (!q) {
+      setBj([]);
+      setBjLoaded(false);
+      return;
+    }
     let alive = true;
+    setBj([]);
+    setBjLoaded(false);
     setBjLoading(true);
     (async () => {
       try {
@@ -98,12 +106,18 @@ export function SearchResults({
     return () => {
       alive = false;
     };
-  }, [cat, q, bjLoaded, bjLoading]);
+  }, [q]);
 
-  // KREAM 지연 로딩 (SSR 스크래핑 — 차단/실패 시 빈 배열 → 이동 버튼 폴백)
+  // KREAM — 검색 시 즉시 로딩 (SSR 스크래핑, 캐시됨). 차단/실패 시 빈 배열 → 이동 버튼 폴백.
   useEffect(() => {
-    if (cat !== 'kream' || !q || krLoaded || krLoading) return;
+    if (!q) {
+      setKr([]);
+      setKrLoaded(false);
+      return;
+    }
     let alive = true;
+    setKr([]);
+    setKrLoaded(false);
     setKrLoading(true);
     (async () => {
       try {
@@ -122,7 +136,7 @@ export function SearchResults({
     return () => {
       alive = false;
     };
-  }, [cat, q, krLoaded, krLoading]);
+  }, [q]);
 
   return (
     <div className="sect">
@@ -137,12 +151,14 @@ export function SearchResults({
         <TabButton
           label="번개장터"
           sub={bjLoaded ? `${bj.length}건` : '국내매물'}
+          loading={bjLoading}
           active={cat === 'bunjang'}
           onClick={() => setCat('bunjang')}
         />
         <TabButton
           label="KREAM"
           sub={krLoaded ? `${kr.length}건` : 'KREAM'}
+          loading={krLoading}
           active={cat === 'kream'}
           onClick={() => setCat('kream')}
         />
@@ -165,12 +181,12 @@ export function SearchResults({
               ))}
             </div>
             {hasMore ? <div ref={sentinelRef} style={{ height: 1 }} /> : null}
-            <StatusNote text={loading ? '불러오는 중…' : hasMore ? '' : `SNKRDUNK ${hits.length}건 · 끝`} />
+            {loading ? <Loading /> : <StatusNote text={hasMore ? '' : `SNKRDUNK ${hits.length}건 · 끝`} />}
           </>
         )
       ) : cat === 'bunjang' ? (
         bjLoading ? (
-          <StatusNote text="불러오는 중…" />
+          <Loading />
         ) : bj.length === 0 ? (
           <EmptyBox text="번개장터 결과가 없습니다" />
         ) : (
@@ -192,11 +208,13 @@ function TabButton({
   label,
   sub,
   active,
+  loading,
   onClick,
 }: {
   label: string;
   sub: string;
   active: boolean;
+  loading?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -219,8 +237,36 @@ function TabButton({
       }}
     >
       <div style={{ fontSize: 11 }}>{label}</div>
-      <div style={{ fontSize: 8, marginTop: 3, opacity: 0.85 }}>{sub}</div>
+      <div
+        style={{
+          fontSize: 8,
+          marginTop: 3,
+          opacity: 0.85,
+          minHeight: 12,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+        }}
+      >
+        {loading ? (
+          <>
+            <span className="pf-pokeball-spinner pf-pokeball-spinner--xs" />
+            검색중
+          </>
+        ) : (
+          sub
+        )}
+      </div>
     </button>
+  );
+}
+
+function Loading() {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '28px 0' }}>
+      <span className="pf-pokeball-spinner pf-pokeball-spinner--sm" />
+    </div>
   );
 }
 
@@ -264,7 +310,7 @@ function KreamPanel({ q, items, loading }: { q: string; items: KreamItem[]; load
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {loading ? (
-        <StatusNote text="불러오는 중…" />
+        <Loading />
       ) : items.length > 0 ? (
         items.map((item) => <KreamCard key={item.id} item={item} />)
       ) : (

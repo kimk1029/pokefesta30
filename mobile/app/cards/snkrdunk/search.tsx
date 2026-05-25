@@ -92,14 +92,6 @@ export default function SnkrdunkSearchScreen() {
     setQuery(initialQuery);
   }, [initialQuery]);
 
-  // 쿼리 변경 시 번개장터/KREAM 캐시 초기화 (탭 진입 시 다시 로딩)
-  useEffect(() => {
-    setBunjang([]);
-    setBunjangLoaded(false);
-    setBunjangError(null);
-    setKream([]);
-    setKreamLoaded(false);
-  }, [initialQuery]);
 
   // SNKRDUNK 첫 페이지
   useEffect(() => {
@@ -130,12 +122,21 @@ export default function SnkrdunkSearchScreen() {
     };
   }, [initialQuery, jaQuery]);
 
-  // 번개장터는 해당 탭을 처음 열 때 지연 로딩 (한국어 원본 쿼리)
+  // 번개장터 — 검색 시 즉시 로딩(다른 탭에 있어도 탭에 건수 표시). 한국어 원본 쿼리.
+  // 주의: loading 을 deps 에 넣지 말 것 — setLoading 으로 effect 가 재실행되며 cleanup 이
+  // 진행 중 fetch 를 취소해 무한 로딩이 됐던 버그.
   useEffect(() => {
-    if (cat !== 'bunjang' || !initialQuery || bunjangLoaded || bunjangLoading) return;
+    if (!initialQuery) {
+      setBunjang([]);
+      setBunjangLoaded(false);
+      setBunjangError(null);
+      return;
+    }
     let alive = true;
-    setBunjangLoading(true);
+    setBunjang([]);
+    setBunjangLoaded(false);
     setBunjangError(null);
+    setBunjangLoading(true);
     fetchBunjangItems(initialQuery, 0)
       .then((items) => {
         if (!alive) return;
@@ -151,12 +152,18 @@ export default function SnkrdunkSearchScreen() {
     return () => {
       alive = false;
     };
-  }, [cat, initialQuery, bunjangLoaded, bunjangLoading]);
+  }, [initialQuery]);
 
-  // KREAM 탭 첫 진입 시 지연 로딩 (SSR 스크래핑 — 차단/실패 시 빈 배열 → 이동 버튼 폴백)
+  // KREAM — 검색 시 즉시 로딩 (SSR 스크래핑). 차단/실패 시 빈 배열 → 이동 버튼 폴백.
   useEffect(() => {
-    if (cat !== 'kream' || !initialQuery || kreamLoaded || kreamLoading) return;
+    if (!initialQuery) {
+      setKream([]);
+      setKreamLoaded(false);
+      return;
+    }
     let alive = true;
+    setKream([]);
+    setKreamLoaded(false);
     setKreamLoading(true);
     fetchKreamItems(initialQuery)
       .then((items) => {
@@ -173,7 +180,7 @@ export default function SnkrdunkSearchScreen() {
     return () => {
       alive = false;
     };
-  }, [cat, initialQuery, kreamLoaded, kreamLoading]);
+  }, [initialQuery]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || loading || !hasMore || !jaQuery) return;
@@ -249,18 +256,21 @@ export default function SnkrdunkSearchScreen() {
               <CatTab
                 label="SNKRDUNK"
                 sub={hits.length > 0 ? `${hits.length}건${hasMore ? '+' : ''}` : '시세'}
+                loading={loading}
                 active={cat === 'snkrdunk'}
                 onPress={() => setCat('snkrdunk')}
               />
               <CatTab
                 label="번개장터"
                 sub={bunjangLoaded ? `${bunjang.length}건` : '국내매물'}
+                loading={bunjangLoading}
                 active={cat === 'bunjang'}
                 onPress={() => setCat('bunjang')}
               />
               <CatTab
                 label="KREAM"
                 sub={kreamLoaded ? `${kream.length}건` : 'KREAM'}
+                loading={kreamLoading}
                 active={cat === 'kream'}
                 onPress={() => setCat('kream')}
               />
@@ -324,7 +334,20 @@ export default function SnkrdunkSearchScreen() {
   );
 }
 
-function CatTab({ label, sub, active, onPress }: { label: string; sub: string; active: boolean; onPress: () => void }) {
+function CatTab({
+  label,
+  sub,
+  loading,
+  active,
+  onPress,
+}: {
+  label: string;
+  sub: string;
+  loading?: boolean;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const fg = active ? colors.gold : colors.ink3;
   return (
     <PixelPress
       onPress={onPress}
@@ -339,9 +362,18 @@ function CatTab({ label, sub, active, onPress }: { label: string; sub: string; a
         <PixelText variant="pixel" size={9} color={active ? colors.gold : colors.ink}>
           {label}
         </PixelText>
-        <PixelText variant="pixel" size={7} color={active ? colors.gold : colors.ink3}>
-          {sub}
-        </PixelText>
+        {loading ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, height: 12 }}>
+            <ActivityIndicator size="small" color={fg} style={{ transform: [{ scale: 0.55 }] }} />
+            <PixelText variant="pixel" size={7} color={fg}>
+              검색중
+            </PixelText>
+          </View>
+        ) : (
+          <PixelText variant="pixel" size={7} color={fg}>
+            {sub}
+          </PixelText>
+        )}
       </View>
     </PixelPress>
   );
