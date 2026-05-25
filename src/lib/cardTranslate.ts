@@ -272,6 +272,12 @@ const CHARACTERS: Term[] = [
   { ko: '아오키',   ja: 'アオキ',       en: 'Larry' },          // SV 노말 체육관
   { ko: '보탄',     ja: 'ボタン',       en: 'Penny' },          // SV
   { ko: '하사크',   ja: 'ハッサク',     en: 'Hassel' },         // SV
+  // 클래식 트레이너 + 구어체 별칭 — KR/JP 표기가 달라 snkrdunk 검색이 안 잡히던 케이스
+  { ko: '이슬이',   ja: 'カスミ',       en: 'Misty' },          // 무인편 히로인 / 물 체육관
+  { ko: '비주기',   ja: 'サカキ',       en: 'Giovanni' },       // 로켓단 보스 / 상록 체육관
+  { ko: '냐옹',     ja: 'ニャース',     en: 'Meowth' },         // 구어체 — 공식명 '나옹'은 PokeAPI 사전
+  { ko: '로켓단',   ja: 'ロケット団',   en: 'Team Rocket' },
+  { ko: '한지우',   ja: 'サトシ',       en: 'Ash' },            // 무인편 주인공
 ];
 
 const ALL: Term[] = [...POKEMON, ...CARD_TERMS, ...CHARACTERS];

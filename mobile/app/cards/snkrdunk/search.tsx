@@ -14,6 +14,7 @@ import {
   type SnkrdunkSearchResult,
 } from '@/services/snkrdunk';
 import { localizeCardName } from '@/lib/cardNameKo';
+import { koToJaSearch } from '@/lib/cardSearchJa';
 
 interface Hit {
   apparelId: number;
@@ -22,30 +23,6 @@ interface Hit {
   imageUrl: string | null;
   minPrice: number;
   listingCountText: string;
-}
-
-const KO_TO_JA: Array<[RegExp, string]> = [
-  [/리자몽/g, 'リザードン'],
-  [/피카츄/g, 'ピカチュウ'],
-  [/이브이/g, 'イーブイ'],
-  [/블래키/g, 'ブラッキー'],
-  [/님피아/g, 'ニンフィア'],
-  [/뮤츠/g, 'ミュウツー'],
-  [/뮤/g, 'ミュウ'],
-  [/팬텀/g, 'ゲンガー'],
-  [/루기아/g, 'ルギア'],
-  [/레쿠쟈/g, 'レックウザ'],
-  [/기라티나/g, 'ギラティナ'],
-  [/아르세우스/g, 'アルセウス'],
-  [/나오하/g, 'ニャオハ'],
-  [/카드/g, 'カード'],
-  [/프로모/g, 'プロモ'],
-];
-
-function queryForSnkrdunk(q: string): string {
-  let out = q.trim();
-  for (const [re, ja] of KO_TO_JA) out = out.replace(re, ja);
-  return out;
 }
 
 async function hydrate(results: SnkrdunkSearchResult[]): Promise<Hit[]> {
@@ -82,7 +59,7 @@ export default function SnkrdunkSearchScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const jaQuery = useMemo(() => queryForSnkrdunk(initialQuery), [initialQuery]);
+  const jaQuery = useMemo(() => koToJaSearch(initialQuery), [initialQuery]);
 
   useEffect(() => {
     setQuery(initialQuery);

@@ -15,7 +15,10 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 
-OUT = Path(__file__).resolve().parent.parent / "src" / "lib" / "pokemonNamesKoJa.ts"
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "src" / "lib" / "pokemonNamesKoJa.ts"
+# 모바일도 같은 사전을 사용 — 동일 내용을 함께 출력해 두 앱을 동기화한다.
+OUT_MOBILE = ROOT / "mobile" / "src" / "lib" / "pokemonNamesKoJa.ts"
 TOTAL = 1025
 CONCURRENCY = 6
 RETRIES = 4
@@ -86,8 +89,10 @@ def main() -> None:
         lines.append(f"  {ko_lit}: {ja_lit}, // #{sid}")
     lines.append("};")
     lines.append("")
-    OUT.write_text("\n".join(lines), encoding="utf-8")
-    print(f">> wrote {OUT.relative_to(Path.cwd())} ({len(seen)} entries)")
+    text = "\n".join(lines)
+    for path in (OUT, OUT_MOBILE):
+        path.write_text(text, encoding="utf-8")
+        print(f">> wrote {path.relative_to(Path.cwd())} ({len(seen)} entries)")
 
 if __name__ == "__main__":
     main()
