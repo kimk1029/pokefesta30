@@ -304,7 +304,7 @@ const CHARACTERS: Term[] = [
   { ko: '아강',     ja: 'アオギリ',     en: 'Archie' },         // 아쿠아단
   { ko: '로즈',     ja: 'ローズ',       en: 'Rose' },           // 마크로코스모스
   // 챔피언
-  { ko: '대엽',     ja: 'ミクリ',       en: 'Wallace' },        // 호연
+  { ko: '윤진',     ja: 'ミクリ',       en: 'Wallace' },        // 호연 챔피언/루네 관장
   { ko: '노간주',   ja: 'アデク',       en: 'Alder' },          // 하나
   { ko: '백연',     ja: 'カルネ',       en: 'Diantha' },        // 칼로스
   { ko: '네모',     ja: 'ネモ',         en: 'Nemona' },         // 팔데아
@@ -318,6 +318,31 @@ const CHARACTERS: Term[] = [
   { ko: '카키',     ja: 'カキ',         en: 'Kiawe' },
   { ko: '마마네',   ja: 'マーマネ',     en: 'Sophocles' },
   { ko: '코하루',   ja: 'コハル',       en: 'Chloe' },
+  // 성도 체육관 관장 (타입 매칭으로 검증)
+  { ko: '비상',     ja: 'ハヤト',       en: 'Falkner' },
+  { ko: '호일',     ja: 'ツクシ',       en: 'Bugsy' },
+  { ko: '꼭두',     ja: 'アカネ',       en: 'Whitney' },
+  { ko: '유빈',     ja: 'マツバ',       en: 'Morty' },
+  { ko: '사도',     ja: 'シジマ',       en: 'Chuck' },
+  { ko: '규리',     ja: 'ミカン',       en: 'Jasmine' },
+  { ko: '류옹',     ja: 'ヤナギ',       en: 'Pryce' },
+  { ko: '이향',     ja: 'イブキ',       en: 'Clair' },
+  // 호연 체육관 관장 + 챔피언
+  { ko: '원규',     ja: 'ツツジ',       en: 'Roxanne' },
+  { ko: '철구',     ja: 'トウキ',       en: 'Brawly' },
+  { ko: '암페어',   ja: 'テッセン',     en: 'Wattson' },
+  { ko: '민지',     ja: 'アスナ',       en: 'Flannery' },
+  { ko: '종길',     ja: 'センリ',       en: 'Norman' },
+  { ko: '은송',     ja: 'ナギ',         en: 'Winona' },
+  { ko: '아단',     ja: 'アダン',       en: 'Juan' },
+  { ko: '성호',     ja: 'ダイゴ',       en: 'Steven' },
+  // 신오 체육관 관장
+  { ko: '강석',     ja: 'ヒョウタ',     en: 'Roark' },
+  { ko: '유채',     ja: 'ナタネ',       en: 'Gardenia' },
+  { ko: '자두',     ja: 'スモモ',       en: 'Maylene' },
+  { ko: '맥실러',   ja: 'マキシ',       en: 'Crasher Wake' },
+  { ko: '멜리사',   ja: 'メリッサ',     en: 'Fantina' },
+  { ko: '동골',     ja: 'トウガン',     en: 'Byron' },
 ];
 
 const ALL: Term[] = [...POKEMON, ...CARD_TERMS, ...CHARACTERS];

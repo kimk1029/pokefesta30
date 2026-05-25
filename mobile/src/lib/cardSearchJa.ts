@@ -65,7 +65,7 @@ const EXTRA_KO_TO_JA: Record<string, string> = {
   아강: 'アオギリ', // Archie (아쿠아단)
   로즈: 'ローズ', // Rose (마크로코스모스)
   // 챔피언
-  대엽: 'ミクリ', // Wallace
+  윤진: 'ミクリ', // Wallace (호연 챔피언/루네 관장)
   노간주: 'アデク', // Alder
   백연: 'カルネ', // Diantha
   네모: 'ネモ', // Nemona
@@ -79,6 +79,31 @@ const EXTRA_KO_TO_JA: Record<string, string> = {
   카키: 'カキ', // Kiawe
   마마네: 'マーマネ', // Sophocles
   코하루: 'コハル', // Chloe
+  // 성도 체육관 관장
+  비상: 'ハヤト', // Falkner
+  호일: 'ツクシ', // Bugsy
+  꼭두: 'アカネ', // Whitney
+  유빈: 'マツバ', // Morty
+  사도: 'シジマ', // Chuck
+  규리: 'ミカン', // Jasmine
+  류옹: 'ヤナギ', // Pryce
+  이향: 'イブキ', // Clair
+  // 호연 체육관 관장 + 챔피언
+  원규: 'ツツジ', // Roxanne
+  철구: 'トウキ', // Brawly
+  암페어: 'テッセン', // Wattson
+  민지: 'アスナ', // Flannery
+  종길: 'センリ', // Norman
+  은송: 'ナギ', // Winona
+  아단: 'アダン', // Juan
+  성호: 'ダイゴ', // Steven
+  // 신오 체육관 관장
+  강석: 'ヒョウタ', // Roark
+  유채: 'ナタネ', // Gardenia
+  자두: 'スモモ', // Maylene
+  맥실러: 'マキシ', // Crasher Wake
+  멜리사: 'メリッサ', // Fantina
+  동골: 'トウガン', // Byron
   // 자주 쓰는 카드 용어
   메가: 'メガ',
   카드게임: 'カードゲーム',
