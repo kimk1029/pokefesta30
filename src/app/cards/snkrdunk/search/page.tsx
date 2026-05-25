@@ -127,7 +127,7 @@ export default async function Page({
             ) : null}
           </div>
 
-          <SearchResults ja={ja} initialHits={initialHits} initialHasMore={initialHasMore} />
+          <SearchResults q={q} ja={ja} initialHits={initialHits} initialHasMore={initialHasMore} />
         </>
       )}
 
