@@ -17,7 +17,11 @@ import { bunjangSearchUrl, fetchBunjangItems, type BunjangItem } from '@/service
 import { localizeCardName } from '@/lib/cardNameKo';
 import { koToJaSearch } from '@/lib/cardSearchJa';
 
-type Category = 'snkrdunk' | 'bunjang';
+type Category = 'snkrdunk' | 'bunjang' | 'kream';
+
+function kreamSearchUrl(q: string): string {
+  return `https://kream.co.kr/search?keyword=${encodeURIComponent(q)}`;
+}
 
 interface Hit {
   apparelId: number;
@@ -219,6 +223,12 @@ export default function SnkrdunkSearchScreen() {
                 active={cat === 'bunjang'}
                 onPress={() => setCat('bunjang')}
               />
+              <CatTab
+                label="KREAM"
+                sub="바로가기"
+                active={cat === 'kream'}
+                onPress={() => setCat('kream')}
+              />
             </View>
 
             <View style={{ height: 12 }} />
@@ -242,31 +252,35 @@ export default function SnkrdunkSearchScreen() {
                   ) : null}
                 </View>
               )
-            ) : bunjangLoading ? (
-              <Spinner />
-            ) : bunjangError ? (
-              <EmptyState icon="!" title="불러오기 실패" desc={bunjangError} />
-            ) : bunjang.length === 0 ? (
-              <EmptyState icon="📦" title="번개장터 결과가 없습니다" desc={initialQuery} />
+            ) : cat === 'bunjang' ? (
+              bunjangLoading ? (
+                <Spinner />
+              ) : bunjangError ? (
+                <EmptyState icon="!" title="불러오기 실패" desc={bunjangError} />
+              ) : bunjang.length === 0 ? (
+                <EmptyState icon="📦" title="번개장터 결과가 없습니다" desc={initialQuery} />
+              ) : (
+                <View style={{ gap: 10 }}>
+                  {bunjang.map((item) => (
+                    <BunjangRow key={item.pid} item={item} />
+                  ))}
+                  <PixelPress
+                    onPress={() => Linking.openURL(bunjangSearchUrl(initialQuery))}
+                    bg={colors.ink}
+                    borderWidth={3}
+                    shadow={5}
+                    hi={null}
+                    lo={null}
+                    wrapStyle={{ marginTop: 2 }}
+                  >
+                    <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                      <PixelText variant="pixel" size={9} color={colors.gold}>번개장터에서 더 보기</PixelText>
+                    </View>
+                  </PixelPress>
+                </View>
+              )
             ) : (
-              <View style={{ gap: 10 }}>
-                {bunjang.map((item) => (
-                  <BunjangRow key={item.pid} item={item} />
-                ))}
-                <PixelPress
-                  onPress={() => Linking.openURL(bunjangSearchUrl(initialQuery))}
-                  bg={colors.ink}
-                  borderWidth={3}
-                  shadow={5}
-                  hi={null}
-                  lo={null}
-                  wrapStyle={{ marginTop: 2 }}
-                >
-                  <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                    <PixelText variant="pixel" size={9} color={colors.gold}>번개장터에서 더 보기</PixelText>
-                  </View>
-                </PixelPress>
-              </View>
+              <KreamPanel query={initialQuery} />
             )}
           </>
         )}
@@ -361,6 +375,37 @@ function SnkrdunkRow({ hit }: { hit: Hit }) {
         </PixelText>
       </View>
     </PixelPress>
+  );
+}
+
+function KreamPanel({ query }: { query: string }) {
+  return (
+    <View style={{ gap: 12 }}>
+      <PixelFrame bg={colors.white} borderWidth={3} shadow={5}>
+        <View style={{ padding: 14, gap: 8 }}>
+          <PixelText variant="ko" size={12} weight="bold">
+            KREAM
+          </PixelText>
+          <PixelText variant="ko" size={10} color={colors.ink3} style={{ lineHeight: 16 }}>
+            KREAM은 앱 내 직접 리스팅이 제한돼 있어, KREAM에서 바로 검색 결과를 확인할 수 있어요.
+          </PixelText>
+        </View>
+      </PixelFrame>
+      <PixelPress
+        onPress={() => Linking.openURL(kreamSearchUrl(query))}
+        bg={colors.ink}
+        borderWidth={3}
+        shadow={5}
+        hi={null}
+        lo={null}
+      >
+        <View style={{ paddingVertical: 13, alignItems: 'center' }}>
+          <PixelText variant="ko" size={10} color={colors.gold}>
+            KREAM에서 “{query}” 검색 →
+          </PixelText>
+        </View>
+      </PixelPress>
+    </View>
   );
 }
 

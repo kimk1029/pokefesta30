@@ -8,7 +8,11 @@ import { searchSnkrdunkPage, type HydratedHit } from './actions';
 
 const ACCENT = '#1B2E89';
 
-type Category = 'snkrdunk' | 'bunjang';
+type Category = 'snkrdunk' | 'bunjang' | 'kream';
+
+function kreamSearchUrl(q: string): string {
+  return `https://kream.co.kr/search?keyword=${encodeURIComponent(q)}`;
+}
 
 export function SearchResults({
   q,
@@ -110,6 +114,7 @@ export function SearchResults({
           active={cat === 'bunjang'}
           onClick={() => setCat('bunjang')}
         />
+        <TabButton label="KREAM" sub="바로가기" active={cat === 'kream'} onClick={() => setCat('kream')} />
       </div>
 
       {cat === 'snkrdunk' ? (
@@ -132,17 +137,21 @@ export function SearchResults({
             <StatusNote text={loading ? '불러오는 중…' : hasMore ? '' : `SNKRDUNK ${hits.length}건 · 끝`} />
           </>
         )
-      ) : bjLoading ? (
-        <StatusNote text="불러오는 중…" />
-      ) : bj.length === 0 ? (
-        <EmptyBox text="번개장터 결과가 없습니다" />
+      ) : cat === 'bunjang' ? (
+        bjLoading ? (
+          <StatusNote text="불러오는 중…" />
+        ) : bj.length === 0 ? (
+          <EmptyBox text="번개장터 결과가 없습니다" />
+        ) : (
+          <>
+            {bj.map((item) => (
+              <BunjangCard key={item.pid} item={item} />
+            ))}
+            <StatusNote text={`번개장터 ${bj.length}건`} />
+          </>
+        )
       ) : (
-        <>
-          {bj.map((item) => (
-            <BunjangCard key={item.pid} item={item} />
-          ))}
-          <StatusNote text={`번개장터 ${bj.length}건`} />
-        </>
+        <KreamPanel q={q} />
       )}
     </div>
   );
@@ -216,6 +225,47 @@ function EmptyBox({ text }: { text: string }) {
       }}
     >
       {text}
+    </div>
+  );
+}
+
+function KreamPanel({ q }: { q: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div
+        style={{
+          padding: 16,
+          background: 'var(--white)',
+          fontFamily: 'var(--f1)',
+          fontSize: 10,
+          color: 'var(--ink3)',
+          lineHeight: 1.8,
+          boxShadow:
+            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
+        }}
+      >
+        KREAM은 앱 내 직접 리스팅이 제한돼 있어, KREAM에서 바로 검색 결과를 확인할 수 있어요.
+      </div>
+      <a
+        href={kreamSearchUrl(q)}
+        target="_blank"
+        rel="noreferrer noopener"
+        style={{
+          display: 'block',
+          textAlign: 'center',
+          padding: '13px 0',
+          background: 'var(--ink)',
+          color: 'var(--gold)',
+          textDecoration: 'none',
+          fontFamily: 'var(--f1)',
+          fontSize: 11,
+          letterSpacing: 0.5,
+          boxShadow:
+            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--gold-dk)',
+        }}
+      >
+        KREAM에서 “{q}” 검색 →
+      </a>
     </div>
   );
 }
