@@ -8,7 +8,8 @@
  * 발생하지 않는다.
  */
 import { useRef, useState } from 'react';
-import { ActivityIndicator, StatusBar, View } from 'react-native';
+import { ActivityIndicator, Linking, StatusBar, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
@@ -32,11 +33,13 @@ function normalizeProvider(p: string | undefined): AuthProvider {
 
 export default function OAuthWebView() {
   const { provider } = useLocalSearchParams<{ provider?: string }>();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const done = useRef(false);
 
   const authProvider = normalizeProvider(provider);
-  const authUrl = buildAuthUrl(authProvider);
+  // WebView 가 로드할 URL. 커스텀 스킴(intent:// 의 web fallback) 으로 교체될 수 있어 state.
+  const [uri, setUri] = useState(() => buildAuthUrl(authProvider));
 
   // 로그인 완료 리다이렉트인지 판별. 서버는 모바일 성공 시 https 브리지
   // (/auth/app-callback?token=) 로 보낸다. 과거 커스텀 스킴(pokefesta30://) 도 호환.
@@ -52,21 +55,51 @@ export default function OAuthWebView() {
     else router.back();
   };
 
+  // 카카오 등은 "간편 로그인"용으로 kakaotalk:// / intent:// 같은 커스텀 스킴으로
+  // 네비게이트한다. WebView 가 이를 직접 로드하면 "Error loading page … -10" 이 뜬다.
+  // intent:// 는 S.browser_fallback_url(웹 로그인) 로 대체해 WebView 안에서 계속 진행하고,
+  // 그 외 앱 스킴은 외부(설치 앱)로 넘긴다.
+  const handleAppScheme = (url: string): void => {
+    if (url.startsWith('intent://')) {
+      const m = url.match(/S\.browser_fallback_url=([^;]+)/);
+      if (m) {
+        try {
+          const fb = decodeURIComponent(m[1]);
+          if (/^https?:/i.test(fb)) {
+            setUri(fb);
+            return;
+          }
+        } catch {
+          // ignore — fall through to external open
+        }
+      }
+    }
+    Linking.openURL(url).catch(() => undefined);
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: colors.paper, paddingTop: insets.top }}>
       <StatusBar barStyle="dark-content" />
       <AppBar onBack={() => router.back()} title="소셜 로그인" />
       <View style={{ flex: 1 }}>
         <WebView
-          source={{ uri: authUrl }}
+          source={{ uri }}
           userAgent={UA}
-          // 커스텀 스킴(pokefesta30://) 도 onShouldStartLoadWithRequest 로 전달되도록 허용.
+          // 커스텀 스킴(pokefesta30://, kakaotalk://, intent://) 도 onShouldStartLoadWithRequest
+          // 로 전달되도록 허용.
           originWhitelist={['*']}
-          // 로그인 완료 리다이렉트(https 브리지 또는 커스텀 스킴)를 가로채 토큰 회수 후
-          // false 반환으로 네비게이션을 차단(브리지 페이지 로드/intent 발사 방지).
           onShouldStartLoadWithRequest={(req) => {
-            if (isReturnUrl(req.url)) {
-              handleReturn(req.url);
+            const u = req.url;
+            // 로그인 완료 리다이렉트(https 브리지 또는 커스텀 스킴)를 가로채 토큰 회수 후
+            // false 반환으로 네비게이션 차단(브리지 페이지 로드/intent 발사 방지).
+            if (isReturnUrl(u)) {
+              handleReturn(u);
+              return false;
+            }
+            // http(s)/about/data/blob 이 아닌 앱 스킴은 WebView 가 로드하지 않도록 가로챈다
+            // (그대로 두면 -10 에러). intent:// 는 web fallback 으로, 나머지는 외부 앱으로.
+            if (!/^(https?|about|data|blob):/i.test(u)) {
+              handleAppScheme(u);
               return false;
             }
             return true;
