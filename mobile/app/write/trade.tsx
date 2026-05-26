@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
@@ -19,8 +19,10 @@ type TradeType = 'sell' | 'buy';
  */
 export default function WriteTrade() {
   const toast = useToast();
+  // 내 컬렉션에서 카드 [거래] 로 들어오면 카드명이 title 로 넘어온다 → 제목 기본값.
+  const { title: titleParam } = useLocalSearchParams<{ title?: string }>();
   const [ttype, setTtype] = useState<TradeType>('sell');
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(typeof titleParam === 'string' ? titleParam : '');
   const [price, setPrice] = useState('');
   const [kakaoId, setKakaoId] = useState('');
   const [note, setNote] = useState('');

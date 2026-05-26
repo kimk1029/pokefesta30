@@ -354,9 +354,21 @@ function GridView({
                 </PixelText>
               </View>
             </Pressable>
-            <Pressable onPress={() => onDelete(d.src.id)} style={styles.deleteBtn}>
-              <PixelText variant="pixel" size={9} color={colors.red}>✕ 삭제</PixelText>
-            </Pressable>
+            {/* 웹 .cv-lc-btn 처럼 거래 + 삭제 나란히. */}
+            <View style={styles.gridBtnRow}>
+              <Pressable
+                onPress={() => router.push(`/write/trade?userCardId=${d.src.id}&title=${encodeURIComponent(d.name)}` as never)}
+                style={[styles.gridBtn, { backgroundColor: colors.ink }]}
+              >
+                <PixelText variant="pixel" size={8} color={colors.gold}>거래</PixelText>
+              </Pressable>
+              <Pressable
+                onPress={() => onDelete(d.src.id)}
+                style={[styles.gridBtn, { borderLeftWidth: 2, borderLeftColor: colors.ink }]}
+              >
+                <PixelText variant="pixel" size={8} color={colors.red}>삭제</PixelText>
+              </Pressable>
+            </View>
           </View>
         </PixelFrame>
       ))}
@@ -416,7 +428,7 @@ function ListView({
                 ) : null}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                   <PixelPress
-                    onPress={() => router.push(`/write/trade?userCardId=${d.src.id}` as never)}
+                    onPress={() => router.push(`/write/trade?userCardId=${d.src.id}&title=${encodeURIComponent(d.name)}` as never)}
                     bg={colors.ink}
                     borderWidth={2}
                     shadow={2}
@@ -487,9 +499,9 @@ function MiniSparkline({ points }: { points: number[] }) {
 
 function AlbumView({ items, onPress }: { items: Display[]; onPress: (d: Display) => void }) {
   return (
-    <View style={[styles.grid, { gap: 5 }]}>
+    <View style={[styles.grid, { gap: 3 }]}>
       {items.map((d) => (
-        <Pressable key={d.src.id} onPress={() => onPress(d)} style={[styles.gridItem, { width: '31.5%' }]}>
+        <Pressable key={d.src.id} onPress={() => onPress(d)} style={[styles.gridItem, { width: '32%' }]}>
           <CardImage d={d} aspect />
         </Pressable>
       ))}
@@ -616,21 +628,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink2,
   },
   subsegBtnOn: { backgroundColor: colors.gold },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: space.gap },
-  gridCell: { width: '30%' },
+  // flex-start + gap: 항목이 항상 좌→우 순서대로 채워진다(2개만 있어도 양끝으로 벌어지지 않음).
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', gap: 7, paddingHorizontal: space.gap },
+  gridCell: { width: '31%' },
   gridItem: {
-    width: '31%',
+    width: '32%',
     backgroundColor: colors.white,
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: colors.ink,
-    marginBottom: 8,
   },
-  deleteBtn: {
-    paddingVertical: 5,
-    alignItems: 'center',
-    borderTopWidth: 2,
-    borderTopColor: colors.ink,
-  },
+  gridBtnRow: { flexDirection: 'row', borderTopWidth: 2, borderTopColor: colors.ink },
+  gridBtn: { flex: 1, paddingVertical: 5, alignItems: 'center' },
   listInner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
