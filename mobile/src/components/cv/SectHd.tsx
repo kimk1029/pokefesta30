@@ -26,7 +26,7 @@ export function SectHd({ title, more, onMore }: Props) {
       hi={c.ink2}
       lo="#000"
       inner={2}
-      style={{ marginBottom: 12 }}
+      style={{ marginBottom: 6 }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7 }}>
         <PixelText variant={textVariant} size={12} weight="bold" color={c.gold} style={{ flex: 1 }}>

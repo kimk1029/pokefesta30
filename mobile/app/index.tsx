@@ -349,7 +349,7 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero — 미로그인 시 dim + 로그인 유도 오버레이 */}
-        <View style={{ marginHorizontal: 14, marginBottom: 12, position: 'relative' }}>
+        <View style={{ marginHorizontal: 14, marginBottom: 6, position: 'relative' }}>
         <View style={authed ? undefined : { opacity: 0.35 }} pointerEvents={authed ? 'auto' : 'none'}>
         <PixelFrame
           bg={colors.ink2}
@@ -582,7 +582,7 @@ export default function Home() {
         </View>
 
         {/* Section: 카드 검색 — 웹 메인과 동일하게 포트폴리오 바로 아래 */}
-        <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
+        <View style={{ marginHorizontal: 14, marginBottom: 6 }}>
           <SectHd title="카드 검색" />
           <PixelFrame borderWidth={3} shadow={5} inner={3}>
             <View
@@ -653,7 +653,7 @@ export default function Home() {
             flexDirection: 'row',
             justifyContent: 'space-between',
             marginHorizontal: 14,
-            marginBottom: 12,
+            marginBottom: 6,
           }}
         >
           <QuickBtn icon="📷" label="스캔" bg={colors.grn} href="/cards/grading" />
@@ -664,7 +664,7 @@ export default function Home() {
         </View>
 
         {/* XP / Level — 웹 메인과 동일하게 항상 표시 */}
-        <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
+        <View style={{ marginHorizontal: 14, marginBottom: 6 }}>
           <PixelFrame bg={colors.white}>
             <View style={{ padding: 13 }}>
               <View
@@ -750,7 +750,7 @@ export default function Home() {
         <View style={{ marginHorizontal: 14 }}>
           <SectHd title="핵심 지표" />
         </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 14, marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: 14, marginBottom: 6 }}>
           <Block label="컬렉션 가치" value={`₩${fmt(totalVal)}`} sub={`▲ +${changePct}% 지난주`} color={colors.goldDk} icon="💰" />
           <Block label="그레이딩률" value={`${gradedPct}%`} sub={`${graded.length} / ${owned.length}장`} color={colors.pur} icon="🏆" />
           <Block label="최고가 카드" value={`₩${fmt(topCards[0] ? cardKrw(topCards[0], priceMode) : 0)}`} sub={topCards[0] ? displayCardName(topCards[0].name) : undefined} color={colors.grnDk} icon="🎯" />
@@ -779,7 +779,7 @@ export default function Home() {
           })}
         </ScrollView>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginHorizontal: 14, marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: 14, marginBottom: 6 }}>
           {(activeGame === '전체' ? gameDist : gameDist.filter((x) => x.g === activeGame)).map(({ g, n, val }) => {
             const pct = owned.length > 0 ? Math.round((n / owned.length) * 100) : 0;
             const gGraded = owned.filter((c) => c.game === g && c.grade != null).length;
@@ -846,8 +846,8 @@ export default function Home() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 14, gap: 8 }}
-              style={{ marginBottom: 12 }}
+              contentContainerStyle={{ paddingHorizontal: 14, gap: 6 }}
+              style={{ marginBottom: 6 }}
             >
               {snkrRows.map(({ seed, data }) => {
                 const bg = seed.category ? SNKR_CAT_BG[seed.category] : colors.ink2;
@@ -939,7 +939,7 @@ export default function Home() {
         <View style={{ marginHorizontal: 14 }}>
           <SectHd title="최근 활동" />
         </View>
-        <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
+        <View style={{ marginHorizontal: 14, marginBottom: 6 }}>
           <PixelFrame bg={colors.white}>
             <View style={{ padding: 14, paddingBottom: 6 }}>
               {ACTIVITY.map((a, i) => (
