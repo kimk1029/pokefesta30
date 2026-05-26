@@ -23,7 +23,7 @@ export default function PackDetailScreen() {
   const [sort, setSort] = useState<SortMode>('price');
   const [view, setView] = useState<ViewMode>('grid');
   const { data, loading, error, refresh } = useAsync<PackWithHits | null>(
-    () => fetchPackHits(code, 600),
+    () => fetchPackHits(code, 200),
     [code],
   );
   const cards = useMemo(() => sortHits(data?.hits ?? [], sort), [data?.hits, sort]);
@@ -189,9 +189,9 @@ export default function PackDetailScreen() {
             {data.hits.length === 0 ? (
               <EmptyState icon="📭" title="매물 정보를 가져오지 못했어요" ctaLabel="다시 시도" onCtaPress={refresh} />
             ) : view === 'grid' ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
                 {cards.map((hit) => (
-                  <View key={hit.apparelId} style={{ width: '31%' }}>
+                  <View key={hit.apparelId} style={{ width: '32%' }}>
                     <PixelPress
                       onPress={() => router.push(`/cards/snkrdunk/${hit.apparelId}` as never)}
                       innerStyle={{ borderTopWidth: 4, borderTopColor: data.bg }}
@@ -207,12 +207,12 @@ export default function PackDetailScreen() {
                           }}
                         >
                           {hit.imageUrl ? (
-                            <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                            <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" resizeMethod="resize" />
                           ) : (
                             <Text style={{ fontSize: 30 }}>🃏</Text>
                           )}
                         </View>
-                        <View style={{ padding: 8, borderTopColor: colors.ink, borderTopWidth: 3 }}>
+                        <View style={{ padding: 5, borderTopColor: colors.ink, borderTopWidth: 3 }}>
                           <PixelText variant="ko" size={11} weight="bold" numberOfLines={2} style={{ minHeight: 30, lineHeight: 15 }}>
                             {hit.koName || hit.shortName}
                           </PixelText>
@@ -266,7 +266,7 @@ function ListRow({ hit, accent }: { hit: PackHitCard; accent: string }) {
           }}
         >
           {hit.imageUrl ? (
-            <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+            <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" resizeMethod="resize" />
           ) : (
             <Text style={{ fontSize: 24 }}>🃏</Text>
           )}

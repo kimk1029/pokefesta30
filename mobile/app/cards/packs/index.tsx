@@ -164,8 +164,8 @@ export default function PackExplorerScreen() {
             </PixelFrame>
           </View>
 
-          {/* 박스 리스트 — 각 항목 입체 픽셀 버튼 */}
-          <View style={{ marginHorizontal: 14, gap: 12 }}>
+          {/* 박스 리스트 — 각 항목 입체 픽셀 버튼. 리스트 간 갭 축소(12→6). */}
+          <View style={{ marginHorizontal: 14, gap: 6 }}>
             {(data ?? []).map((pack) => (
               <PixelPress
                 key={pack.code}
@@ -202,6 +202,7 @@ export default function PackExplorerScreen() {
                         source={{ uri: pack.boxImageUrl }}
                         style={{ width: '100%', height: '100%' }}
                         resizeMode="cover"
+                        resizeMethod="resize"
                       />
                     ) : (
                       <Text style={{ fontSize: 34 }}>{pack.emoji}</Text>
