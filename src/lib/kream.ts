@@ -83,7 +83,8 @@ async function fetchKreamRaw(q: string): Promise<KreamItem[]> {
         Referer: `${KREAM_ORIGIN}/`,
       },
       next: { revalidate: REVALIDATE_SEC },
-      signal: AbortSignal.timeout(10000),
+      // KREAM 안티봇은 차단 시 연결을 늘어뜨려 응답을 안 준다 → 6초면 끊고 폴백(이동 버튼).
+      signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) {
       console.error('[kream] non-OK', res.status, q);

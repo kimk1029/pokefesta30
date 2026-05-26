@@ -378,7 +378,8 @@ export async function fetchKreamItems(query: string): Promise<KreamItem[]> {
         Accept: 'text/html',
         Referer: `${KREAM_ORIGIN}/`,
       },
-      signal: abortAfter(10000),
+      // KREAM 차단 시 연결을 늘어뜨림 → 6초면 끊고 폴백(이동 버튼).
+      signal: abortAfter(6000),
     });
     if (!res.ok) return [];
     return parseKreamSearchHtml(await res.text());

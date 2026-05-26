@@ -154,16 +154,17 @@ export default function SnkrdunkSearchScreen() {
     };
   }, [initialQuery]);
 
-  // KREAM — 검색 시 즉시 로딩 (SSR 스크래핑). 차단/실패 시 빈 배열 → 이동 버튼 폴백.
+  // 쿼리 변경 시 KREAM 캐시 리셋 (탭 다시 열면 새 쿼리로 로딩).
   useEffect(() => {
-    if (!initialQuery) {
-      setKream([]);
-      setKreamLoaded(false);
-      return;
-    }
-    let alive = true;
     setKream([]);
     setKreamLoaded(false);
+  }, [initialQuery]);
+
+  // KREAM — 탭을 열 때만 1회 로딩 (안티봇이 IP를 막아, 매 검색마다 호출하면 대부분 차단됨).
+  // 차단/실패 시 빈 배열 → 이동 버튼 폴백. (loading 은 deps 에 넣지 않음 — orphan 방지)
+  useEffect(() => {
+    if (cat !== 'kream' || !initialQuery || kreamLoaded || kreamLoading) return;
+    let alive = true;
     setKreamLoading(true);
     fetchKreamItems(initialQuery)
       .then((items) => {
@@ -180,7 +181,8 @@ export default function SnkrdunkSearchScreen() {
     return () => {
       alive = false;
     };
-  }, [initialQuery]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cat, initialQuery, kreamLoaded]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || loading || !hasMore || !jaQuery) return;
