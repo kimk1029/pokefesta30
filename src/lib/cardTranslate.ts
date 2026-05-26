@@ -272,6 +272,7 @@ const CHARACTERS: Term[] = [
   { ko: '아오키',   ja: 'アオキ',       en: 'Larry' },          // SV 노말 체육관
   { ko: '보탄',     ja: 'ボタン',       en: 'Penny' },          // SV
   { ko: '하사크',   ja: 'ハッサク',     en: 'Hassel' },         // SV
+  { ko: '미모사',   ja: 'ミモザ',       en: 'Miriam' },         // SV 아카데미 양호교사
   // 클래식 트레이너 + 구어체 별칭 — KR/JP 표기가 달라 snkrdunk 검색이 안 잡히던 케이스
   { ko: '이슬이',   ja: 'カスミ',       en: 'Misty' },          // 무인편 히로인 / 물 체육관
   { ko: '비주기',   ja: 'サカキ',       en: 'Giovanni' },       // 로켓단 보스 / 상록 체육관

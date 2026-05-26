@@ -33,6 +33,7 @@ const EXTRA_KO_TO_JA: Record<string, string> = {
   아오키: 'アオキ',
   보탄: 'ボタン',
   하사크: 'ハッサク',
+  미모사: 'ミモザ', // Miriam — SV 아카데미 양호교사
   // 클래식 트레이너 + 구어체 별칭 (snkrdunk 트레이너/구판 카드 검색용)
   이슬이: 'カスミ', // Misty
   비주기: 'サカキ', // Giovanni
