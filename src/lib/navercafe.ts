@@ -37,6 +37,8 @@ export interface MvcAuctionItem {
   thumbnailUrl: string | null;
   /** 마켓글 가격 표기 ("1,000원" 등). 없으면 빈 문자열. */
   costText: string;
+  /** 목록 API의 첨부 이미지 플래그 — representImage 누락 시 본문 폴백 판단용(내부). */
+  attachImage?: boolean;
 }
 
 export interface MvcLatestBid {
@@ -271,6 +273,8 @@ interface RawListArticle {
   representImage?: string;
   formattedCost?: string;
   blindArticle?: boolean;
+  /** 첨부 이미지 존재 여부. representImage 가 비어도 true 면 본문에 이미지가 있음. */
+  attachImage?: boolean;
 }
 
 interface RawListResponse {
@@ -318,6 +322,7 @@ export async function fetchMvcAuctionList(
         lastCommentedAt: a.lastCommentedTimestamp ?? 0,
         thumbnailUrl: normalizeListThumb(a.representImage),
         costText: (a.formattedCost ?? '').trim(),
+        attachImage: Boolean(a.attachImage),
       };
     });
   return { items, hasNext: Boolean(result.hasNext) };
@@ -348,7 +353,34 @@ export async function fetchMvcAuctionPage(page = 1): Promise<MvcAuctionPageResul
     if (verdict === false) return false;
     return isSameKstDay(it.writtenAt, now);
   });
+  // 목록 API가 representImage 를 누락한 글(attachImage=true)은 본문 첫 이미지로 폴백.
+  await fillMissingThumbnails(items);
   return { items, hasNext, page: p };
+}
+
+/**
+ * representImage 가 비어도 attachImage=true 인 글은 본문에 이미지가 있으므로,
+ * 본문 첫 이미지를 가져와 리스트 썸네일을 채운다(누락 보강). 호출량 보호로 cap 제한.
+ */
+async function fillMissingThumbnails(items: MvcAuctionItem[], cap = 12): Promise<void> {
+  const targets = items.filter((it) => !it.thumbnailUrl && it.attachImage).slice(0, cap);
+  if (targets.length === 0) return;
+  const imgs = await Promise.all(targets.map((it) => fetchFirstBodyImage(it.articleId)));
+  targets.forEach((it, i) => {
+    if (imgs[i]) it.thumbnailUrl = imgs[i];
+  });
+}
+
+/** 한 글의 본문 첫 이미지 1장(w300 썸네일). 없으면 null. (revalidate 캐시) */
+export async function fetchFirstBodyImage(articleId: number): Promise<string | null> {
+  if (!Number.isInteger(articleId) || articleId <= 0) return null;
+  const url =
+    `${NAVER_API}/cafe-web/cafe-articleapi/v3/cafes/${MVC_CLUB_ID}/articles/${articleId}` +
+    `?query=&useCafeId=true&requestFrom=A`;
+  const raw = await fetchCafeJson<RawArticleResponse>(url, articleId);
+  const html = raw?.result?.article?.contentHtml ?? '';
+  const first = extractImages(html)[0];
+  return first ? upscaleCafeThumb(first, 'w300') : null;
 }
 
 interface RawLatestCommentsResponse {

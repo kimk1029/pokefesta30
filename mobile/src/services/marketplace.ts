@@ -20,6 +20,8 @@ export interface MvcAuctionItem {
   thumbnailUrl: string | null;
   costText: string;
   sourceUrl: string;
+  /** 목록 API 첨부 이미지 플래그 — representImage 누락 시 본문 폴백 판단용(내부). */
+  attachImage?: boolean;
 }
 
 export interface BunjangItem {
@@ -43,6 +45,8 @@ interface RawMvcArticle {
   representImage?: string;
   formattedCost?: string;
   blindArticle?: boolean;
+  /** 첨부 이미지 존재 여부. representImage 가 비어도 true 면 본문에 이미지가 있음. */
+  attachImage?: boolean;
 }
 
 interface RawMvcList {
@@ -174,7 +178,7 @@ export async function fetchMvcAuctions(page = 1): Promise<MvcAuctionItem[]> {
   if (!res.ok) throw new Error(`MVC ${res.status}`);
   const raw = (await res.json()) as RawMvcList;
   const rows = raw.message?.result?.articleList ?? [];
-  return rows
+  const items: MvcAuctionItem[] = rows
     .filter((a) => !a.blindArticle && Number.isInteger(a.articleId))
     .filter((a) => {
       const subject = a.subject ?? '';
@@ -197,8 +201,52 @@ export async function fetchMvcAuctions(page = 1): Promise<MvcAuctionItem[]> {
         thumbnailUrl: cafeThumb(a.representImage),
         costText: (a.formattedCost ?? '').trim(),
         sourceUrl: mvcArticleUrl(articleId),
+        attachImage: Boolean(a.attachImage),
       };
     });
+  // representImage 누락(attachImage=true) 글은 본문 첫 이미지로 썸네일 폴백.
+  await fillMissingThumbnails(items);
+  return items;
+}
+
+const CAFE_IMG_RE = /<img[^>]+src="(https:\/\/[^"]+)"/i;
+
+interface RawMvcArticleDetail {
+  result?: { article?: { contentHtml?: string } };
+}
+
+/** 한 경매글 본문의 첫 이미지(w300 썸네일). 없거나 실패 시 null. */
+async function fetchMvcFirstImage(articleId: number): Promise<string | null> {
+  if (!Number.isInteger(articleId) || articleId <= 0) return null;
+  try {
+    const url =
+      `${NAVER_API}/cafe-web/cafe-articleapi/v3/cafes/${MVC_CLUB_ID}/articles/${articleId}` +
+      `?query=&useCafeId=true&requestFrom=A`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'Accept-Language': 'ko,en-US;q=0.8',
+        'User-Agent': USER_AGENT,
+        Referer: mvcArticleUrl(articleId),
+      },
+    });
+    if (!res.ok) return null;
+    const raw = (await res.json()) as RawMvcArticleDetail;
+    const m = CAFE_IMG_RE.exec(raw.result?.article?.contentHtml ?? '');
+    return m ? cafeThumb(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** representImage 누락 + attachImage=true 인 글들의 썸네일을 본문 첫 이미지로 채움(cap 제한). */
+async function fillMissingThumbnails(items: MvcAuctionItem[], cap = 12): Promise<void> {
+  const targets = items.filter((it) => !it.thumbnailUrl && it.attachImage).slice(0, cap);
+  if (targets.length === 0) return;
+  const imgs = await Promise.all(targets.map((it) => fetchMvcFirstImage(it.articleId)));
+  targets.forEach((it, i) => {
+    if (imgs[i]) it.thumbnailUrl = imgs[i];
+  });
 }
 
 /** 한 경매글의 '최종호가'(최신 댓글). 웹 navercafe.fetchMvcLatestBid 의 모바일 포팅. */
