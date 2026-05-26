@@ -351,33 +351,35 @@ function CatTab({
 }) {
   const fg = active ? colors.gold : colors.ink3;
   return (
-    <PixelPress
-      onPress={onPress}
-      bg={active ? colors.ink : colors.white}
-      borderWidth={3}
-      shadow={active ? 5 : 3}
-      hi={null}
-      lo={null}
-      wrapStyle={{ flex: 1 }}
-    >
-      <View style={{ paddingVertical: 8, alignItems: 'center', gap: 3 }}>
-        <PixelText variant="pixel" size={9} color={active ? colors.gold : colors.ink}>
-          {label}
-        </PixelText>
-        {loading ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, height: 12 }}>
-            <ActivityIndicator size="small" color={fg} style={{ transform: [{ scale: 0.55 }] }} />
-            <PixelText variant="pixel" size={7} color={fg}>
-              검색중
-            </PixelText>
-          </View>
-        ) : (
-          <PixelText variant="pixel" size={7} color={fg}>
-            {sub}
+    <View style={{ flex: 1 }}>
+      <PixelPress
+        onPress={onPress}
+        bg={active ? colors.ink : colors.white}
+        borderWidth={3}
+        shadow={active ? 5 : 3}
+        hi={null}
+        lo={null}
+        wrapStyle={{ flex: 1 }}
+      >
+        <View style={{ paddingVertical: 8, alignItems: 'center', gap: 3 }}>
+          <PixelText variant="pixel" size={9} color={active ? colors.gold : colors.ink}>
+            {label}
           </PixelText>
-        )}
-      </View>
-    </PixelPress>
+          {loading ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, height: 12 }}>
+              <ActivityIndicator size="small" color={fg} style={{ transform: [{ scale: 0.55 }] }} />
+              <PixelText variant="pixel" size={7} color={fg}>
+                검색중
+              </PixelText>
+            </View>
+          ) : (
+            <PixelText variant="pixel" size={7} color={fg}>
+              {sub}
+            </PixelText>
+          )}
+        </View>
+      </PixelPress>
+    </View>
   );
 }
 

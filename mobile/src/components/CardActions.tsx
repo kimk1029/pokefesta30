@@ -117,60 +117,66 @@ export function CardActions({ apparelId, cardName }: Props) {
 
   return (
     <View style={styles.row}>
-      <PixelPress
-        onPress={addToCollection}
-        disabled={collectStatus === 'loading'}
-        bg={colors.blu}
-        borderWidth={3}
-        shadow={4}
-        hi="rgba(255,255,255,0.35)"
-        lo="rgba(0,0,0,0.25)"
-        wrapStyle={styles.flex}
-        innerStyle={styles.face}
-      >
-        <Text style={styles.icon}>{isCollected ? '✅' : '📦'}</Text>
-        <Text style={[styles.label, styles.onColor]} numberOfLines={1}>
-          내컬렉션
-        </Text>
-        <Text style={[styles.desc, styles.onColor]}>
-          {collectStatus === 'loading' ? '...' : isCollected ? '✓' : '추가'}
-        </Text>
-      </PixelPress>
-      <PixelPress
-        onPress={toggleFavorite}
-        disabled={favStatus === 'loading'}
-        bg={colors.pur}
-        borderWidth={3}
-        shadow={4}
-        hi="rgba(255,255,255,0.35)"
-        lo="rgba(0,0,0,0.25)"
-        wrapStyle={styles.flex}
-        innerStyle={styles.face}
-      >
-        <Text style={styles.icon}>{isFav ? '★' : '⭐'}</Text>
-        <Text style={[styles.label, styles.onColor]} numberOfLines={1}>
-          관심카드
-        </Text>
-        <Text style={[styles.desc, styles.onColor]}>
-          {favStatus === 'loading' ? '...' : isFav ? '✓' : '추가'}
-        </Text>
-      </PixelPress>
-      <PixelPress
-        onPress={openSnkrdunk}
-        bg={colors.ink}
-        borderWidth={3}
-        shadow={4}
-        hi="rgba(255,255,255,0.2)"
-        lo="rgba(0,0,0,0.35)"
-        wrapStyle={styles.flex}
-        innerStyle={styles.face}
-      >
-        <Text style={[styles.icon, styles.gold]}>↗</Text>
-        <Text style={[styles.label, styles.gold]} numberOfLines={1}>
-          SNKDUNK
-        </Text>
-        <Text style={[styles.desc, styles.gold]}>열기</Text>
-      </PixelPress>
+      <View style={styles.flex}>
+        <PixelPress
+          onPress={addToCollection}
+          disabled={collectStatus === 'loading'}
+          bg={colors.blu}
+          borderWidth={3}
+          shadow={4}
+          hi="rgba(255,255,255,0.35)"
+          lo="rgba(0,0,0,0.25)"
+          wrapStyle={styles.flex}
+          innerStyle={styles.face}
+        >
+          <Text style={styles.icon}>{isCollected ? '✅' : '📦'}</Text>
+          <Text style={[styles.label, styles.onColor]} numberOfLines={1}>
+            내컬렉션
+          </Text>
+          <Text style={[styles.desc, styles.onColor]}>
+            {collectStatus === 'loading' ? '...' : isCollected ? '✓' : '추가'}
+          </Text>
+        </PixelPress>
+      </View>
+      <View style={styles.flex}>
+        <PixelPress
+          onPress={toggleFavorite}
+          disabled={favStatus === 'loading'}
+          bg={colors.pur}
+          borderWidth={3}
+          shadow={4}
+          hi="rgba(255,255,255,0.35)"
+          lo="rgba(0,0,0,0.25)"
+          wrapStyle={styles.flex}
+          innerStyle={styles.face}
+        >
+          <Text style={styles.icon}>{isFav ? '★' : '⭐'}</Text>
+          <Text style={[styles.label, styles.onColor]} numberOfLines={1}>
+            관심카드
+          </Text>
+          <Text style={[styles.desc, styles.onColor]}>
+            {favStatus === 'loading' ? '...' : isFav ? '✓' : '추가'}
+          </Text>
+        </PixelPress>
+      </View>
+      <View style={styles.flex}>
+        <PixelPress
+          onPress={openSnkrdunk}
+          bg={colors.ink}
+          borderWidth={3}
+          shadow={4}
+          hi="rgba(255,255,255,0.2)"
+          lo="rgba(0,0,0,0.35)"
+          wrapStyle={styles.flex}
+          innerStyle={styles.face}
+        >
+          <Text style={[styles.icon, styles.gold]}>↗</Text>
+          <Text style={[styles.label, styles.gold]} numberOfLines={1}>
+            SNKDUNK
+          </Text>
+          <Text style={[styles.desc, styles.gold]}>열기</Text>
+        </PixelPress>
+      </View>
     </View>
   );
 }

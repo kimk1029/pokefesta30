@@ -6,7 +6,6 @@ import { useInventory } from '@/components/InventoryProvider';
 import { TradeImagePicker } from '@/components/TradeImagePicker';
 import { REWARDS } from '@/lib/rewards';
 import { AppBar } from '@/components/ui/AppBar';
-import { Chip } from '@/components/ui/Chip';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { TextInput } from '@/components/ui/TextInput';
@@ -44,9 +43,8 @@ async function postJson(path: string, body: unknown) {
 export function WriteScreen({ mode, places = [], prefill }: Props) {
   const router = useRouter();
   const { avatar: avatarId } = useInventory();
-  const [place, setPlace] = useState<string>(
-    mode === 'trade' ? (places[0]?.id ?? '') : '',
-  );
+  // 만남 장소 UI 는 제거됨. 백엔드가 placeId(필수)를 요구하므로 첫 장소를 기본값으로 전송.
+  const [place] = useState<string>(mode === 'trade' ? (places[0]?.id ?? '') : '');
   const [ttype, setTtype] = useState<TradeType>(
     prefill?.title?.startsWith('[판매]') ? 'sell' : 'buy',
   );
@@ -64,7 +62,6 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
   const submit = () => {
     if (pending || submitLockRef.current) return;
     if (mode === 'trade') {
-      if (!place) return setError('장소를 선택해주세요');
       if (!title.trim()) return setError('제목을 입력해주세요');
     }
     if (isFeed) {
@@ -132,21 +129,6 @@ export function WriteScreen({ mode, places = [], prefill }: Props) {
             <TradeTypeButton variant="sell" active={ttype === 'sell'} onClick={() => setTtype('sell')}>
               ❤️ 팝니다
             </TradeTypeButton>
-          </div>
-        </div>
-      )}
-
-      {mode === 'trade' && (
-        <div className="form-sect">
-          <div className="form-label">
-            📍 만남 장소 <span className="req">*</span>
-          </div>
-          <div className="chip-grid">
-            {places.map((p) => (
-              <Chip key={p.id} active={place === p.id} onClick={() => setPlace(p.id)}>
-                {p.emoji} {p.name}
-              </Chip>
-            ))}
           </div>
         </div>
       )}
