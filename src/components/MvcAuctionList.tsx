@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { stripDeadlinePrefix, type MvcAuctionItem, type MvcAuctionPageResult, type MvcLatestBid } from '@/lib/navercafe';
+import { mvcImgProxy, stripDeadlinePrefix, type MvcAuctionItem, type MvcAuctionPageResult, type MvcLatestBid } from '@/lib/navercafe';
 import { FavoriteStar } from '@/components/FavoriteStar';
 import { useListingFavorites, type ListingFavorite } from '@/lib/useListingFavorites';
 
@@ -116,10 +116,10 @@ function AuctionRow({
           // 외부(네이버 카페) 이미지는 일반 <img> 사용
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={item.thumbnailUrl}
+            // 네이버 CDN은 우리 도메인 referer를 403 차단 → pstatic 이미지는 서버 프록시 경유
+            src={mvcImgProxy(item.thumbnailUrl)}
             alt=""
             loading="lazy"
-            // 네이버 이미지 CDN은 우리 도메인 referer를 403 차단 → referer 미전송
             referrerPolicy="no-referrer"
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />

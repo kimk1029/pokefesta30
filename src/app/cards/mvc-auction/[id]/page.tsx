@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { fetchMvcArticle, type MvcArticleDetail, type MvcCommentItem } from '@/lib/navercafe';
+import { fetchMvcArticle, mvcImgProxy, type MvcArticleDetail, type MvcCommentItem } from '@/lib/navercafe';
 
 export const dynamic = 'force-dynamic';
 
@@ -193,10 +193,10 @@ export default async function Page({ params }: { params: { id: string } }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={src}
-              src={src}
+              // CDN이 우리 도메인 referer를 403 차단 → 서버 프록시 경유로 로드
+              src={mvcImgProxy(src)}
               alt=""
               loading="lazy"
-              // 네이버 이미지 CDN은 우리 도메인 referer를 403 차단 → referer 미전송
               referrerPolicy="no-referrer"
               style={{ width: '100%', height: 'auto', display: 'block', border: '2px solid var(--line)' }}
             />

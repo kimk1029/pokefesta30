@@ -92,6 +92,17 @@ export function mvcArticleUrl(articleId: number): string {
   return `${CAFE_ORIGIN}/f-e/cafes/${MVC_CLUB_ID}/articles/${articleId}`;
 }
 
+/**
+ * 네이버 카페 이미지(pstatic)를 우리 프록시 경유 URL로 변환.
+ * pstatic CDN 이 외부 referer 를 403 차단하므로, 서버에서 referer 없이 받아 되돌려준다.
+ * pstatic 호스트가 아니거나 빈 값이면 원본을 그대로 반환.
+ */
+export function mvcImgProxy(url: string | null | undefined): string {
+  if (!url) return '';
+  if (!/^https:\/\/[^/]*\.pstatic\.net\//.test(url)) return url;
+  return `/api/navercafe/img?u=${encodeURIComponent(url)}`;
+}
+
 /** KST(Asia/Seoul) 기준 연·월·일. */
 export function kstDateParts(now = Date.now()): { y: number; m: number; d: number } {
   const s = new Intl.DateTimeFormat('en-CA', {
