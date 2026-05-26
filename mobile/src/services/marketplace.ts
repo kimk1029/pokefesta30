@@ -333,6 +333,191 @@ export async function fetchMvcLatestBids(
   return map;
 }
 
+/* ── 경매글 상세 (본문/이미지/댓글) — 웹 navercafe.fetchMvcArticle 의 모바일 포팅 ── */
+
+export interface MvcCommentItem {
+  id: number;
+  writerNickname: string;
+  content: string;
+  writtenAt: number;
+  writtenAgo: string;
+  /** 글 작성자(판매자)가 단 댓글인지. */
+  byArticleWriter: boolean;
+  deleted: boolean;
+}
+
+export interface MvcArticleDetail {
+  articleId: number;
+  subject: string;
+  writerNickname: string;
+  readCount: number;
+  commentCount: number;
+  writtenAgo: string;
+  /** 본문 평문 텍스트. */
+  contentText: string;
+  /** 본문 이미지 URL(중간 크기). */
+  images: string[];
+  /** 작성순(오래된→최신) 댓글. */
+  comments: MvcCommentItem[];
+  /** 최종호가(가장 최근 유효 댓글). */
+  latestBid: MvcCommentItem | null;
+  latestBidAmount: number | null;
+  sourceUrl: string;
+}
+
+interface RawArticleFull {
+  result?: {
+    article?: {
+      subject?: string;
+      contentHtml?: string;
+      writeDate?: number;
+      readCount?: number;
+      commentCount?: number;
+      writer?: { nick?: string };
+    };
+  };
+}
+interface RawCommentFull {
+  id: number;
+  content?: string;
+  updateDate?: number;
+  writer?: { nick?: string };
+  isArticleWriter?: boolean;
+  isDeleted?: boolean;
+}
+interface RawCommentsPage {
+  result?: { comments?: { items?: RawCommentFull[] }; hasNext?: boolean };
+}
+
+const CAFE_IMG_RE_G = /<img[^>]+src="(https:\/\/[^"]+)"/gi;
+
+/** 네이버 카페 이미지 URL의 type 파라미터를 원하는 크기로(없으면 추가). */
+function cafeImg(url: string, type: string): string {
+  const clean = decodeHtmlEntities(url);
+  if (!/^https?:\/\//.test(clean)) return clean;
+  return /[?&]type=/.test(clean) ? clean.replace(/([?&]type=)[^&]+/, `$1${type}`) : `${clean}?type=${type}`;
+}
+
+/** 본문 HTML → 이미지 URL 목록(중복 제거, 최대 20). */
+function extractImages(html: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const re = new RegExp(CAFE_IMG_RE_G.source, CAFE_IMG_RE_G.flags);
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const url = decodeHtmlEntities(m[1]);
+    if (seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+/** 본문 HTML → 평문 텍스트. */
+function htmlToText(html: string): string {
+  if (!html) return '';
+  let s = html;
+  s = s.replace(/<\s*(script|style)[^>]*>[\s\S]*?<\/\s*\1\s*>/gi, '');
+  s = s.replace(/<\s*br\s*\/?\s*>/gi, '\n');
+  s = s.replace(/<\/\s*(p|div|li|tr|h[1-6])\s*>/gi, '\n');
+  s = s.replace(/<[^>]+>/g, '');
+  s = decodeHtmlEntities(s);
+  s = s.replace(/​/g, '');
+  s = s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+  return s.trim();
+}
+
+async function cafeJson<T>(url: string, articleId: number): Promise<T | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'Accept-Language': 'ko,en-US;q=0.8',
+        'User-Agent': USER_AGENT,
+        Referer: `${CAFE_ORIGIN}/f-e/cafes/${MVC_CLUB_ID}/articles/${articleId}`,
+      },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+function mapComment(c: RawCommentFull): MvcCommentItem {
+  const writtenAt = c.updateDate ?? 0;
+  return {
+    id: c.id,
+    writerNickname: c.writer?.nick ?? '',
+    content: c.isDeleted ? '(삭제된 댓글)' : (c.content ?? '').trim(),
+    writtenAt,
+    writtenAgo: relativeTimeKo(writtenAt),
+    byArticleWriter: Boolean(c.isArticleWriter),
+    deleted: Boolean(c.isDeleted),
+  };
+}
+
+/** v2 댓글 API로 전 페이지 수집(작성순, 중복 제거, cap 제한). */
+async function fetchAllComments(articleId: number, cap = 300): Promise<MvcCommentItem[]> {
+  const out: MvcCommentItem[] = [];
+  const seen = new Set<number>();
+  for (let page = 1; page <= 30 && out.length < cap; page++) {
+    const url =
+      `${NAVER_API}/cafe-web/cafe-articleapi/v2/cafes/${MVC_CLUB_ID}/articles/${articleId}` +
+      `/comments/pages/${page}?requestFrom=A&orderBy=asc&page=${page}`;
+    const raw = await cafeJson<RawCommentsPage>(url, articleId);
+    const items = raw?.result?.comments?.items ?? [];
+    if (items.length === 0) break;
+    let added = 0;
+    for (const c of items) {
+      if (seen.has(c.id)) continue;
+      seen.add(c.id);
+      out.push(mapComment(c));
+      added++;
+    }
+    if (!raw?.result?.hasNext || added === 0) break;
+  }
+  return out.slice(0, cap);
+}
+
+function pickLatestComment(comments: MvcCommentItem[]): MvcCommentItem | null {
+  let best: MvcCommentItem | null = null;
+  for (const c of comments) {
+    if (c.deleted || !c.content) continue;
+    if (!best || c.writtenAt > best.writtenAt) best = c;
+  }
+  return best;
+}
+
+/** 단일 경매글 상세(본문 + 이미지 + 전체 댓글). 실패 시 null. */
+export async function fetchMvcArticle(articleId: number): Promise<MvcArticleDetail | null> {
+  if (!Number.isInteger(articleId) || articleId <= 0) return null;
+  const url =
+    `${NAVER_API}/cafe-web/cafe-articleapi/v3/cafes/${MVC_CLUB_ID}/articles/${articleId}` +
+    `?query=&useCafeId=true&requestFrom=A`;
+  const raw = await cafeJson<RawArticleFull>(url, articleId);
+  const article = raw?.result?.article;
+  if (!article) return null;
+  const html = article.contentHtml ?? '';
+  const comments = await fetchAllComments(articleId);
+  const latestBid = pickLatestComment(comments);
+  return {
+    articleId,
+    subject: (article.subject ?? '').trim(),
+    writerNickname: article.writer?.nick ?? '',
+    readCount: article.readCount ?? 0,
+    commentCount: article.commentCount ?? comments.length,
+    writtenAgo: relativeTimeKo(article.writeDate ?? 0),
+    contentText: htmlToText(html),
+    images: extractImages(html).map((u) => cafeImg(u, 'w640')),
+    comments,
+    latestBid,
+    latestBidAmount: latestBid ? parseBidAmount(latestBid.content) : null,
+    sourceUrl: mvcArticleUrl(articleId),
+  };
+}
+
 /** 응답이 없을 때 무한 대기하지 않도록 ms 후 abort 하는 시그널. */
 function abortAfter(ms: number): AbortSignal {
   const c = new AbortController();

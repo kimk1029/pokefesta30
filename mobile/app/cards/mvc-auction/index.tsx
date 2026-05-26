@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
@@ -230,7 +230,7 @@ function AuctionRow({
   return (
     // 웹 .shop-card 재현: 썸네일 84(높이 채움) + 본문(제목/최종호가/메타), 별은 우상단 오버레이.
     <View style={{ position: 'relative' }}>
-      <PixelPress onPress={() => Linking.openURL(item.sourceUrl)} bg={colors.white} borderWidth={3} shadow={6} hi={null} lo={null}>
+      <PixelPress onPress={() => router.push(`/cards/mvc-auction/${item.articleId}`)} bg={colors.white} borderWidth={3} shadow={6} hi={null} lo={null}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
           <View
             style={{
