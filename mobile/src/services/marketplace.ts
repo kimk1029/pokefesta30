@@ -510,7 +510,8 @@ export async function fetchMvcArticle(articleId: number): Promise<MvcArticleDeta
     commentCount: article.commentCount ?? comments.length,
     writtenAgo: relativeTimeKo(article.writeDate ?? 0),
     contentText: htmlToText(html),
-    images: extractImages(html).map((u) => cafeImg(u, 'w640')),
+    // pstatic CDN은 고정 프리셋(w300/w800/w1600)만 지원 — w800 사용(w640 등은 404).
+    images: extractImages(html).map((u) => cafeImg(u, 'w800')),
     comments,
     latestBid,
     latestBidAmount: latestBid ? parseBidAmount(latestBid.content) : null,
