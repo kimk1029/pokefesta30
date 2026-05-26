@@ -189,3 +189,17 @@ export function cardPrice(card: CardItem, mode: PriceMode = 'single'): number {
 export function cardKrw(card: CardItem, mode: PriceMode = 'single'): number {
   return toKrw(cardPrice(card, mode), inferCardCurrency(card));
 }
+
+/** Convert any price+currency pair to JPY. KRW values are divided back by the
+ *  same constant used for aggregation. Used to feed the currency-aware
+ *  `format()` (which takes JPY) so home metrics respect the 엔/원 setting. */
+export function toJpy(price: number, currency: PriceCurrency = 'KRW'): number {
+  if (!price || price <= 0) return 0;
+  if (currency === 'KRW') return Math.round(price / JPY_TO_KRW);
+  return price;
+}
+
+/** Card-aware JPY value — feed to CurrencyProvider `format()`. */
+export function cardJpy(card: CardItem, mode: PriceMode = 'single'): number {
+  return toJpy(cardPrice(card, mode), inferCardCurrency(card));
+}

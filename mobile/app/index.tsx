@@ -24,7 +24,7 @@ function useAuthed(): boolean {
   }, []);
   return authed;
 }
-import { RARS, gameColors, fmt, priceLabel, displayCardName, inferCardCurrency, cardKrw, cardPrice, type Game, type Rarity } from '@/data/cardvault';
+import { RARS, gameColors, fmt, priceLabel, displayCardName, inferCardCurrency, cardKrw, cardJpy, cardPrice, type Game, type Rarity } from '@/data/cardvault';
 import { updateCard, useCollection } from '@/lib/collection';
 import { usePriceMode } from '@/lib/priceMode';
 import { useCurrency } from '@/components/CurrencyProvider';
@@ -203,6 +203,8 @@ export default function Home() {
   // are converted via toKrw() so they don't get summed at face value. The
   // global priceMode picks singles vs PSA-10 medians per card.
   const totalVal = owned.reduce((a, c) => a + cardKrw(c, priceMode), 0);
+  // 통화-반영 표시용 합계(JPY). format() 가 엔/원 설정에 맞게 변환한다.
+  const totalJpy = owned.reduce((a, c) => a + cardJpy(c, priceMode), 0);
   const prevVal = Math.round(totalVal * 0.88);
   const changePct = prevVal > 0 ? Math.round(((totalVal - prevVal) / prevVal) * 100) : 0;
   const graded = owned.filter((c) => c.grade != null);
@@ -217,7 +219,7 @@ export default function Home() {
   const gameDist = presentGames.map((g) => ({
     g,
     n: owned.filter((c) => c.game === g).length,
-    val: owned.filter((c) => c.game === g).reduce((a, c) => a + cardKrw(c, priceMode), 0),
+    val: owned.filter((c) => c.game === g).reduce((a, c) => a + cardJpy(c, priceMode), 0),
   }));
 
   // 컬렉션 평가액 차트 (오래된→최신). 서버 일별 스냅샷을 일/주/월 종가로 집계.
@@ -751,9 +753,9 @@ export default function Home() {
           <SectHd title="핵심 지표" />
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: 14, marginBottom: 6 }}>
-          <Block label="컬렉션 가치" value={`₩${fmt(totalVal)}`} sub={`▲ +${changePct}% 지난주`} color={colors.goldDk} icon="💰" />
+          <Block label="컬렉션 가치" value={formatCurrency(serverPortfolio?.totalJpy ?? totalJpy)} sub={`▲ +${changePct}% 지난주`} color={colors.goldDk} icon="💰" />
           <Block label="그레이딩률" value={`${gradedPct}%`} sub={`${graded.length} / ${owned.length}장`} color={colors.pur} icon="🏆" />
-          <Block label="최고가 카드" value={`₩${fmt(topCards[0] ? cardKrw(topCards[0], priceMode) : 0)}`} sub={topCards[0] ? displayCardName(topCards[0].name) : undefined} color={colors.grnDk} icon="🎯" />
+          <Block label="최고가 카드" value={formatCurrency(topCards[0] ? cardJpy(topCards[0], priceMode) : 0)} sub={topCards[0] ? displayCardName(topCards[0].name) : undefined} color={colors.grnDk} icon="🎯" />
           <Block label="이번주 거래" value={`${TRADES}건`} sub="+45P 포인트 획득" color={colors.blu} icon="🤝" onPress={() => router.push('/feed' as never)} />
         </View>
 
@@ -796,7 +798,7 @@ export default function Home() {
                     }}
                   >
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <PixelText variant="pixel" size={11} style={{ flex: 1 }}>
+                    <PixelText variant="pixel" size={12} style={{ flex: 1 }}>
                       {g}
                     </PixelText>
                     <PixelText variant="pixel" size={11} color={colors.ink3}>
@@ -812,7 +814,7 @@ export default function Home() {
                     </PixelText>
                   </View>
                   <PixelText variant="pixel" size={11} color={colors.grnDk} style={{ marginBottom: 8 }}>
-                    ₩{fmt(val)}
+                    {formatCurrency(val)}
                   </PixelText>
                   <View style={{ flexDirection: 'row', height: 8 }}>
                     {RARS.map((r) => {
@@ -1036,7 +1038,7 @@ function Block({
           {icon}
         </Text>
       ) : null}
-      <PixelText variant="pixel" size={9} color={colors.ink3} numberOfLines={1}>
+      <PixelText variant="pixel" size={10} color={colors.ink3} numberOfLines={1}>
         {label}
       </PixelText>
       <PixelText
@@ -1100,7 +1102,7 @@ function QuickBtn({ icon, label, bg, href }: { icon: ReactNode; label: string; b
           >
             {typeof icon === 'string' ? <Text style={{ fontSize: 17 }}>{icon}</Text> : icon}
           </View>
-          <PixelText variant="pixel" size={8} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
+          <PixelText variant="pixel" size={9} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
             {label}
           </PixelText>
         </View>
