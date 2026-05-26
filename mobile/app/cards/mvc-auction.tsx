@@ -149,7 +149,7 @@ export default function MvcAuctionScreen() {
       <AppBar onBack={() => router.back()} title="MVC 경매" />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 110, gap: 10 }}
+        contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 110, gap: 6 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
       >
         <Header />
@@ -228,50 +228,62 @@ function AuctionRow({
         : bid.content || '입찰';
 
   return (
-    <PixelPress onPress={() => Linking.openURL(item.sourceUrl)} bg={colors.white} borderWidth={3} shadow={5} hi={null} lo={null}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 }}>
-        <View
-          style={{
-            width: 64,
-            height: 64,
-            backgroundColor: colors.pap2,
-            borderColor: colors.ink,
-            borderWidth: 2,
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          {item.thumbnailUrl ? (
-            <Image source={{ uri: item.thumbnailUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-          ) : (
-            <Text style={{ fontSize: 24 }}>🃏</Text>
-          )}
+    // 웹 .shop-card 재현: 썸네일 84(높이 채움) + 본문(제목/최종호가/메타), 별은 우상단 오버레이.
+    <View style={{ position: 'relative' }}>
+      <PixelPress onPress={() => Linking.openURL(item.sourceUrl)} bg={colors.white} borderWidth={3} shadow={6} hi={null} lo={null}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
+          <View
+            style={{
+              width: 84,
+              height: 84,
+              backgroundColor: colors.ink2,
+              borderColor: colors.ink,
+              borderWidth: 2,
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+            }}
+          >
+            {item.thumbnailUrl ? (
+              <Image source={{ uri: item.thumbnailUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+            ) : (
+              <Text style={{ fontSize: 30 }}>🔨</Text>
+            )}
+          </View>
+          <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
+            {/* 제목 — 웹 .sh-title (Galmuri regular, 2줄) */}
+            <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17, paddingRight: 22 }}>
+              {item.subject}
+            </PixelText>
+            {/* 최종호가 — 제목 아래 좌측, 빨강 강조 */}
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 7 }}>
+              <PixelText variant="pixel" size={7} color={colors.ink3}>
+                최종호가
+              </PixelText>
+              <PixelText
+                variant="pixel"
+                size={14}
+                color={hasComments ? colors.red : colors.ink3}
+                numberOfLines={1}
+                style={{ flexShrink: 1 }}
+              >
+                {bidLabel}
+              </PixelText>
+            </View>
+            {/* 메타 — 입찰 수 · 시각 */}
+            <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
+              🔨 입찰 {item.commentCount}
+              {item.writtenAgo ? `   🕒 ${item.writtenAgo}` : ''}
+            </PixelText>
+          </View>
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <PixelText variant="ko" size={12} weight="bold" numberOfLines={2} style={{ lineHeight: 16 }}>
-            {item.subject}
-          </PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 5 }}>
-            🔨 입찰 {item.commentCount}
-            {item.writtenAgo ? ` · ${item.writtenAgo}` : ''}
-          </PixelText>
-        </View>
-        <View style={{ alignItems: 'flex-end', justifyContent: 'center', gap: 3, minWidth: 62 }}>
-          {/* 별 토글 — 행 자체의 onPress(외부 링크)보다 우선 캡처 */}
-          <Pressable onPress={onToggleFav} hitSlop={10} style={{ padding: 2 }}>
-            <Text style={{ fontSize: 20, lineHeight: 22, color: fav ? colors.gold : colors.ink4 }}>
-              {fav ? '★' : '☆'}
-            </Text>
-          </Pressable>
-          <PixelText variant="pixel" size={7} color={colors.ink3}>
-            최종호가
-          </PixelText>
-          <PixelText variant="pixel" size={11} color={hasComments ? colors.red : colors.ink3} numberOfLines={1}>
-            {bidLabel}
-          </PixelText>
-        </View>
-      </View>
-    </PixelPress>
+      </PixelPress>
+      {/* 별 토글 — 우상단 오버레이 (행 onPress 보다 우선) */}
+      <Pressable onPress={onToggleFav} hitSlop={10} style={{ position: 'absolute', top: 8, right: 8, padding: 4, zIndex: 2 }}>
+        <Text style={{ fontSize: 20, lineHeight: 22, color: fav ? colors.gold : colors.ink4 }}>
+          {fav ? '★' : '☆'}
+        </Text>
+      </Pressable>
+    </View>
   );
 }

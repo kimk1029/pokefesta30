@@ -94,7 +94,7 @@ export default function BunjangScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.pid}
-        contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 110, gap: 10 }}
+        contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 110, gap: 6 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(submitted, true)} />}
         ListHeaderComponent={header}
         ListEmptyComponent={
@@ -127,13 +127,14 @@ export default function BunjangScreen() {
 
 function MarketRow({ item }: { item: BunjangItem }) {
   return (
-    <PixelPress onPress={() => Linking.openURL(item.productUrl)} bg={colors.white} borderWidth={3} shadow={5} hi={null} lo={null}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 }}>
+    // 웹 .shop-card 재현: 썸네일 84 + 본문(제목 regular / 가격 빨강 / 메타).
+    <PixelPress onPress={() => Linking.openURL(item.productUrl)} bg={colors.white} borderWidth={3} shadow={6} hi={null} lo={null}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
         <View
           style={{
-            width: 72,
-            height: 72,
-            backgroundColor: colors.pap2,
+            width: 84,
+            height: 84,
+            backgroundColor: colors.ink2,
             borderColor: colors.ink,
             borderWidth: 2,
             alignItems: 'center',
@@ -144,23 +145,18 @@ function MarketRow({ item }: { item: BunjangItem }) {
           {item.imageUrl ? (
             <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
           ) : (
-            <Text style={{ fontSize: 24 }}>🃏</Text>
+            <Text style={{ fontSize: 30 }}>🃏</Text>
           )}
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <PixelText variant="ko" size={12} weight="bold" numberOfLines={2} style={{ lineHeight: 16 }}>
+        <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
+          <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17 }}>
             {item.name}
           </PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 5 }}>
-            {item.location || '지역 미표기'} · 찜 {item.favCount}
+          <PixelText variant="pixel" size={14} color={colors.red} numberOfLines={1} style={{ marginTop: 7 }}>
+            {item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
           </PixelText>
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: 5 }}>
-          <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
-            {item.price > 0 ? `₩${item.price.toLocaleString('ko-KR')}` : '가격문의'}
-          </PixelText>
-          <PixelText variant="pixel" size={11} color={colors.ink3}>
-            ›
+          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
+            📍 {item.location || '지역 미표기'}   ❤ {item.favCount}
           </PixelText>
         </View>
       </View>

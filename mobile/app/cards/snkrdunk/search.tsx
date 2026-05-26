@@ -288,7 +288,7 @@ export default function SnkrdunkSearchScreen() {
               ) : hits.length === 0 ? (
                 <EmptyState icon="🔍" title="SNKRDUNK 결과가 없습니다" desc={initialQuery} />
               ) : (
-                <View style={{ gap: 10 }}>
+                <View style={{ gap: 6 }}>
                   {hits.map((hit) => (
                     <SnkrdunkRow key={hit.apparelId} hit={hit} />
                   ))}
@@ -307,7 +307,7 @@ export default function SnkrdunkSearchScreen() {
               ) : bunjang.length === 0 ? (
                 <EmptyState icon="📦" title="번개장터 결과가 없습니다" desc={initialQuery} />
               ) : (
-                <View style={{ gap: 10 }}>
+                <View style={{ gap: 6 }}>
                   {bunjang.map((item) => (
                     <BunjangRow key={item.pid} item={item} />
                   ))}
@@ -411,12 +411,12 @@ function SnkrdunkRow({ hit }: { hit: Hit }) {
       hi={null}
       lo={null}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
         <View
           style={{
-            width: 76,
-            height: 76,
-            backgroundColor: colors.pap2,
+            width: 84,
+            height: 84,
+            backgroundColor: colors.ink2,
             borderColor: colors.ink,
             borderWidth: 2,
             alignItems: 'center',
@@ -427,23 +427,21 @@ function SnkrdunkRow({ hit }: { hit: Hit }) {
           {hit.imageUrl ? (
             <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
           ) : (
-            <Text style={{ fontSize: 24 }}>🃏</Text>
+            <Text style={{ fontSize: 30 }}>🃏</Text>
           )}
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <PixelText variant="ko" size={12} weight="bold" numberOfLines={2} style={{ lineHeight: 16 }}>
+        <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
+          <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17 }}>
             {hit.koName}
           </PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 5 }}>
-            {hit.jpName}
+          <PixelText variant="pixel" size={14} color={colors.red} numberOfLines={1} style={{ marginTop: 7 }}>
+            {fmtYen(hit.minPrice)}
           </PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 5 }}>
-            {hit.listingCountText ? `매물 ${hit.listingCountText}건` : ' '}
+          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
+            {hit.jpName}
+            {hit.listingCountText ? `   매물 ${hit.listingCountText}건` : ''}
           </PixelText>
         </View>
-        <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
-          {fmtYen(hit.minPrice)}
-        </PixelText>
       </View>
     </PixelPress>
   );
@@ -451,7 +449,7 @@ function SnkrdunkRow({ hit }: { hit: Hit }) {
 
 function KreamPanel({ query, items, loading }: { query: string; items: KreamItem[]; loading: boolean }) {
   return (
-    <View style={{ gap: 10 }}>
+    <View style={{ gap: 6 }}>
       {loading ? (
         <Spinner />
       ) : items.length > 0 ? (
@@ -495,12 +493,12 @@ function KreamRow({ item }: { item: KreamItem }) {
       hi={null}
       lo={null}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
         <View
           style={{
-            width: 76,
-            height: 76,
-            backgroundColor: colors.pap2,
+            width: 84,
+            height: 84,
+            backgroundColor: colors.ink2,
             borderColor: colors.ink,
             borderWidth: 2,
             alignItems: 'center',
@@ -511,20 +509,20 @@ function KreamRow({ item }: { item: KreamItem }) {
           {item.imageUrl ? (
             <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
           ) : (
-            <Text style={{ fontSize: 24 }}>🃏</Text>
+            <Text style={{ fontSize: 30 }}>🃏</Text>
           )}
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <PixelText variant="ko" size={12} weight="bold" numberOfLines={2} style={{ lineHeight: 16 }}>
+        <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
+          <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17 }}>
             {item.name}
           </PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 5 }}>
+          <PixelText variant="pixel" size={14} color={colors.red} numberOfLines={1} style={{ marginTop: 7 }}>
+            {item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
+          </PixelText>
+          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
             KREAM
           </PixelText>
         </View>
-        <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
-          {item.price > 0 ? `₩${item.price.toLocaleString('ko-KR')}` : '가격문의'}
-        </PixelText>
       </View>
     </PixelPress>
   );
@@ -540,12 +538,12 @@ function BunjangRow({ item }: { item: BunjangItem }) {
       hi={null}
       lo={null}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
         <View
           style={{
-            width: 76,
-            height: 76,
-            backgroundColor: colors.pap2,
+            width: 84,
+            height: 84,
+            backgroundColor: colors.ink2,
             borderColor: colors.ink,
             borderWidth: 2,
             alignItems: 'center',
@@ -556,20 +554,20 @@ function BunjangRow({ item }: { item: BunjangItem }) {
           {item.imageUrl ? (
             <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
           ) : (
-            <Text style={{ fontSize: 24 }}>📦</Text>
+            <Text style={{ fontSize: 30 }}>📦</Text>
           )}
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <PixelText variant="ko" size={12} weight="bold" numberOfLines={2} style={{ lineHeight: 16 }}>
+        <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
+          <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17 }}>
             {item.name}
           </PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 5 }}>
-            {(item.location || '지역 미표기') + ' · 찜 ' + item.favCount}
+          <PixelText variant="pixel" size={14} color={colors.red} numberOfLines={1} style={{ marginTop: 7 }}>
+            {item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
+          </PixelText>
+          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
+            📍 {item.location || '지역 미표기'}   ❤ {item.favCount}
           </PixelText>
         </View>
-        <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
-          {item.price > 0 ? `₩${item.price.toLocaleString('ko-KR')}` : '가격문의'}
-        </PixelText>
       </View>
     </PixelPress>
   );
