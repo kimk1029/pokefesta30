@@ -37,12 +37,9 @@ export function PixelDeco({
   cut,
   border = true,
   hi = null,
-  lo = null,
   inner = 3,
-  loThick,
   pressed = false,
 }: DecoProps) {
-  const lt = loThick ?? Math.max(2, inner + 1);
   return (
     <>
       {/* 채움 십자 — 꼭지점 4칸만 비움 */}
@@ -57,19 +54,11 @@ export function PixelDeco({
           <View pointerEvents="none" style={[styles.abs, { right: 0, top: cut, bottom: cut, width: cut, backgroundColor: edge }]} />
         </>
       ) : null}
-      {/* 상/좌 하이라이트 (누를 땐 숨김) */}
+      {/* 상단 하이라이트만 (밝은 띠 — 그림자가 아님, 누를 땐 숨김).
+          하단/좌/우 음영(lo) 베벨은 그리지 않는다: 면 안쪽 회색 띠 + 바깥 드롭섀도가
+          "그림자의 그림자"(2단)로 보였기 때문. 깊이감은 단일 드롭섀도로만 준다. */}
       {hi && !pressed ? (
-        <>
-          <View pointerEvents="none" style={[styles.abs, { top: cut, left: cut, right: cut, height: inner, backgroundColor: hi }]} />
-          <View pointerEvents="none" style={[styles.abs, { left: cut, top: cut, bottom: cut, width: inner, backgroundColor: hi }]} />
-        </>
-      ) : null}
-      {/* 하/우 음영 */}
-      {lo ? (
-        <>
-          <View pointerEvents="none" style={[styles.abs, { bottom: cut, left: cut, right: cut, height: lt, backgroundColor: lo }]} />
-          <View pointerEvents="none" style={[styles.abs, { right: cut, top: cut, bottom: cut, width: lt, backgroundColor: lo }]} />
-        </>
+        <View pointerEvents="none" style={[styles.abs, { top: cut, left: cut, right: cut, height: inner, backgroundColor: hi }]} />
       ) : null}
     </>
   );

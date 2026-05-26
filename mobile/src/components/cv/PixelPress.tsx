@@ -44,7 +44,7 @@ export function PixelPress({
   bg = colors.white,
   border = colors.ink,
   borderWidth = 4,
-  shadow = 6,
+  shadow: shadowProp = 6,
   hi = 'rgba(255,255,255,0.85)',
   lo = 'rgba(0,0,0,0.18)',
   inner = 3,
@@ -61,6 +61,9 @@ export function PixelPress({
   const edge = border === colors.ink ? c.ink : border;
   const loThick = Math.max(2, inner + 1);
   const cut = borderWidth;
+  // 앱은 ink 테두리(면 안쪽) + 드롭섀도(바깥)가 같은 색이라 합쳐져 웹보다 두껍게 보인다.
+  // 드롭 오프셋을 2px 줄여 그림자를 얇게(웹 체감과 비슷하게). 0 은 그대로(섀도 없음).
+  const shadow = shadowProp > 0 ? Math.max(1, shadowProp - 2) : 0;
 
   // 누른 상태에서 남는 잔여 그림자(웹: rest 5→active 2, rest 8→active 4 ≈ 절반).
   // 면은 (shadow - 잔여) 만큼 우하단으로 내려가 그림자 위에 안착한다 → 좌상단엔 그림자가 안 보이고

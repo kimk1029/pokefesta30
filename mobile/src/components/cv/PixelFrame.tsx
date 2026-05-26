@@ -32,7 +32,7 @@ export function PixelFrame({
   bg = colors.white,
   border = colors.ink,
   borderWidth = 4,
-  shadow = 6,
+  shadow: shadowProp = 6,
   shadowColor,
   hi = 'rgba(255,255,255,0.85)',
   lo = 'rgba(0,0,0,0.18)',
@@ -47,6 +47,9 @@ export function PixelFrame({
   const shadowFill = shadowColor ?? edge;
   const loThick = Math.max(2, inner + 1); // 웹: 하단 음영(4px)이 상단 하이라이트(3px)보다 한 칸 두껍다
   const cut = borderWidth;
+  // 앱은 ink 테두리(면 안쪽) + 드롭섀도(바깥)가 같은 색이라 합쳐져 웹보다 두껍게 보인다.
+  // 드롭 오프셋을 2px 줄여 그림자를 얇게(웹 체감과 비슷하게). 0 은 그대로(섀도 없음).
+  const shadow = shadowProp > 0 ? Math.max(1, shadowProp - 2) : 0;
   return (
     <View {...rest} style={[styles.wrap, { marginRight: shadow, marginBottom: shadow }, style]}>
       {/* 꼭지점 빈 단일 하드 드롭섀도 */}
