@@ -137,8 +137,8 @@ export default function SnkrdunkDetail() {
           </View>
         ) : (
           <>
-            {/* Hero card */}
-            <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
+            {/* Hero card — 아래 액션버튼과의 간격은 CardActions marginTop 로만(70% 축소). */}
+            <View style={{ marginHorizontal: 14, marginBottom: 0 }}>
               <PixelFrame bg={colors.white}>
                 <View style={{ padding: 14, flexDirection: 'row', gap: 14 }}>
                   <Pressable

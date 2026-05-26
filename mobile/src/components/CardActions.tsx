@@ -186,7 +186,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginHorizontal: 14,
-    marginVertical: 12,
+    // 상단 카드정보와의 간격을 70% 축소(기존 24px → 7px). 하단은 차트 섹션과 유지.
+    marginTop: 7,
+    marginBottom: 12,
   },
   flex: { flex: 1 },
   // 아이콘·텍스트·상태를 한 줄로 — 세로로 얇은 버튼.
