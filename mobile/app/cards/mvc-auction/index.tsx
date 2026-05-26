@@ -10,6 +10,7 @@ import {
   fetchMvcAuctions,
   fetchMvcLatestBids,
   mvcArticleUrl,
+  mvcImgProxy,
   type MvcAuctionItem,
   type MvcLatestBid,
 } from '@/services/marketplace';
@@ -245,7 +246,7 @@ function AuctionRow({
             }}
           >
             {item.thumbnailUrl ? (
-              <Image source={{ uri: item.thumbnailUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              <Image source={{ uri: mvcImgProxy(item.thumbnailUrl) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
             ) : (
               <Text style={{ fontSize: 30 }}>🔨</Text>
             )}

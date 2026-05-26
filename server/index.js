@@ -66,6 +66,49 @@ app.use('/api/admin', adminRouter);
 app.use('/api/banners', bannersRouter);
 app.use('/api/places', placesRouter);
 app.use('/api/users', usersRouter);
+
+const NAVER_IMAGE_HOST_SUFFIX = '.pstatic.net';
+const NAVER_IMAGE_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+app.get('/api/navercafe/img', async (req, res) => {
+  const rawUrl = typeof req.query.u === 'string' ? req.query.u : '';
+  if (!rawUrl) return res.status(400).send('missing u');
+
+  let target;
+  try {
+    target = new URL(rawUrl);
+  } catch {
+    return res.status(400).send('bad url');
+  }
+
+  if (target.protocol !== 'https:' || !target.hostname.endsWith(NAVER_IMAGE_HOST_SUFFIX)) {
+    return res.status(403).send('forbidden host');
+  }
+
+  try {
+    const upstream = await fetch(target.toString(), {
+      headers: {
+        'User-Agent': NAVER_IMAGE_UA,
+        Accept: 'image/avif,image/webp,image/png,image/jpeg,*/*',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!upstream.ok || !upstream.body) {
+      return res.status(502).send(`upstream ${upstream.status}`);
+    }
+
+    res.status(200);
+    res.setHeader('Content-Type', upstream.headers.get('content-type') ?? 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800');
+
+    const buf = Buffer.from(await upstream.arrayBuffer());
+    return res.send(buf);
+  } catch {
+    return res.status(502).send('fetch failed');
+  }
+});
+
 app.use(express.static(join(__dirname, 'public')));
 // Expose /debug/* for inspecting last-scan crops in the browser.
 app.use('/debug', express.static(DEBUG_DIR));

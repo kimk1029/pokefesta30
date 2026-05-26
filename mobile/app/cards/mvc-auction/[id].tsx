@@ -7,15 +7,16 @@ import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { SectHd } from '@/components/cv/SectHd';
 import { colors } from '@/theme/tokens';
-import { fetchMvcArticle, type MvcArticleDetail, type MvcCommentItem } from '@/services/marketplace';
+import { fetchMvcArticle, mvcImgProxy, type MvcArticleDetail, type MvcCommentItem } from '@/services/marketplace';
 
 /** 본문 이미지 — 원본 비율을 유지해 폭 100%로 렌더(웹 width:100% height:auto 재현). */
 function ArticleImage({ uri }: { uri: string }) {
   const [ratio, setRatio] = useState(0);
+  const proxiedUri = mvcImgProxy(uri);
   useEffect(() => {
     let alive = true;
     Image.getSize(
-      uri,
+      proxiedUri,
       (w, h) => {
         if (alive && w > 0 && h > 0) setRatio(w / h);
       },
@@ -24,10 +25,10 @@ function ArticleImage({ uri }: { uri: string }) {
     return () => {
       alive = false;
     };
-  }, [uri]);
+  }, [proxiedUri]);
   return (
     <Image
-      source={{ uri }}
+      source={{ uri: proxiedUri }}
       style={{ width: '100%', aspectRatio: ratio || 1, borderWidth: 2, borderColor: colors.pap3, backgroundColor: colors.ink2 }}
       resizeMode="cover"
     />

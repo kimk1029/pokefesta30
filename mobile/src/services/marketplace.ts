@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from '@/lib/apiClient';
+
 const NAVER_API = 'https://apis.naver.com';
 const CAFE_ORIGIN = 'https://cafe.naver.com';
 const BUNJANG_API = 'https://api.bunjang.co.kr';
@@ -73,6 +75,12 @@ interface RawBunjangList {
 
 export function mvcArticleUrl(articleId: number): string {
   return `${CAFE_ORIGIN}/f-e/cafes/${MVC_CLUB_ID}/articles/${articleId}`;
+}
+
+export function mvcImgProxy(url: string | null | undefined): string {
+  if (!url) return '';
+  if (!/^https:\/\/[^/]*\.pstatic\.net\//.test(url)) return url;
+  return `${getApiBaseUrl()}/api/navercafe/img?u=${encodeURIComponent(url)}`;
 }
 
 export function bunjangSearchUrl(query: string): string {
