@@ -29,6 +29,8 @@ function useAuthed(): boolean {
 
 interface MenuItem {
   icon: string;
+  /** 아이콘 박스 배경색 — 웹 .mi-icon 처럼 항목별 컬러. 없으면 기본 pap3. */
+  iconBg?: string;
   label: string;
   desc?: string;
   badge?: string;
@@ -73,30 +75,30 @@ export default function MyScreen() {
     {
       title: '내 활동',
       items: [
-        { icon: '✉️', label: '쪽지함', desc: '거래 채팅', onPress: () => router.push('/my/messages' as never) },
-        { icon: '🃏', label: '내 카드', desc: `${cardCount}장 보유 중`, onPress: () => router.push('/my/cards' as never) },
-        { icon: '⭐', label: '관심카드', desc: '찜한 시세 카드', onPress: () => router.push('/my/favorites' as never) },
-        { icon: '📝', label: '내가 쓴 거래글', desc: `${tradeCount}건`, onPress: () => router.push('/my/trades' as never) },
-        { icon: '🗣', label: '내 피드', desc: '내가 쓴 커뮤니티 글', onPress: () => router.push('/my/feeds' as never) },
-        { icon: '💛', label: '찜한 글', desc: `${savedCount}건`, onPress: () => router.push('/my/bookmarks' as never) },
+        { icon: '✉️', iconBg: '#0D7377', label: '쪽지함', desc: '거래 채팅', onPress: () => router.push('/my/messages' as never) },
+        { icon: '🃏', iconBg: '#FB923C', label: '내 카드', desc: `${cardCount}장 보유 중`, onPress: () => router.push('/my/cards' as never) },
+        { icon: '⭐', iconBg: '#7C3AED', label: '관심카드', desc: '찜한 시세 카드', onPress: () => router.push('/my/favorites' as never) },
+        { icon: '📝', iconBg: '#FFD23F', label: '내가 쓴 거래글', desc: `${tradeCount}건`, onPress: () => router.push('/my/trades' as never) },
+        { icon: '🗣', iconBg: '#6B3FA0', label: '내 피드', desc: '내가 쓴 커뮤니티 글', onPress: () => router.push('/my/feeds' as never) },
+        { icon: '💛', iconBg: '#3A5BD9', label: '찜한 글', desc: `${savedCount}건`, onPress: () => router.push('/my/bookmarks' as never) },
       ],
     },
     {
       title: '상점 바로가기',
       items: [
-        { icon: '🛒', label: '포케30 상점', desc: '아바타·배경·테두리', onPress: () => router.push('/my/shop' as never) },
-        { icon: '🎲', label: '오리파 · 뽑기', desc: '포인트로 박스 뽑기', onPress: () => router.push('/my/oripa' as never) },
+        { icon: '🛒', iconBg: '#6B3FA0', label: '포케30 상점', desc: '아바타·배경·테두리', onPress: () => router.push('/my/shop' as never) },
+        { icon: '🎲', iconBg: '#1B2E89', label: '오리파 · 뽑기', desc: '포인트로 박스 뽑기', onPress: () => router.push('/my/oripa' as never) },
       ],
     },
   ];
 
-  // 설정 섹션의 내비게이션 항목 (통화/테마는 전용 컴포넌트로 별도 렌더).
+  // 설정 섹션의 내비게이션 항목 (통화/테마 행 다음에 같은 컨테이너에 이어 렌더).
   const settingsNav: MenuItem[] = [
-    { icon: '📢', label: '공지사항', badge: 'NEW', onPress: () => router.push('/my/notices' as never) },
-    { icon: '❓', label: 'FAQ · 자주 묻는 질문', onPress: () => router.push('/my/faq' as never) },
-    { icon: '📜', label: '이용약관', onPress: () => router.push('/legal?doc=terms' as never) },
-    { icon: '🔒', label: '개인정보처리방침', onPress: () => router.push('/legal?doc=privacy' as never) },
-    { icon: '🔔', label: '알림 설정', desc: '준비중', disabled: true },
+    { icon: '📢', iconBg: '#FFD23F', label: '공지사항', badge: 'NEW', onPress: () => router.push('/my/notices' as never) },
+    { icon: '❓', iconBg: '#3A5BD9', label: 'FAQ · 자주 묻는 질문', onPress: () => router.push('/my/faq' as never) },
+    { icon: '📜', iconBg: colors.pap2, label: '이용약관', onPress: () => router.push('/legal?doc=terms' as never) },
+    { icon: '🔒', iconBg: '#0D7377', label: '개인정보처리방침', onPress: () => router.push('/legal?doc=privacy' as never) },
+    { icon: '🔔', iconBg: colors.pap2, label: '알림 설정', desc: '준비중', disabled: true },
   ];
 
   return (
@@ -172,13 +174,15 @@ export default function MyScreen() {
           </View>
         ))}
 
-        {/* 설정 — 통화/테마 토글 + 공지/FAQ/약관/개인정보/알림 (웹과 동일) */}
+        {/* 설정 — 통화/테마 + 공지/FAQ/약관/개인정보/알림 을 한 컨테이너에 (웹과 동일 배치). */}
         <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
           <SectHd title="설정" />
-          <CurrencySettingsItem />
-          <ThemeSettingsItem />
           <PixelFrame>
             <View>
+              <CurrencySettingsItem />
+              <View style={{ height: 1, backgroundColor: colors.pap3, marginHorizontal: 14 }} />
+              <ThemeSettingsItem />
+              <View style={{ height: 1, backgroundColor: colors.pap3, marginHorizontal: 14 }} />
               {settingsNav.map((item, i) => (
                 <View key={item.label}>
                   <MenuRow item={item} />
@@ -232,7 +236,7 @@ function MenuRow({ item }: { item: MenuItem }) {
       inner={0}
     >
       <View style={{ paddingHorizontal: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: disabled ? 0.45 : 1 }}>
-        <View style={{ width: 36, height: 36, backgroundColor: colors.pap3, borderColor: colors.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 36, height: 36, backgroundColor: item.iconBg ?? colors.pap3, borderColor: colors.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 18 }}>{item.icon}</Text>
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>

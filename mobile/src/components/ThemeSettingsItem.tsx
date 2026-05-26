@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from './ThemeProvider';
+import { PixelText } from './PixelText';
 import { THEMES, type ThemeId } from '@/lib/theme';
 import { colors, fonts } from '@/theme/tokens';
 
@@ -29,12 +30,15 @@ export function ThemeSettingsItem() {
         <View style={[styles.iconBox, { backgroundColor: SWATCH_BG[theme] }]}>
           <View style={[styles.iconDot, { backgroundColor: SWATCH_DOT[theme] }]} />
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.label}>
-            테마 <Text style={styles.sub}>· {current.label}</Text>
-          </Text>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <PixelText variant="ko" size={12} color={colors.ink} weight="bold" numberOfLines={1}>
+            테마
+          </PixelText>
+          <PixelText variant="ko" size={10} color={colors.ink3} style={{ marginTop: 2 }} numberOfLines={1}>
+            {current.label}
+          </PixelText>
         </View>
-        <Text style={styles.arrow}>▶</Text>
+        <PixelText variant="pixel" size={12} color={colors.ink3}>▶</PixelText>
       </Pressable>
 
       <Modal
@@ -86,21 +90,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.white,
-    paddingVertical: 13,
     paddingHorizontal: 14,
-    marginBottom: 12,
-    shadowColor: colors.ink,
-    shadowOpacity: 1,
-    shadowOffset: { width: 3, height: 3 },
-    shadowRadius: 0,
-    elevation: 2,
+    paddingVertical: 14,
   },
   iconBox: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+    borderColor: colors.ink,
+    borderWidth: 2,
   },
   iconDot: { width: 10, height: 10 },
   label: { fontFamily: fonts.pixel, fontSize: 11, color: colors.ink, letterSpacing: 0.3 },

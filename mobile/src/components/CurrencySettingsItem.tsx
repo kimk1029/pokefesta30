@@ -1,8 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCurrency } from './CurrencyProvider';
+import { PixelText } from './PixelText';
 import { colors, fonts } from '@/theme/tokens';
 
-/** 마이페이지 설정 — 통화 행 (¥ ↔ ₩ 토글). */
+/**
+ * 마이페이지 설정 — 통화 행 (¥ ↔ ₩ 토글).
+ * 다른 설정 메뉴 행과 동일한 스타일(아이콘 36 + ko 라벨/설명)의 "bare row" 로,
+ * 설정 PixelFrame 컨테이너 안에 다른 항목들과 함께 들어간다(웹과 동일 배치).
+ */
 export function CurrencySettingsItem() {
   const { mode, toggle, rate } = useCurrency();
   const isKrw = mode === 'krw';
@@ -12,13 +17,15 @@ export function CurrencySettingsItem() {
       <View style={[styles.icon, { backgroundColor: isKrw ? colors.blu : colors.red }]}>
         <Text style={styles.iconText}>{isKrw ? '₩' : '¥'}</Text>
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.label}>
-          통화 <Text style={styles.sub}>· {isKrw ? '원화 (KRW)' : '엔화 (JPY)'}</Text>
-        </Text>
-        {isKrw && <Text style={styles.rate}>1¥ ≈ {rate.toFixed(2)}₩</Text>}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <PixelText variant="ko" size={12} color={colors.ink} weight="bold" numberOfLines={1}>
+          통화
+        </PixelText>
+        <PixelText variant="ko" size={10} color={colors.ink3} style={{ marginTop: 2 }} numberOfLines={1}>
+          {isKrw ? `원화 (KRW) · 1¥ ≈ ${rate.toFixed(2)}₩` : '엔화 (JPY)'}
+        </PixelText>
       </View>
-      <Text style={styles.arrow}>↔</Text>
+      <PixelText variant="pixel" size={14} color={colors.ink3}>↔</PixelText>
     </Pressable>
   );
 }
@@ -28,25 +35,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: colors.white,
-    paddingVertical: 13,
     paddingHorizontal: 14,
-    marginBottom: 12,
-    shadowColor: colors.ink,
-    shadowOpacity: 1,
-    shadowOffset: { width: 3, height: 3 },
-    shadowRadius: 0,
-    elevation: 2,
+    paddingVertical: 14,
   },
   icon: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+    borderColor: colors.ink,
+    borderWidth: 2,
   },
   iconText: { color: colors.white, fontFamily: fonts.pixel, fontSize: 16 },
-  label: { fontFamily: fonts.pixel, fontSize: 11, color: colors.ink, letterSpacing: 0.3 },
-  sub: { color: colors.ink3, fontSize: 9 },
-  rate: { color: colors.ink3, fontFamily: fonts.pixel, fontSize: 8, marginTop: 3, letterSpacing: 0.3 },
-  arrow: { color: colors.ink3, fontFamily: fonts.pixel, fontSize: 14 },
 });
