@@ -16,9 +16,13 @@ interface UserDetail {
     backgroundId: string; frameId: string; rating: number; points: number;
     ownedAvatars: string[]; ownedBackgrounds: string[]; ownedFrames: string[];
     createdAt: string; updatedAt: string;
-    _count: { feeds: number; trades: number; bookmarks: number; sentMessages: number; receivedMessages: number; oripaTickets: number };
+    _count: {
+      feeds: number; trades: number; bookmarks: number;
+      sentMessages: number; receivedMessages: number; oripaTickets: number;
+      userCards: number; favoriteCards: number; searchLogs: number;
+    };
   };
-  feeds: Array<{ id: number; kind: string; text: string; createdAt: string }>;
+  feeds: Array<{ id: number; text: string; createdAt: string }>;
   trades: Array<{ id: number; type: string; status: string; title: string; price: string | null; createdAt: string }>;
   pulls: Array<{ id: number; packId: string; index: number; grade: string | null; prizeName: string | null; drawnAt: string | null }>;
   lastViews: Array<{ id: number; path: string; ip: string | null; country: string | null; createdAt: string }>;
@@ -117,6 +121,9 @@ export function UserDetailModal({ userId, onClose }: Props) {
                 <Stat label="총 사용(추정)" value={data.totalSpent} />
                 <Stat label="오리파 사용" value={data.oripaSpent} />
                 <Stat label="아이템 사용" value={data.inventorySpent} />
+                <Stat label="컬렉션 카드" value={data.user._count.userCards} />
+                <Stat label="관심 카드" value={data.user._count.favoriteCards} />
+                <Stat label="검색 수" value={data.user._count.searchLogs} />
                 <Stat label="피드" value={data.user._count.feeds} />
                 <Stat label="거래" value={data.user._count.trades} />
                 <Stat label="찜" value={data.user._count.bookmarks} />
@@ -146,12 +153,11 @@ export function UserDetailModal({ userId, onClose }: Props) {
                 <Card title="최근 피드 (10)">
                   {data.feeds.length === 0 ? <div className="muted">없음</div> : (
                     <table className="tbl">
-                      <thead><tr><th>#</th><th>종류</th><th>본문</th><th>시각</th></tr></thead>
+                      <thead><tr><th>#</th><th>본문</th><th>시각</th></tr></thead>
                       <tbody>
                         {data.feeds.map((f) => (
                           <tr key={f.id}>
                             <td className="mono">{f.id}</td>
-                            <td><span className={`tag ${f.kind === 'report' ? 'tag-report' : 'tag-general'}`}>{f.kind}</span></td>
                             <td>{trunc(f.text, 40)}</td>
                             <td className="mono muted">{fmt(f.createdAt)}</td>
                           </tr>

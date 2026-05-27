@@ -31,6 +31,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         select: {
           feeds: true, trades: true, bookmarks: true,
           sentMessages: true, receivedMessages: true, oripaTickets: true,
+          userCards: true, favoriteCards: true, searchLogs: true,
         },
       },
     },
