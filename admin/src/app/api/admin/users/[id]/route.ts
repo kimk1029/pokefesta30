@@ -40,8 +40,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const [feeds, trades, pulls, lastViews, allPulls, packs] = await Promise.all([
     one(prisma.feed.findMany({
       where: { authorId: id }, orderBy: { createdAt: 'desc' }, take: 10,
-      select: { id: true, kind: true, text: true, createdAt: true },
-    }), [] as Array<{ id: number; kind: string; text: string; createdAt: Date }>),
+      select: { id: true, text: true, createdAt: true },
+    }), [] as Array<{ id: number; text: string; createdAt: Date }>),
     one(prisma.trade.findMany({
       where: { authorId: id }, orderBy: { createdAt: 'desc' }, take: 10,
       select: { id: true, type: true, status: true, title: true, price: true, createdAt: true },

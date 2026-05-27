@@ -20,7 +20,7 @@ async function loadStats() {
 
   // 각 쿼리를 개별 try/catch — 하나 실패해도 나머지는 보여줌 (page_views/oripa_packs 테이블 미생성 시 graceful)
   const [
-    users, feedsAll, feedsToday, reportsAll, trades, messagesAll, unread,
+    users, feedsAll, feedsToday, trades, messagesAll, unread,
     viewsToday, uniqueIpsToday, uniqueUsersToday,
     topPaths, recentVisits, dailySeries,
     recentFeeds, recentUsers,
@@ -28,7 +28,6 @@ async function loadStats() {
     one(prisma.user.count(), 0),
     one(prisma.feed.count(), 0),
     one(prisma.feed.count({ where: { createdAt: { gte: startToday } } }), 0),
-    one(prisma.feed.count({ where: { kind: 'report' } }), 0),
     one(prisma.trade.count(), 0),
     one(prisma.message.count(), 0),
     one(prisma.message.count({ where: { readAt: null } }), 0),
@@ -86,9 +85,9 @@ async function loadStats() {
       prisma.feed.findMany({
         orderBy: { createdAt: 'desc' },
         take: 5,
-        select: { id: true, kind: true, text: true, createdAt: true },
+        select: { id: true, text: true, createdAt: true },
       }),
-      [] as Array<{ id: number; kind: string; text: string; createdAt: Date }>,
+      [] as Array<{ id: number; text: string; createdAt: Date }>,
     ),
     one(
       prisma.user.findMany({
@@ -102,7 +101,7 @@ async function loadStats() {
 
   return {
     ok: true as const,
-    stats: { users, feedsAll, feedsToday, reportsAll, trades, messagesAll, unread,
+    stats: { users, feedsAll, feedsToday, trades, messagesAll, unread,
       viewsToday, uniqueIpsToday, uniqueUsersToday },
     topPaths, recentVisits, dailySeries, recentFeeds, recentUsers,
   };
@@ -135,7 +134,7 @@ export default async function Page() {
       <h2 style={{ fontSize: 14, color: '#475569', margin: '20px 0 10px', letterSpacing: 0.3 }}>📊 서비스</h2>
       <div className="grid-stats">
         <Stat label="회원" value={stats.users} />
-        <Stat label="전체 피드" value={stats.feedsAll} sub={`제보 ${stats.reportsAll}건`} />
+        <Stat label="전체 피드" value={stats.feedsAll} />
         <Stat label="오늘 피드" value={stats.feedsToday} />
         <Stat label="거래글" value={stats.trades} />
         <Stat label="쪽지" value={stats.messagesAll} sub={`미읽음 ${stats.unread}건`} />
@@ -191,14 +190,11 @@ export default async function Page() {
             <div className="muted">없음</div>
           ) : (
             <table className="tbl">
-              <thead><tr><th>#</th><th>종류</th><th>내용</th><th>시각</th></tr></thead>
+              <thead><tr><th>#</th><th>내용</th><th>시각</th></tr></thead>
               <tbody>
                 {recentFeeds.map((f) => (
                   <tr key={f.id}>
                     <td className="mono">{f.id}</td>
-                    <td>
-                      <span className={`tag ${f.kind === 'report' ? 'tag-report' : 'tag-general'}`}>{f.kind}</span>
-                    </td>
                     <td>{f.text.length > 40 ? f.text.slice(0, 40) + '…' : f.text}</td>
                     <td className="mono muted">{fmtDate(f.createdAt)}</td>
                   </tr>

@@ -14,15 +14,11 @@ interface SearchParams {
 }
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
-  const kind = searchParams.kind === 'report' || searchParams.kind === 'general' ? searchParams.kind : null;
   const q = (searchParams.q ?? '').trim();
   const page = parseIntParam(searchParams.page, 1);
   const skip = (page - 1) * PAGE_SIZE;
 
-  const where = {
-    ...(kind ? { kind } : {}),
-    ...(q ? { text: { contains: q, mode: 'insensitive' as const } } : {}),
-  };
+  const where = q ? { text: { contains: q, mode: 'insensitive' as const } } : {};
 
   const [feeds, total] = await Promise.all([
     prisma.feed.findMany({
@@ -31,7 +27,6 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       skip,
       take: PAGE_SIZE,
       include: {
-        place: { select: { name: true } },
         author: { select: { id: true, name: true } },
       },
     }),
@@ -47,14 +42,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         총 {total.toLocaleString()}건 · {page} / {totalPages} 페이지
       </p>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        <FilterLink href="/feeds" on={!kind}>전체</FilterLink>
-        <FilterLink href="/feeds?kind=general" on={kind === 'general'}>일반</FilterLink>
-        <FilterLink href="/feeds?kind=report" on={kind === 'report'}>제보</FilterLink>
-      </div>
-
       <form className="search" method="get">
-        {kind && <input type="hidden" name="kind" value={kind} />}
         <input name="q" placeholder="본문 검색" defaultValue={q} />
         <button type="submit">검색</button>
       </form>
@@ -66,9 +54,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
           <thead>
             <tr>
               <th>#</th>
-              <th>종류</th>
               <th>본문</th>
-              <th>장소</th>
               <th>작성자</th>
               <th>시각</th>
               <th></th>
@@ -78,11 +64,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
             {feeds.map((f) => (
               <tr key={f.id}>
                 <td className="mono">{f.id}</td>
-                <td>
-                  <span className={`tag ${f.kind === 'report' ? 'tag-report' : 'tag-general'}`}>{f.kind}</span>
-                </td>
                 <td>{trunc(f.text, 60)}</td>
-                <td className="muted">{f.place?.name ?? '-'}</td>
                 <td>{f.author?.name ?? <span className="muted">(탈퇴/익명)</span>}</td>
                 <td className="mono muted">{fmtDate(f.createdAt)}</td>
                 <td style={{ textAlign: 'right' }}>
@@ -94,35 +76,16 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         </table>
       )}
 
-      <Pager base="/feeds" kind={kind} q={q} page={page} totalPages={totalPages} />
+      <Pager base="/feeds" q={q} page={page} totalPages={totalPages} />
     </>
   );
 }
 
-function FilterLink({ href, on, children }: { href: string; on: boolean; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      style={{
-        padding: '6px 14px',
-        fontSize: 12,
-        border: '1px solid #CBD5E1',
-        borderRadius: 5,
-        background: on ? '#3B82F6' : '#fff',
-        color: on ? '#fff' : '#334155',
-      }}
-    >
-      {children}
-    </Link>
-  );
-}
-
 function Pager({
-  base, kind, q, page, totalPages,
-}: { base: string; kind: string | null; q: string; page: number; totalPages: number }) {
+  base, q, page, totalPages,
+}: { base: string; q: string; page: number; totalPages: number }) {
   if (totalPages <= 1) return null;
   const params = new URLSearchParams();
-  if (kind) params.set('kind', kind);
   if (q) params.set('q', q);
   const mk = (p: number) => {
     const c = new URLSearchParams(params);
