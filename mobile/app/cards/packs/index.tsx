@@ -164,8 +164,8 @@ export default function PackExplorerScreen() {
             </PixelFrame>
           </View>
 
-          {/* 박스 리스트 — 각 항목 입체 픽셀 버튼. 리스트 간 갭 축소(12→6). */}
-          <View style={{ marginHorizontal: 14, gap: 6 }}>
+          {/* 박스 리스트 — 각 항목 입체 픽셀 버튼. 리스트 간 갭 축소(12→6→3). */}
+          <View style={{ marginHorizontal: 14, gap: 3 }}>
             {(data ?? []).map((pack) => (
               <PixelPress
                 key={pack.code}
