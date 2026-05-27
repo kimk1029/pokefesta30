@@ -32,7 +32,7 @@ function challenge() {
   return new NextResponse('Authentication required', {
     status: 401,
     headers: {
-      'WWW-Authenticate': 'Basic realm="pokefesta30 admin", charset="UTF-8"',
+      'WWW-Authenticate': 'Basic realm="CardVault admin", charset="UTF-8"',
       'Content-Type': 'text/plain; charset=utf-8',
     },
   });

@@ -4,7 +4,7 @@ import { SideNav } from '@/components/SideNav';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '포케페스타30 Admin',
+  title: '카드볼드 Admin',
   robots: { index: false, follow: false },
 };
 

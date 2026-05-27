@@ -8,6 +8,7 @@ const NAV = [
   { href: '/users', label: '회원 관리', icon: '👥' },
   { href: '/ranking', label: '포인트 랭킹', icon: '🏆' },
   { href: '/logs', label: '활동 로그', icon: '🧾' },
+  { href: '/searches', label: '검색 로그', icon: '🔍' },
   { href: '/feeds', label: '피드 관리', icon: '📝' },
   { href: '/messages', label: '쪽지 목록', icon: '✉️' },
   { href: '/trades', label: '거래 관리', icon: '🤝' },
@@ -21,7 +22,7 @@ export function SideNav() {
   return (
     <aside className="admin-side">
       <div className="admin-brand">
-        포케페스타30 Admin
+        카드볼드 Admin
         <small>운영 대시보드</small>
       </div>
       <nav className="admin-nav">
