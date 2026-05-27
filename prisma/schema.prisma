@@ -48,6 +48,7 @@ model User {
   favoriteCards    FavoriteCard[]
   listingFavorites ListingFavorite[]
   portfolioDailySnapshots PortfolioDailySnapshot[]
+  searchLogs       SearchLog[]
 
   @@map("users")
 }
@@ -388,4 +389,19 @@ model Bookmark {
   @@unique([userId, feedId])
   @@index([userId])
   @@map("bookmarks")
+}
+
+/// 카드 검색 로그 — 사용자가 입력한(한국어) 검색어, 결과 수, 누가(로그인 시), 출처(web/mobile).
+model SearchLog {
+  id          Int      @id @default(autoincrement())
+  query       String
+  resultCount Int      @default(0)
+  source      String   @default("web")
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([userId])
+  @@map("search_logs")
 }

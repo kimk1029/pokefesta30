@@ -38,6 +38,7 @@ import adminRouter from './routes/admin.ts';
 import bannersRouter from './routes/banners.ts';
 import placesRouter from './routes/places.ts';
 import usersRouter from './routes/users.ts';
+import searchLogRouter from './routes/searchLog.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEBUG_DIR = join(__dirname, 'debug');
@@ -53,6 +54,7 @@ app.use('/auth', authRouter);
 app.use('/api/card-packs', cardPacksRouter);
 app.use('/api/cards', cardsRouter);
 app.use('/api/snkrdunk', snkrdunkRouter);
+app.use('/api/search-log', searchLogRouter);
 app.use('/api/feeds', feedsRouter);
 app.use('/api/trades', tradesRouter);
 app.use('/api/me', meRouter);
