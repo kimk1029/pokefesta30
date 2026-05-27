@@ -33,11 +33,17 @@ module.exports = {
       script: 'npm',
       args: 'run start',
       instances: 1,
+      // 서버와 동일하게 fork 모드 명시 — instances 만 있으면 pm2 가 기본 cluster 모드를
+      // 쓰는데, cluster 모드는 Node IPC handshake 가 필요해 `npm` CLI 래퍼와 함께 쓰면
+      // 즉시 종료된다(무한 재시작). 시놀로지에서 admin 이 안 떴던 원인.
+      exec_mode: 'fork',
       autorestart: true,
       watch: false,
       max_memory_restart: '256M',
       env: {
         NODE_ENV: 'production',
+        // 시놀로지에서 admin 은 3000 번으로 기동. (메인 웹앱 pokefesta30-app 도 3000 기본이라
+        // 같은 NAS 에서 둘 다 띄우려면 APP_PORT 를 분리할 것 — NAS 엔 보통 server+admin 만 올림.)
         PORT: process.env.ADMIN_PORT || '3000',
       },
     },
