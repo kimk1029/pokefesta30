@@ -1,6 +1,7 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { translate } from '@/lib/cardTranslate';
+import { serverFetch } from '@/lib/apiServer';
 import { searchSnkrdunkPage } from './actions';
 import { SearchResults } from './SearchResults';
 
@@ -19,6 +20,19 @@ export default async function Page({
   const { hits: initialHits, hasMore: initialHasMore } = ja
     ? await searchSnkrdunkPage(ja, 1)
     : { hits: [], hasMore: false };
+
+  // 검색 로그(한국어 키워드 + 결과 수). serverFetch 가 세션 토큰을 붙여 로그인 시 userId 기록.
+  // 로깅 실패가 검색 페이지를 막으면 안 되므로 무시.
+  if (q && ja) {
+    try {
+      await serverFetch('/api/search-log', {
+        method: 'POST',
+        body: { query: q, resultCount: initialHits.length, source: 'web' },
+      });
+    } catch {
+      /* ignore */
+    }
+  }
 
   return (
     <>

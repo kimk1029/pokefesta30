@@ -22,6 +22,7 @@ import {
 } from '@/services/marketplace';
 import { localizeCardName } from '@/lib/cardNameKo';
 import { koToJaSearch } from '@/lib/cardSearchJa';
+import { api } from '@/lib/apiClient';
 
 type Category = 'snkrdunk' | 'bunjang' | 'kream';
 
@@ -110,6 +111,11 @@ export default function SnkrdunkSearchScreen() {
         if (!alive) return;
         setHits(rows);
         setHasMore(more);
+        // 검색 로그(한국어 키워드 + snkrdunk 결과 수). 실패는 무시 — 검색 UX 영향 없음.
+        api('/api/search-log', {
+          method: 'POST',
+          body: { query: initialQuery, resultCount: rows.length, source: 'mobile' },
+        }).catch(() => undefined);
       })
       .catch((e) => {
         if (alive) setError(e instanceof Error ? e.message : '검색 실패');
