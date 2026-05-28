@@ -129,22 +129,24 @@ async function fetchApparel(apparelId) {
 }
 
 /**
- * Score search results for likely match. We require either an exact
- * `cardNumber/totalNumber` substring in the title (strong) or a `nameJa`
- * substring (weaker) — otherwise return null so we don't pick wildly off.
+ * Score search results — code 매칭 +100, setCode 토큰 매치 +30, rarity 토큰
+ * 매치 +20. confident hit 기준은 codePatterns +100 필수 (setCode/rarity 만으로는
+ * 약함). nameJa 의존성 제거 — 카드 코드+세트+희귀도만으로 결정.
  *
- * For PROMO cards (setCode pattern like "m-p" / "l-p" / "sv-p"), the title
- * format is "[X-P NNN]" or "X-P NNN" instead of "NNN/TTT" — match either.
+ * For PROMO cards (setCode pattern like "m-p" / "l-p" / "sv-p"), title 형식이
+ * "[X-P NNN]" 또는 "X-P NNN" 이므로 별도 패턴.
  *
  * @returns {{ item: object, score: number } | null}
  */
-function pickBestMatch(results, { cardNumber, totalNumber, setCode, nameJa }) {
+function pickBestMatch(results, { cardNumber, totalNumber, setCode, rarity }) {
   if (!results || results.length === 0) return null;
   const cn = normalizeNum(cardNumber);
   const tn = normalizeNum(totalNumber);
   const isPromo = setCode && /^[a-z]+-p$/i.test(setCode);
-  // Build patterns. For numeric totals: "22/165" tolerant of zero-padding.
-  // For PROMO: "[M-P 020]" / "M-P 020" / "M-P020" / "M-P-020".
+  const setLabel = String(setCode ?? '').toUpperCase();
+  const rLabel = String(rarity ?? '').toUpperCase();
+
+  // 코드 패턴 — "005/063" / "[M-P 020]" 등 변형 허용.
   const codePatterns = [];
   if (cn && tn && !isPromo) {
     const cnEsc = cn.replace(/(\d)/g, '0?$1');
@@ -152,10 +154,21 @@ function pickBestMatch(results, { cardNumber, totalNumber, setCode, nameJa }) {
     codePatterns.push(new RegExp(`(^|[^\\d])${cnEsc}\\s*/\\s*${tnEsc}([^\\d]|$)`));
   }
   if (isPromo && cn) {
-    const promo = String(setCode).toUpperCase();
+    const promo = setLabel;
     const cnPad = cn.padStart(3, '0').replace(/(\d)/g, '0?$1');
     codePatterns.push(new RegExp(`${promo}\\s*[-_ /]?\\s*${cnPad}\\b`, 'i'));
   }
+
+  // setCode 자체 토큰 매치 (e.g. SV8A, M1S) — 짧고 영숫자 패턴만 안전.
+  const setTokenPat = !isPromo && setLabel && /^[A-Z0-9]{2,8}$/.test(setLabel)
+    ? new RegExp(`\\b${setLabel}\\b`, 'i')
+    : null;
+
+  // rarity 토큰 매치 (R, RR, SR, SAR, HR, UR, AR, C, U, PROMO 등 4자 이하).
+  const rarityTokenPat = rLabel && /^[A-Z]{1,5}$/.test(rLabel)
+    ? new RegExp(`\\b${rLabel}\\b`, 'i')
+    : null;
+
   let best = null;
   let bestScore = -Infinity;
   for (const r of results) {
@@ -163,15 +176,16 @@ function pickBestMatch(results, { cardNumber, totalNumber, setCode, nameJa }) {
     for (const p of codePatterns) {
       if (p.test(r.name)) { score += 100; break; }
     }
-    if (nameJa && r.name.includes(nameJa)) score += 50;
+    if (setTokenPat && setTokenPat.test(r.name)) score += 30;
+    if (rarityTokenPat && rarityTokenPat.test(r.name)) score += 20;
     if (r.priceText) score += 3;
     if (score > bestScore) {
       best = { item: r, score };
       bestScore = score;
     }
   }
-  // Require at least name or code signal. Plain "has a price" isn't enough.
-  if (bestScore < 50) return null;
+  // confident 기준: 코드 매칭(+100) 필수. setCode/rarity 매치만으로는 약함.
+  if (bestScore < 100) return null;
   return best;
 }
 
@@ -194,23 +208,24 @@ function toResult(apparelId, apparel, searchItem, cacheHit, trace) {
 }
 
 /**
- * Resolve snkrdunk info for an OCR result. Returns null when nothing
- * matches with sufficient confidence.
+ * Resolve snkrdunk info for an OCR result. 4개 필드(setCode + cardNumber +
+ * totalNumber + rarity) 만으로 검색 — 예: "m1S 005/063 R". nameJa/name 의존성
+ * 없음 (Vision OCR 의 일본명 추출이 실패해도 안정적). cardNumber 가 없으면 검색
+ * 불가능 — null.
  *
  * @param {{
  *   cardNumber?: string,
  *   totalNumber?: string,
  *   setCode?: string,
- *   nameJa?: string,
- *   name?: string,
+ *   rarity?: string,
  * }} input
  */
 export async function matchSnkrdunkForCard(input) {
-  const { cardNumber, totalNumber, setCode, nameJa, name } = input ?? {};
-  if (!cardNumber && !nameJa && !name) return null;
+  const { cardNumber, totalNumber, setCode, rarity } = input ?? {};
+  if (!cardNumber) return null;
 
   const trace = {
-    input: { cardNumber, totalNumber, setCode, nameJa, name },
+    input: { cardNumber, totalNumber, setCode, rarity },
     queries: [],
     pick: null,
     cacheKey: null,
@@ -238,22 +253,37 @@ export async function matchSnkrdunkForCard(input) {
   const cn = normalizeNum(cardNumber);
   const tn = normalizeNum(totalNumber);
   const isPromo = setCode && /^[a-z]+-p$/i.test(setCode);
-  const codeStr = cn && tn && !isPromo ? `${cn}/${tn}` : '';
-  // PROMO format: "M-P 020", which is how snkrdunk titles index promo cards.
-  const promoStr = isPromo && cn ? `${String(setCode).toUpperCase()} ${cn.padStart(3, '0')}` : '';
+  const setLabel = String(setCode ?? '').trim(); // 소문자/대문자 그대로 (예: "m1S")
+  const rLabel = String(rarity ?? '').trim().toUpperCase();
 
-  // Try the strongest queries first, stop on first confident hit.
+  // 번호 파트: 일반 카드는 "005/063", PROMO 는 "020" (totalNumber 무의미).
+  let numPart = '';
+  if (cn) {
+    if (isPromo) {
+      numPart = cn.padStart(3, '0');
+    } else if (tn) {
+      numPart = `${cn}/${tn}`;
+    } else {
+      numPart = cn;
+    }
+  }
+
+  // 쿼리 우선순위 — 사용자 요청 형식 "setCode cn/tn rarity" 가 가장 강함.
+  // 폴백은 점진적으로 약한 조합.
+  //   1. "m1S 005/063 R"     (setCode + numPart + rarity)
+  //   2. "m1S 005/063"       (setCode + numPart)
+  //   3. "005/063 R"         (numPart + rarity)
+  //   4. "005/063"           (numPart)
+  // PROMO 는 setCode 가 "SV-P" 형태라 1~4 그대로 적용됨 (예: "SV-P 020 PROMO").
   const queries = [];
-  if (nameJa && promoStr) queries.push(`${nameJa} ${promoStr}`);
-  if (nameJa && codeStr) queries.push(`${nameJa} ${codeStr}`);
-  if (promoStr) queries.push(promoStr);
-  if (codeStr) queries.push(codeStr);
-  if (nameJa) queries.push(nameJa);
-  if (name && !nameJa) queries.push(name);
+  if (setLabel && numPart && rLabel) queries.push(`${setLabel} ${numPart} ${rLabel}`);
+  if (setLabel && numPart) queries.push(`${setLabel} ${numPart}`);
+  if (numPart && rLabel) queries.push(`${numPart} ${rLabel}`);
+  if (numPart) queries.push(numPart);
 
   for (const q of queries) {
     const results = await searchSnkrdunk(q);
-    const best = pickBestMatch(results, { cardNumber, totalNumber, setCode, nameJa });
+    const best = pickBestMatch(results, { cardNumber, totalNumber, setCode, rarity });
     trace.queries.push({
       q,
       count: results.length,

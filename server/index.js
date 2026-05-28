@@ -453,8 +453,7 @@ app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
       cardNumber: extracted.cardNumber,
       totalNumber: extracted.totalNumber,
       setCode: extracted.setCode,
-      nameJa: extracted.nameJa,
-      name: extracted.name,
+      rarity: extracted.rarity,
     });
     if (raw?.miss) {
       snkrdunkTrace = raw.trace;
