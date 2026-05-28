@@ -1,7 +1,14 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const http = require('node:http');
+const path = require('node:path');
 
 const config = getDefaultConfig(__dirname);
+
+// 모바일/웹이 같은 데이터(cardPacks, pokemonSetMap)를 공유하도록 repo 루트의
+// /shared 폴더를 Metro 의 watchFolders 에 추가. 추가 안 하면 mobile/src/data
+// shim 이 '../../../shared/...' 를 require 할 때 변경 감지/HMR 이 끊긴다.
+const SHARED_DIR = path.resolve(__dirname, '..', 'shared');
+config.watchFolders = [...(config.watchFolders ?? []), SHARED_DIR];
 
 // Proxy /api/* requests through Metro to the local OCR server (default :3001).
 // This lets the phone reach the OCR server through the same Expo tunnel,
