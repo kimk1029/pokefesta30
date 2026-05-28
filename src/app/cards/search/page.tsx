@@ -9,8 +9,33 @@ import { serverFetch } from '@/lib/apiServer';
 
 export const dynamic = 'force-dynamic';
 
+type SearchMode = 'card' | 'illustrator';
+
 interface SearchParams {
   q?: string;
+  mode?: string;
+}
+
+interface IllustratorCard {
+  id: string;
+  name: string;
+  setName?: string;
+  setCode?: string;
+  number?: string;
+  totalNumber?: string | number;
+  rarity?: string;
+  illustrator?: string;
+  imageSmall?: string | null;
+  imageLarge?: string | null;
+}
+
+interface IllustratorSearchResp {
+  ok: boolean;
+  resolvedName?: string;
+  matched?: { en: string; ja: string | null; koAliases: string[] } | null;
+  count?: number;
+  cards?: IllustratorCard[];
+  message?: string;
 }
 
 function fmtMoney(n: number, currency: string): string {
@@ -24,17 +49,27 @@ function fmtMoney(n: number, currency: string): string {
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const q = (searchParams.q ?? '').trim();
-  const jaQuery = q ? translate(q, 'ja') : '';
-  const enQuery = q ? translate(q, 'en') : '';
+  const mode: SearchMode = searchParams.mode === 'illustrator' ? 'illustrator' : 'card';
+  const jaQuery = q && mode === 'card' ? translate(q, 'ja') : '';
+  const enQuery = q && mode === 'card' ? translate(q, 'en') : '';
 
-  const r = q
+  // 카드 모드: 기존 eBay 시세 호출. 일러스트레이터 모드: by-illustrator 호출.
+  const ebayResp = q && mode === 'card'
     ? await serverFetch<{ configured: boolean; data: EbayPriceSnapshot | null }>(
         `/api/cards/ebay-search?q=${encodeURIComponent(enQuery)}&limit=20`,
         { auth: false },
       )
     : null;
-  const configured = r?.data?.configured ?? false;
-  const ebay = r?.data?.data ?? null;
+  const configured = ebayResp?.data?.configured ?? false;
+  const ebay = ebayResp?.data?.data ?? null;
+
+  const illustResp = q && mode === 'illustrator'
+    ? await serverFetch<IllustratorSearchResp>(
+        `/api/cards/by-illustrator?q=${encodeURIComponent(q)}&limit=30`,
+        { auth: false },
+      )
+    : null;
+  const illust = illustResp?.data ?? null;
 
   return (
     <>
@@ -42,6 +77,42 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       <AppBar title="카드 검색" showBack backHref="/cards" />
 
       <div style={{ height: 14 }} />
+
+      {/* 모드 토글 — 카드 / 일러스트레이터 */}
+      <div
+        style={{
+          display: 'flex',
+          margin: '0 var(--gap) 8px',
+          border: '2px solid var(--ink)',
+          background: 'var(--white)',
+        }}
+      >
+        {(
+          [
+            { v: 'card' as const, label: '🃏 카드명·코드' },
+            { v: 'illustrator' as const, label: '🎨 일러스트레이터' },
+          ]
+        ).map((opt, i) => (
+          <Link
+            key={opt.v}
+            href={`/cards/search?mode=${opt.v}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
+            style={{
+              flex: 1,
+              padding: '10px 0',
+              textAlign: 'center',
+              background: mode === opt.v ? 'var(--gold)' : 'transparent',
+              color: mode === opt.v ? 'var(--ink)' : 'var(--ink3)',
+              fontFamily: 'var(--f1)',
+              fontSize: 11,
+              letterSpacing: 0.3,
+              textDecoration: 'none',
+              borderLeft: i === 0 ? 'none' : '2px solid var(--ink)',
+            }}
+          >
+            {opt.label}
+          </Link>
+        ))}
+      </div>
 
       {/* 검색 박스 */}
       <form
@@ -55,6 +126,8 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
             '-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),8px 8px 0 var(--yel-dk)',
         }}
       >
+        {/* form 이 GET 으로 제출될 때 mode 도 보존 */}
+        <input type="hidden" name="mode" value={mode} />
         <div
           style={{
             fontFamily: 'var(--f1)',
@@ -64,13 +137,19 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
             marginBottom: 8,
           }}
         >
-          카드명 / 카드 코드 입력 (한·영 혼용 OK)
+          {mode === 'illustrator'
+            ? '일러스트레이터 이름 (한국어 OK)'
+            : '카드명 / 카드 코드 입력 (한·영 혼용 OK)'}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             name="q"
             defaultValue={q}
-            placeholder="예) 잉어킹 홀로, 리자몽, SV1-045"
+            placeholder={
+              mode === 'illustrator'
+                ? '예) 신지칸다, 아리타, Mitsuhiro Arita'
+                : '예) 잉어킹 홀로, 리자몽, SV1-045'
+            }
             autoFocus
             style={{
               flex: 1,
@@ -106,10 +185,21 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
 
       {!q ? (
         <div style={{ margin: '0 var(--gap)', padding: 20, fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', textAlign: 'center', lineHeight: 1.7 }}>
-          한국어로 입력하면 자동으로<br />
-          🇯🇵 스니덩 용 일본어 / 🇺🇸 이베이 용 영어 로<br />
-          각각 번역해서 결과를 보여드립니다.
+          {mode === 'illustrator' ? (
+            <>
+              일러스트레이터 이름을 한국어로 입력해 보세요.<br />
+              예) <b style={{ color: 'var(--ink)' }}>신지칸다</b>, <b style={{ color: 'var(--ink)' }}>아리타</b>, <b style={{ color: 'var(--ink)' }}>사이토 나오키</b>
+            </>
+          ) : (
+            <>
+              한국어로 입력하면 자동으로<br />
+              🇯🇵 스니덩 용 일본어 / 🇺🇸 이베이 용 영어 로<br />
+              각각 번역해서 결과를 보여드립니다.
+            </>
+          )}
         </div>
+      ) : mode === 'illustrator' ? (
+        <IllustratorResults q={q} resp={illust} />
       ) : (
         <>
           {/* 번역 결과 표시 */}
@@ -306,6 +396,194 @@ function EbayList({ items }: { items: EbayItemSummary[] }) {
           </div>
         </Link>
       ))}
+    </div>
+  );
+}
+
+/* ----------------- Illustrator results panel ----------------- */
+
+function IllustratorResults({
+  q,
+  resp,
+}: {
+  q: string;
+  resp: IllustratorSearchResp | null;
+}) {
+  // 입력/매칭 정보 배너 — 사전 hit/miss 표시.
+  const matched = resp?.matched ?? null;
+  const cards = resp?.cards ?? [];
+  const resolvedName = resp?.resolvedName ?? q;
+  return (
+    <>
+      <div
+        style={{
+          margin: '0 var(--gap) var(--cg)',
+          padding: '10px 14px',
+          background: 'var(--pap2)',
+          fontFamily: 'var(--f1)',
+          fontSize: 9,
+          color: 'var(--ink2)',
+          letterSpacing: 0.3,
+          lineHeight: 1.8,
+          boxShadow:
+            '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+        }}
+      >
+        입력: <b style={{ color: 'var(--ink)' }}>{q}</b>
+        <br />
+        🎨 검색 이름: <b style={{ color: 'var(--red)' }}>{resolvedName}</b>
+        {matched ? (
+          <>
+            <br />
+            ✓ 매칭됨 — 영문 <b>{matched.en}</b>
+            {matched.ja ? (
+              <>
+                {' · '}일문 <b>{matched.ja}</b>
+              </>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <br />
+            <span style={{ color: 'var(--ink3)' }}>
+              사전 미등록 — 입력 그대로 TCGdex 검색. 한국어 표기가 맞는지 확인해주세요.
+            </span>
+          </>
+        )}
+      </div>
+
+      <div className="sect">
+        <div
+          style={{
+            padding: '10px 14px',
+            background: 'var(--white)',
+            fontFamily: 'var(--f1)',
+            fontSize: 11,
+            letterSpacing: 0.5,
+            boxShadow:
+              '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+            marginBottom: 10,
+          }}
+        >
+          <div style={{ color: 'var(--ink2)' }}>
+            🎨 일러스트레이터 카드 {cards.length > 0 ? `· ${cards.length}장` : ''}
+          </div>
+        </div>
+
+        {!resp?.ok ? (
+          <div
+            style={{
+              padding: 20,
+              fontFamily: 'var(--f1)',
+              fontSize: 10,
+              color: 'var(--red)',
+              textAlign: 'center',
+            }}
+          >
+            ⚠ {resp?.message ?? '검색 실패 — 잠시 후 다시 시도해주세요.'}
+          </div>
+        ) : cards.length === 0 ? (
+          <div
+            style={{
+              padding: 20,
+              fontFamily: 'var(--f1)',
+              fontSize: 10,
+              color: 'var(--ink3)',
+              textAlign: 'center',
+              lineHeight: 1.7,
+            }}
+          >
+            해당 일러스트레이터의 카드를 찾지 못했어요.
+            <br />
+            <span style={{ fontSize: 9 }}>
+              사전 매칭이 안 됐다면 영문 이름(예: Mitsuhiro Arita) 으로도 시도해보세요.
+            </span>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 8,
+              padding: '0 var(--gap)',
+            }}
+          >
+            {cards.map((c) => (
+              <IllustratorCardTile key={c.id} c={c} />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function IllustratorCardTile({ c }: { c: IllustratorCard }) {
+  const img = c.imageSmall || c.imageLarge;
+  const num = c.number && c.totalNumber ? `${c.number}/${c.totalNumber}` : c.number ?? '';
+  return (
+    <div
+      style={{
+        background: 'var(--white)',
+        boxShadow:
+          '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          aspectRatio: '63 / 88',
+          background: 'var(--pap2)',
+          overflow: 'hidden',
+        }}
+      >
+        {img ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={img}
+            alt={c.name}
+            loading="lazy"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        ) : (
+          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+            <span style={{ fontSize: 33 }}>🃏</span>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: '6px 8px 8px', borderTop: '3px solid var(--ink)' }}>
+        <div
+          style={{
+            fontFamily: 'var(--f1)',
+            fontSize: 10,
+            color: 'var(--ink)',
+            letterSpacing: 0.2,
+            lineHeight: 1.4,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            minHeight: 28,
+          }}
+          title={c.name}
+        >
+          {c.name}
+        </div>
+        <div
+          style={{
+            marginTop: 4,
+            fontFamily: 'var(--f1)',
+            fontSize: 8,
+            color: 'var(--ink3)',
+            letterSpacing: 0.3,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {[c.setCode?.toUpperCase(), num, c.rarity].filter(Boolean).join(' · ')}
+        </div>
+      </div>
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { matchCandidates } from './lib/match.js';
 import { visionExtract, visionAvailable } from './lib/vision.js';
 import { paddleScan, paddleHealthcheck } from './lib/paddle.js';
 import { lookupCard, searchTcgdexByName } from './lib/lookup.js';
+import { lookupIllustrator, searchTcgdexByIllustrator } from './lib/illustrator.js';
 import { matchSnkrdunkForCard } from './lib/snkrdunkMatch.js';
 import { buildCors } from './middleware/cors.js';
 import authRouter from './routes/auth.js';
@@ -168,6 +169,38 @@ app.get('/api/cards/lookup', async (req, res) => {
 
   const result = await lookupCard({ setCode, cardNumber, totalNumber, rarity, name, language });
   res.json({ ok: true, ...result });
+});
+
+/**
+ * GET /api/cards/by-illustrator
+ *   ?q=신지칸다              (한/영/일 어느 표기든)
+ *   ?limit=30
+ *
+ * 한국어/일본어 입력은 [[shared/data/illustrators.json]] 사전으로 영문 정식
+ * 이름(예: "Shinji Kanda") 으로 변환 후 TCGdex (JA → EN) 의 cards?illustrator=eq:..
+ * 호출. 매칭 안 된 입력은 그대로 검색 (영문 직접 입력 케이스 대응).
+ */
+app.get('/api/cards/by-illustrator', async (req, res) => {
+  const q = String(req.query.q ?? req.query.name ?? '').trim();
+  const limit = Math.max(1, Math.min(Number(req.query.limit ?? 30), 100));
+  if (!q) {
+    return res.status(400).json({ ok: false, message: 'q (일러스트레이터 이름) 가 필요합니다.' });
+  }
+  const lookup = lookupIllustrator(q);
+  try {
+    const cards = await searchTcgdexByIllustrator(lookup.tcgdexName, limit);
+    res.json({
+      ok: true,
+      query: q,
+      resolvedName: lookup.tcgdexName,
+      matched: lookup.matched ? { en: lookup.matched.en, ja: lookup.matched.ja ?? null, koAliases: lookup.matched.koAliases } : null,
+      count: cards.length,
+      cards,
+    });
+  } catch (e) {
+    console.warn('[by-illustrator] failed:', e?.message ?? e);
+    res.status(500).json({ ok: false, message: '일러스트레이터 검색에 실패했습니다.' });
+  }
 });
 
 app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
