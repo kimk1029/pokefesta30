@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppBar } from '@/components/ui/AppBar';
+import { ListAdRow } from '@/components/ListAdRow';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 
@@ -90,7 +91,8 @@ export default function Page() {
           right={<span className="more">{items.length}종</span>}
         />
 
-        {items.map((it) => (
+        {items.flatMap((it, i) => {
+          const row = (
           <Link
             key={it.apparelId}
             href={`/cards/snkrdunk/${it.apparelId}`}
@@ -142,7 +144,12 @@ export default function Page() {
               </div>
             </div>
           </Link>
-        ))}
+          );
+          // 6개마다 광고 행 끼움. slotIndex 0,1,2…
+          return (i + 1) % 6 === 0
+            ? [row, <ListAdRow key={`ad-${i}`} slotIndex={Math.floor(i / 6)} />]
+            : [row];
+        })}
 
         <div
           ref={sentinelRef}

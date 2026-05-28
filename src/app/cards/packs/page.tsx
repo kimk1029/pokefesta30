@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Price } from '@/components/Price';
+import { ListAdRow } from '@/components/ListAdRow';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { CARD_PACKS } from '@/lib/cardPacks';
@@ -61,93 +62,99 @@ export default async function PackExplorerPage() {
 
       <div className="sect">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {packs.map((pack) => (
-            <Link
-              key={pack.code}
-              href={`/cards/packs/${pack.code}`}
-              className="pack-list-item"
-            >
-              <div
-                style={{
-                  width: 84,
-                  height: 84,
-                  display: 'grid',
-                  placeItems: 'center',
-                  flexShrink: 0,
-                  background: pack.bg,
-                  color: 'var(--white)',
-                  fontSize: 23,
-                  boxShadow:
-                    '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.35),3px 3px 0 var(--ink)',
-                  overflow: 'hidden',
-                }}
+          {packs.flatMap((pack, i) => {
+            const row = (
+              <Link
+                key={pack.code}
+                href={`/cards/packs/${pack.code}`}
+                className="pack-list-item"
               >
-                {pack.boxImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pack.boxImageUrl} alt={pack.boxKoName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  pack.emoji
-                )}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    fontFamily: 'var(--f1)',
-                    fontSize: 13,
-                    letterSpacing: 0.2,
-                    whiteSpace: 'normal',
-                    lineHeight: 1.45,
+                    width: 84,
+                    height: 84,
+                    display: 'grid',
+                    placeItems: 'center',
+                    flexShrink: 0,
+                    background: pack.bg,
+                    color: 'var(--white)',
+                    fontSize: 23,
+                    boxShadow:
+                      '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.35),3px 3px 0 var(--ink)',
+                    overflow: 'hidden',
                   }}
                 >
-                  {pack.name}
-                </div>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 5, lineHeight: 1.45 }}>
-                  {pack.boxKoName}
-                  <br />
-                  {pack.boxName}
-                </div>
-                <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  {pack.boxPrice > 0 && (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        padding: '3px 7px',
-                        background: 'var(--yel)',
-                        color: 'var(--ink)',
-                        fontFamily: 'var(--f1)',
-                        fontSize: 10,
-                        letterSpacing: 0.3,
-                        boxShadow:
-                          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
-                      }}
-                    >
-                      <span style={{ fontSize: 8, opacity: 0.7 }}>박스</span>
-                      <b><Price jpy={pack.boxPrice} /></b>
-                    </span>
+                  {pack.boxImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={pack.boxImageUrl} alt={pack.boxKoName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    pack.emoji
                   )}
-                  {/* 출시일은 항상 표시 (박스 시세 유무와 무관) */}
-                  <span
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
                     style={{
-                      display: 'inline-block',
-                      padding: '2px 6px',
-                      background: 'var(--pap2)',
-                      color: 'var(--ink2)',
                       fontFamily: 'var(--f1)',
-                      fontSize: 9,
-                      letterSpacing: 0.3,
-                      boxShadow:
-                        '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                      fontSize: 13,
+                      letterSpacing: 0.2,
+                      whiteSpace: 'normal',
+                      lineHeight: 1.45,
                     }}
                   >
-                    {pack.releasedAt ? `${pack.releasedAt} 출시` : '출시일 확인 중'}
-                  </span>
+                    {pack.name}
+                  </div>
+                  <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 5, lineHeight: 1.45 }}>
+                    {pack.boxKoName}
+                    <br />
+                    {pack.boxName}
+                  </div>
+                  <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {pack.boxPrice > 0 && (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '3px 7px',
+                          background: 'var(--yel)',
+                          color: 'var(--ink)',
+                          fontFamily: 'var(--f1)',
+                          fontSize: 10,
+                          letterSpacing: 0.3,
+                          boxShadow:
+                            '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
+                        }}
+                      >
+                        <span style={{ fontSize: 8, opacity: 0.7 }}>박스</span>
+                        <b><Price jpy={pack.boxPrice} /></b>
+                      </span>
+                    )}
+                    {/* 출시일은 항상 표시 (박스 시세 유무와 무관) */}
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        padding: '2px 6px',
+                        background: 'var(--pap2)',
+                        color: 'var(--ink2)',
+                        fontFamily: 'var(--f1)',
+                        fontSize: 9,
+                        letterSpacing: 0.3,
+                        boxShadow:
+                          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                      }}
+                    >
+                      {pack.releasedAt ? `${pack.releasedAt} 출시` : '출시일 확인 중'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 15, color: 'var(--ink3)' }}>›</div>
-            </Link>
-          ))}
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 15, color: 'var(--ink3)' }}>›</div>
+              </Link>
+            );
+            // 5개마다(마지막 뒤 제외) 광고 행 1개 끼움. slotIndex 는 0,1,2…
+            return (i + 1) % 5 === 0 && i < packs.length - 1
+              ? [row, <ListAdRow key={`ad-${i}`} slotIndex={Math.floor(i / 5)} />]
+              : [row];
+          })}
         </div>
       </div>
 

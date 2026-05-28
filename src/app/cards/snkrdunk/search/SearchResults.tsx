@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Price } from '@/components/Price';
+import { ListAdRow } from '@/components/ListAdRow';
 import type { BunjangItem } from '@/lib/bunjang';
 import { kreamSearchUrl, type KreamItem } from '@/lib/kream';
 import { searchSnkrdunkPage, type HydratedHit } from './actions';
@@ -178,9 +179,13 @@ export function SearchResults({
                 gap: 10,
               }}
             >
-              {hits.map((hit) => (
-                <SearchHitCard key={hit.apparelId} hit={hit} />
-              ))}
+              {hits.flatMap((hit, i) => {
+                const card = <SearchHitCard key={hit.apparelId} hit={hit} />;
+                // 6장(=2행)마다 그리드 한 행 전체를 차지하는 광고 배너 끼움.
+                return (i + 1) % 6 === 0
+                  ? [card, <ListAdRow key={`ad-${i}`} slotIndex={Math.floor(i / 6)} spanGrid />]
+                  : [card];
+              })}
             </div>
             {hasMore ? <div ref={sentinelRef} style={{ height: 1 }} /> : null}
             {loading ? <Loading /> : <StatusNote text={hasMore ? '' : `SNKRDUNK ${hits.length}건 · 끝`} />}

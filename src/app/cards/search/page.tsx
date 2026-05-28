@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AppBar } from '@/components/ui/AppBar';
+import { ListAdRow } from '@/components/ListAdRow';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { translate } from '@/lib/cardTranslate';
 import { snkrdunkUrl } from '@/lib/cardsCatalog';
@@ -170,6 +171,11 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
                 ※ 공식 API 미제공 — 새 탭에서 SNKRDUNK 검색 페이지로 이동합니다.
               </div>
             </div>
+          </div>
+
+          {/* 광고 — 검색결과 블록 사이 */}
+          <div className="sect">
+            <ListAdRow slotIndex={0} />
           </div>
 
           {/* eBay 실시간 결과 */}
