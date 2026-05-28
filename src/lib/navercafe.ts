@@ -370,6 +370,36 @@ export async function fetchMvcAuctionPage(page = 1): Promise<MvcAuctionPageResul
 }
 
 /**
+ * 오늘(KST) 마감 경매 '전체'.
+ *   게시판을 hasNext=false 까지(안전 상한 maxPages) 끝까지 훑어 오늘 마감 글을 모두 모은다.
+ *   오늘 마감 글이 카페 목록 여러 페이지에 흩어져 있어(예: 24개가 p1=17 + p2=7),
+ *   1페이지만 보면 일부가 누락된다 → 첫 화면에서 스크롤 없이 전부 보이도록 한 번에 수집.
+ *   경매 게시판은 작아(현재 ~2페이지) 비용이 낮다.
+ *
+ * 반환 page/hasNext 는 '마지막으로 읽은 페이지' 기준이라, 안전 상한에 걸려 중단한 경우
+ * (hasNext=true) 클라이언트 무한스크롤이 그 다음 페이지부터 이어서 보강할 수 있다.
+ */
+export async function fetchAllTodayAuctions(maxPages = 6): Promise<MvcAuctionPageResult> {
+  const cap = Math.min(Math.max(Number.isInteger(maxPages) ? maxPages : 6, 1), 30);
+  const out: MvcAuctionItem[] = [];
+  const seen = new Set<number>();
+  let lastPage = 1;
+  let hasNext = false;
+  for (let p = 1; p <= cap; p++) {
+    lastPage = p;
+    const res = await fetchMvcAuctionPage(p);
+    hasNext = res.hasNext;
+    for (const it of res.items) {
+      if (seen.has(it.articleId)) continue;
+      seen.add(it.articleId);
+      out.push(it);
+    }
+    if (!hasNext) break;
+  }
+  return { items: out, hasNext, page: lastPage };
+}
+
+/**
  * representImage 가 비어도 attachImage=true 인 글은 본문에 이미지가 있으므로,
  * 본문 첫 이미지를 가져와 리스트 썸네일을 채운다(누락 보강). 호출량 보호로 cap 제한.
  */

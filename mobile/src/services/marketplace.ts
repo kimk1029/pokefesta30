@@ -55,6 +55,7 @@ interface RawMvcList {
   message?: {
     result?: {
       articleList?: RawMvcArticle[];
+      hasNext?: boolean;
     };
   };
 }
@@ -170,7 +171,10 @@ function bunjangImage(template: string | undefined): string | null {
   return template.replace('{cnt}', '1').replace('{res}', '300');
 }
 
-export async function fetchMvcAuctions(page = 1): Promise<MvcAuctionItem[]> {
+/** 경매 게시판 한 페이지 — 오늘 마감 글만 필터해 반환 + 다음 페이지 존재 여부. */
+async function fetchMvcAuctionsPage(
+  page = 1,
+): Promise<{ items: MvcAuctionItem[]; hasNext: boolean }> {
   const url =
     `${NAVER_API}/cafe-web/cafe2/ArticleListV2dot1.json` +
     `?search.clubid=${MVC_CLUB_ID}&search.menuid=${MVC_AUCTION_MENU_ID}` +
@@ -186,6 +190,7 @@ export async function fetchMvcAuctions(page = 1): Promise<MvcAuctionItem[]> {
   if (!res.ok) throw new Error(`MVC ${res.status}`);
   const raw = (await res.json()) as RawMvcList;
   const rows = raw.message?.result?.articleList ?? [];
+  const hasNext = Boolean(raw.message?.result?.hasNext);
   const items: MvcAuctionItem[] = rows
     .filter((a) => !a.blindArticle && Number.isInteger(a.articleId))
     .filter((a) => {
@@ -214,7 +219,33 @@ export async function fetchMvcAuctions(page = 1): Promise<MvcAuctionItem[]> {
     });
   // representImage 누락(attachImage=true) 글은 본문 첫 이미지로 썸네일 폴백.
   await fillMissingThumbnails(items);
-  return items;
+  return { items, hasNext };
+}
+
+export async function fetchMvcAuctions(page = 1): Promise<MvcAuctionItem[]> {
+  return (await fetchMvcAuctionsPage(page)).items;
+}
+
+/**
+ * 오늘(KST) 마감 경매 '전체'.
+ *   오늘 마감 글이 카페 목록 여러 페이지에 흩어져 있어(예: 24개가 p1=17 + p2=7),
+ *   1페이지만 보면 일부가 누락된다 → hasNext=false 까지(안전 상한 maxPages) 끝까지
+ *   훑어 모은다. 경매 게시판은 작아(현재 ~2페이지) 비용이 낮다.
+ */
+export async function fetchAllTodayAuctions(maxPages = 6): Promise<MvcAuctionItem[]> {
+  const cap = Math.min(Math.max(Number.isInteger(maxPages) ? maxPages : 6, 1), 30);
+  const out: MvcAuctionItem[] = [];
+  const seen = new Set<number>();
+  for (let p = 1; p <= cap; p++) {
+    const { items, hasNext } = await fetchMvcAuctionsPage(p);
+    for (const it of items) {
+      if (seen.has(it.articleId)) continue;
+      seen.add(it.articleId);
+      out.push(it);
+    }
+    if (!hasNext) break;
+  }
+  return out;
 }
 
 const CAFE_IMG_RE = /<img[^>]+src="(https:\/\/[^"]+)"/i;

@@ -3,7 +3,7 @@ import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { MvcAuctionList } from '@/components/MvcAuctionList';
 import { AuctionCountdown } from '@/components/AuctionCountdown';
-import { fetchMvcAuctionPage, MVC_CAFE_URL } from '@/lib/navercafe';
+import { fetchAllTodayAuctions, MVC_CAFE_URL } from '@/lib/navercafe';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +12,9 @@ export const metadata = {
 };
 
 export default async function Page() {
-  const initial = await fetchMvcAuctionPage(1);
+  // 오늘 마감 경매가 카페 목록 여러 페이지에 흩어져 있어 1페이지만 보면 일부 누락 →
+  // 전부 모아 첫 화면부터 스크롤 없이 노출.
+  const initial = await fetchAllTodayAuctions();
 
   return (
     <>
@@ -49,7 +51,7 @@ export default async function Page() {
               lineHeight: 1.6,
             }}
           >
-            오늘 마감 경매만 · 23:00 종료 · 스크롤하면 계속 불러와요<br />
+            오늘 마감 경매만 · 23:00 종료 · 오늘 마감 글을 모두 모아 보여줘요<br />
             <a
               href={`https://cafe.naver.com/${MVC_CAFE_URL}`}
               target="_blank"

@@ -7,7 +7,7 @@ import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { colors } from '@/theme/tokens';
 import {
-  fetchMvcAuctions,
+  fetchAllTodayAuctions,
   fetchMvcLatestBids,
   mvcArticleUrl,
   mvcImgProxy,
@@ -85,7 +85,7 @@ export default function MvcAuctionScreen() {
       else setLoading(true);
       setError(null);
       try {
-        const list = await fetchMvcAuctions(1);
+        const list = await fetchAllTodayAuctions();
         setItems(list);
         void loadBids(list, refresh);
       } catch (e) {
