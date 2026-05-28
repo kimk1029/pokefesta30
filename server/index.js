@@ -589,6 +589,10 @@ app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
       language: extracted.language,
       name: extracted.name,
       nameJa: extracted.nameJa,
+      // Vision 이 추출한 카드 외곽/내곽 4코너 (image 기준 normalized 0..1).
+      // sanity 체크 통과한 경우만 객체 배열, 아니면 null. paddle 경로는 항상 null.
+      outerQuad: extracted.outerQuad ?? null,
+      innerQuad: extracted.innerQuad ?? null,
     },
     candidates: responseCandidates,
     snkrdunk: snkrdunk ?? null,

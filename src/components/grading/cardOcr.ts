@@ -95,6 +95,13 @@ export interface CardOcrResult {
   confidence: number | null;
   /** 서버 후보 리스트 (이미지 + 다지역 가격 + Snkrdunk 매칭). */
   candidates: ScanCandidate[];
+  /**
+   * AI(Vision) 가 추정한 카드 외곽 4코너 — image 자연 좌표 기준 (CardGrader 가
+   * normalized 0..1 → 자연 픽셀로 변환해 setOuter). 추정 불가능하면 null.
+   */
+  outerQuad: Quad | null;
+  /** AI 가 추정한 카드 인쇄 프레임 안쪽 4코너. 같은 좌표계, 없으면 null. */
+  innerQuad: Quad | null;
 }
 
 interface OcrProgress {
@@ -181,7 +188,9 @@ export async function recognizeCard(
   }
 
   opts.onProgress?.({ phase: 'done', progress: 1, label: '완료' });
-  return mapResponseToOcrResult(data);
+  // AI 가 돌려준 quad 는 _업로드된 크롭 이미지_ 기준 0..1. 원본 이미지 자연
+  // 좌표계로 매핑하려면 bbox 의 (x,y) 오프셋 + (w,h) 스케일 곱하면 된다.
+  return mapResponseToOcrResult(data, bbox);
 }
 
 /* --------------------------- crop + encode --------------------- */
@@ -252,6 +261,9 @@ interface ServerExtracted {
   setCode?: string;
   rarity?: string;
   language?: 'ko' | 'jp' | 'en' | 'unknown';
+  /** 정규화된 0..1 비율 좌표의 4 코너 (TL,TR,BR,BL). 없으면 null. */
+  outerQuad?: Array<{ x: number; y: number }> | null;
+  innerQuad?: Array<{ x: number; y: number }> | null;
 }
 
 interface ServerScanResponse {
@@ -264,7 +276,10 @@ interface ServerScanResponse {
   needsUserSelection?: boolean;
 }
 
-function mapResponseToOcrResult(data: ServerScanResponse): CardOcrResult {
+function mapResponseToOcrResult(
+  data: ServerScanResponse,
+  bbox: { x: number; y: number; w: number; h: number },
+): CardOcrResult {
   const ex = data.extracted ?? {};
   const cardNumberLeft = (ex.cardNumber ?? '').trim();
   const cardNumberRight = (ex.totalNumber ?? '').trim();
@@ -301,5 +316,24 @@ function mapResponseToOcrResult(data: ServerScanResponse): CardOcrResult {
     usedAi: !!data.usedAi,
     confidence: typeof data.confidence === 'number' ? data.confidence : null,
     candidates: Array.isArray(data.candidates) ? data.candidates : [],
+    outerQuad: mapQuadToNatural(ex.outerQuad, bbox),
+    innerQuad: mapQuadToNatural(ex.innerQuad, bbox),
   };
+}
+
+/**
+ * 서버가 돌려준 normalized 0..1 quad(크롭 이미지 기준) → 원본 이미지 자연 좌표.
+ * bbox 가 원본 이미지에서 잘려나간 영역의 (x,y,w,h) 이므로
+ *   natX = bbox.x + normX * bbox.w,  natY = bbox.y + normY * bbox.h
+ */
+function mapQuadToNatural(
+  quad: Array<{ x: number; y: number }> | null | undefined,
+  bbox: { x: number; y: number; w: number; h: number },
+): Quad | null {
+  if (!Array.isArray(quad) || quad.length !== 4) return null;
+  const out = quad.map((p) => ({
+    x: bbox.x + p.x * bbox.w,
+    y: bbox.y + p.y * bbox.h,
+  }));
+  return out as Quad;
 }

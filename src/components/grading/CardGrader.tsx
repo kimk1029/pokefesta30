@@ -59,6 +59,10 @@ export function CardGrader() {
   // 카드 이름 언어 — 모바일 스캔 화면(scan.tsx)과 동일한 한/일/영 토글.
   // 서버 OCR 워커를 한 언어로만 돌려 정확도 ↑ + 일본판 일러스트 fallback 회피.
   const [scanLang, setScanLang] = useState<'ko' | 'jp' | 'en'>('ko');
+  // 사용자가 한 번이라도 핸들을 드래그했으면 true — AI quads 로 덮어쓰지 않게.
+  const userAdjustedRef = useRef(false);
+  // 같은 이미지에 대해 자동 OCR 을 한 번만 트리거하기 위한 신호.
+  const autoOcrFiredRef = useRef<HTMLImageElement | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -69,11 +73,12 @@ export function CardGrader() {
   // 디스플레이 스케일: 자연 픽셀 → 화면 픽셀
   const scale = imgEl && displayW > 0 ? displayW / imgEl.naturalWidth : 1;
 
-  /* 이미지 변경 시 canvas 사이즈 + 폴백 사각형 ---------------------- */
+  /* 이미지 변경 시 canvas 사이즈 + 폴백 사각형 + 즉시 외곽 자동검출 + 자동 OCR */
   useEffect(() => {
     if (!imgEl) return;
-    // 컨테이너가 첫 렌더에선 displayW=0 으로 collapse 돼 clientWidth=0 일 수 있음.
-    // 그럴 땐 viewport 기반 fallback 사용 → 라인이 너무 작은 캔버스에 그려져 안 보이는 문제 방지.
+    // 새 이미지 — 사용자 조정 플래그 리셋, 자동 OCR 트리거 새로 부여.
+    userAdjustedRef.current = false;
+
     const measured = containerRef.current?.clientWidth ?? 0;
     const fallback =
       typeof window !== 'undefined' ? Math.max(280, window.innerWidth - 32) : 360;
@@ -83,10 +88,21 @@ export function CardGrader() {
     setDisplayW(w);
     setDisplayH(h);
 
-    // 일단 폴백 사각형 — 사용자는 바로 드래그로 조정 가능. CV 는 옵션.
+    // 일단 폴백 사각형 — 사용자는 바로 드래그로 조정 가능.
     const fb = fallbackQuads(imgEl.naturalWidth, imgEl.naturalHeight);
     setOuter(fb.outer);
     setInner(fb.inner);
+
+    // pure JS 외곽 검출 — 30ms 정도라 부담 없음. 결과 있으면 outer/inner 갱신.
+    try {
+      const detected = detectCardOuterPureJs(imgEl);
+      if (detected && !userAdjustedRef.current) {
+        setOuter(detected);
+        setInner(shrinkQuad(detected, 0.045));
+      }
+    } catch {
+      // ignore — 폴백 사각형 그대로
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imgEl]);
 
@@ -145,6 +161,21 @@ export function CardGrader() {
     }, 30);
   }, []);
 
+  /* 이미지가 바뀌면 자동으로 OCR 한 번 — 사용자가 굳이 "📖 카드 정보 추출" 을
+     누르지 않아도 카드가 뜨자마자 결과·후보·시세가 같이 표시된다. 같은 imgEl
+     에 대해선 한 번만 (autoOcrFiredRef 가 그 인스턴스를 기억). */
+  useEffect(() => {
+    if (!imgEl) return;
+    if (autoOcrFiredRef.current === imgEl) return;
+    autoOcrFiredRef.current = imgEl;
+    // 외곽 자동 검출이 끝나길 한 프레임 기다림 — outer state 가 반영된 뒤 호출.
+    const t = window.setTimeout(() => {
+      onClickRecognize();
+    }, 60);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imgEl]);
+
   /* 사용자가 OCR 클릭 → 서버 (/api/cards/scan) 로 업로드 + AI 카드 정보 추출. */
   const onClickRecognize = useCallback(async () => {
     if (!imgEl || ocrLoading) return;
@@ -187,6 +218,12 @@ export function CardGrader() {
       });
       setOcrResult(result);
       setOcrProgress(1);
+      // AI 가 quads 를 안정적으로 돌려줬고 사용자가 핸들 만지기 전이면 자동 적용.
+      // sanity 는 서버에서 이미 통과 — 여기선 단순 null 체크만.
+      if (!userAdjustedRef.current) {
+        if (result.outerQuad) setOuter(result.outerQuad);
+        if (result.innerQuad) setInner(result.innerQuad);
+      }
     } catch (e) {
       setOcrErr(
         (e instanceof Error ? e.message : 'OCR 실패') +
@@ -215,6 +252,8 @@ export function CardGrader() {
     e.preventDefault();
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // 사용자가 직접 조정 — 이후 AI quads 응답으로 덮어쓰지 않게 신호.
+    userAdjustedRef.current = true;
     draggingRef.current = { which, idx };
     setDragHandle({ which, idx });
   };

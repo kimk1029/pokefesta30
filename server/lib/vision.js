@@ -19,7 +19,8 @@ const MODEL = process.env.VISION_MODEL ?? 'gpt-4o-mini';
 const FULL_DETAIL = /** @type {'low'|'high'|'auto'} */ (process.env.VISION_FULL_DETAIL ?? 'low');
 const ZOOM_DETAIL = /** @type {'low'|'high'|'auto'} */ (process.env.VISION_ZOOM_DETAIL ?? 'high');
 const MAX_DIM = Number(process.env.VISION_MAX_DIM ?? 1024);
-const MAX_OUTPUT_TOKENS = 80;
+// 80 → 220 — outerQuad/innerQuad 각 8 number(=8 토큰×2) + JSON 키 마진.
+const MAX_OUTPUT_TOKENS = 220;
 
 // Modern Pokémon TCG rarity codes. The model frequently returns long-form
 // strings ("Rare", "Uncommon", "Common") at temp 0 without an enum, so we
@@ -45,8 +46,21 @@ const SCHEMA = {
       totalNumber: { type: 'string' },
       rarity: { type: 'string', enum: RARITIES },
       language: { type: 'string', enum: ['ko', 'jp', 'en', ''] },
+      // 카드 외곽(=물리적 컷 라인) 4코너. image 1 기준 normalized 0..1 좌표,
+      // [TL.x, TL.y, TR.x, TR.y, BR.x, BR.y, BL.x, BL.y] 평탄화 8 number.
+      // 추정 불가능하면 빈 배열. strict json_schema 에서 array length 제약을
+      // 못 걸므로 길이 검증은 서버에서.
+      outerQuad: {
+        type: 'array',
+        items: { type: 'number' },
+      },
+      // 카드 인쇄 프레임(컬러 보더 안쪽) 4코너. 외곽보다 살짝 안쪽. 같은 포맷.
+      innerQuad: {
+        type: 'array',
+        items: { type: 'number' },
+      },
     },
-    required: ['name', 'nameJa', 'setCode', 'setName', 'cardNumber', 'totalNumber', 'rarity', 'language'],
+    required: ['name', 'nameJa', 'setCode', 'setName', 'cardNumber', 'totalNumber', 'rarity', 'language', 'outerQuad', 'innerQuad'],
   },
 };
 
@@ -57,7 +71,13 @@ const SYSTEM_PROMPT =
   'Pokémon TCG card fields as JSON. Image 1 = full card → name (as printed) ' +
   'and nameJa (the Pokémon\'s Japanese katakana name, e.g. レアコイル). ' +
   'Image 2 = zoomed bottom-left badge → setCode (e.g. sv8, sv6, m1l), ' +
-  'cardNumber, totalNumber, rarity. Empty string if unreadable.';
+  'cardNumber, totalNumber, rarity. Empty string if unreadable. ' +
+  // 외곽/내곽 quad — Image 1 기준. 좌표는 0~1 normalized.
+  'outerQuad: 8 numbers = full card OUTER cut boundary 4 corners in this order ' +
+  '[TL.x, TL.y, TR.x, TR.y, BR.x, BR.y, BL.x, BL.y], normalized to image 1 ' +
+  '(0=left/top, 1=right/bottom). innerQuad: 8 numbers, same format, for the ' +
+  'INNER printed frame (just inside the colored card border, around artwork+text). ' +
+  'Empty array [] if the card boundary is not clearly visible.';
 
 let openaiClient = null;
 async function getOpenAI() {
@@ -145,6 +165,8 @@ export async function visionExtract(imageBuffer) {
       totalNumber: str(obj.totalNumber),
       rarity: str(obj.rarity).toUpperCase(),
       language: str(obj.language).toLowerCase(),
+      outerQuad: sanitizeQuad(obj.outerQuad),
+      innerQuad: sanitizeQuad(obj.innerQuad),
     };
   } catch (e) {
     console.warn('[vision] failed:', e?.message ?? e);
@@ -158,4 +180,44 @@ export function visionAvailable() {
 
 function str(v) {
   return typeof v === 'string' ? v : '';
+}
+
+/**
+ * Vision 응답의 quad(평탄화 8 number) sanity 체크 → 4 코너 [{x,y},...] 또는 null.
+ * - 길이 8 + 모두 유한 수 + 0..1 범위
+ * - 면적이 너무 작거나(<5%) 거의 전면(>=99%) 이면 reject — 의미 없는 추정
+ * - x/y 가 같은 코너 두 개 이상이면 degenerate → reject
+ */
+function sanitizeQuad(input) {
+  if (!Array.isArray(input) || input.length !== 8) return null;
+  const nums = input.map((n) => Number(n));
+  if (nums.some((n) => !Number.isFinite(n))) return null;
+  if (nums.some((n) => n < -0.05 || n > 1.05)) return null;
+  const pts = [
+    { x: clamp01(nums[0]), y: clamp01(nums[1]) },
+    { x: clamp01(nums[2]), y: clamp01(nums[3]) },
+    { x: clamp01(nums[4]), y: clamp01(nums[5]) },
+    { x: clamp01(nums[6]), y: clamp01(nums[7]) },
+  ];
+  // 같은 점 중복?
+  for (let i = 0; i < 4; i++) {
+    for (let j = i + 1; j < 4; j++) {
+      if (Math.abs(pts[i].x - pts[j].x) < 0.01 && Math.abs(pts[i].y - pts[j].y) < 0.01) {
+        return null;
+      }
+    }
+  }
+  // 면적 (shoelace)
+  const area = Math.abs(
+    pts[0].x * pts[1].y - pts[1].x * pts[0].y +
+    pts[1].x * pts[2].y - pts[2].x * pts[1].y +
+    pts[2].x * pts[3].y - pts[3].x * pts[2].y +
+    pts[3].x * pts[0].y - pts[0].x * pts[3].y,
+  ) / 2;
+  if (area < 0.05 || area >= 0.99) return null;
+  return pts;
+}
+
+function clamp01(n) {
+  return Math.max(0, Math.min(1, n));
 }
