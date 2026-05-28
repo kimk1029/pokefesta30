@@ -4,7 +4,7 @@
  * 웹 MyCardsScreen 과 동일한 4 view (그리드/리스트/앨범/필름) + 등급 탭 + 정렬.
  * 서버에서 /api/me/cards/with-prices 로 enriched MyCardRow 가져와 표시.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -13,6 +13,7 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type View as RNView,
 } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -41,6 +42,11 @@ import {
   type Rarity,
 } from '@/lib/cardRarity';
 import { localizeCardName } from '@/lib/cardNameKo';
+import {
+  CardSpotlightModal,
+  type CardSpotlightData,
+  type SpotlightOrigin,
+} from '@/components/CardSpotlightModal';
 
 type ViewMode = 'grid' | 'list' | 'album' | 'film';
 type SortBy = 'recent' | 'name' | 'price' | 'grade';
@@ -188,6 +194,31 @@ export default function MyCardsScreen() {
     }
   };
 
+  // 🔍 카드 스포트라이트 — 컬렉션 카드 우상단 버튼을 누르면 풀스크린 회전 확대.
+  const [spotlight, setSpotlight] = useState<{ data: CardSpotlightData; origin: SpotlightOrigin | null } | null>(null);
+
+  const openSpotlight = useCallback(
+    (d: Display, origin: SpotlightOrigin | null) => {
+      const subtitleParts: string[] = [];
+      if (d.src.ocrSetCode) subtitleParts.push(d.src.ocrSetCode);
+      if (d.src.ocrCardNumber) subtitleParts.push(d.src.ocrCardNumber);
+      if (d.rar) subtitleParts.push(d.rar);
+      const trend = d.src.trend ?? [];
+      const data: CardSpotlightData = {
+        imageUrl: d.imageUrl,
+        emojiFallback: '🃏',
+        name: d.name,
+        subtitle: subtitleParts.join(' · ') || null,
+        gradeLabel: d.src.gradeEstimate ?? null,
+        priceLabel: d.priceJpy > 0 ? format(d.priceJpy) : null,
+        trend,
+        currencySymbol: '¥',
+      };
+      setSpotlight({ data, origin });
+    },
+    [format],
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <AppBar title="내 컬렉션" onBack={() => router.back()} />
@@ -305,17 +336,23 @@ export default function MyCardsScreen() {
                 </PixelText>
               </View>
             ) : view === 'grid' ? (
-              <GridView items={filtered} onPress={openDetail} onDelete={onDelete} format={format} />
+              <GridView items={filtered} onPress={openDetail} onDelete={onDelete} format={format} onSpotlight={openSpotlight} />
             ) : view === 'list' ? (
-              <ListView items={filtered} onPress={openDetail} onDelete={onDelete} format={format} />
+              <ListView items={filtered} onPress={openDetail} onDelete={onDelete} format={format} onSpotlight={openSpotlight} />
             ) : view === 'album' ? (
-              <AlbumView items={filtered} onPress={openDetail} />
+              <AlbumView items={filtered} onPress={openDetail} onSpotlight={openSpotlight} />
             ) : (
-              <FilmView items={filtered} onPress={openDetail} format={format} />
+              <FilmView items={filtered} onPress={openDetail} format={format} onSpotlight={openSpotlight} />
             )}
           </>
         )}
       </ScrollView>
+
+      <CardSpotlightModal
+        data={spotlight?.data ?? null}
+        origin={spotlight?.origin ?? null}
+        onClose={() => setSpotlight(null)}
+      />
     </View>
   );
 }
@@ -323,77 +360,172 @@ export default function MyCardsScreen() {
 /* ────────────── views ────────────── */
 
 function GridView({
-  items, onPress, onDelete, format,
+  items, onPress, onDelete, format, onSpotlight,
 }: {
   items: Display[];
   onPress: (d: Display) => void;
   onDelete: (id: number) => void;
   format: (jpy: number) => string;
+  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
 }) {
   return (
     <View style={styles.grid}>
       {items.map((d) => (
-        <PixelFrame key={d.src.id} shadow={5} inner={3} style={styles.gridCell}>
-          <View>
-            <Pressable onPress={() => onPress(d)}>
-              <CardImage d={d} aspect />
-              <View style={{ padding: 7 }}>
-                <PixelText variant="ko" size={10} numberOfLines={2} weight="bold">
-                  {d.name}
-                </PixelText>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
-                  <RarBadgeMini rar={d.rar} />
-                  {d.gradeNum != null && (
-                    <PixelText variant="pixel" size={8} color={colors.goldDk}>
-                      P{d.gradeNum}
-                    </PixelText>
-                  )}
-                </View>
-                <PixelText variant="pixel" size={10} color={colors.grnDk} style={{ marginTop: 5 }}>
-                  {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
-                </PixelText>
-              </View>
-            </Pressable>
-            {/* 웹 .cv-lc-btn 처럼 거래 + 삭제 나란히. */}
-            <View style={styles.gridBtnRow}>
-              <Pressable
-                onPress={() => router.push(`/write/trade?userCardId=${d.src.id}&title=${encodeURIComponent(d.name)}` as never)}
-                style={[styles.gridBtn, { backgroundColor: colors.ink }]}
-              >
-                <PixelText variant="pixel" size={8} color={colors.gold}>거래</PixelText>
-              </Pressable>
-              <Pressable
-                onPress={() => onDelete(d.src.id)}
-                style={[styles.gridBtn, { borderLeftWidth: 2, borderLeftColor: colors.ink }]}
-              >
-                <PixelText variant="pixel" size={8} color={colors.red}>삭제</PixelText>
-              </Pressable>
-            </View>
-          </View>
-        </PixelFrame>
+        <GridCell key={d.src.id} d={d} onPress={onPress} onDelete={onDelete} format={format} onSpotlight={onSpotlight} />
       ))}
     </View>
   );
 }
 
+function GridCell({
+  d, onPress, onDelete, format, onSpotlight,
+}: {
+  d: Display;
+  onPress: (d: Display) => void;
+  onDelete: (id: number) => void;
+  format: (jpy: number) => string;
+  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
+}) {
+  const thumbRef = useRef<RNView | null>(null);
+  return (
+    <PixelFrame shadow={5} inner={3} style={styles.gridCell}>
+      <View>
+        <Pressable onPress={() => onPress(d)}>
+          {/* 썸네일을 ref 로 잡아두고 🔍 누를 때 measureInWindow 로 origin 캡처 */}
+          <View ref={thumbRef} collapsable={false}>
+            <CardImage d={d} aspect />
+          </View>
+          <View style={{ padding: 7 }}>
+            <PixelText variant="ko" size={10} numberOfLines={2} weight="bold">
+              {d.name}
+            </PixelText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
+              <RarBadgeMini rar={d.rar} />
+              {d.gradeNum != null && (
+                <PixelText variant="pixel" size={8} color={colors.goldDk}>
+                  P{d.gradeNum}
+                </PixelText>
+              )}
+            </View>
+            <PixelText variant="pixel" size={10} color={colors.grnDk} style={{ marginTop: 5 }}>
+              {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
+            </PixelText>
+          </View>
+        </Pressable>
+        <SpotlightButton
+          targetRef={thumbRef}
+          onCaptured={(o) => onSpotlight(d, o)}
+        />
+        {/* 웹 .cv-lc-btn 처럼 거래 + 삭제 나란히. */}
+        <View style={styles.gridBtnRow}>
+          <Pressable
+            onPress={() => router.push(`/write/trade?userCardId=${d.src.id}&title=${encodeURIComponent(d.name)}` as never)}
+            style={[styles.gridBtn, { backgroundColor: colors.ink }]}
+          >
+            <PixelText variant="pixel" size={8} color={colors.gold}>거래</PixelText>
+          </Pressable>
+          <Pressable
+            onPress={() => onDelete(d.src.id)}
+            style={[styles.gridBtn, { borderLeftWidth: 2, borderLeftColor: colors.ink }]}
+          >
+            <PixelText variant="pixel" size={8} color={colors.red}>삭제</PixelText>
+          </Pressable>
+        </View>
+      </View>
+    </PixelFrame>
+  );
+}
+
+/**
+ * 🔍 스포트라이트 trigger — 카드 우상단에 floating 으로 얹는다.
+ * 클릭하면 targetRef (= 썸네일 View) 의 화면 좌표를 measureInWindow 로 잡아
+ * onCaptured 로 넘긴다. 그 좌표가 모달 FLIP 애니메이션의 origin 이 됨.
+ */
+function SpotlightButton({
+  targetRef,
+  onCaptured,
+}: {
+  targetRef: React.RefObject<RNView | null>;
+  onCaptured: (origin: SpotlightOrigin | null) => void;
+}) {
+  return (
+    <Pressable
+      onPress={() => {
+        const node = targetRef.current;
+        if (!node) {
+          onCaptured(null);
+          return;
+        }
+        // measureInWindow 는 비동기 — 콜백으로 윈도우 좌표(absolute) 반환.
+        node.measureInWindow((x, y, width, height) => {
+          if (!Number.isFinite(x) || !Number.isFinite(y) || width <= 0 || height <= 0) {
+            onCaptured(null);
+          } else {
+            onCaptured({ x, y, width, height });
+          }
+        });
+      }}
+      accessibilityLabel="카드 자세히 보기"
+      style={spotBtnStyles.btn}
+    >
+      <PixelText variant="pixel" size={11} color={colors.gold}>🔍</PixelText>
+    </Pressable>
+  );
+}
+
+const spotBtnStyles = StyleSheet.create({
+  btn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 28,
+    height: 28,
+    backgroundColor: colors.ink,
+    borderWidth: 2,
+    borderColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+});
+
 function ListView({
-  items, onPress, onDelete, format,
+  items, onPress, onDelete, format, onSpotlight,
 }: {
   items: Display[];
   onPress: (d: Display) => void;
   onDelete: (id: number) => void;
   format: (jpy: number) => string;
+  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
 }) {
   return (
     <View style={{ paddingHorizontal: space.gap }}>
-      {items.map((d) => {
-        const trend = d.src.trend;
-        return (
-          <PixelFrame key={d.src.id} shadow={6} style={{ marginBottom: space.cg }}>
+      {items.map((d) => (
+        <ListRow key={d.src.id} d={d} onPress={onPress} onDelete={onDelete} format={format} onSpotlight={onSpotlight} />
+      ))}
+    </View>
+  );
+}
+
+function ListRow({
+  d, onPress, onDelete, format, onSpotlight,
+}: {
+  d: Display;
+  onPress: (d: Display) => void;
+  onDelete: (id: number) => void;
+  format: (jpy: number) => string;
+  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
+}) {
+  const thumbRef = useRef<RNView | null>(null);
+  const trend = d.src.trend;
+  return (
+        <PixelFrame shadow={6} style={{ marginBottom: space.cg }}>
             <View style={styles.listInner}>
               {/* 썸네일 + 본문 (탭하면 상세) */}
               <Pressable onPress={() => onPress(d)} style={styles.listMain}>
-                <CardImage d={d} thumb />
+                <View ref={thumbRef} collapsable={false}>
+                  <CardImage d={d} thumb />
+                </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <PixelText variant="ko" size={11} weight="bold" numberOfLines={1}>
                     {d.name}
@@ -428,6 +560,32 @@ function ListView({
                 ) : null}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                   <PixelPress
+                    onPress={() => {
+                      const node = thumbRef.current;
+                      if (!node) {
+                        onSpotlight(d, null);
+                        return;
+                      }
+                      node.measureInWindow((x, y, width, height) => {
+                        if (!Number.isFinite(x) || !Number.isFinite(y) || width <= 0 || height <= 0) {
+                          onSpotlight(d, null);
+                        } else {
+                          onSpotlight(d, { x, y, width, height });
+                        }
+                      });
+                    }}
+                    bg={colors.ink}
+                    borderWidth={2}
+                    shadow={2}
+                    inner={2}
+                    hi="rgba(255,255,255,0.25)"
+                    lo={null}
+                  >
+                    <View style={{ paddingHorizontal: 9, paddingVertical: 5 }}>
+                      <PixelText variant="pixel" size={8} color={colors.gold}>🔍</PixelText>
+                    </View>
+                  </PixelPress>
+                  <PixelPress
                     onPress={() => router.push(`/write/trade?userCardId=${d.src.id}&title=${encodeURIComponent(d.name)}` as never)}
                     bg={colors.ink}
                     borderWidth={2}
@@ -457,9 +615,6 @@ function ListView({
               </View>
             </View>
           </PixelFrame>
-        );
-      })}
-    </View>
   );
 }
 
@@ -497,24 +652,49 @@ function MiniSparkline({ points }: { points: number[] }) {
   );
 }
 
-function AlbumView({ items, onPress }: { items: Display[]; onPress: (d: Display) => void }) {
+function AlbumView({
+  items, onPress, onSpotlight,
+}: {
+  items: Display[];
+  onPress: (d: Display) => void;
+  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
+}) {
   return (
     <View style={[styles.grid, { gap: 3 }]}>
       {items.map((d) => (
-        <Pressable key={d.src.id} onPress={() => onPress(d)} style={[styles.gridItem, { width: '32%' }]}>
-          <CardImage d={d} aspect />
-        </Pressable>
+        <AlbumCell key={d.src.id} d={d} onPress={onPress} onSpotlight={onSpotlight} />
       ))}
     </View>
   );
 }
 
+function AlbumCell({
+  d, onPress, onSpotlight,
+}: {
+  d: Display;
+  onPress: (d: Display) => void;
+  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
+}) {
+  const thumbRef = useRef<RNView | null>(null);
+  return (
+    <View style={[styles.gridItem, { width: '32%' }]}>
+      <Pressable onPress={() => onPress(d)}>
+        <View ref={thumbRef} collapsable={false}>
+          <CardImage d={d} aspect />
+        </View>
+      </Pressable>
+      <SpotlightButton targetRef={thumbRef} onCaptured={(o) => onSpotlight(d, o)} />
+    </View>
+  );
+}
+
 function FilmView({
-  items, onPress, format,
+  items, onPress, format, onSpotlight,
 }: {
   items: Display[];
   onPress: (d: Display) => void;
   format: (jpy: number) => string;
+  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
 }) {
   return (
     <ScrollView
@@ -523,19 +703,38 @@ function FilmView({
       contentContainerStyle={{ paddingHorizontal: space.gap, gap: 8 }}
     >
       {items.map((d) => (
-        <Pressable key={d.src.id} onPress={() => onPress(d)} style={styles.filmTile}>
-          <CardImage d={d} aspect />
-          <PixelText variant="ko" size={9} numberOfLines={1} style={{ marginTop: 6 }}>
-            {d.name}
-          </PixelText>
-          {d.priceJpy > 0 && (
-            <PixelText variant="pixel" size={8} color={colors.grnDk} numberOfLines={1}>
-              {format(d.priceJpy)}
-            </PixelText>
-          )}
-        </Pressable>
+        <FilmTile key={d.src.id} d={d} onPress={onPress} format={format} onSpotlight={onSpotlight} />
       ))}
     </ScrollView>
+  );
+}
+
+function FilmTile({
+  d, onPress, format, onSpotlight,
+}: {
+  d: Display;
+  onPress: (d: Display) => void;
+  format: (jpy: number) => string;
+  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
+}) {
+  const thumbRef = useRef<RNView | null>(null);
+  return (
+    <View style={styles.filmTile}>
+      <Pressable onPress={() => onPress(d)}>
+        <View ref={thumbRef} collapsable={false}>
+          <CardImage d={d} aspect />
+        </View>
+        <PixelText variant="ko" size={9} numberOfLines={1} style={{ marginTop: 6 }}>
+          {d.name}
+        </PixelText>
+        {d.priceJpy > 0 && (
+          <PixelText variant="pixel" size={8} color={colors.grnDk} numberOfLines={1}>
+            {format(d.priceJpy)}
+          </PixelText>
+        )}
+      </Pressable>
+      <SpotlightButton targetRef={thumbRef} onCaptured={(o) => onSpotlight(d, o)} />
+    </View>
   );
 }
 

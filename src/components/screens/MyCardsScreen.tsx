@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
 import {
@@ -17,6 +17,7 @@ import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/components/PriceModeProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { CardSpotlightModal, type CardSpotlightData } from '@/components/CardSpotlightModal';
 
 type ViewMode = 'grid' | 'list' | 'album' | 'film';
 type SortBy = 'name' | 'price' | 'grade' | 'recent';
@@ -77,6 +78,8 @@ export function MyCardsScreen({ cards: initial }: Props) {
   const [tab, setTab] = useState<'mine' | 'fav'>('mine'); // 내 카드 / 관심카드
   // 스니덩 카드(apparelId 有, 서버 trend 비어있음)는 sales-chart API로 추이를 받아 채움.
   const [snkrTrends, setSnkrTrends] = useState<Record<number, number[]>>({});
+  // 카드 스포트라이트 모달 — 🔍 버튼 누르면 카드가 풀스크린으로 회전하며 펼쳐짐.
+  const [spotlight, setSpotlight] = useState<{ data: CardSpotlightData; origin: DOMRect | null } | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -181,6 +184,36 @@ export function MyCardsScreen({ cards: initial }: Props) {
   const totalJpy = filtered.reduce((s, c) => s + c.priceJpy, 0);
   const gradedN = filtered.filter((c) => c.gradeNum !== null).length;
   const memoN = filtered.filter((c) => Boolean(c.src.memo)).length;
+
+  // 🔍 클릭 시 호출 — 썸네일 element 의 화면상 사각형을 캡처해 모달에 넘긴다.
+  // 모달의 FLIP 애니메이션이 그 사각형 위치에서 풀스크린으로 회전 확대됨.
+  const openSpotlight = useCallback(
+    (c: DisplayCard, originEl: HTMLElement | null) => {
+      const trend = c.src.trend && c.src.trend.length >= 2
+        ? c.src.trend
+        : c.src.snkrdunkApparelId != null
+          ? (snkrTrends[c.src.snkrdunkApparelId] ?? [])
+          : [];
+      const label = priceLabel(c, format);
+      const subtitleParts: string[] = [];
+      if (c.src.ocrSetCode) subtitleParts.push(c.src.ocrSetCode);
+      if (c.src.ocrCardNumber) subtitleParts.push(c.src.ocrCardNumber);
+      if (c.rar) subtitleParts.push(c.rar);
+      const currencySymbol = c.priceJpy > 0 ? '¥' : c.price > 0 ? '$' : '';
+      const data: CardSpotlightData = {
+        imageUrl: c.imageUrl,
+        emojiFallback: c.catalog?.emoji ?? '🃏',
+        name: c.name,
+        subtitle: subtitleParts.join(' · ') || undefined,
+        gradeLabel: c.src.gradeEstimate ?? null,
+        priceLabel: label,
+        trend,
+        currencySymbol,
+      };
+      setSpotlight({ data, origin: originEl?.getBoundingClientRect() ?? null });
+    },
+    [snkrTrends, format],
+  );
 
   const onDelete = (id: number) => {
     if (pending) return;
@@ -357,13 +390,13 @@ export function MyCardsScreen({ cards: initial }: Props) {
           </Link>
         </div>
       ) : view === 'grid' ? (
-        <GridView cards={filtered} onDelete={onDelete} />
+        <GridView cards={filtered} onDelete={onDelete} onSpotlight={openSpotlight} />
       ) : view === 'list' ? (
-        <ListView cards={filtered} onDelete={onDelete} snkrTrends={snkrTrends} />
+        <ListView cards={filtered} onDelete={onDelete} snkrTrends={snkrTrends} onSpotlight={openSpotlight} />
       ) : view === 'album' ? (
-        <AlbumView cards={filtered} />
+        <AlbumView cards={filtered} onSpotlight={openSpotlight} />
       ) : (
-        <FilmView cards={filtered} />
+        <FilmView cards={filtered} onSpotlight={openSpotlight} />
       )}
 
       </div>{/* /overflow guard */}
@@ -371,6 +404,13 @@ export function MyCardsScreen({ cards: initial }: Props) {
       )}
 
       <div className="bggap" />
+
+      {/* 🔍 카드 스포트라이트 — 풀스크린 회전 확대 모달 */}
+      <CardSpotlightModal
+        data={spotlight?.data ?? null}
+        origin={spotlight?.origin ?? null}
+        onClose={() => setSpotlight(null)}
+      />
     </>
   );
 }
@@ -497,7 +537,15 @@ function FavoritesView() {
 
 /* ---------------- views ---------------- */
 
-function GridView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: number) => void }) {
+function GridView({
+  cards,
+  onDelete,
+  onSpotlight,
+}: {
+  cards: DisplayCard[];
+  onDelete: (id: number) => void;
+  onSpotlight: (c: DisplayCard, originEl: HTMLElement | null) => void;
+}) {
   return (
     <div className="sect">
       <div
@@ -508,24 +556,35 @@ function GridView({ cards, onDelete }: { cards: DisplayCard[]; onDelete: (id: nu
         }}
       >
         {cards.map((c) => (
-          <GridItem key={c.src.id} c={c} onDelete={onDelete} />
+          <GridItem key={c.src.id} c={c} onDelete={onDelete} onSpotlight={onSpotlight} />
         ))}
       </div>
     </div>
   );
 }
 
-function GridItem({ c, onDelete }: { c: DisplayCard; onDelete: (id: number) => void }) {
+function GridItem({
+  c,
+  onDelete,
+  onSpotlight,
+}: {
+  c: DisplayCard;
+  onDelete: (id: number) => void;
+  onSpotlight: (c: DisplayCard, originEl: HTMLElement | null) => void;
+}) {
   const { format } = useCurrency();
   const label = priceLabel(c, format);
   const hasPrice = label !== null;
   return (
-    <div className="pack-grid-card" style={{ borderTop: `4px solid ${gameAccent(c.game)}`, minWidth: 0 }}>
+    <div className="pack-grid-card" style={{ borderTop: `4px solid ${gameAccent(c.game)}`, minWidth: 0, position: 'relative' }}>
       <Link
         href={detailHref(c)}
         style={{ display: 'block', textDecoration: 'none', color: 'inherit', position: 'relative' }}
       >
-        <div style={{ aspectRatio: '63 / 88', background: 'var(--pap2)', overflow: 'hidden' }}>
+        <div
+          className="cv-spot-origin"
+          style={{ aspectRatio: '63 / 88', background: 'var(--pap2)', overflow: 'hidden' }}
+        >
           {c.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -575,6 +634,8 @@ function GridItem({ c, onDelete }: { c: DisplayCard; onDelete: (id: number) => v
           </div>
         </div>
       </Link>
+      {/* 🔍 카드 스포트라이트 floating 버튼 — 이미지 우상단 */}
+      <SpotlightButton onPress={(btn) => onSpotlight(c, btn.closest('.pack-grid-card')?.querySelector('.cv-spot-origin') as HTMLElement | null)} />
       <div style={{ display: 'flex', borderTop: '3px solid var(--ink)' }}>
         <Link
           href={`/write/trade?userCardId=${c.src.id}`}
@@ -615,14 +676,52 @@ function GridItem({ c, onDelete }: { c: DisplayCard; onDelete: (id: number) => v
   );
 }
 
+/**
+ * 🔍 카드 스포트라이트 trigger 버튼.
+ * 컬렉션 카드 우상단에 floating 으로 얹는다. 클릭하면 같은 카드 컨테이너
+ * 안의 썸네일(`.cv-spot-origin`) 사각형을 기준으로 풀스크린 모달이 열림.
+ */
+function SpotlightButton({ onPress }: { onPress: (btn: HTMLElement) => void }) {
+  return (
+    <button
+      type="button"
+      aria-label="카드 자세히 보기"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onPress(e.currentTarget);
+      }}
+      style={{
+        position: 'absolute',
+        top: 6,
+        right: 6,
+        width: 28,
+        height: 28,
+        background: 'var(--ink)',
+        color: 'var(--gold)',
+        border: 0,
+        fontSize: 13,
+        cursor: 'pointer',
+        zIndex: 2,
+        boxShadow:
+          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--gold)',
+      }}
+    >
+      🔍
+    </button>
+  );
+}
+
 function ListView({
   cards,
   onDelete,
   snkrTrends,
+  onSpotlight,
 }: {
   cards: DisplayCard[];
   onDelete: (id: number) => void;
   snkrTrends: Record<number, number[]>;
+  onSpotlight: (c: DisplayCard, originEl: HTMLElement | null) => void;
 }) {
   const { format } = useCurrency();
   // 서버 trend 가 있으면 그걸, 없으면(스니덩) sales-chart 로 받은 추이를 사용.
@@ -639,7 +738,8 @@ function ListView({
         <div key={c.src.id} className="cv-list-card" style={{ minWidth: 0 }}>
           <Link href={detailHref(c)} style={{ display: 'block', flexShrink: 0 }}>
             <div
-              className="cv-list-thumb"
+              className="cv-list-thumb cv-spot-origin"
+              data-card-id={c.src.id}
               style={{
                 background: gameBg(c.game),
                 position: 'relative',
@@ -733,6 +833,23 @@ function ListView({
               <div />
             )}
             <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  const thumb = (e.currentTarget.closest('.cv-list-card') as HTMLElement | null)
+                    ?.querySelector('.cv-spot-origin') as HTMLElement | null;
+                  onSpotlight(c, thumb);
+                }}
+                aria-label="카드 자세히 보기"
+                className="cv-lc-btn"
+                style={{
+                  background: 'var(--ink)',
+                  color: 'var(--gold)',
+                  cursor: 'pointer',
+                }}
+              >
+                🔍
+              </button>
               <Link href={`/write/trade?userCardId=${c.src.id}`} className="cv-lc-btn cv-lc-btn-trade">
                 거래
               </Link>
@@ -749,7 +866,13 @@ function ListView({
 }
 
 /** 앨범: 이미지만 — 텍스트 없이 3열 그리드. 카드 사진만 한눈에 보기. */
-function AlbumView({ cards }: { cards: DisplayCard[] }) {
+function AlbumView({
+  cards,
+  onSpotlight,
+}: {
+  cards: DisplayCard[];
+  onSpotlight: (c: DisplayCard, originEl: HTMLElement | null) => void;
+}) {
   return (
     <div className="sect">
       <div
@@ -760,36 +883,42 @@ function AlbumView({ cards }: { cards: DisplayCard[] }) {
         }}
       >
         {cards.map((c) => (
-          <Link
-            key={c.src.id}
-            href={detailHref(c)}
-            style={{
-              display: 'block',
-              textDecoration: 'none',
-              color: 'inherit',
-              minWidth: 0,
-              aspectRatio: '63 / 88',
-              background: 'var(--pap2)',
-              overflow: 'hidden',
-              position: 'relative',
-              boxShadow:
-                '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-            }}
-          >
-            {c.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={c.imageUrl}
-                alt={c.name}
-                loading="lazy"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            ) : (
-              <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-                <span style={{ fontSize: 33 }}>{c.catalog?.emoji ?? '🃏'}</span>
-              </div>
-            )}
-          </Link>
+          <div key={c.src.id} style={{ position: 'relative', minWidth: 0 }}>
+            <Link
+              href={detailHref(c)}
+              className="cv-spot-origin"
+              style={{
+                display: 'block',
+                textDecoration: 'none',
+                color: 'inherit',
+                aspectRatio: '63 / 88',
+                background: 'var(--pap2)',
+                overflow: 'hidden',
+                position: 'relative',
+                boxShadow:
+                  '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+              }}
+            >
+              {c.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.imageUrl}
+                  alt={c.name}
+                  loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+              ) : (
+                <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
+                  <span style={{ fontSize: 33 }}>{c.catalog?.emoji ?? '🃏'}</span>
+                </div>
+              )}
+            </Link>
+            <SpotlightButton
+              onPress={(btn) =>
+                onSpotlight(c, btn.parentElement?.querySelector('.cv-spot-origin') as HTMLElement | null)
+              }
+            />
+          </div>
         ))}
       </div>
     </div>
@@ -797,7 +926,13 @@ function AlbumView({ cards }: { cards: DisplayCard[] }) {
 }
 
 /** 필름: 가로 스크롤 한 줄. 컨테이너 안에서만 스크롤 — 페이지 자체는 안 넘어감. */
-function FilmView({ cards }: { cards: DisplayCard[] }) {
+function FilmView({
+  cards,
+  onSpotlight,
+}: {
+  cards: DisplayCard[];
+  onSpotlight: (c: DisplayCard, originEl: HTMLElement | null) => void;
+}) {
   const { format } = useCurrency();
   return (
     <div className="sect" style={{ maxWidth: '100%', overflow: 'hidden' }}>
@@ -812,17 +947,17 @@ function FilmView({ cards }: { cards: DisplayCard[] }) {
         }}
       >
         {cards.map((c) => (
+          <div key={c.src.id} style={{ position: 'relative', flexShrink: 0, width: 92 }}>
           <Link
-            key={c.src.id}
             href={detailHref(c)}
             style={{
-              flexShrink: 0,
-              width: 92,
+              display: 'block',
               textDecoration: 'none',
               color: 'inherit',
             }}
           >
             <div
+              className="cv-spot-origin"
               style={{
                 width: 92,
                 aspectRatio: '63 / 88',
@@ -879,6 +1014,12 @@ function FilmView({ cards }: { cards: DisplayCard[] }) {
               </div>
             )}
           </Link>
+          <SpotlightButton
+            onPress={(btn) =>
+              onSpotlight(c, btn.parentElement?.querySelector('.cv-spot-origin') as HTMLElement | null)
+            }
+          />
+          </div>
         ))}
       </div>
     </div>
