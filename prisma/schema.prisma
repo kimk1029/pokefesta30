@@ -346,6 +346,48 @@ model CardPriceSnapshot {
   @@map("card_price_snapshots")
 }
 
+/// SNKRDUNK 정적 카드 카탈로그 — "하나의 마스터 카드 DB".
+/// 시세확인 때 본 카드의 '변하지 않는' 정보(이름/이미지/itemKind/카드번호 등)만 한 행에 누적.
+/// 시세는 여기 없고 SnkrdunkPriceSnapshot 에만 — 현재가 = apparelId 별 최신 스냅샷.
+/// packCode 는 소속 박스(속성)일 뿐이라 nullable. updatedAt = 마지막 갱신 시각(박스 신선도 판정에 사용).
+model SnkrdunkCard {
+  /// snkrdunk apparelId (PK).
+  apparelId      Int      @id
+  name           String   @default("")
+  localizedName  String   @default("")
+  koName         String   @default("")
+  /// 'single' | 'box'
+  itemKind       String   @default("single")
+  shortName      String   @default("")
+  imageUrl       String?
+  productNumber  String   @default("")
+  /// 박스 출시일 (YYYY-MM-DD).
+  releasedAt     String?
+  /// 소속 박스 (CARD_PACKS.code). 박스 맥락 없이 본 카드는 null.
+  packCode       String?
+  /// snkrdunk apparel group id (박스).
+  apparelGroupId Int?
+  /// 카드를 처음 수집한 시각.
+  firstSeenAt    DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([packCode])
+  @@map("snkrdunk_cards")
+}
+
+/// SNKRDUNK 시세 스냅샷 — 시세 갱신마다 한 줄 누적. 현재가 = apparelId 별 최신 행.
+model SnkrdunkPriceSnapshot {
+  id           Int      @id @default(autoincrement())
+  apparelId    Int
+  /// 최저가 (JPY).
+  minPrice     Int
+  listingCount Int      @default(0)
+  fetchedAt    DateTime @default(now())
+
+  @@index([apparelId, fetchedAt(sort: Desc)])
+  @@map("snkrdunk_price_snapshots")
+}
+
 /// 홈 히어로 슬라이더 배너 — 어드민에서 관리.
 /// visualType='emoji' 면 visualValue 가 단일 이모지/문자, 'image' 면 정적 경로 또는 URL.
 /// onClick: null | 'stamp-rally' | 'oripa' (특수 액션 라우팅)
@@ -404,4 +446,34 @@ model SearchLog {
   @@index([createdAt(sort: Desc)])
   @@index([userId])
   @@map("search_logs")
+}
+
+/// 사용자 행동 로그 — 회원/비회원 모두의 클릭·페이지이동 등 모든 액션을 한 줄씩 누적(중복제거 없음).
+/// PageView(IP·일별 1건 집계)와 달리 세분화된 원시 로그. 어드민 "행동 로그" 화면에서 액션/페이지별 필터.
+/// userId 는 PageView 패턴대로 관계 없이 문자열만 — 비회원은 null, 식별은 anonId(클라이언트 생성).
+model ActionLog {
+  id        Int      @id @default(autoincrement())
+  /// 액션 종류: 'pageview' | 'click' | 'tap' 등 (필터 키)
+  type      String
+  /// 액션이 일어난 페이지 경로 (필터 키)
+  path      String   @default("")
+  /// 클릭/탭 대상 설명 (예: "a:상세보기", "button:구매"). pageview 면 빈 값.
+  target    String   @default("")
+  /// 'web' | 'mobile'
+  source    String   @default("web")
+  /// 로그인 사용자 id. 비회원은 null.
+  userId    String?
+  /// 비회원 식별용 익명 id (클라이언트 생성, localStorage/AsyncStorage).
+  anonId    String?
+  ip        String?
+  ua        String?
+  referer   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([type, createdAt(sort: Desc)])
+  @@index([path, createdAt(sort: Desc)])
+  @@index([userId])
+  @@index([anonId])
+  @@map("action_logs")
 }

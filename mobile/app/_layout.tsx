@@ -10,6 +10,7 @@ import {
   PressStart2P_400Regular,
 } from '@expo-google-fonts/press-start-2p';
 import { PhoneShell } from '@/components/PhoneShell';
+import { ActionTracker } from '@/components/ActionTracker';
 import { ChromeProvider } from '@/components/ChromeContext';
 import { PriceModeProvider } from '@/lib/priceMode';
 import { CurrencyProvider } from '@/components/CurrencyProvider';
@@ -98,6 +99,7 @@ export default function RootLayout() {
             <ChromeProvider>
               <PriceModeProvider>
                 <PhoneShell>
+                <ActionTracker>
             {/*
              * Stack 으로 전환해 라우트 변경 시 네이티브 슬라이드/페이드 트랜지션 적용.
              * PhoneShell 이 외부에 있으므로 StatusBar / Tabbar 는 고정되고,
@@ -124,6 +126,7 @@ export default function RootLayout() {
                 options={{ animation: 'fade', animationDuration: 220 }}
               />
             </Stack>
+                </ActionTracker>
                 </PhoneShell>
               </PriceModeProvider>
             </ChromeProvider>

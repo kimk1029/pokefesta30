@@ -69,3 +69,56 @@ CREATE UNIQUE INDEX IF NOT EXISTS "portfolio_daily_snapshots_userId_date_key"
 
 CREATE INDEX IF NOT EXISTS "portfolio_daily_snapshots_userId_date_idx"
   ON "portfolio_daily_snapshots" ("userId", "date" DESC);
+
+-- 4) SnkrdunkCard — 정적 마스터 카드 카탈로그 (시세 없음, 시세는 5번 스냅샷에만).
+CREATE TABLE IF NOT EXISTS "snkrdunk_cards" (
+  "apparelId"      INTEGER PRIMARY KEY,
+  "name"           TEXT NOT NULL DEFAULT '',
+  "localizedName"  TEXT NOT NULL DEFAULT '',
+  "koName"         TEXT NOT NULL DEFAULT '',
+  "itemKind"       TEXT NOT NULL DEFAULT 'single',
+  "shortName"      TEXT NOT NULL DEFAULT '',
+  "imageUrl"       TEXT,
+  "productNumber"  TEXT NOT NULL DEFAULT '',
+  "releasedAt"     TEXT,
+  "packCode"       TEXT,
+  "apparelGroupId" INTEGER,
+  "firstSeenAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "snkrdunk_cards_packCode_idx"
+  ON "snkrdunk_cards" ("packCode");
+
+-- 5) SnkrdunkPriceSnapshot — 시세 갱신마다 한 줄 누적. 현재가 = apparelId 별 최신 행.
+CREATE TABLE IF NOT EXISTS "snkrdunk_price_snapshots" (
+  "id"           SERIAL PRIMARY KEY,
+  "apparelId"    INTEGER NOT NULL,
+  "minPrice"     INTEGER NOT NULL,
+  "listingCount" INTEGER NOT NULL DEFAULT 0,
+  "fetchedAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "snkrdunk_price_snapshots_apparelId_fetchedAt_idx"
+  ON "snkrdunk_price_snapshots" ("apparelId", "fetchedAt" DESC);
+
+-- 6) ActionLog — 회원/비회원 모든 행동(클릭·페이지이동) 원시 로그 (중복제거 없음).
+CREATE TABLE IF NOT EXISTS "action_logs" (
+  "id"        SERIAL PRIMARY KEY,
+  "type"      TEXT NOT NULL,
+  "path"      TEXT NOT NULL DEFAULT '',
+  "target"    TEXT NOT NULL DEFAULT '',
+  "source"    TEXT NOT NULL DEFAULT 'web',
+  "userId"    TEXT,
+  "anonId"    TEXT,
+  "ip"        TEXT,
+  "ua"        TEXT,
+  "referer"   TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "action_logs_createdAt_idx" ON "action_logs" ("createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "action_logs_type_createdAt_idx" ON "action_logs" ("type", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "action_logs_path_createdAt_idx" ON "action_logs" ("path", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "action_logs_userId_idx" ON "action_logs" ("userId");
+CREATE INDEX IF NOT EXISTS "action_logs_anonId_idx" ON "action_logs" ("anonId");

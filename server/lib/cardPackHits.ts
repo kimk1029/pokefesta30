@@ -22,6 +22,11 @@ import {
   type SnkrdunkApparel,
   type SnkrdunkItemKind,
 } from '@/lib/snkrdunk';
+import { Prisma } from '@prisma/client';
+import { prisma } from './prisma.js';
+
+/** 시세 갱신 주기 — 박스의 마지막 갱신(SnkrdunkCard.updatedAt)이 이 시간 이내면 DB 캐시를 그대로 쓴다. */
+const PRICE_STALE_MS = 24 * 60 * 60 * 1000;
 
 export interface PackHitCard {
   apparelId: number;
@@ -57,6 +62,8 @@ export interface PackWithHits {
 
 const DEFAULT_LIMIT = 12;
 const CONCURRENCY = 6;
+/** DB 적재 시 가져오는 최대 카드 수 — 호출 limit 과 무관하게 박스 전체를 채우기 위함. */
+const FETCH_LIMIT = 600;
 
 /** 일본 이름에서 너무 긴 부분 잘라 짧은 라벨로 변환. DashboardScreen 의 shortenName 과 동일 패턴. */
 function shortenName(name: string): string {
@@ -181,31 +188,128 @@ async function resolveGroupBoxes(pack: CardPackMeta): Promise<PackHitCard[]> {
     .map((a) => toHitCard(a));
 }
 
-export async function getPackWithHits(
-  code: string,
-  limit: number = DEFAULT_LIMIT,
-  opts: { includeSales?: boolean } = {},
-): Promise<PackWithHits | null> {
-  const pack = getCardPack(code);
-  if (!pack) return null;
+/** 정적 카드 행(SnkrdunkCard) + 최신 시세 → PackHitCard. lastSale 은 DB 캐시 대상이 아님. */
+type SnkrdunkCardRow = Awaited<ReturnType<typeof prisma.snkrdunkCard.findMany>>[number];
+interface LatestPrice { minPrice: number; listingCount: number; }
 
-  const groupedSingles = await resolveGroupSingles(pack, limit);
-  const groupedBoxes = await resolveGroupBoxes(pack);
-  const grouped = [...groupedSingles, ...groupedBoxes];
-  const hits = grouped.length > 0
-    ? grouped
-    : await (async () => {
-      const curated = await resolveCurated(pack);
-      const seen = new Set<number>(curated.map((c) => c.apparelId));
-      const need = Math.max(0, limit - curated.length);
-      const filled = need > 0 ? await resolveSearchFill(pack, seen, need) : [];
-      return [...curated, ...filled];
-    })();
-  const enriched = opts.includeSales
-    ? await mapWithLimit(hits, CONCURRENCY, withLatestSale)
-    : hits;
-  const box = groupedBoxes[0] ?? enriched.find((h) => h.itemKind === 'box') ?? null;
+function toHitCardFromDb(row: SnkrdunkCardRow, price?: LatestPrice): PackHitCard {
+  const minPrice = price?.minPrice ?? 0;
+  const listingCount = price?.listingCount ?? 0;
+  return {
+    apparelId: row.apparelId,
+    name: row.name,
+    koName: row.koName,
+    itemKind: row.itemKind === 'box' ? 'box' : 'single',
+    shortName: row.shortName,
+    imageUrl: row.imageUrl,
+    minPrice,
+    displayPrice: '', // UI 는 minPrice 를 자체 포맷 → 캐시엔 불필요
+    listingCount,
+    listingCountText: listingCount > 0 ? String(listingCount) : '',
+    productNumber: row.productNumber,
+    lastSalePrice: 0,
+    lastSaleText: '',
+    lastSaleSort: 0,
+  };
+}
 
+/** apparelId 별 '최신' 시세 스냅샷 = 현재가. (Postgres DISTINCT ON) DB 오류 시 빈 맵. */
+async function latestPrices(ids: number[]): Promise<Map<number, LatestPrice>> {
+  const map = new Map<number, LatestPrice>();
+  if (ids.length === 0) return map;
+  try {
+    const rows = await prisma.$queryRaw<Array<{ apparelId: number; minPrice: number; listingCount: number }>>`
+      SELECT DISTINCT ON ("apparelId") "apparelId", "minPrice", "listingCount"
+      FROM "snkrdunk_price_snapshots"
+      WHERE "apparelId" IN (${Prisma.join(ids)})
+      ORDER BY "apparelId", "fetchedAt" DESC
+    `;
+    for (const r of rows) {
+      map.set(Number(r.apparelId), { minPrice: Number(r.minPrice), listingCount: Number(r.listingCount) });
+    }
+  } catch (err) {
+    console.error('[cardPackHits.latestPrices]', err);
+  }
+  return map;
+}
+
+/** 서빙용 선별·정렬: 싱글(시세 desc, limit 적용) → 매물 있는 박스(시세 desc, 뒤에 붙임). */
+function selectHits(hits: PackHitCard[], limit: number): PackHitCard[] {
+  const singles = hits
+    .filter((h) => h.itemKind !== 'box')
+    .sort((a, b) => b.minPrice - a.minPrice)
+    .slice(0, limit);
+  const boxes = hits
+    .filter((h) => h.itemKind === 'box' && h.minPrice > 0)
+    .sort((a, b) => b.minPrice - a.minPrice);
+  return [...singles, ...boxes];
+}
+
+/**
+ * 박스의 DB 카드가 신선하면(마지막 갱신 < 24h) PackHitCard[] 로 반환, 아니면 null.
+ * 신선도 기준 = 박스 카드들의 updatedAt 최댓값(= 마지막 전체 갱신 시각).
+ *   → 시세 없는 카드만 있는 신규 박스도 정상 판정(스냅샷 유무에 의존 안 함).
+ * 현재가는 apparelId 별 최신 스냅샷에서 가져온다. DB 오류 시 null(=라이브 폴백).
+ */
+async function loadFreshPackHits(packCode: string, limit: number): Promise<PackHitCard[] | null> {
+  try {
+    const cards = await prisma.snkrdunkCard.findMany({ where: { packCode } });
+    if (cards.length === 0) return null;
+    let maxTs = 0;
+    for (const c of cards) {
+      const t = c.updatedAt.getTime();
+      if (t > maxTs) maxTs = t;
+    }
+    if (Date.now() - maxTs >= PRICE_STALE_MS) return null;
+    const prices = await latestPrices(cards.map((c) => c.apparelId));
+    const hits = cards.map((c) => toHitCardFromDb(c, prices.get(c.apparelId)));
+    return selectHits(hits, limit);
+  } catch (err) {
+    console.error('[cardPackHits.loadFresh]', err);
+    return null;
+  }
+}
+
+/**
+ * 적재 — 정적 카드 정보는 SnkrdunkCard 에 upsert(누적·갱신, updatedAt=now),
+ * 시세는 매물 있는 카드만 SnkrdunkPriceSnapshot 에 한 줄씩 append(현재가 = 최신 스냅샷).
+ * DB 실패는 응답에 영향 주지 않도록 삼켜 로깅만 한다.
+ */
+async function persistPackCards(pack: CardPackMeta, hits: PackHitCard[]): Promise<void> {
+  if (hits.length === 0) return;
+  try {
+    await mapWithLimit(hits, CONCURRENCY, async (h) => {
+      const data = {
+        name: h.name,
+        localizedName: h.name,
+        koName: h.koName,
+        itemKind: h.itemKind,
+        shortName: h.shortName,
+        imageUrl: h.imageUrl,
+        productNumber: h.productNumber,
+        releasedAt: pack.releasedAt ?? null,
+        packCode: pack.code,
+        apparelGroupId: pack.apparelGroupId ?? null,
+      };
+      await prisma.snkrdunkCard.upsert({
+        where: { apparelId: h.apparelId },
+        create: { apparelId: h.apparelId, ...data },
+        update: data,
+      });
+    });
+    const snaps = hits
+      .filter((h) => h.minPrice > 0)
+      .map((h) => ({ apparelId: h.apparelId, minPrice: h.minPrice, listingCount: h.listingCount }));
+    if (snaps.length > 0) {
+      await prisma.snkrdunkPriceSnapshot.createMany({ data: snaps });
+    }
+  } catch (err) {
+    console.error('[cardPackHits.persist]', err);
+  }
+}
+
+function buildPack(pack: CardPackMeta, hits: PackHitCard[]): PackWithHits {
+  const box = hits.find((h) => h.itemKind === 'box') ?? null;
   return {
     code: pack.code,
     name: pack.name,
@@ -216,8 +320,49 @@ export async function getPackWithHits(
     boxImageUrl: box?.imageUrl ?? null,
     boxName: box?.name ?? null,
     boxKoName: box?.koName ?? null,
-    hits: enriched,
+    hits,
   };
+}
+
+export async function getPackWithHits(
+  code: string,
+  limit: number = DEFAULT_LIMIT,
+  opts: { includeSales?: boolean } = {},
+): Promise<PackWithHits | null> {
+  const pack = getCardPack(code);
+  if (!pack) return null;
+
+  // 1) DB 우선 — 박스 시세가 24h 이내면 스니덩 호출 없이 즉시 응답.
+  //    (sales 포함 요청은 라이브 데이터가 필요하므로 캐시를 건너뛴다.)
+  if (!opts.includeSales) {
+    const cached = await loadFreshPackHits(pack.code, limit);
+    if (cached) return buildPack(pack, cached);
+  }
+
+  // 2) 라이브 fetch — 적재는 항상 넓게(FETCH_LIMIT) 가져와, 호출 limit 과 무관하게 박스
+  //    전체를 DB 에 채운다. (작은 limit 호출이 먼저 DB 를 얇게 채워 박스 상세를 굶기지 않도록.)
+  const groupedSingles = await resolveGroupSingles(pack, FETCH_LIMIT);
+  const groupedBoxes = await resolveGroupBoxes(pack);
+  const grouped = [...groupedSingles, ...groupedBoxes];
+  const allHits = grouped.length > 0
+    ? grouped
+    : await (async () => {
+      const curated = await resolveCurated(pack);
+      const seen = new Set<number>(curated.map((c) => c.apparelId));
+      const need = Math.max(0, FETCH_LIMIT - curated.length);
+      const filled = need > 0 ? await resolveSearchFill(pack, seen, need) : [];
+      return [...curated, ...filled];
+    })();
+
+  // includeSales 는 캐시 대상이 아니므로 limit 만큼만 추려 sales 를 붙인다(불필요한 호출 방지).
+  if (opts.includeSales) {
+    const enriched = await mapWithLimit(selectHits(allHits, limit), CONCURRENCY, withLatestSale);
+    return buildPack(pack, enriched);
+  }
+
+  // 3) DB 적재(전체) 후 limit 만큼 서빙. 적재 실패는 응답에 영향 없음.
+  await persistPackCards(pack, allHits);
+  return buildPack(pack, selectHits(allHits, limit));
 }
 
 export async function getAllPacksWithHits(

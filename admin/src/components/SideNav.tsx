@@ -7,6 +7,7 @@ const NAV = [
   { href: '/', label: '대시보드', icon: '📊' },
   { href: '/users', label: '회원 관리', icon: '👥' },
   { href: '/ranking', label: '포인트 랭킹', icon: '🏆' },
+  { href: '/events', label: '행동 로그', icon: '🖱️' },
   { href: '/logs', label: '활동 로그', icon: '🧾' },
   { href: '/searches', label: '검색 로그', icon: '🔍' },
   { href: '/feeds', label: '피드 관리', icon: '📝' },
