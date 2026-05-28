@@ -266,6 +266,8 @@ app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
   // Build an initial candidate list from the local DB match (top scoring rows
   // that hit on setCode + cardNumber). These come with Korean names and KRW
   // marketPrice; we'll merge in TCGdex art + cardmarket pricing below.
+  // KO mode: LOCAL_DB 의 imageSmall/imageLarge 가 있으면 그걸 그대로 사용. 한국판
+  // 일러스트가 일본판 fallback 으로 덮어쓰이지 않도록.
   /** @type {Array<any>} */
   let responseCandidates = candidates.map((c) => ({
     id: c.id,
@@ -276,8 +278,24 @@ app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
     number: `${c.number}/${c.totalNumber}`,
     rarity: c.rarity,
     language: c.language,
+    imageSmall: c.imageSmall ?? null,
+    imageLarge: c.imageLarge ?? null,
     price: { marketPrice: c.marketPrice, currency: 'KRW', source: 'internal', updatedAt: new Date().toISOString() },
   }));
+
+  // 사용자가 "한국어" 로 명시했고 LOCAL_DB 가 정확히 hit 된 경우 — 일본판 enrichment
+  // 를 skip. TCGdex name-search / Snkrdunk 매칭은 일본판 일러스트와 일본판 마켓
+  // 데이터를 가져와 한국판 카드와 시각적으로 어긋난다. 사용자가 명시한 ko 신호를
+  // 존중해 한국판만 보여주는 것이 단일 진실의 원천.
+  const koExactHit =
+    langHint === 'ko' &&
+    extracted?.setCode &&
+    extracted?.cardNumber &&
+    responseCandidates.some(
+      (c) =>
+        String(c.setCode ?? '').toLowerCase() === String(extracted.setCode).toLowerCase() &&
+        pad(String(c.number ?? '').split('/')[0] ?? '') === pad(extracted.cardNumber),
+    );
 
   // Server-side TCGdex enrichment — the mobile UI requires image + price for
   // every candidate it shows. Doing the lookup here (in parallel with the
@@ -285,7 +303,9 @@ app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
   // gets ready-to-render candidates back.
   const enrichTasks = [];
   // (a) Exact match — TCGdex `setCode-cardNumber`. Highest-priority candidate.
-  if (extracted?.setCode && extracted?.cardNumber) {
+  // 한국어 모드 + LOCAL_DB exact hit 일 때는 skip — 한국판이 우선이므로 일본판
+  // 일러스트를 받아 와도 사용자에게 혼란만 줌.
+  if (extracted?.setCode && extracted?.cardNumber && !koExactHit) {
     enrichTasks.push(
       lookupCard({
         setCode: extracted.setCode,
@@ -301,8 +321,8 @@ app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
   // numbered beyond a set's base count), search TCGdex by JA Pokémon name.
   // Returns siblings of the same Pokémon (same Pokémon, different prints),
   // each with image + EUR pricing — gives the user real alternatives instead
-  // of a dead-end "시세 미확인".
-  if (extracted?.nameJa) {
+  // of a dead-end "시세 미확인". 한국어 모드 + 한국판 hit 이면 skip.
+  if (extracted?.nameJa && !koExactHit) {
     enrichTasks.push(
       searchTcgdexByName(extracted.nameJa, extracted.setCode, 5).then((cards) =>
         cards.map((c) => tcgdexCardToCandidate(c, 'tcgdex-search')),
@@ -363,9 +383,14 @@ app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
   // Snkrdunk lookup — use OCR'd cardNumber/totalNumber/setCode (+ optional
   // JP name) to find the matching apparel. Successful matches are cached on
   // disk, so repeat scans skip the search and hit the JSON-only fast path.
+  // 한국어 모드 + LOCAL_DB hit 일 때는 skip — Snkrdunk 는 일본 마켓이라 일본판
+  // 일러스트/가격을 가져온다. 한국판 사용자에겐 카드도 다르고 시세도 의미 다름.
   let snkrdunk = null;
   let snkrdunkTrace = null;
   try {
+    if (koExactHit) {
+      snkrdunkTrace = { skipped: 'ko-local-hit' };
+    } else {
     const raw = await matchSnkrdunkForCard({
       cardNumber: extracted.cardNumber,
       totalNumber: extracted.totalNumber,
@@ -379,6 +404,7 @@ app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
       snkrdunk = raw;
       snkrdunkTrace = raw.trace;
     }
+    } // end else
   } catch (e) {
     console.warn('[snkrdunk] match failed:', e?.message ?? e);
   }

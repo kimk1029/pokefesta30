@@ -56,6 +56,9 @@ export function CardGrader() {
   const [ocrProgress, setOcrProgress] = useState<number | null>(null);
   const [ocrResult, setOcrResult] = useState<CardOcrResult | null>(null);
   const [ocrErr, setOcrErr] = useState<string | null>(null);
+  // 카드 이름 언어 — 모바일 스캔 화면(scan.tsx)과 동일한 한/일/영 토글.
+  // 서버 OCR 워커를 한 언어로만 돌려 정확도 ↑ + 일본판 일러스트 fallback 회피.
+  const [scanLang, setScanLang] = useState<'ko' | 'jp' | 'en'>('ko');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -156,7 +159,7 @@ export function CardGrader() {
     let creepTimer: ReturnType<typeof setInterval> | null = null;
     try {
       const result = await recognizeCard(imgEl, outer, {
-        language: 'ko',
+        language: scanLang,
         useAi: true,
         onProgress: (p) => {
           if (p.phase === 'crop') {
@@ -195,7 +198,7 @@ export function CardGrader() {
       setOcrPhase(null);
       setOcrProgress(null);
     }
-  }, [imgEl, outer, ocrLoading]);
+  }, [imgEl, outer, ocrLoading, scanLang]);
 
   /* 사용자가 자동 검출 클릭 — 즉시 순수 JS 검출 실행 ----------- */
   const onClickAutoDetect = useCallback(() => {
@@ -496,6 +499,57 @@ export function CardGrader() {
             <button type="button" onClick={() => fileInputRef.current?.click()} style={ctrlBtn('var(--ink2)')}>
               🖼 다른 사진
             </button>
+          </div>
+
+          {/* 카드 이름 언어 — 모바일 scan.tsx 와 동일한 한/일/영 토글. 서버 OCR 워커를
+              한 언어로만 돌려 정확도 ↑ + 일본판 일러스트 fallback 회피. */}
+          <div
+            style={{
+              display: 'flex',
+              border: '2px solid var(--ink)',
+              background: 'var(--white)',
+              marginBottom: 4,
+            }}
+          >
+            {(
+              [
+                { v: 'ko' as const, label: '한국어' },
+                { v: 'jp' as const, label: '일본어' },
+                { v: 'en' as const, label: 'English' },
+              ]
+            ).map((opt, i) => (
+              <button
+                key={opt.v}
+                type="button"
+                onClick={() => setScanLang(opt.v)}
+                disabled={ocrLoading}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  background: scanLang === opt.v ? 'var(--gold)' : 'transparent',
+                  color: scanLang === opt.v ? 'var(--ink)' : 'var(--ink3)',
+                  fontFamily: 'var(--f1)',
+                  fontSize: 11,
+                  letterSpacing: 0.3,
+                  border: 'none',
+                  borderLeft: i === 0 ? 'none' : '2px solid var(--ink)',
+                  cursor: ocrLoading ? 'default' : 'pointer',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div
+            style={{
+              marginBottom: 12,
+              fontFamily: 'var(--f1)',
+              fontSize: 9,
+              color: 'var(--ink3)',
+              letterSpacing: 0.3,
+            }}
+          >
+            카드 이름이 어느 언어인지 골라주세요 — OCR 정확도와 시세 매칭에 영향
           </div>
 
           {/* OCR 진행 / 결과 */}

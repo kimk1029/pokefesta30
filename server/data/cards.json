@@ -10,5 +10,6 @@
   { "id": "sv3a-072", "name": "뮤 ex", "setName": "레이징 서프", "setCode": "sv4a", "number": "072", "totalNumber": "190", "rarity": "RR", "language": "ko", "marketPrice": 14000 },
   { "id": "s12a-200", "name": "기라티나 VSTAR", "setName": "VSTAR 유니버스", "setCode": "s12a", "number": "200", "totalNumber": "172", "rarity": "UR", "language": "ko", "marketPrice": 110000 },
   { "id": "sv6-083", "name": "파오리", "setName": "변환의 가면", "setCode": "sv6", "number": "083", "totalNumber": "101", "rarity": "C", "language": "ko", "marketPrice": 800 },
-  { "id": "sv6-071", "name": "사나운버섯", "setName": "변환의 가면", "setCode": "sv6", "number": "071", "totalNumber": "101", "rarity": "U", "language": "ko", "marketPrice": 1000 }
+  { "id": "sv6-071", "name": "사나운버섯", "setName": "변환의 가면", "setCode": "sv6", "number": "071", "totalNumber": "101", "rarity": "U", "language": "ko", "marketPrice": 1000 },
+  { "id": "sv8a-193", "name": "청목의 수완", "setName": "테라스타르 페스티벌 ex", "setCode": "sv8a", "number": "193", "totalNumber": "187", "rarity": "SR", "language": "ko", "marketPrice": 35000, "imageSmall": null, "imageLarge": null }
 ]
