@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CardMatchPanel } from './CardMatchPanel';
-import { recognizeCard, type CardOcrResult } from './cardOcr';
+import { recognizeCard, type CardOcrResult, type ScanCandidate } from './cardOcr';
 import { detectCardOuterPureJs } from './pureCardDetect';
+import { lookupPokemonSet } from '../../../shared/data/pokemonSetMap';
 
 /**
  * 카드 그레이딩(센터링 추정) 도구.
@@ -141,32 +142,43 @@ export function CardGrader() {
     }, 30);
   }, []);
 
-  /* 사용자가 OCR 클릭 → Tesseract.js lazy load + 카드 텍스트 추출 - */
+  /* 사용자가 OCR 클릭 → 서버 (/api/cards/scan) 로 업로드 + AI 카드 정보 추출. */
   const onClickRecognize = useCallback(async () => {
     if (!imgEl || ocrLoading) return;
     setOcrErr(null);
     setOcrResult(null);
     setOcrLoading(true);
-    setOcrPhase('스크립트 다운로드 준비…');
+    setOcrPhase('카드 영역 준비…');
     setOcrProgress(0);
+
+    // 서버는 단일 호출이라 실제 진행 이벤트가 없음 → upload 완료 후 processing
+    // 단계에서 80% 까지 자동 크리프 (앱과 동일한 UX). 응답 도착 시 100% 도달.
+    let creepTimer: ReturnType<typeof setInterval> | null = null;
     try {
       const result = await recognizeCard(imgEl, outer, {
+        language: 'ko',
+        useAi: true,
         onProgress: (p) => {
-          // 단계별 진행률 매핑 — 전체를 0..1 로 정규화:
-          //   load-script   : 0   → 0.10
-          //   load-lang     : 0.10 → 0.50  (Tesseract 가 progress 줌)
-          //   recognize     : 0.50 → 1.00  (Tesseract 가 progress 줌)
-          if (p.phase === 'load-script') {
-            setOcrPhase('Tesseract 다운로드 중…');
+          if (p.phase === 'crop') {
+            setOcrPhase('카드 영역 자르는 중…');
             setOcrProgress(0.05);
-          } else if (p.phase === 'load-lang') {
-            const sub = p.progress != null ? Math.round(p.progress * 100) : null;
-            setOcrPhase(`언어 데이터 다운로드 중${sub != null ? ` (${sub}%)` : ''} · eng ~10MB`);
-            setOcrProgress(0.1 + (p.progress ?? 0) * 0.4);
-          } else if (p.phase === 'recognize') {
-            const sub = p.progress != null ? Math.round(p.progress * 100) : null;
-            setOcrPhase(`텍스트 인식 중${sub != null ? ` (${sub}%)` : ''}`);
-            setOcrProgress(0.5 + (p.progress ?? 0) * 0.5);
+          } else if (p.phase === 'upload') {
+            setOcrPhase('서버로 업로드 중…');
+            setOcrProgress(0.25);
+          } else if (p.phase === 'processing') {
+            setOcrPhase('AI 카드 정보 인식 중…');
+            setOcrProgress(0.4);
+            if (!creepTimer) {
+              creepTimer = setInterval(() => {
+                setOcrProgress((cur) => {
+                  if (cur == null) return cur;
+                  if (cur >= 0.85) return cur;
+                  return Math.min(0.85, cur + 0.03);
+                });
+              }, 600);
+            }
+          } else if (p.phase === 'done') {
+            setOcrProgress(1);
           }
         },
       });
@@ -178,6 +190,7 @@ export function CardGrader() {
           ' — 사진이 흐릿하거나 빛 반사가 심하면 인식이 어려워요',
       );
     } finally {
+      if (creepTimer) clearInterval(creepTimer);
       setOcrLoading(false);
       setOcrPhase(null);
       setOcrProgress(null);
@@ -505,7 +518,7 @@ export function CardGrader() {
               </div>
               <ProgressBar value={ocrProgress} indeterminate={ocrProgress == null} tone="yellow" />
               <div style={{ marginTop: 6, fontSize: 9, opacity: 0.8 }}>
-                하단 영역 (카드번호/세트코드) 만 영문 인식 — 첫 실행 시 ~10MB 다운로드
+                AI Vision 으로 카드 이름/번호/세트/희귀도 추출 — 모바일 앱과 동일한 서버
               </div>
             </div>
           )}
@@ -527,6 +540,11 @@ export function CardGrader() {
             </div>
           )}
           {ocrResult && <OcrResultCard r={ocrResult} />}
+
+          {/* 서버가 돌려준 매칭 후보 (이미지 + 다지역 가격 + Snkrdunk) — 앱과 동일 UI */}
+          {ocrResult && ocrResult.candidates.length > 0 && (
+            <ScanCandidatesPanel candidates={ocrResult.candidates} />
+          )}
 
           {/* OCR 결과를 카탈로그에 매칭해 시세/차트 표시 + 내 카드에 저장 */}
           <CardMatchPanel
@@ -913,9 +931,17 @@ function ResultCard({ r }: { r: CenteringResult }) {
 
 function OcrResultCard({ r }: { r: CardOcrResult }) {
   const [showRaw, setShowRaw] = useState(false);
-  const numLabel = r.cardNumber ? `${r.cardNumber.left} / ${r.cardNumber.right}` : '—';
+  const numLabel = r.cardNumber
+    ? r.cardNumber.right
+      ? `${r.cardNumber.left} / ${r.cardNumber.right}`
+      : r.cardNumber.left
+    : '—';
+  const nameLabel =
+    r.name && r.nameJa && r.name !== r.nameJa
+      ? `${r.name} (${r.nameJa})`
+      : r.name ?? r.nameJa ?? null;
   const found =
-    !!r.cardNumber || !!r.setCode || !!r.promoCode || !!r.illustrator;
+    !!r.cardNumber || !!r.setCode || !!r.promoCode || !!r.illustrator || !!r.name;
   return (
     <div
       style={{
@@ -951,9 +977,16 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
 
       {found && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {nameLabel && <KvRow k="카드 이름" v={nameLabel} highlight />}
           <KvRow k="카드 번호" v={numLabel} highlight={!!r.cardNumber} />
           {r.setCode && <KvRow k="세트 코드" v={r.setCode} highlight />}
-          {r.promoCode && <KvRow k="프로모 코드" v={r.promoCode} highlight />}
+          {r.promoCode && r.promoCode !== r.setCode && (
+            <KvRow k="프로모 코드" v={r.promoCode} highlight />
+          )}
+          {r.rarity && <KvRow k="희귀도" v={r.rarity} />}
+          {r.language && r.language !== 'unknown' && (
+            <KvRow k="언어" v={r.language.toUpperCase()} />
+          )}
           {r.illustrator && <KvRow k="일러스트레이터" v={r.illustrator} />}
         </div>
       )}
@@ -1017,6 +1050,264 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
         ⚠ OCR 자동 추출 — 이름은 OCR 정확도 한계로 오타가 있을 수 있어요. 번호로 시세를 조회하는 게 정확합니다.
       </div>
     </div>
+  );
+}
+
+/* --------------------- scan candidates (server) ------------------ */
+
+/**
+ * 서버 (/api/cards/scan) 가 돌려준 카드 후보 리스트 패널 — 모바일 ScanPreview 의
+ * CandidateRow 와 동일한 정보(이미지 + 다지역 가격 + Snkrdunk 매칭) 를 보여준다.
+ * 사용자가 카드를 고를 수 있도록 row 를 클릭 가능하게 만들었지만, 현재 웹에서는
+ * "선택" 자체가 다음 동작에 연결되어 있지 않아 시각적 강조만.
+ */
+function ScanCandidatesPanel({ candidates }: { candidates: ScanCandidate[] }) {
+  const [selectedId, setSelectedId] = useState<string | null>(candidates[0]?.id ?? null);
+
+  return (
+    <div className="form-sect">
+      <div className="form-label">🤖 AI 매칭 후보 ({candidates.length})</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {candidates.map((c) => (
+          <CandidateRow
+            key={c.id}
+            candidate={c}
+            selected={selectedId === c.id}
+            onClick={() => setSelectedId(c.id)}
+          />
+        ))}
+      </div>
+      <div
+        style={{
+          marginTop: 8,
+          fontFamily: 'var(--f1)',
+          fontSize: 9,
+          color: 'var(--ink3)',
+          letterSpacing: 0.3,
+          lineHeight: 1.6,
+        }}
+      >
+        💡 후보는 서버가 TCGdex / 로컬 DB / Snkrdunk 를 합쳐 만들어요. 가격은 시점별 시세입니다.
+      </div>
+    </div>
+  );
+}
+
+function CandidateRow({
+  candidate,
+  selected,
+  onClick,
+}: {
+  candidate: ScanCandidate;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const koName = candidate.localName ?? candidate.name;
+  const jaName =
+    candidate.nameJa && candidate.nameJa !== koName ? candidate.nameJa : null;
+
+  const setCode = (candidate.setCode ?? '').toUpperCase();
+  const [numLeft, numRight] = (candidate.number ?? '').split('/');
+  const codeLine = [setCode, [numLeft, numRight].filter(Boolean).join('/'), candidate.rarity]
+    .filter(Boolean)
+    .join(' ');
+
+  // 팩명: 한글 POKEMON_SET_MAP 우선, 없으면 TCGdex 영문 setName — 앱과 동일 규칙.
+  const setInfo = lookupPokemonSet(candidate.setCode);
+  const packName = setInfo?.name ?? candidate.setName ?? '';
+
+  const ps = candidate.priceSummary;
+  const snkr = candidate.snkrdunk;
+  const priceLines: Array<{ label: string; text: string; emph?: boolean }> = [];
+  if (ps?.byRegion) {
+    if (typeof ps.byRegion.jpy === 'number')
+      priceLines.push({ label: '🇯🇵 JP', text: `¥${ps.byRegion.jpy.toLocaleString()}`, emph: true });
+    if (typeof ps.byRegion.krw === 'number')
+      priceLines.push({ label: '🇰🇷 KR', text: `₩${ps.byRegion.krw.toLocaleString()}` });
+    if (typeof ps.byRegion.eur === 'number')
+      priceLines.push({ label: '🇪🇺 EU', text: `€${ps.byRegion.eur.toFixed(2)}` });
+    if (typeof ps.byRegion.usd === 'number')
+      priceLines.push({ label: '🇺🇸 NA', text: `$${ps.byRegion.usd.toFixed(2)}` });
+  } else if (candidate.price?.marketPrice) {
+    priceLines.push({
+      label: candidate.price.currency === 'JPY' ? '🇯🇵 JP' : '🇰🇷 KR',
+      text:
+        candidate.price.currency === 'JPY'
+          ? `¥${candidate.price.marketPrice.toLocaleString()}`
+          : `₩${candidate.price.marketPrice.toLocaleString()}`,
+      emph: true,
+    });
+  }
+
+  const thumb =
+    snkr?.imageUrl ?? candidate.imageLarge ?? candidate.imageSmall ?? candidate.imageUrl ?? null;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'block',
+        width: '100%',
+        textAlign: 'left',
+        padding: 12,
+        background: selected ? 'var(--yel)' : 'var(--white)',
+        border: 'none',
+        cursor: 'pointer',
+        boxShadow: selected
+          ? '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)'
+          : '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+      }}
+    >
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div
+          style={{
+            width: 72,
+            aspectRatio: '63 / 88',
+            background: 'var(--pap3, #ddd)',
+            border: '2px solid var(--ink)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}
+        >
+          {thumb ? (
+            // 외부 도메인(TCGdex/Snkrdunk) 이라 next/image 대신 일반 img 사용.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumb}
+              alt={koName}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              loading="lazy"
+            />
+          ) : (
+            <span style={{ fontSize: 26 }}>🃏</span>
+          )}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {snkr && (
+            <div
+              style={{
+                display: 'inline-block',
+                background: 'var(--ink)',
+                color: 'var(--yel)',
+                fontFamily: 'var(--f1)',
+                fontSize: 9,
+                letterSpacing: 0.3,
+                padding: '2px 5px',
+                marginBottom: 5,
+                border: '1px solid var(--yel)',
+              }}
+            >
+              🇯🇵 스니덩크 매칭{snkr.cacheHit ? ' · 캐시' : ''}
+            </div>
+          )}
+          <div
+            style={{
+              fontFamily: 'var(--f2)',
+              fontSize: 13,
+              fontWeight: 700,
+              color: 'var(--ink)',
+              lineHeight: 1.3,
+              wordBreak: 'break-all',
+            }}
+          >
+            {koName}
+            {jaName && (
+              <span
+                style={{
+                  fontFamily: 'var(--f2)',
+                  fontSize: 11,
+                  fontWeight: 400,
+                  color: 'var(--ink3)',
+                  marginLeft: 4,
+                }}
+              >
+                ({jaName})
+              </span>
+            )}
+          </div>
+
+          {codeLine && (
+            <div
+              style={{
+                fontFamily: 'var(--f1)',
+                fontSize: 10,
+                color: 'var(--ink2)',
+                letterSpacing: 0.3,
+                marginTop: 4,
+              }}
+            >
+              {codeLine}
+            </div>
+          )}
+          {packName && (
+            <div
+              style={{
+                fontFamily: 'var(--f2)',
+                fontSize: 10,
+                color: 'var(--ink3)',
+                marginTop: 2,
+              }}
+            >
+              {packName}
+            </div>
+          )}
+
+          {priceLines.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginTop: 6 }}>
+              {priceLines.map((p) => (
+                <div key={p.label} style={{ display: 'flex', gap: 6 }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--f1)',
+                      fontSize: 9,
+                      color: p.emph ? 'var(--ink)' : 'var(--ink3)',
+                      minWidth: 36,
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    {p.label}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--f1)',
+                      fontSize: p.emph ? 11 : 9,
+                      fontWeight: p.emph ? 700 : 400,
+                      color: p.emph ? '#0E7C3A' : 'var(--ink3)',
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    {p.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                marginTop: 6,
+                fontFamily: 'var(--f1)',
+                fontSize: 9,
+                color: 'var(--ink3)',
+                letterSpacing: 0.3,
+              }}
+            >
+              시세 정보 없음
+            </div>
+          )}
+        </div>
+
+        {selected && (
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+            ✓
+          </span>
+        )}
+      </div>
+    </button>
   );
 }
 

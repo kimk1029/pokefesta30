@@ -1,19 +1,63 @@
 /**
- * 카드 OCR — 사진 + 외곽 quad 가 주어지면 카드 영역만 잘라 Tesseract.js 로 텍스트 추출 후
- * 카드 번호 / 세트코드 / 일러스트레이터 등으로 파싱.
+ * 카드 OCR — 사진 + 외곽 quad 가 주어지면 카드 영역만 잘라 Express 서버
+ * (/api/cards/scan) 로 업로드. 서버에서 GPT-4o-mini Vision (또는 PaddleOCR 폴백)
+ * 으로 카드 정보(이름/세트/번호/희귀도/언어)를 추출하고, 로컬 DB + TCGdex +
+ * Snkrdunk 매칭까지 묶어 후보 리스트를 돌려준다. 모바일 앱과 동일한 백엔드.
  *
- * 인식률을 높이는 전처리(중요):
- *   1. 큰 캔버스로 리사이즈 (max side 2400px) — 작은 텍스트 디테일 보존
- *   2. 하단 스트립을 그레이스케일 + 콘트라스트 스트레치 + 2x 업스케일 → Tesseract 가 좋아하는
- *      "검정 글자/흰 배경 + 큰 폰트" 형태로 변환
- *   3. PSM 11 (sparse text) + 영문/숫자/슬래시/하이픈/점 화이트리스트 — 카드 좌하단 코드 +
- *      우하단 카드번호 같은 "흩어진 작은 텍스트" 인식에 최적
+ * 흐름:
+ *   1. outerQuad bbox 로 캔버스 크롭(+ 8px 패딩) → 긴 변 2400px 로 리사이즈
+ *   2. JPEG Blob 인코딩
+ *   3. POST FormData( image, guideRect, platform=web, language, useAi )
+ *   4. 응답을 기존 CardOcrResult 형태로 매핑 (+ 후보 리스트는 별도 필드로 노출)
  */
-
-import { loadTesseract } from './tesseractLoader';
 
 export type Pt = { x: number; y: number };
 export type Quad = [Pt, Pt, Pt, Pt];
+
+/** 모바일 ScanCandidate 와 동일한 구조 — 웹/모바일 공통 백엔드 응답. */
+export interface ScanCandidate {
+  id: string;
+  source: string;
+  name: string;
+  localName?: string | null;
+  nameJa?: string;
+  setName?: string;
+  setCode?: string;
+  number?: string;
+  rarity?: string;
+  language?: string;
+  imageSmall?: string | null;
+  imageLarge?: string | null;
+  imageUrl?: string;
+  price?: {
+    marketPrice?: number | null;
+    currency?: string;
+    source?: string;
+    updatedAt?: string;
+  };
+  priceSummary?: {
+    source: string;
+    value: number;
+    currency: 'EUR' | 'USD' | 'KRW' | 'JPY';
+    low: number | null;
+    trend: number | null;
+    byRegion?: {
+      eur: number | null;
+      usd: number | null;
+      jpy: number | null;
+      krw: number | null;
+    };
+  } | null;
+  snkrdunk?: {
+    apparelId: number;
+    imageUrl: string | null;
+    priceJpy: number | null;
+    priceText: string;
+    localizedName?: string;
+    listingCountText?: string;
+    cacheHit?: boolean;
+  } | null;
+}
 
 export interface OcrLine {
   text: string;
@@ -21,22 +65,40 @@ export interface OcrLine {
 }
 
 export interface CardOcrResult {
-  /** 전체 OCR 텍스트 (raw). */
+  /** 전체 OCR 텍스트 (raw) — 서버가 만든 요약 라인. */
   rawText: string;
-  /** Tesseract 가 분리한 줄 단위 (신뢰도 포함). */
+  /** 호환용 — 서버 응답에는 줄 단위 분해 데이터가 없어서 빈 배열. */
   lines: OcrLine[];
-  /** "045/198" 같은 번호 매칭 — 가장 확률 높은 것 첫 번째. */
+  /** "045/198" 같은 번호 매칭. left = cardNumber, right = totalNumber. */
   cardNumber: { left: string; right: string; raw: string } | null;
-  /** SV-P, S-P, XY-P 등 프로모 코드. */
+  /** SV-P, S-P, XY-P 등 프로모 코드 (서버가 setCode 로 normalize 함). */
   promoCode: string | null;
-  /** "SV1", "SV5K", "SM12a" 같은 세트 코드 (좌하단 또는 카드번호 옆). */
+  /** "SV1", "SV5K", "SM12a" 같은 세트 코드. */
   setCode: string | null;
-  /** "Illus. ..." 일러스트레이터 표기. */
+  /** 호환용 — 서버 응답에는 일러스트레이터 필드 없음. */
   illustrator: string | null;
+
+  /* --- 서버 Vision 추가 필드 (모바일과 동일) -------------------- */
+  /** 카드 이름 (한국어/영어/일어 중 OCR 가 잡은 것). */
+  name: string | null;
+  /** 일본어 이름 — TCGdex 검색 시 사용. */
+  nameJa: string | null;
+  /** 총 카드 수 ("198" 등). cardNumber.right 와 같지만 단독 노출. */
+  totalNumber: string | null;
+  /** 희귀도 (R / RR / SR / SAR / AR / U / C 등). */
+  rarity: string | null;
+  /** 카드 언어 ko/jp/en. */
+  language: 'ko' | 'jp' | 'en' | 'unknown' | null;
+  /** Vision 경로가 실제로 사용됐는지. */
+  usedAi: boolean;
+  /** 서버 매칭 신뢰도 (0..1). 미제공 시 null. */
+  confidence: number | null;
+  /** 서버 후보 리스트 (이미지 + 다지역 가격 + Snkrdunk 매칭). */
+  candidates: ScanCandidate[];
 }
 
 interface OcrProgress {
-  phase: 'load-script' | 'load-lang' | 'recognize';
+  phase: 'crop' | 'upload' | 'processing' | 'done';
   /** 0..1 (가능한 경우). */
   progress?: number;
   label?: string;
@@ -44,78 +106,97 @@ interface OcrProgress {
 
 interface RunOpts {
   onProgress?: (p: OcrProgress) => void;
-  /** 'eng' (기본) 또는 'kor+eng' — 한국어 lang 데이터(13MB) 추가 다운로드. */
-  langs?: string;
+  /** 'ko' (기본) | 'jp' | 'en' — 서버 OCR 언어 힌트. */
+  language?: 'ko' | 'jp' | 'en';
   /**
-   * 카드 어느 부분만 OCR 할지.
-   *  'bottom' (기본) — 하단 15% (좌하단 세트코드 + 우하단 카드번호 영역)
-   *  'full'         — 전체
+   * GPT Vision 사용 여부 힌트. 서버는 visionAvailable() 일 때 자동 사용하지만
+   * 모바일과 폼 모양을 맞추기 위해 그대로 전송.
    */
-  region?: 'bottom' | 'full';
+  useAi?: boolean;
 }
 
+const SCAN_ENDPOINT = '/api/cards/scan';
+const UPLOAD_TIMEOUT_MS = 180_000;
+const CROP_MAX_SIDE = 2400;
+const CROP_PADDING = 8;
+
 /**
- * 외곽 quad 의 bounding box 로 이미지를 잘라 캔버스에 그린 후 OCR 실행.
- * 기본: 하단 15% 만 잘라 영문 OCR — 카드번호/세트코드 인식에 최적화. (작아서 빠르고, 오인식 줄어듦)
- * outerQuad 가 null 이면 이미지 전체에서 같은 비율 영역.
+ * outerQuad 의 bbox(+ 패딩) 로 이미지 크롭 후 서버 OCR 호출.
+ * outerQuad 가 null 이면 이미지 전체를 그대로 업로드.
  */
 export async function recognizeCard(
   img: HTMLImageElement,
   outerQuad: Quad | null,
   opts: RunOpts = {},
 ): Promise<CardOcrResult> {
-  const langs = opts.langs ?? 'eng';
-  const region = opts.region ?? 'bottom';
+  const language = opts.language ?? 'ko';
+  const useAi = opts.useAi ?? true;
 
-  opts.onProgress?.({ phase: 'load-script', label: '스크립트 다운로드' });
-  const T = await loadTesseract();
+  opts.onProgress?.({ phase: 'crop', progress: 0.05, label: '카드 영역 자르는 중…' });
+  const { canvas, bbox } = cropToBboxAndResize(img, outerQuad, CROP_MAX_SIDE);
+  const blob = await canvasToJpegBlob(canvas, 0.92);
 
-  // 카드 영역 크롭 + 리사이즈 — 디테일 보존을 위해 큰 캔버스(2400)
-  const fullCanvas = cropToBboxAndResize(img, outerQuad, 2400);
+  opts.onProgress?.({ phase: 'upload', progress: 0.2, label: '서버로 업로드 중…' });
 
-  // 하단 모드면: 하단 12% 스트립 → 전처리(그레이/콘트라스트/2x 업스케일) 적용
-  // 전체 모드면: 그대로 사용 (전처리 안 함 — 카드 일러스트 색상 정보가 OCR 외 용도로 필요할 수도)
-  const stripRaw = region === 'bottom' ? cropBottomStrip(fullCanvas, 0.12) : fullCanvas;
-  const canvas = region === 'bottom' ? preprocessForOcr(stripRaw) : stripRaw;
+  const form = new FormData();
+  form.append('image', blob, `scan-${Date.now()}.jpg`);
+  form.append(
+    'guideRect',
+    JSON.stringify({ x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h }),
+  );
+  form.append('platform', 'web');
+  form.append('imageWidth', String(img.naturalWidth));
+  form.append('imageHeight', String(img.naturalHeight));
+  form.append('capturedAt', new Date().toISOString());
+  form.append('language', language);
+  if (useAi) form.append('useAi', 'true');
 
-  opts.onProgress?.({ phase: 'recognize', progress: 0, label: '텍스트 인식 준비…' });
+  opts.onProgress?.({ phase: 'processing', progress: 0.4, label: 'AI 카드 정보 인식 중…' });
 
-  const ret = await T.recognize(canvas, langs, {
-    // Pokemon 카드 하단처럼 짧은 텍스트가 좌/우/여러 줄에 흩어져 있는 경우엔 PSM 11(sparse)이
-    // 기본값(PSM 3, auto)보다 훨씬 잘 잡아냄. 전체 이미지(region='full') 일 때도 sparse 가 안전.
-    tessedit_pageseg_mode: 11,
-    // 카드에 등장 가능한 글자만 — 영문 대소문자 + 숫자 + 슬래시/하이픈/점/공백 + 콜론
-    tessedit_char_whitelist:
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/-.: ',
-    logger: (m) => {
-      // m.status: 'loading tesseract core' | 'initializing tesseract' | 'loading language traineddata' |
-      //           'initializing api' | 'recognizing text' 등
-      if (m.status?.includes('language')) {
-        opts.onProgress?.({ phase: 'load-lang', progress: m.progress, label: '언어 데이터 다운로드' });
-      } else if (m.status?.includes('recognizing')) {
-        opts.onProgress?.({ phase: 'recognize', progress: m.progress, label: '텍스트 인식 중' });
-      } else if (m.status) {
-        opts.onProgress?.({ phase: 'recognize', progress: m.progress, label: m.status });
-      }
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(SCAN_ENDPOINT, {
+      method: 'POST',
+      body: form,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timeoutId);
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`네트워크 오류: ${msg}`);
+  }
+  clearTimeout(timeoutId);
 
-  const text = ret.data.text || '';
-  const lines: OcrLine[] = (ret.data.lines || []).map((l) => ({
-    text: l.text.trim(),
-    confidence: l.confidence,
-  }));
+  let data: ServerScanResponse;
+  try {
+    data = (await res.json()) as ServerScanResponse;
+  } catch {
+    throw new Error('서버 응답 형식이 올바르지 않습니다.');
+  }
 
-  return parseCardText(text, lines);
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.message || `서버 오류 (${res.status})`);
+  }
+
+  opts.onProgress?.({ phase: 'done', progress: 1, label: '완료' });
+  return mapResponseToOcrResult(data);
 }
 
-/* ---------------------------- crop ----------------------------- */
+/* --------------------------- crop + encode --------------------- */
+
+interface CropResult {
+  canvas: HTMLCanvasElement;
+  /** 자연 이미지 좌표 기준 bbox (서버에 guideRect 로 전달). */
+  bbox: { x: number; y: number; w: number; h: number };
+}
 
 function cropToBboxAndResize(
   img: HTMLImageElement,
   q: Quad | null,
   maxSide: number,
-): HTMLCanvasElement {
+): CropResult {
   const w0 = img.naturalWidth;
   const h0 = img.naturalHeight;
 
@@ -126,11 +207,10 @@ function cropToBboxAndResize(
   if (q) {
     const xs = q.map((p) => p.x);
     const ys = q.map((p) => p.y);
-    const pad = 8;
-    x = Math.max(0, Math.min(...xs) - pad);
-    y = Math.max(0, Math.min(...ys) - pad);
-    w = Math.min(w0 - x, Math.max(...xs) - x + pad);
-    h = Math.min(h0 - y, Math.max(...ys) - y + pad);
+    x = Math.max(0, Math.min(...xs) - CROP_PADDING);
+    y = Math.max(0, Math.min(...ys) - CROP_PADDING);
+    w = Math.min(w0 - x, Math.max(...xs) - x + CROP_PADDING);
+    h = Math.min(h0 - y, Math.max(...ys) - y + CROP_PADDING);
   }
 
   const longSide = Math.max(w, h);
@@ -145,163 +225,81 @@ function cropToBboxAndResize(
   if (!ctx) throw new Error('canvas 2D context 사용 불가');
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, x, y, w, h, 0, 0, dstW, dstH);
-  return canvas;
+  return { canvas, bbox: { x, y, w, h } };
 }
 
-/** 캔버스 하단 ratio(0..1) 영역만 새 캔버스로 잘라냄. 카드 번호/세트코드 영역 추출용. */
-function cropBottomStrip(src: HTMLCanvasElement, ratio: number): HTMLCanvasElement {
-  const stripH = Math.max(40, Math.round(src.height * ratio));
-  const out = document.createElement('canvas');
-  out.width = src.width;
-  out.height = stripH;
-  const ctx = out.getContext('2d');
-  if (!ctx) return src;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(src, 0, src.height - stripH, src.width, stripH, 0, 0, src.width, stripH);
-  return out;
+function canvasToJpegBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('이미지 인코딩 실패'));
+      },
+      'image/jpeg',
+      quality,
+    );
+  });
 }
 
-/**
- * Tesseract 가 잘 읽도록 캔버스 전처리:
- *   1. 그레이스케일
- *   2. 콘트라스트 스트레치 — 1, 99 percentile 을 0/255 로 매핑 (히스토그램 균등화 비슷한 효과)
- *   3. 2x 업스케일(nearest neighbor) — 작은 글자를 ~30px+ 로 키워서 인식률 ↑
- *
- * 리턴 캔버스는 흑백 단색 (R=G=B), Tesseract LSTM 모델이 좋아하는 입력 형태.
- */
-function preprocessForOcr(src: HTMLCanvasElement): HTMLCanvasElement {
-  const sw = src.width;
-  const sh = src.height;
-  const sctx = src.getContext('2d', { willReadFrequently: true });
-  if (!sctx) return src;
-  const sd = sctx.getImageData(0, 0, sw, sh).data;
+/* --------------------------- response map ---------------------- */
 
-  // 1) 그레이스케일 + 명도 히스토그램
-  const gray = new Uint8Array(sw * sh);
-  const hist = new Uint32Array(256);
-  for (let i = 0; i < sw * sh; i++) {
-    const r = sd[i * 4];
-    const g = sd[i * 4 + 1];
-    const b = sd[i * 4 + 2];
-    const v = ((r * 299 + g * 587 + b * 114) / 1000) | 0;
-    gray[i] = v;
-    hist[v]++;
-  }
-
-  // 2) 1, 99 percentile 찾기 (극단값에 영향 안 받게)
-  const total = sw * sh;
-  let lo = 0;
-  let hi = 255;
-  let acc = 0;
-  for (let v = 0; v < 256; v++) {
-    acc += hist[v];
-    if (acc > total * 0.01) {
-      lo = v;
-      break;
-    }
-  }
-  acc = 0;
-  for (let v = 255; v >= 0; v--) {
-    acc += hist[v];
-    if (acc > total * 0.01) {
-      hi = v;
-      break;
-    }
-  }
-  // 콘트라스트가 너무 낮으면 스트레치 안 하기 (전부 까맣게/하얗게 되는 거 방지)
-  if (hi - lo < 30) {
-    lo = 0;
-    hi = 255;
-  }
-  const range = hi - lo;
-
-  // 3) 2x 업스케일 + 콘트라스트 스트레치 (한 패스)
-  const SCALE = 2;
-  const dw = sw * SCALE;
-  const dh = sh * SCALE;
-  const out = document.createElement('canvas');
-  out.width = dw;
-  out.height = dh;
-  const octx = out.getContext('2d');
-  if (!octx) return src;
-  const od = octx.createImageData(dw, dh);
-  const dout = od.data;
-
-  for (let y = 0; y < dh; y++) {
-    const srcY = (y / SCALE) | 0;
-    for (let x = 0; x < dw; x++) {
-      const srcX = (x / SCALE) | 0;
-      const v0 = gray[srcY * sw + srcX];
-      let v = ((v0 - lo) / range) * 255;
-      if (v < 0) v = 0;
-      else if (v > 255) v = 255;
-      const di = (y * dw + x) * 4;
-      const vi = v | 0;
-      dout[di] = vi;
-      dout[di + 1] = vi;
-      dout[di + 2] = vi;
-      dout[di + 3] = 255;
-    }
-  }
-  octx.putImageData(od, 0, 0);
-  return out;
+interface ServerExtracted {
+  rawText?: string;
+  name?: string;
+  nameJa?: string;
+  cardNumber?: string;
+  totalNumber?: string;
+  setCode?: string;
+  rarity?: string;
+  language?: 'ko' | 'jp' | 'en' | 'unknown';
 }
 
-/* ---------------------------- parse ---------------------------- */
+interface ServerScanResponse {
+  success: boolean;
+  message?: string;
+  confidence?: number;
+  usedAi?: boolean;
+  extracted?: ServerExtracted;
+  candidates?: ScanCandidate[];
+  needsUserSelection?: boolean;
+}
 
-const CARD_NUM_RE = /(\d{1,3})\s*[\\/／]\s*(\d{1,3})/g;
-const PROMO_NUM_RE = /(\d{1,3})\s*[\\/／]\s*(SV-?P|S-?P|XY-?P|BW-?P|HGSS-?P|DP-?P|SM-?P)/gi;
-// 세트 코드: 영문 대문자 1~4 + 선택적 숫자/대문자 1~3, 단어 경계.
-// 예: SV1, SV5K, SM12a, XY12, BW11, HGSS, RC0123 (HGSS는 대문자 4)
-const SET_CODE_RE = /\b(SV[A-Z0-9]{0,3}|SM[A-Z0-9]{0,3}|XY[A-Z0-9]{0,3}|BW[A-Z0-9]{0,3}|HGSS[A-Z0-9]{0,3}|DP[A-Z0-9]{0,3}|RC\d{1,3})\b/g;
-const ILLUS_RE = /Illus(?:trator)?\.?\s+([A-Za-z][A-Za-z\.\s'-]{1,30})/i;
-
-function parseCardText(text: string, lines: OcrLine[]): CardOcrResult {
-  // 1) Card number — 프로모(SV-P 등) 우선 매칭, 그 다음 일반 N/M 형식.
-  const promoMatches = Array.from(text.matchAll(PROMO_NUM_RE));
-  const numMatches = Array.from(text.matchAll(CARD_NUM_RE));
+function mapResponseToOcrResult(data: ServerScanResponse): CardOcrResult {
+  const ex = data.extracted ?? {};
+  const cardNumberLeft = (ex.cardNumber ?? '').trim();
+  const cardNumberRight = (ex.totalNumber ?? '').trim();
 
   let cardNumber: CardOcrResult['cardNumber'] = null;
-  let promoCode: string | null = null;
-
-  if (promoMatches.length > 0) {
-    const m = promoMatches[0];
-    cardNumber = { left: m[1], right: m[2].toUpperCase(), raw: m[0] };
-    promoCode = m[2].toUpperCase();
-  } else if (numMatches.length > 0) {
-    // 분모(우측)가 큰 매치 선호 — 실제 세트 카드 번호의 분모(전체 카드 수)가 보통 두자리 이상
-    const best = numMatches
-      .map((m) => ({ m, denom: Number(m[2]) }))
-      .filter((x) => x.denom >= 1)
-      .sort((a, b) => b.denom - a.denom)[0];
-    if (best) {
-      cardNumber = { left: best.m[1], right: best.m[2], raw: best.m[0] };
-    }
+  if (cardNumberLeft) {
+    cardNumber = {
+      left: cardNumberLeft,
+      right: cardNumberRight,
+      raw: cardNumberRight ? `${cardNumberLeft}/${cardNumberRight}` : cardNumberLeft,
+    };
   }
 
-  // 2) Set code — 카드 번호와 분리된 세트 식별자.
-  // 카드 번호 부분과 겹치지 않게 cardNumber.raw 가 포함된 영역은 제외.
-  let setCode: string | null = null;
-  const setMatches = Array.from(text.matchAll(SET_CODE_RE)).map((m) => m[0].toUpperCase());
-  if (setMatches.length > 0) {
-    // 가장 흔한(빈도 높은) 코드 우선
-    const counts = new Map<string, number>();
-    for (const c of setMatches) counts.set(c, (counts.get(c) ?? 0) + 1);
-    const ranked = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
-    setCode = ranked[0][0];
-  }
-
-  // 3) Illustrator
-  let illustrator: string | null = null;
-  const im = text.match(ILLUS_RE);
-  if (im) illustrator = im[1].trim().replace(/\s+/g, ' ');
+  // 서버는 promo 를 setCode 로 normalize (e.g. "SV-P"). 그래서 promoCode 는
+  // setCode 가 "-P" 로 끝날 때만 분리해서 노출 — 기존 UI 가 promoCode 필드를
+  // 그대로 표시하기 때문에 유지.
+  const setCodeRaw = (ex.setCode ?? '').trim();
+  const isPromo = /-P$/i.test(setCodeRaw);
+  const setCode = setCodeRaw || null;
+  const promoCode = isPromo ? setCodeRaw.toUpperCase() : null;
 
   return {
-    rawText: text,
-    lines,
+    rawText: ex.rawText ?? '',
+    lines: [],
     cardNumber,
     promoCode,
     setCode,
-    illustrator,
+    illustrator: null,
+    name: ex.name?.trim() || null,
+    nameJa: ex.nameJa?.trim() || null,
+    totalNumber: cardNumberRight || null,
+    rarity: ex.rarity?.trim() || null,
+    language: ex.language ?? null,
+    usedAi: !!data.usedAi,
+    confidence: typeof data.confidence === 'number' ? data.confidence : null,
+    candidates: Array.isArray(data.candidates) ? data.candidates : [],
   };
 }
