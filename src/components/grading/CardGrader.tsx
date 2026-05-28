@@ -63,6 +63,9 @@ export function CardGrader() {
   const userAdjustedRef = useRef(false);
   // 같은 이미지에 대해 자동 OCR 을 한 번만 트리거하기 위한 신호.
   const autoOcrFiredRef = useRef<HTMLImageElement | null>(null);
+  // 사용자가 후보 리스트에서 고른 카드 — 저장 시 그 candidate 의 snkrdunkApparelId
+  // / 이미지 / 이름까지 같이 POST 한다 (없으면 내 컬렉션에서 이미지/시세 안 따라옴).
+  const [selectedCandidate, setSelectedCandidate] = useState<ScanCandidate | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -218,6 +221,8 @@ export function CardGrader() {
       });
       setOcrResult(result);
       setOcrProgress(1);
+      // 첫 후보 자동 선택 — 저장 시 이 candidate 의 snkrdunk/이미지/이름이 같이 박힘.
+      setSelectedCandidate(result.candidates[0] ?? null);
       // AI 가 quads 를 안정적으로 돌려줬고 사용자가 핸들 만지기 전이면 자동 적용.
       // sanity 는 서버에서 이미 통과 — 여기선 단순 null 체크만.
       if (!userAdjustedRef.current) {
@@ -636,7 +641,11 @@ export function CardGrader() {
 
           {/* 서버가 돌려준 매칭 후보 (이미지 + 다지역 가격 + Snkrdunk) — 앱과 동일 UI */}
           {ocrResult && ocrResult.candidates.length > 0 && (
-            <ScanCandidatesPanel candidates={ocrResult.candidates} />
+            <ScanCandidatesPanel
+              candidates={ocrResult.candidates}
+              selectedId={selectedCandidate?.id ?? null}
+              onSelect={setSelectedCandidate}
+            />
           )}
 
           {/* OCR 결과를 카탈로그에 매칭해 시세/차트 표시 + 내 카드에 저장 */}
@@ -644,6 +653,7 @@ export function CardGrader() {
             ocr={ocrResult}
             gradeLabel={result?.band.label ?? null}
             centeringScore={result?.worstCloser ?? null}
+            selectedCandidate={selectedCandidate}
           />
 
           {/* 결과 */}
@@ -1154,9 +1164,15 @@ function OcrResultCard({ r }: { r: CardOcrResult }) {
  * 사용자가 카드를 고를 수 있도록 row 를 클릭 가능하게 만들었지만, 현재 웹에서는
  * "선택" 자체가 다음 동작에 연결되어 있지 않아 시각적 강조만.
  */
-function ScanCandidatesPanel({ candidates }: { candidates: ScanCandidate[] }) {
-  const [selectedId, setSelectedId] = useState<string | null>(candidates[0]?.id ?? null);
-
+function ScanCandidatesPanel({
+  candidates,
+  selectedId,
+  onSelect,
+}: {
+  candidates: ScanCandidate[];
+  selectedId: string | null;
+  onSelect: (c: ScanCandidate) => void;
+}) {
   return (
     <div className="form-sect">
       <div className="form-label">🤖 AI 매칭 후보 ({candidates.length})</div>
@@ -1166,7 +1182,7 @@ function ScanCandidatesPanel({ candidates }: { candidates: ScanCandidate[] }) {
             key={c.id}
             candidate={c}
             selected={selectedId === c.id}
-            onClick={() => setSelectedId(c.id)}
+            onClick={() => onSelect(c)}
           />
         ))}
       </div>
