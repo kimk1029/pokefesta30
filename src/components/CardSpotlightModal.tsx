@@ -168,10 +168,12 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
       }}
     >
       {/* 카드 본체 — FLIP 애니메이션 대상. 이미지가 컨테이너이고 위에 오버레이가
-          쌓인다. preserve-3d 라 perspective 적용 시 입체감이 살아난다. */}
+          쌓인다. preserve-3d 라 perspective 적용 시 입체감이 살아난다.
+          그린 네온 보더 + 펄싱 글로우 (cv-spot-pulse keyframe). */}
       <div
         ref={cardRef}
         onClick={(e) => e.stopPropagation()}
+        className="cv-spot-card-neon"
         style={{
           position: 'relative',
           width: 'min(86vw, 380px)',
@@ -179,10 +181,9 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
           maxHeight: '88vh',
           background: '#000',
           overflow: 'hidden',
-          willChange: 'transform, opacity',
+          borderRadius: 18,
+          willChange: 'transform, opacity, box-shadow',
           transformStyle: 'preserve-3d',
-          boxShadow:
-            '0 0 0 3px var(--ink), 0 0 0 5px var(--gold), 0 0 64px rgba(255,210,63,0.55), 0 30px 80px rgba(0,0,0,0.7)',
         }}
       >
         {/* 카드 이미지 — 풀 cover */}
@@ -269,7 +270,7 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
           )}
         </div>
 
-        {/* X 닫기 — 카드 우상단. 오버레이 위에 floating */}
+        {/* X 닫기 — 카드 우상단. border 없이 어두운 반투명 원 + 텍스트 글로우로 가독성. */}
         <button
           type="button"
           onClick={(e) => {
@@ -282,19 +283,21 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
             position: 'absolute',
             top: 10,
             right: 10,
-            width: 34,
-            height: 34,
-            background: 'rgba(0,0,0,0.6)',
-            color: 'var(--gold)',
-            border: '2px solid var(--gold)',
-            borderRadius: 0,
+            width: 36,
+            height: 36,
+            background: 'rgba(0,0,0,0.55)',
+            color: 'var(--white)',
+            border: 'none',
+            borderRadius: '50%',
             fontFamily: 'var(--f1)',
-            fontSize: 13,
+            fontSize: 16,
             fontWeight: 700,
+            lineHeight: 1,
             cursor: 'pointer',
             zIndex: 4,
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            textShadow: '0 0 8px rgba(255,255,255,0.6), 0 0 2px rgba(0,0,0,0.9)',
           }}
         >
           ✕
@@ -327,9 +330,10 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
               alignItems: 'baseline',
               justifyContent: 'space-between',
               gap: 10,
+              flexWrap: 'nowrap',
             }}
           >
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, flexShrink: 1 }}>
               <div
                 style={{
                   fontFamily: 'var(--f1)',
@@ -337,6 +341,7 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
                   color: 'rgba(255,210,63,0.85)',
                   letterSpacing: 0.5,
                   marginBottom: 3,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 CURRENT
@@ -344,19 +349,20 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
               <div
                 style={{
                   fontFamily: 'var(--f1)',
-                  fontSize: 26,
+                  fontSize: 24,
                   fontWeight: 700,
                   color: 'var(--gold)',
                   letterSpacing: 0.3,
-                  textShadow: '0 2px 6px rgba(0,0,0,0.7)',
+                  textShadow: '0 2px 6px rgba(0,0,0,0.7), 0 0 12px rgba(255,210,63,0.4)',
                   lineHeight: 1,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {data.priceLabel ?? '시세 없음'}
               </div>
             </div>
             {change && (
-              <div style={{ textAlign: 'right' }}>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div
                   style={{
                     fontFamily: 'var(--f1)',
@@ -364,6 +370,7 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
                     color: 'rgba(255,255,255,0.75)',
                     letterSpacing: 0.5,
                     marginBottom: 3,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   전일 대비
@@ -371,7 +378,7 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
                 <div
                   style={{
                     fontFamily: 'var(--f1)',
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: 700,
                     letterSpacing: 0.3,
                     color: CHANGE_TONE[change.dir],
@@ -402,7 +409,8 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
         </div>
       </div>
 
-      {/* 키프레임 — 모달 마운트 시점에만 inline 정의 */}
+      {/* 키프레임 — 모달 마운트 시점에만 inline 정의.
+          cv-spot-pulse: 그린 네온 보더(box-shadow) 가 은은하게 강도 바뀜 */}
       <style>{`
         @keyframes cv-spot-bg-in {
           from { opacity: 0; }
@@ -415,6 +423,30 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
         @keyframes cv-spot-bot-in {
           from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes cv-spot-neon-pulse {
+          0%, 100% {
+            box-shadow:
+              0 0 0 1.5px #22F58C,
+              0 0 12px rgba(34,245,140,0.55),
+              0 0 32px rgba(34,245,140,0.35),
+              0 30px 80px rgba(0,0,0,0.7);
+          }
+          50% {
+            box-shadow:
+              0 0 0 2px #22F58C,
+              0 0 22px rgba(34,245,140,0.85),
+              0 0 56px rgba(34,245,140,0.55),
+              0 30px 80px rgba(0,0,0,0.7);
+          }
+        }
+        .cv-spot-card-neon {
+          box-shadow:
+            0 0 0 1.5px #22F58C,
+            0 0 12px rgba(34,245,140,0.55),
+            0 0 32px rgba(34,245,140,0.35),
+            0 30px 80px rgba(0,0,0,0.7);
+          animation: cv-spot-neon-pulse 2.6s ease-in-out infinite;
         }
       `}</style>
     </div>

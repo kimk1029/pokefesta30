@@ -59,6 +59,9 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
   const cardW = Math.min(screen.width * 0.86, 380);
   const cardH = Math.min(cardW * (88 / 63), screen.height * 0.88);
 
+  // 그린 네온 글로우 펄싱 — opacity 0.55 ↔ 1 사이를 2.6s 마다 왕복.
+  const neon = useRef(new Animated.Value(0)).current;
+
   // FLIP 보간용 Animated Values.
   const tx = useRef(new Animated.Value(0)).current;
   const ty = useRef(new Animated.Value(0)).current;
@@ -79,6 +82,31 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
   useEffect(() => {
     if (data) originRef.current = origin;
   }, [data, origin]);
+
+  /* 네온 펄싱 — 모달 열려 있는 동안 계속 ↺ */
+  useEffect(() => {
+    if (!data) return;
+    neon.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(neon, {
+          toValue: 1,
+          duration: 1300,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+        Animated.timing(neon, {
+          toValue: 0,
+          duration: 1300,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   /* 마운트 후 카드 최종 위치 측정되면 → origin 으로 reset → tween → final */
   useEffect(() => {
@@ -217,6 +245,10 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
     inputRange: [0, 1],
     outputRange: ['0deg', '720deg'],
   });
+  // 네온 펄싱 — iOS shadowOpacity 와 Android elevation 양쪽으로 보간.
+  const neonShadowOpacity = neon.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
+  const neonShadowRadius = neon.interpolate({ inputRange: [0, 1], outputRange: [16, 28] });
+  const neonElevation = neon.interpolate({ inputRange: [0, 1], outputRange: [18, 32] });
 
   return (
     <Modal
@@ -231,8 +263,8 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
         <Pressable style={StyleSheet.absoluteFill} onPress={startClose} />
 
         <View style={styles.center} pointerEvents="box-none">
-          {/* 카드 본체 — FLIP 대상. 내부 탭은 닫히지 않게 stopPropagation 효과를 위해
-              자체 Pressable 없이 onStartShouldSetResponder 로 흡수 */}
+          {/* 카드 본체 — FLIP 대상. 내부 탭은 닫히지 않게 onStartShouldSetResponder 로 흡수.
+              그린 네온 보더 + 펄싱 글로우. */}
           <Animated.View
             onLayout={onCardLayout}
             onStartShouldSetResponder={() => true}
@@ -242,6 +274,9 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
                 width: cardW,
                 height: cardH,
                 opacity: cardOpacity,
+                shadowOpacity: neonShadowOpacity,
+                shadowRadius: neonShadowRadius,
+                elevation: neonElevation,
                 transform: [
                   { translateX: tx },
                   { translateY: ty },
@@ -314,14 +349,24 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
               )}
             </Animated.View>
 
-            {/* X 닫기 */}
+            {/* X 닫기 — border 없이 어두운 원 + 흰색 ✕ + 글로우 */}
             <Pressable
               onPress={startClose}
               accessibilityLabel="닫기"
               style={styles.closeBtn}
               hitSlop={8}
             >
-              <PixelText variant="pixel" size={14} color={colors.gold} weight="bold">
+              <PixelText
+                variant="pixel"
+                size={16}
+                color="#FFFFFF"
+                weight="bold"
+                style={{
+                  textShadowColor: 'rgba(255,255,255,0.7)',
+                  textShadowOffset: { width: 0, height: 0 },
+                  textShadowRadius: 6,
+                }}
+              >
                 ✕
               </PixelText>
             </Pressable>
@@ -355,17 +400,35 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
               ) : null}
 
               <View style={styles.priceRow}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <PixelText variant="pixel" size={9} color="rgba(255,210,63,0.85)" style={{ letterSpacing: 0.5, marginBottom: 3 }}>
+                <View style={{ flexShrink: 1, minWidth: 0 }}>
+                  <PixelText
+                    variant="pixel"
+                    size={9}
+                    color="rgba(255,210,63,0.85)"
+                    numberOfLines={1}
+                    style={{ letterSpacing: 0.5, marginBottom: 3 }}
+                  >
                     CURRENT
                   </PixelText>
-                  <PixelText variant="pixel" size={24} weight="bold" color={colors.gold}>
+                  <PixelText
+                    variant="pixel"
+                    size={22}
+                    weight="bold"
+                    color={colors.gold}
+                    numberOfLines={1}
+                  >
                     {data.priceLabel ?? '시세 없음'}
                   </PixelText>
                 </View>
                 {change && (
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.75)" style={{ letterSpacing: 0.5, marginBottom: 3 }}>
+                  <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
+                    <PixelText
+                      variant="pixel"
+                      size={9}
+                      color="rgba(255,255,255,0.75)"
+                      numberOfLines={1}
+                      style={{ letterSpacing: 0.5, marginBottom: 3 }}
+                    >
                       전일 대비
                     </PixelText>
                     <PixelText
@@ -373,6 +436,7 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
                       size={16}
                       weight="bold"
                       color={CHANGE_TONE[change.dir]}
+                      numberOfLines={1}
                     >
                       {CHANGE_ARROW[change.dir]} {Math.abs(change.pct).toFixed(1)}%
                     </PixelText>
@@ -507,15 +571,16 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#000',
-    borderWidth: 3,
-    borderColor: colors.gold,
+    borderWidth: 2,
+    borderColor: '#22F58C',
+    borderRadius: 18,
     overflow: 'hidden',
-    // 골드 후광
-    shadowColor: colors.gold,
+    // 그린 네온 글로우 — shadowOpacity/Radius/elevation 은 펄싱 보간으로 덮음.
+    shadowColor: '#22F58C',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.55,
-    shadowRadius: 36,
-    elevation: 24,
+    shadowOpacity: 0.7,
+    shadowRadius: 20,
+    elevation: 22,
   },
   fallback: {
     backgroundColor: '#0F172A',
@@ -554,16 +619,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: 10,
+    flexWrap: 'nowrap',
   },
   closeBtn: {
     position: 'absolute',
     top: 10,
     right: 10,
-    width: 34,
-    height: 34,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderWidth: 2,
-    borderColor: colors.gold,
+    width: 36,
+    height: 36,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 4,
