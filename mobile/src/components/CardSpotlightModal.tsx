@@ -14,6 +14,9 @@ import {
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { PixelText } from './PixelText';
 import { colors } from '@/theme/tokens';
+import { fetchDominantNeon } from '@/services/cardScanApi';
+
+const DEFAULT_NEON = '#22F58C';
 
 /**
  * 카드 스포트라이트 (v2) — 카드 이미지가 컨테이너이고 그 위에 위/아래 그라데이션
@@ -59,8 +62,10 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
   const cardW = Math.min(screen.width * 0.86, 380);
   const cardH = Math.min(cardW * (88 / 63), screen.height * 0.88);
 
-  // 그린 네온 글로우 펄싱 — opacity 0.55 ↔ 1 사이를 2.6s 마다 왕복.
+  // 네온 글로우 펄싱 — opacity 0.55 ↔ 1 사이를 2.6s 마다 왕복.
   const neon = useRef(new Animated.Value(0)).current;
+  // 카드 이미지의 dominant 네온 색 (서버 분석). 도착 전엔 기본 그린.
+  const [neonColor, setNeonColor] = useState<string>(DEFAULT_NEON);
 
   // FLIP 보간용 Animated Values.
   const tx = useRef(new Animated.Value(0)).current;
@@ -82,6 +87,22 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
   useEffect(() => {
     if (data) originRef.current = origin;
   }, [data, origin]);
+
+  /* 카드 이미지 dominant 네온 색 fetch — imageUrl 바뀔 때마다 */
+  useEffect(() => {
+    if (!data?.imageUrl) {
+      setNeonColor(DEFAULT_NEON);
+      return;
+    }
+    let cancelled = false;
+    setNeonColor(DEFAULT_NEON); // 새 카드 떴을 때 일단 기본색
+    fetchDominantNeon(data.imageUrl).then((hex) => {
+      if (!cancelled && hex) setNeonColor(hex);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [data?.imageUrl]);
 
   /* 네온 펄싱 — 모달 열려 있는 동안 계속 ↺ */
   useEffect(() => {
@@ -274,6 +295,9 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
                 width: cardW,
                 height: cardH,
                 opacity: cardOpacity,
+                // 카드 이미지에서 추출한 dominant 네온 색 적용.
+                borderColor: neonColor,
+                shadowColor: neonColor,
                 shadowOpacity: neonShadowOpacity,
                 shadowRadius: neonShadowRadius,
                 elevation: neonElevation,

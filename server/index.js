@@ -20,6 +20,7 @@ import { visionExtract, visionAvailable } from './lib/vision.js';
 import { paddleScan, paddleHealthcheck } from './lib/paddle.js';
 import { lookupCard, searchTcgdexByName } from './lib/lookup.js';
 import { lookupIllustrator, searchTcgdexByIllustrator } from './lib/illustrator.js';
+import { dominantNeonForUrl } from './lib/imageColor.js';
 import { matchSnkrdunkForCard } from './lib/snkrdunkMatch.js';
 import { buildCors } from './middleware/cors.js';
 import authRouter from './routes/auth.js';
@@ -200,6 +201,30 @@ app.get('/api/cards/by-illustrator', async (req, res) => {
   } catch (e) {
     console.warn('[by-illustrator] failed:', e?.message ?? e);
     res.status(500).json({ ok: false, message: '일러스트레이터 검색에 실패했습니다.' });
+  }
+});
+
+/**
+ * GET /api/cards/dominant-color?url=https://...
+ *
+ * 카드 이미지 URL 의 가장 두드러진 hue 를 뽑아 네온 톤(HSL S=100%, L=60%) hex
+ * 로 돌려준다. URL 별 LRU 캐시 — 같은 카드 이미지는 다시 분석 안 함.
+ *
+ * 응답: { ok, hex, fromCache, fallback }
+ */
+app.get('/api/cards/dominant-color', async (req, res) => {
+  const url = String(req.query.url ?? '').trim();
+  if (!url) return res.status(400).json({ ok: false, message: 'url 파라미터가 필요합니다.' });
+  // 외부 URL 만 허용 (SSRF 회피) — http/https 스킴만.
+  if (!/^https?:\/\//i.test(url)) {
+    return res.status(400).json({ ok: false, message: 'http/https URL 만 허용됩니다.' });
+  }
+  try {
+    const r = await dominantNeonForUrl(url);
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    console.warn('[dominant-color] failed:', e?.message ?? e);
+    res.status(500).json({ ok: false, message: '색 추출 실패' });
   }
 });
 

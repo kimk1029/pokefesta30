@@ -133,6 +133,27 @@ export async function lookupCardInfo(args: {
   return (await res.json()) as CardLookupResult;
 }
 
+/**
+ * GET /api/cards/dominant-color — 카드 이미지 URL 에서 네온 톤 hex 추출.
+ * 실패 시 null 반환 (호출자가 디폴트 그린 사용).
+ */
+export async function fetchDominantNeon(imageUrl: string): Promise<string | null> {
+  const u = String(imageUrl ?? '').trim();
+  if (!u) return null;
+  try {
+    const res = await fetch(
+      `${BASE_URL}/api/cards/dominant-color?url=${encodeURIComponent(u)}`,
+      { signal: abortAfter(8_000) },
+    );
+    if (!res.ok) return null;
+    const j = (await res.json()) as { ok?: boolean; hex?: string };
+    if (j?.ok && typeof j.hex === 'string' && /^#[0-9A-Fa-f]{6}$/.test(j.hex)) return j.hex;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function uploadScanImage(input: ScanUploadInput): Promise<CardScanResponse> {
   if (USE_MOCK) return mockScan(input);
 

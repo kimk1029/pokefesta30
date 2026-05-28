@@ -40,11 +40,16 @@ interface Props {
 const OPEN_MS = 850;
 const CLOSE_MS = 280;
 
+const DEFAULT_NEON = '#22F58C';
+
 export function CardSpotlightModal({ data, origin, onClose }: Props) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
+  // 카드 이미지의 dominant hue 를 네온 톤으로 변환한 색. 서버에서 한 번 분석 후
+  // URL 별 LRU 캐시. 기본은 그린 — fetch 도착 전 / 실패 시 폴백.
+  const [neonColor, setNeonColor] = useState<string>(DEFAULT_NEON);
 
   // origin 은 닫을 때도 필요. ref 로 안정화 — props 가 변해도 같은 값 유지.
   const originRef = useRef<DOMRect | null>(origin);
@@ -61,6 +66,28 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
       document.body.style.overflow = prev;
     };
   }, [data]);
+
+  // 카드 이미지의 dominant 네온 색 fetch — 이미지 URL 이 바뀔 때마다.
+  useEffect(() => {
+    if (!data?.imageUrl) {
+      setNeonColor(DEFAULT_NEON);
+      return;
+    }
+    let cancelled = false;
+    setNeonColor(DEFAULT_NEON); // 새 카드 떴을 때 일단 기본색
+    fetch(`/api/cards/dominant-color?url=${encodeURIComponent(data.imageUrl)}`, { cache: 'force-cache' })
+      .then((r) => r.json())
+      .then((j: { ok?: boolean; hex?: string }) => {
+        if (cancelled) return;
+        if (j?.ok && typeof j.hex === 'string' && /^#[0-9A-Fa-f]{6}$/.test(j.hex)) {
+          setNeonColor(j.hex);
+        }
+      })
+      .catch(() => {/* keep default */});
+    return () => {
+      cancelled = true;
+    };
+  }, [data?.imageUrl]);
 
   /* 카드 펼침 FLIP — origin rect 가 있으면 거기서 시작, 없으면 가벼운 페이드. */
   useLayoutEffect(() => {
@@ -184,6 +211,9 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
           borderRadius: 18,
           willChange: 'transform, opacity, box-shadow',
           transformStyle: 'preserve-3d',
+          // 동적 네온 색 — keyframe 의 box-shadow 가 var(--cv-neon) 참조.
+          // hex → rgb 분해해 알파 글로우에도 같은 색조가 적용되도록 var 두 개 제공.
+          ...({ '--cv-neon': neonColor, '--cv-neon-rgb': hexToRgb(neonColor) } as React.CSSProperties),
         }}
       >
         {/* 카드 이미지 — 풀 cover */}
@@ -427,24 +457,24 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
         @keyframes cv-spot-neon-pulse {
           0%, 100% {
             box-shadow:
-              0 0 0 1.5px #22F58C,
-              0 0 12px rgba(34,245,140,0.55),
-              0 0 32px rgba(34,245,140,0.35),
+              0 0 0 1.5px var(--cv-neon, #22F58C),
+              0 0 12px rgba(var(--cv-neon-rgb, 34,245,140), 0.55),
+              0 0 32px rgba(var(--cv-neon-rgb, 34,245,140), 0.35),
               0 30px 80px rgba(0,0,0,0.7);
           }
           50% {
             box-shadow:
-              0 0 0 2px #22F58C,
-              0 0 22px rgba(34,245,140,0.85),
-              0 0 56px rgba(34,245,140,0.55),
+              0 0 0 2px var(--cv-neon, #22F58C),
+              0 0 22px rgba(var(--cv-neon-rgb, 34,245,140), 0.85),
+              0 0 56px rgba(var(--cv-neon-rgb, 34,245,140), 0.55),
               0 30px 80px rgba(0,0,0,0.7);
           }
         }
         .cv-spot-card-neon {
           box-shadow:
-            0 0 0 1.5px #22F58C,
-            0 0 12px rgba(34,245,140,0.55),
-            0 0 32px rgba(34,245,140,0.35),
+            0 0 0 1.5px var(--cv-neon, #22F58C),
+            0 0 12px rgba(var(--cv-neon-rgb, 34,245,140), 0.55),
+            0 0 32px rgba(var(--cv-neon-rgb, 34,245,140), 0.35),
             0 30px 80px rgba(0,0,0,0.7);
           animation: cv-spot-neon-pulse 2.6s ease-in-out infinite;
         }
@@ -461,6 +491,14 @@ const CHANGE_TONE: Record<'up' | 'down' | 'flat', string> = {
   down: '#7EB6FF',
   flat: 'rgba(255,255,255,0.7)',
 };
+
+/** "#RRGGBB" → "r, g, b" (rgba(...) 안에 그대로 박을 수 있는 형태). */
+function hexToRgb(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return '34,245,140';
+  const n = parseInt(m[1], 16);
+  return `${(n >> 16) & 0xff}, ${(n >> 8) & 0xff}, ${n & 0xff}`;
+}
 
 function changeFromTrend(trend: number[]): { pct: number; dir: 'up' | 'down' | 'flat' } | null {
   if (!Array.isArray(trend) || trend.length < 2) return null;
