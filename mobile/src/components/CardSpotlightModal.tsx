@@ -7,24 +7,24 @@ import {
   Image,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
   type LayoutChangeEvent,
 } from 'react-native';
-import Svg, { Circle, Path, Line } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { PixelText } from './PixelText';
 import { colors } from '@/theme/tokens';
 
 /**
- * 카드 스포트라이트 — 컬렉션에서 🔍 버튼을 누르면 그 카드 썸네일이 풀스크린으로
- * 날아와서 회전(rotateY 360°)하며 펼쳐지는 모달.
+ * 카드 스포트라이트 (v2) — 카드 이미지가 컨테이너이고 그 위에 위/아래 그라데이션
+ * 딤을 깔고 카드명·시세·등락률·그래프를 오버레이로 표시. 카드 한 장이 모든
+ * 정보를 담는 "하이라이트 샷".
  *
- * 웹 [[src/components/CardSpotlightModal.tsx]] 와 시각/UX 가 1:1 매칭되도록 만들었다.
- * RN 에는 CSS transition 이 없어 Animated.Value × 5 (tx, ty, sx, sy, rotateY) 로
- * FLIP 보간을 직접 구동한다. transform-only 라 useNativeDriver=true 가능 → 60fps.
+ * 애니메이션: 카드가 origin 위치(작게)에서 시작 → scale 1 + rotateY 720°
+ * + opacity 1 로 850ms (bouncy cubic-bezier). 닫기는 즉시 백그라운드 fade
+ * 시작 + 카드 fly-back, 280ms 후 강제 unmount (안전망).
  *
- * 본문(가격/등락/차트) 은 카드가 70% 펼쳐졌을 때(=delay 350ms) fade-in 으로 등장.
+ * 웹 [[src/components/CardSpotlightModal.tsx]] 와 시각/UX 1:1 매칭.
  */
 
 export interface CardSpotlightData {
@@ -33,11 +33,8 @@ export interface CardSpotlightData {
   name: string;
   subtitle?: string | null;
   gradeLabel?: string | null;
-  /** "¥38,000" 같이 통화 기호까지 포함된 문자열. null 이면 "시세 없음". */
   priceLabel: string | null;
-  /** 가격 추이 — 오래된 → 최신. 2개 미만이면 차트/등락 숨김. */
   trend: number[];
-  /** 차트 min/max 라벨용 통화 기호 (¥/₩/$). */
   currencySymbol?: string;
 }
 
@@ -50,135 +47,109 @@ export interface SpotlightOrigin {
 
 interface Props {
   data: CardSpotlightData | null;
-  /** 시작 사각형 (썸네일의 measureInWindow). null 이면 페이드 인. */
   origin: SpotlightOrigin | null;
   onClose: () => void;
 }
 
-const OPEN_MS = 650;
-const CLOSE_MS = 380;
-const BODY_DELAY_MS = 350;
+const OPEN_MS = 850;
+const CLOSE_MS = 280;
 
 export function CardSpotlightModal({ data, origin, onClose }: Props) {
   const screen = Dimensions.get('window');
-
-  // 카드 풀스크린 너비 = min(78% screen, 360px). 웹과 같은 비율.
-  const cardW = Math.min(screen.width * 0.78, 360);
-  const cardH = cardW * (88 / 63);
+  const cardW = Math.min(screen.width * 0.86, 380);
+  const cardH = Math.min(cardW * (88 / 63), screen.height * 0.88);
 
   // FLIP 보간용 Animated Values.
   const tx = useRef(new Animated.Value(0)).current;
   const ty = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
-  const rotY = useRef(new Animated.Value(0)).current; // 0 → 1 = 0deg → 360deg
+  const rotY = useRef(new Animated.Value(0)).current; // 0..1 → 0°..720°
   const cardOpacity = useRef(new Animated.Value(1)).current;
-  const bodyOpacity = useRef(new Animated.Value(0)).current;
-  const bodyTranslate = useRef(new Animated.Value(20)).current;
   const bgOpacity = useRef(new Animated.Value(0)).current;
+  const topOpacity = useRef(new Animated.Value(0)).current;
+  const topY = useRef(new Animated.Value(-8)).current;
+  const botOpacity = useRef(new Animated.Value(0)).current;
+  const botY = useRef(new Animated.Value(12)).current;
 
-  // 카드의 풀스크린 최종 좌상단 좌표 — onLayout 으로 측정. 측정되면 origin 으로 reset.
   const [cardLayout, setCardLayout] = useState<{ x: number; y: number } | null>(null);
-  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
+  const [, setClosingTick] = useState(0);
 
-  // origin 을 closing 때도 쓰려고 보관.
-  const closeOriginRef = useRef<SpotlightOrigin | null>(origin);
+  const originRef = useRef<SpotlightOrigin | null>(origin);
   useEffect(() => {
-    closeOriginRef.current = origin;
-  }, [origin]);
+    if (data) originRef.current = origin;
+  }, [data, origin]);
 
-  /* 모달이 열리면 → reset(origin 위치) → tween(final) */
+  /* 마운트 후 카드 최종 위치 측정되면 → origin 으로 reset → tween → final */
   useEffect(() => {
     if (!data || !cardLayout) return;
-    const o = closeOriginRef.current;
+    const o = originRef.current;
 
-    // 배경 페이드
+    // 백그라운드 fade
     Animated.timing(bgOpacity, {
       toValue: 1,
-      duration: 220,
+      duration: 240,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
 
+    // 카드 origin 위치/스케일 reset
     if (o) {
-      // FLIP — 카드의 final layout 기준 origin 으로 reset.
       const finalCx = cardLayout.x + cardW / 2;
       const finalCy = cardLayout.y + cardH / 2;
       const originCx = o.x + o.width / 2;
       const originCy = o.y + o.height / 2;
-      const sx = o.width / cardW;
+      const s = o.width / cardW;
       tx.setValue(originCx - finalCx);
       ty.setValue(originCy - finalCy);
-      scale.setValue(Math.max(0.05, sx));
+      scale.setValue(Math.max(0.04, s));
       rotY.setValue(0);
-      cardOpacity.setValue(1);
+      cardOpacity.setValue(0.4);
     } else {
       tx.setValue(0);
       ty.setValue(0);
-      scale.setValue(0.85);
-      rotY.setValue(0.5); // 180deg
+      scale.setValue(0.7);
+      rotY.setValue(0);
       cardOpacity.setValue(0);
     }
 
-    // 본문은 처음엔 숨김.
-    bodyOpacity.setValue(0);
-    bodyTranslate.setValue(20);
+    topOpacity.setValue(0);
+    topY.setValue(-8);
+    botOpacity.setValue(0);
+    botY.setValue(12);
 
-    // 카드 펼치기.
-    Animated.parallel([
-      Animated.timing(tx, {
-        toValue: 0,
-        duration: OPEN_MS,
-        easing: Easing.bezier(0.22, 0.85, 0.25, 1.02),
-        useNativeDriver: true,
-      }),
-      Animated.timing(ty, {
-        toValue: 0,
-        duration: OPEN_MS,
-        easing: Easing.bezier(0.22, 0.85, 0.25, 1.02),
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 1,
-        duration: OPEN_MS,
-        easing: Easing.bezier(0.22, 0.85, 0.25, 1.02),
-        useNativeDriver: true,
-      }),
-      Animated.timing(rotY, {
-        toValue: 1, // 360deg
-        duration: OPEN_MS,
-        easing: Easing.bezier(0.22, 0.85, 0.25, 1.02),
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardOpacity, {
-        toValue: 1,
-        duration: 280,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // 카드 펼치기 — bouncy easing + 720° 회전
+    const cardSpring = Animated.parallel([
+      Animated.timing(tx, { toValue: 0, duration: OPEN_MS, easing: Easing.bezier(0.16, 1.18, 0.32, 1), useNativeDriver: true }),
+      Animated.timing(ty, { toValue: 0, duration: OPEN_MS, easing: Easing.bezier(0.16, 1.18, 0.32, 1), useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: OPEN_MS, easing: Easing.bezier(0.16, 1.18, 0.32, 1), useNativeDriver: true }),
+      Animated.timing(rotY, { toValue: 1, duration: OPEN_MS, easing: Easing.bezier(0.16, 1.18, 0.32, 1), useNativeDriver: true }),
+      Animated.timing(cardOpacity, { toValue: 1, duration: OPEN_MS * 0.5, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]);
 
-    // 본문 등장 (delay 후 fade up).
-    Animated.sequence([
-      Animated.delay(BODY_DELAY_MS),
-      Animated.parallel([
-        Animated.timing(bodyOpacity, {
-          toValue: 1,
-          duration: 420,
-          easing: Easing.bezier(0.2, 0.9, 0.3, 1),
-          useNativeDriver: true,
-        }),
-        Animated.timing(bodyTranslate, {
-          toValue: 0,
-          duration: 420,
-          easing: Easing.bezier(0.2, 0.9, 0.3, 1),
-          useNativeDriver: true,
-        }),
+    // 카드가 펼쳐지는 동안 상/하 오버레이 텍스트 들이닥침
+    const overlayIn = Animated.parallel([
+      Animated.sequence([
+        Animated.delay(250),
+        Animated.parallel([
+          Animated.timing(topOpacity, { toValue: 1, duration: 520, easing: Easing.bezier(0.2, 0.9, 0.3, 1), useNativeDriver: true }),
+          Animated.timing(topY, { toValue: 0, duration: 520, easing: Easing.bezier(0.2, 0.9, 0.3, 1), useNativeDriver: true }),
+        ]),
       ]),
-    ]).start();
+      Animated.sequence([
+        Animated.delay(380),
+        Animated.parallel([
+          Animated.timing(botOpacity, { toValue: 1, duration: 520, easing: Easing.bezier(0.2, 0.9, 0.3, 1), useNativeDriver: true }),
+          Animated.timing(botY, { toValue: 0, duration: 520, easing: Easing.bezier(0.2, 0.9, 0.3, 1), useNativeDriver: true }),
+        ]),
+      ]),
+    ]);
+
+    Animated.parallel([cardSpring, overlayIn]).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, cardLayout]);
 
-  /* 안드로이드 뒤로가기 = 닫기 */
+  /* Android 뒤로가기 = 닫기 */
   useEffect(() => {
     if (!data) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -190,96 +161,48 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
   }, [data]);
 
   const startClose = useCallback(() => {
-    if (closing || !cardLayout) {
-      onClose();
-      return;
-    }
-    setClosing(true);
-    const o = closeOriginRef.current;
-    const animations: Animated.CompositeAnimation[] = [];
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setClosingTick((n) => n + 1);
 
-    animations.push(
-      Animated.timing(bgOpacity, {
-        toValue: 0,
-        duration: CLOSE_MS,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(bodyOpacity, {
-        toValue: 0,
-        duration: 220,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
+    const o = originRef.current;
+    const anims: Animated.CompositeAnimation[] = [];
+
+    anims.push(
+      Animated.timing(bgOpacity, { toValue: 0, duration: CLOSE_MS, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.timing(topOpacity, { toValue: 0, duration: CLOSE_MS * 0.7, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.timing(botOpacity, { toValue: 0, duration: CLOSE_MS * 0.7, easing: Easing.in(Easing.quad), useNativeDriver: true }),
     );
 
-    if (o) {
+    if (cardLayout && o) {
       const finalCx = cardLayout.x + cardW / 2;
       const finalCy = cardLayout.y + cardH / 2;
       const originCx = o.x + o.width / 2;
       const originCy = o.y + o.height / 2;
-      const sx = o.width / cardW;
-      animations.push(
-        Animated.timing(tx, {
-          toValue: originCx - finalCx,
-          duration: CLOSE_MS,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(ty, {
-          toValue: originCy - finalCy,
-          duration: CLOSE_MS,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: Math.max(0.05, sx),
-          duration: CLOSE_MS,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(rotY, {
-          toValue: 0, // 360deg → 0deg = -360 = 1바퀴 역회전
-          duration: CLOSE_MS,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(cardOpacity, {
-          toValue: 0,
-          duration: CLOSE_MS,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
+      const s = o.width / cardW;
+      anims.push(
+        Animated.timing(tx, { toValue: originCx - finalCx, duration: CLOSE_MS, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(ty, { toValue: originCy - finalCy, duration: CLOSE_MS, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(scale, { toValue: Math.max(0.04, s), duration: CLOSE_MS, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(rotY, { toValue: 0, duration: CLOSE_MS, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 0, duration: CLOSE_MS, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
       );
     } else {
-      animations.push(
-        Animated.timing(scale, {
-          toValue: 0.85,
-          duration: 280,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(rotY, {
-          toValue: 0.5,
-          duration: 280,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(cardOpacity, {
-          toValue: 0,
-          duration: 280,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
+      anims.push(
+        Animated.timing(scale, { toValue: 0.7, duration: CLOSE_MS, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 0, duration: CLOSE_MS, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
       );
     }
 
-    Animated.parallel(animations).start(() => {
-      setClosing(false);
+    Animated.parallel(anims).start();
+
+    // 안전망 — transition 콜백 누락에 대비, 무조건 unmount 보장.
+    window.setTimeout(() => {
+      closingRef.current = false;
       setCardLayout(null);
       onClose();
-    });
-  }, [closing, cardLayout, cardW, cardH, onClose, bgOpacity, bodyOpacity, tx, ty, scale, rotY, cardOpacity]);
+    }, CLOSE_MS + 30);
+  }, [cardLayout, cardW, cardH, onClose, bgOpacity, topOpacity, botOpacity, tx, ty, scale, rotY, cardOpacity]);
 
   const onCardLayout = useCallback((e: LayoutChangeEvent) => {
     const { x, y } = e.nativeEvent.layout;
@@ -292,7 +215,7 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
 
   const rotateInterpolate = rotY.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+    outputRange: ['0deg', '720deg'],
   });
 
   return (
@@ -303,29 +226,16 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
       onRequestClose={startClose}
       statusBarTranslucent
     >
-      <Animated.View
-        style={[styles.backdrop, { opacity: bgOpacity }]}
-      >
+      <Animated.View style={[styles.backdrop, { opacity: bgOpacity }]}>
+        {/* 백드롭 탭 = 닫기 */}
         <Pressable style={StyleSheet.absoluteFill} onPress={startClose} />
 
-        {/* 닫기 ✕ — 우상단 */}
-        <Pressable
-          accessibilityLabel="닫기"
-          onPress={startClose}
-          style={styles.closeBtn}
-        >
-          <PixelText variant="pixel" size={14} color={colors.gold} weight="bold">
-            ✕
-          </PixelText>
-        </Pressable>
-
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* 카드 본체 — FLIP 애니메이션 대상 */}
+        <View style={styles.center} pointerEvents="box-none">
+          {/* 카드 본체 — FLIP 대상. 내부 탭은 닫히지 않게 stopPropagation 효과를 위해
+              자체 Pressable 없이 onStartShouldSetResponder 로 흡수 */}
           <Animated.View
             onLayout={onCardLayout}
+            onStartShouldSetResponder={() => true}
             style={[
               styles.card,
               {
@@ -335,63 +245,127 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
                 transform: [
                   { translateX: tx },
                   { translateY: ty },
-                  { perspective: 1200 },
+                  { perspective: 1400 },
                   { rotateY: rotateInterpolate },
                   { scale },
                 ],
               },
             ]}
           >
+            {/* 이미지 */}
             {data.imageUrl ? (
               <Image
                 source={{ uri: data.imageUrl }}
-                style={{ width: '100%', height: '100%' }}
+                style={StyleSheet.absoluteFill}
                 resizeMode="cover"
               />
             ) : (
-              <View style={styles.cardFallback}>
+              <View style={[StyleSheet.absoluteFill, styles.fallback]}>
                 <PixelText variant="pixel" size={110} color={colors.gold}>
                   {data.emojiFallback ?? '🃏'}
                 </PixelText>
               </View>
             )}
-          </Animated.View>
 
-          {/* 본문 — 카드가 펼쳐진 다음에 fade up */}
-          <Animated.View
-            style={[
-              styles.bodyWrap,
-              {
-                opacity: bodyOpacity,
-                transform: [{ translateY: bodyTranslate }],
-              },
-            ]}
-            // 본문 영역은 백드롭 탭으로 닫히지 않게
-            onStartShouldSetResponder={() => true}
-          >
-            <View style={styles.bodyCard}>
-              <PixelText variant="ko" size={18} weight="bold" color={colors.ink}>
+            {/* 상단 그라데이션 + 카드명 — RN 에는 CSS gradient 없어 SVG defs 로 */}
+            <View pointerEvents="none" style={styles.topOverlay}>
+              <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+                <Defs>
+                  <LinearGradient id="cv-top" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0%" stopColor="#000" stopOpacity="0.82" />
+                    <Stop offset="60%" stopColor="#000" stopOpacity="0.55" />
+                    <Stop offset="100%" stopColor="#000" stopOpacity="0" />
+                  </LinearGradient>
+                </Defs>
+                <Path
+                  d={`M0,0 L${cardW},0 L${cardW},${cardH * 0.45} L0,${cardH * 0.45} Z`}
+                  fill="url(#cv-top)"
+                />
+              </Svg>
+            </View>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.topContent,
+                { opacity: topOpacity, transform: [{ translateY: topY }] },
+              ]}
+            >
+              <PixelText variant="pixel" size={9} color={colors.gold} style={{ letterSpacing: 1, marginBottom: 4 }}>
+                ★ CARD HIGHLIGHT
+              </PixelText>
+              <PixelText
+                variant="ko"
+                size={18}
+                weight="bold"
+                color={colors.white}
+                style={{ lineHeight: 22 }}
+              >
                 {data.name}
               </PixelText>
               {(data.subtitle || data.gradeLabel) && (
-                <PixelText variant="pixel" size={10} color={colors.ink3} style={{ marginTop: 4 }}>
+                <PixelText
+                  variant="pixel"
+                  size={10}
+                  color="rgba(255,255,255,0.85)"
+                  style={{ marginTop: 4, letterSpacing: 0.3 }}
+                >
                   {[data.subtitle, data.gradeLabel].filter(Boolean).join(' · ')}
                 </PixelText>
               )}
+            </Animated.View>
 
-              {/* 현재 시세 + 전일 대비 — 어두운 박스 */}
-              <View style={styles.priceBox}>
+            {/* X 닫기 */}
+            <Pressable
+              onPress={startClose}
+              accessibilityLabel="닫기"
+              style={styles.closeBtn}
+              hitSlop={8}
+            >
+              <PixelText variant="pixel" size={14} color={colors.gold} weight="bold">
+                ✕
+              </PixelText>
+            </Pressable>
+
+            {/* 하단 그라데이션 + 차트 + 가격 + 등락 */}
+            <View pointerEvents="none" style={styles.botOverlay}>
+              <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+                <Defs>
+                  <LinearGradient id="cv-bot" x1="0" y1="1" x2="0" y2="0">
+                    <Stop offset="0%" stopColor="#000" stopOpacity="0.95" />
+                    <Stop offset="40%" stopColor="#000" stopOpacity="0.8" />
+                    <Stop offset="80%" stopColor="#000" stopOpacity="0.4" />
+                    <Stop offset="100%" stopColor="#000" stopOpacity="0" />
+                  </LinearGradient>
+                </Defs>
+                <Path
+                  d={`M0,0 L${cardW},0 L${cardW},${cardH * 0.55} L0,${cardH * 0.55} Z`}
+                  fill="url(#cv-bot)"
+                />
+              </Svg>
+            </View>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.botContent,
+                { opacity: botOpacity, transform: [{ translateY: botY }] },
+              ]}
+            >
+              {data.trend.length >= 2 ? (
+                <CardOverlayChart points={data.trend} width={cardW - 32} height={70} />
+              ) : null}
+
+              <View style={styles.priceRow}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <PixelText variant="pixel" size={9} color="rgba(255,210,63,0.7)">
-                    현재 시세
+                  <PixelText variant="pixel" size={9} color="rgba(255,210,63,0.85)" style={{ letterSpacing: 0.5, marginBottom: 3 }}>
+                    CURRENT
                   </PixelText>
-                  <PixelText variant="pixel" size={22} weight="bold" color={colors.gold} style={{ marginTop: 2 }}>
+                  <PixelText variant="pixel" size={24} weight="bold" color={colors.gold}>
                     {data.priceLabel ?? '시세 없음'}
                   </PixelText>
                 </View>
                 {change && (
                   <View style={{ alignItems: 'flex-end' }}>
-                    <PixelText variant="pixel" size={9} color="rgba(255,210,63,0.7)">
+                    <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.75)" style={{ letterSpacing: 0.5, marginBottom: 3 }}>
                       전일 대비
                     </PixelText>
                     <PixelText
@@ -399,7 +373,6 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
                       size={16}
                       weight="bold"
                       color={CHANGE_TONE[change.dir]}
-                      style={{ marginTop: 2 }}
                     >
                       {CHANGE_ARROW[change.dir]} {Math.abs(change.pct).toFixed(1)}%
                     </PixelText>
@@ -407,40 +380,17 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
                 )}
               </View>
 
-              {/* 큰 추이 차트 */}
-              {data.trend.length >= 2 ? (
-                <View style={styles.chartBox}>
-                  <View style={styles.chartHeader}>
-                    <PixelText variant="pixel" size={9} color={colors.ink3}>
-                      📈 최근 추이 (총 {data.trend.length}점)
-                    </PixelText>
-                    <PixelText variant="pixel" size={9} color={colors.ink3}>
-                      {data.currencySymbol ?? ''}
-                      {fmtNum(Math.min(...data.trend))} ~ {data.currencySymbol ?? ''}
-                      {fmtNum(Math.max(...data.trend))}
-                    </PixelText>
-                  </View>
-                  <BigSparkline points={data.trend} />
-                </View>
-              ) : (
-                <View style={styles.chartEmpty}>
-                  <PixelText variant="pixel" size={10} color={colors.ink3}>
-                    📊 추이 데이터가 아직 부족해요
-                  </PixelText>
-                </View>
-              )}
-            </View>
-
-            <PixelText
-              variant="pixel"
-              size={9}
-              color="rgba(255,255,255,0.5)"
-              style={{ marginTop: 16, textAlign: 'center' }}
-            >
-              탭/뒤로가기로 닫기
-            </PixelText>
+              <PixelText
+                variant="pixel"
+                size={8}
+                color="rgba(255,255,255,0.55)"
+                style={{ marginTop: 10, textAlign: 'center', letterSpacing: 0.5 }}
+              >
+                탭/뒤로가기 닫기
+              </PixelText>
+            </Animated.View>
           </Animated.View>
-        </ScrollView>
+        </View>
       </Animated.View>
     </Modal>
   );
@@ -452,7 +402,7 @@ const CHANGE_ARROW: Record<'up' | 'down' | 'flat', string> = { up: '▲', down: 
 const CHANGE_TONE: Record<'up' | 'down' | 'flat', string> = {
   up: '#FF6B7E',
   down: '#7EB6FF',
-  flat: 'rgba(255,255,255,0.65)',
+  flat: 'rgba(255,255,255,0.7)',
 };
 
 function changeFromTrend(trend: number[]): { pct: number; dir: 'up' | 'down' | 'flat' } | null {
@@ -465,19 +415,14 @@ function changeFromTrend(trend: number[]): { pct: number; dir: 'up' | 'down' | '
   return { pct, dir };
 }
 
-function fmtNum(v: number): string {
-  if (!Number.isFinite(v)) return '0';
-  return Math.round(v).toLocaleString('ko-KR');
-}
-
 /**
- * 풀스크린 모달용 큰 라인 차트 — 상승은 빨강, 하락은 파랑 (한국 관습).
- * area fill + 마지막 점 펄싱 강조.
+ * 카드 위에 얹는 area 차트 — area 는 골드 그라데이션, 라인은 골드, 마지막 점 펄싱.
+ * 라벨/그리드 없음 (오버레이 노이즈 최소화).
  */
-function BigSparkline({ points }: { points: number[] }) {
+function CardOverlayChart({ points, width, height }: { points: number[]; width: number; height: number }) {
   const W = 320;
-  const H = 110;
-  const PAD = 8;
+  const H = 70;
+  const PAD = 4;
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -501,53 +446,42 @@ function BigSparkline({ points }: { points: number[] }) {
   const stepX = usableW / (points.length - 1);
   const xOf = (i: number) => PAD + i * stepX;
   const yOf = (v: number) => PAD + (usableH - ((v - min) / range) * usableH);
-  const line = points
-    .map((v, i) => `${i === 0 ? 'M' : 'L'}${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`)
-    .join(' ');
+  const line = points.map((v, i) => `${i === 0 ? 'M' : 'L'}${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
   const area =
     `${line} L${xOf(points.length - 1).toFixed(1)},${(H - PAD).toFixed(1)} ` +
     `L${xOf(0).toFixed(1)},${(H - PAD).toFixed(1)} Z`;
   const up = points[points.length - 1] >= points[0];
-  const stroke = up ? '#E63946' : '#3A5BD9';
-  const fill = up ? 'rgba(230,57,70,0.18)' : 'rgba(58,91,217,0.18)';
-
   const lastIdx = points.length - 1;
   const lastX = xOf(lastIdx);
   const lastY = yOf(points[lastIdx]);
 
-  const pulseR = pulse.interpolate({ inputRange: [0, 1], outputRange: [4.5, 11] });
-  const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] });
+  const pulseR = pulse.interpolate({ inputRange: [0, 1], outputRange: [3.5, 11] });
+  const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] });
 
   return (
-    <View style={{ width: '100%', aspectRatio: W / H }}>
+    <View style={{ width, height, alignSelf: 'center' }}>
       <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`}>
-        {/* grid */}
-        {[0.25, 0.5, 0.75].map((t) => (
-          <Line
-            key={t}
-            x1={PAD}
-            x2={W - PAD}
-            y1={PAD + usableH * t}
-            y2={PAD + usableH * t}
-            stroke="rgba(0,0,0,0.08)"
-            strokeDasharray="3,3"
-          />
-        ))}
-        <Path d={area} fill={fill} />
+        <Defs>
+          <LinearGradient id={`cv-chart-grad-${up ? 'up' : 'down'}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor={up ? 'rgba(255,210,63,0.7)' : 'rgba(126,182,255,0.7)'} />
+            <Stop offset="100%" stopColor={up ? 'rgba(255,210,63,0)' : 'rgba(126,182,255,0)'} />
+          </LinearGradient>
+        </Defs>
+        <Path d={area} fill={`url(#cv-chart-grad-${up ? 'up' : 'down'})`} />
         <Path
           d={line}
-          stroke={stroke}
-          strokeWidth={2.5}
+          stroke="#FFD23F"
+          strokeWidth={2}
           fill="none"
           strokeLinejoin="round"
           strokeLinecap="round"
         />
-        <Circle cx={lastX} cy={lastY} r={4.5} fill={stroke} />
+        <Circle cx={lastX} cy={lastY} r={3.5} fill="#FFD23F" />
         <AnimatedCircle
           cx={lastX}
           cy={lastY}
           r={pulseR}
-          stroke={stroke}
+          stroke="#FFD23F"
           strokeOpacity={pulseOpacity}
           fill="none"
         />
@@ -563,93 +497,75 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(0,0,0,0.88)',
   },
-  scroll: {
-    paddingTop: 60,
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    alignItems: 'center',
-  },
-  closeBtn: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
-    width: 40,
-    height: 40,
-    backgroundColor: colors.ink,
-    borderWidth: 2,
-    borderColor: colors.gold,
+  center: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 3,
+    paddingHorizontal: 16,
   },
   card: {
     backgroundColor: '#000',
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: colors.gold,
     overflow: 'hidden',
-    // 골드 후광 — RN 그림자(엘리베이션) 흉내. iOS 는 shadow*, Android 는 elevation.
+    // 골드 후광
     shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 32,
+    shadowOpacity: 0.55,
+    shadowRadius: 36,
     elevation: 24,
   },
-  cardFallback: {
-    width: '100%',
-    height: '100%',
+  fallback: {
     backgroundColor: '#0F172A',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bodyWrap: {
-    width: '100%',
-    maxWidth: 480,
-    marginTop: 22,
+  topOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '45%',
   },
-  bodyCard: {
-    padding: 14,
-    backgroundColor: colors.white,
-    borderWidth: 3,
-    borderColor: colors.ink,
-    // 골드 드롭섀도 흉내 — 5px 오프셋.
-    shadowColor: colors.gold,
-    shadowOffset: { width: 5, height: 5 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 8,
+  topContent: {
+    position: 'absolute',
+    top: 18,
+    left: 16,
+    right: 60, // X 버튼 영역 비워둠
   },
-  priceBox: {
+  botOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '55%',
+  },
+  botContent: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+  },
+  priceRow: {
     marginTop: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: colors.ink,
-    borderWidth: 2,
-    borderColor: colors.ink,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 10,
   },
-  chartBox: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: colors.pap2,
+  closeBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 34,
+    height: 34,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     borderWidth: 2,
-    borderColor: colors.ink,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  chartEmpty: {
-    marginTop: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    backgroundColor: colors.pap2,
+    borderColor: colors.gold,
     alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 4,
   },
 });
-
