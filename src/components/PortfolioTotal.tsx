@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/components/PriceModeProvider';
+import { useSession, signIn } from '@/lib/session';
 
 /**
  * 포트폴리오 총합 (JPY) — 마이페이지 헤더에서 보여줌.
@@ -13,6 +14,9 @@ import { usePriceMode } from '@/components/PriceModeProvider';
 export function PortfolioTotal() {
   const { format } = useCurrency();
   const { mode: priceMode } = usePriceMode();
+  const session = useSession();
+  // 미로그인 시 fetch 건너뛰고 오버레이만 표시. 로그인 시도 후 인증되면 다시 fetch.
+  const unauth = session.status === 'unauthenticated';
   const [state, setState] = useState<
     | { kind: 'loading' }
     | { kind: 'empty' }
@@ -31,6 +35,7 @@ export function PortfolioTotal() {
   >({ kind: 'loading' });
 
   useEffect(() => {
+    if (session.status !== 'authenticated') return;
     let alive = true;
     (async () => {
       try {
@@ -78,17 +83,20 @@ export function PortfolioTotal() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [session.status]);
 
   return (
     <div
       style={{
+        position: 'relative',
         marginTop: 10,
         padding: '8px 10px',
         background: 'rgba(0,0,0,.35)',
         boxShadow: 'inset 0 2px 0 rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.08)',
+        overflow: 'hidden',
       }}
     >
+      {unauth && <PortfolioLoginGate />}
       <div
         style={{
           fontFamily: 'var(--f1)',
@@ -214,5 +222,96 @@ function DeltaSparkline({ points }: { points: number[] }) {
         최근 {points.length}일 (KST 정각 기준)
       </div>
     </div>
+  );
+}
+
+/* ------------------ 미로그인 오버레이 ------------------ */
+
+/**
+ * 포트폴리오 영역 위에 dim + blur 오버레이를 덮어 "로그인 후 확인" 안내.
+ * 모바일 InlineLoginGate 와 같은 톤(자물쇠 + 한 줄 안내 + 소셜 CTA).
+ * 부모가 position:relative + overflow:hidden 이라 absolute inset:0 으로 덮음.
+ */
+function PortfolioLoginGate() {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 2,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        padding: '14px 12px',
+        background: 'rgba(0,0,0,0.55)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        textAlign: 'center',
+      }}
+    >
+      <div style={{ fontSize: 24, lineHeight: 1 }}>🔒</div>
+      <div
+        style={{
+          fontFamily: 'var(--f1)',
+          fontSize: 12,
+          color: 'var(--gold)',
+          letterSpacing: 0.5,
+          lineHeight: 1.4,
+        }}
+      >
+        로그인 후 확인할 수 있어요
+      </div>
+      <div
+        style={{
+          fontFamily: 'var(--f1)',
+          fontSize: 9,
+          color: 'rgba(255,255,255,0.75)',
+          letterSpacing: 0.3,
+          lineHeight: 1.55,
+        }}
+      >
+        내 카드 컬렉션을 스니덩크 실시간 시세로 합산해 보여드려요
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
+        <GateBtn label="카카오" bg="#FEE500" color="#191919" onClick={() => signIn('kakao', '/my')} />
+        <GateBtn label="네이버" bg="#03C75A" color="#fff" onClick={() => signIn('naver', '/my')} />
+        <GateBtn label="구글" bg="#fff" color="#1f1f1f" onClick={() => signIn('google', '/my')} />
+      </div>
+    </div>
+  );
+}
+
+function GateBtn({
+  label,
+  bg,
+  color,
+  onClick,
+}: {
+  label: string;
+  bg: string;
+  color: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: '6px 12px',
+        background: bg,
+        color,
+        border: 'none',
+        fontFamily: 'var(--f1)',
+        fontSize: 10,
+        letterSpacing: 0.5,
+        cursor: 'pointer',
+        boxShadow:
+          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
+      }}
+    >
+      {label}
+    </button>
   );
 }
