@@ -1,9 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/components/PriceModeProvider';
-import { useSession, signIn } from '@/lib/session';
+import { useSession } from '@/lib/session';
 
 /**
  * 포트폴리오 총합 (JPY) — 마이페이지 헤더에서 보여줌.
@@ -246,13 +247,23 @@ export function PortfolioLoginGate() {
         justifyContent: 'center',
         gap: 10,
         padding: '14px 12px',
-        background: 'rgba(0,0,0,0.55)',
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
+        // 뒤 차트/숫자가 살짝 비치도록 dim 강도 낮춤 (0.55 → 0.22) + blur 도 부드럽게.
+        background: 'rgba(0,0,0,0.22)',
+        backdropFilter: 'blur(2px) saturate(120%)',
+        WebkitBackdropFilter: 'blur(2px) saturate(120%)',
         textAlign: 'center',
       }}
     >
-      <div style={{ fontSize: 24, lineHeight: 1 }}>🔒</div>
+      <div
+        style={{
+          fontSize: 24,
+          lineHeight: 1,
+          // 자물쇠도 살짝 글로우 — 투명 배경 위에서 눈에 띄게.
+          textShadow: '0 2px 12px rgba(0,0,0,0.85), 0 0 6px rgba(255,210,63,0.5)',
+        }}
+      >
+        🔒
+      </div>
       <div
         style={{
           fontFamily: 'var(--f1)',
@@ -260,6 +271,7 @@ export function PortfolioLoginGate() {
           color: 'var(--gold)',
           letterSpacing: 0.5,
           lineHeight: 1.4,
+          textShadow: '0 2px 8px rgba(0,0,0,0.9)',
         }}
       >
         로그인 후 확인할 수 있어요
@@ -268,51 +280,34 @@ export function PortfolioLoginGate() {
         style={{
           fontFamily: 'var(--f1)',
           fontSize: 9,
-          color: 'rgba(255,255,255,0.75)',
+          color: 'rgba(255,255,255,0.85)',
           letterSpacing: 0.3,
           lineHeight: 1.55,
+          textShadow: '0 1px 6px rgba(0,0,0,0.85)',
         }}
       >
         내 카드 컬렉션을 스니덩크 실시간 시세로 합산해 보여드려요
       </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <GateBtn label="카카오" bg="#FEE500" color="#191919" onClick={() => signIn('kakao', '/my')} />
-        <GateBtn label="네이버" bg="#03C75A" color="#fff" onClick={() => signIn('naver', '/my')} />
-        <GateBtn label="구글" bg="#fff" color="#1f1f1f" onClick={() => signIn('google', '/my')} />
-      </div>
+      <Link
+        href="/login"
+        style={{
+          marginTop: 4,
+          padding: '8px 18px',
+          background: 'var(--gold)',
+          color: 'var(--ink)',
+          border: 'none',
+          fontFamily: 'var(--f1)',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: 0.5,
+          cursor: 'pointer',
+          textDecoration: 'none',
+          boxShadow:
+            '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+        }}
+      >
+        로그인하기
+      </Link>
     </div>
-  );
-}
-
-function GateBtn({
-  label,
-  bg,
-  color,
-  onClick,
-}: {
-  label: string;
-  bg: string;
-  color: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: '6px 12px',
-        background: bg,
-        color,
-        border: 'none',
-        fontFamily: 'var(--f1)',
-        fontSize: 10,
-        letterSpacing: 0.5,
-        cursor: 'pointer',
-        boxShadow:
-          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
-      }}
-    >
-      {label}
-    </button>
   );
 }
