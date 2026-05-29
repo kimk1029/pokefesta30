@@ -6,6 +6,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { ListAdRow } from '@/components/ListAdRow';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { autoPriceSize } from '../../../../../shared/util/autoPriceSize';
 
 interface BrowseItem {
   apparelId: number;
@@ -134,10 +135,13 @@ export default function Page() {
                 className="sh-desc"
                 style={{
                   fontFamily: 'var(--f1)',
-                  fontSize: 12,
+                  fontSize: autoPriceSize(it.priceText || '—', 12, 8),
                   color: 'var(--red)',
                   marginTop: 6,
                   letterSpacing: 0.3,
+                  whiteSpace: 'nowrap',
+                  maxWidth: '100%',
+                  overflow: 'hidden',
                 }}
               >
                 {it.priceText || '—'}

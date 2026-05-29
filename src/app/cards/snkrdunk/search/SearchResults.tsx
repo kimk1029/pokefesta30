@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Price } from '@/components/Price';
+import { useCurrency } from '@/components/CurrencyProvider';
 import { ListAdRow } from '@/components/ListAdRow';
+import { autoPriceSize } from '../../../../../shared/util/autoPriceSize';
 import type { BunjangItem } from '@/lib/bunjang';
 import { kreamSearchUrl, type KreamItem } from '@/lib/kream';
 import { searchSnkrdunkPage, type HydratedHit } from './actions';
@@ -532,20 +533,7 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
             {jpTitle}
           </div>
         ) : null}
-        <div
-          style={{
-            display: 'inline-block',
-            padding: '3px 6px',
-            background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
-            color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
-            fontFamily: 'var(--f1)',
-            fontSize: 11,
-            letterSpacing: 0.3,
-            boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-          }}
-        >
-          {hasPrice ? <Price jpy={hit.minPrice} /> : '시세 없음'}
-        </div>
+        <PriceBox jpy={hit.minPrice} hasPrice={hasPrice} />
         <div
           style={{
             fontFamily: 'var(--f1)',
@@ -560,5 +548,34 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+/**
+ * 금액 박스 — useCurrency 의 format 으로 표시 라벨을 미리 만들어 길이 기반
+ * autoPriceSize 로 fontSize 결정. 컨테이너(부모 카드) 폭을 넘기지 않도록
+ * maxWidth:100% + nowrap. 줄임표 없이 다 표시.
+ */
+function PriceBox({ jpy, hasPrice }: { jpy: number; hasPrice: boolean }) {
+  const { format } = useCurrency();
+  const label = hasPrice ? format(jpy) : '시세 없음';
+  return (
+    <div
+      style={{
+        display: 'inline-block',
+        maxWidth: '100%',
+        padding: '3px 6px',
+        background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
+        color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
+        fontFamily: 'var(--f1)',
+        fontSize: autoPriceSize(label, 11, 7),
+        letterSpacing: 0.3,
+        whiteSpace: 'nowrap',
+        boxShadow:
+          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+      }}
+    >
+      {label}
+    </div>
   );
 }

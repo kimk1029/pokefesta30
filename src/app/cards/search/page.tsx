@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AppBar } from '@/components/ui/AppBar';
 import { ListAdRow } from '@/components/ListAdRow';
+import { autoPriceSize } from '../../../../shared/util/autoPriceSize';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { translate } from '@/lib/cardTranslate';
 import { snkrdunkUrl } from '@/lib/cardsCatalog';
@@ -383,17 +384,24 @@ function EbayList({ items }: { items: EbayItemSummary[] }) {
               {it.title}
             </div>
           </div>
-          <div
-            style={{
-              fontFamily: 'var(--f1)',
-              fontSize: 10,
-              color: 'var(--red)',
-              letterSpacing: 0.3,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {fmtMoney(it.price, it.currency)}
-          </div>
+          {(() => {
+            const label = fmtMoney(it.price, it.currency);
+            return (
+              <div
+                style={{
+                  fontFamily: 'var(--f1)',
+                  fontSize: autoPriceSize(label, 10, 7),
+                  color: 'var(--red)',
+                  letterSpacing: 0.3,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  maxWidth: '40%',
+                }}
+              >
+                {label}
+              </div>
+            );
+          })()}
         </Link>
       ))}
     </div>
