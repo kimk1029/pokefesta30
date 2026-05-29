@@ -231,8 +231,9 @@ function DeltaSparkline({ points }: { points: number[] }) {
  * 포트폴리오 영역 위에 dim + blur 오버레이를 덮어 "로그인 후 확인" 안내.
  * 모바일 InlineLoginGate 와 같은 톤(자물쇠 + 한 줄 안내 + 소셜 CTA).
  * 부모가 position:relative + overflow:hidden 이라 absolute inset:0 으로 덮음.
+ * /my 의 PortfolioTotal 안 / 홈 DashboardScreen 의 HERO 박스 모두에서 재사용.
  */
-function PortfolioLoginGate() {
+export function PortfolioLoginGate() {
   return (
     <div
       style={{

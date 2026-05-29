@@ -7,6 +7,7 @@ import { AppBarUser } from '@/components/AppBarUser';
 import { useCurrency } from '@/components/CurrencyProvider';
 import type { HeroSlideData } from '@/components/HeroSlider';
 import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
+import { PortfolioLoginGate } from '@/components/PortfolioTotal';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
@@ -225,7 +226,7 @@ function fmt(n: number): string {
   return Math.round(n).toLocaleString();
 }
 
-export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs = [] }: Props) {
+export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows = [], packs = [] }: Props) {
   const { format } = useCurrency();
   const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
   const [activeGame, setActiveGame] = useState<string>('전체');
@@ -411,6 +412,8 @@ export function DashboardScreen({ cards, heroBanners, snkrdunkRows = [], packs =
             </div>
           ))}
         </div>
+        {/* 미로그인 시 HERO 박스 전체에 dim+blur 오버레이 + 로그인 CTA */}
+        {!isLoggedIn && <PortfolioLoginGate />}
       </div>
 
       {/* ═══ ACTION ZONE: SEARCH + SHORTCUTS ═══ */}
