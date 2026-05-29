@@ -28,5 +28,6 @@
   { "tcgdexName": "GIDORA", "en": "GIDORA", "koAliases": ["기도라", "지도라"] },
   { "tcgdexName": "Teeziro", "en": "Teeziro", "koAliases": ["티지로", "티-지로"] },
   { "tcgdexName": "Megumi Mizutani", "ja": "水谷恵", "en": "Megumi Mizutani", "koAliases": ["미즈타니 메구미", "메구미 미즈타니", "미즈타니메구미", "미즈타니"] },
-  { "tcgdexName": "Atsuko Nishida", "ja": "西田敦子", "en": "Atsuko Nishida", "koAliases": ["니시다 아츠코", "아츠코 니시다", "니시다아츠코", "니시다"] }
+  { "tcgdexName": "Atsuko Nishida", "ja": "西田敦子", "en": "Atsuko Nishida", "koAliases": ["니시다 아츠코", "아츠코 니시다", "니시다아츠코", "니시다"] },
+  { "tcgdexName": "YU NAGABA", "ja": "YU NAGABA", "en": "YU NAGABA", "koAliases": ["유나가바", "유 나가바", "나가바", "나가바 유"] }
 ]

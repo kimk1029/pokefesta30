@@ -47,6 +47,7 @@ import {
   type CardSpotlightData,
   type SpotlightOrigin,
 } from '@/components/CardSpotlightModal';
+import { autoPriceSize } from '../../../shared/util/autoPriceSize';
 
 type ViewMode = 'grid' | 'list' | 'album' | 'film';
 type SortBy = 'recent' | 'name' | 'price' | 'grade';
@@ -407,7 +408,13 @@ function GridCell({
                 </PixelText>
               )}
             </View>
-            <PixelText variant="pixel" size={10} color={colors.grnDk} style={{ marginTop: 5 }}>
+            <PixelText
+              variant="pixel"
+              size={d.priceJpy > 0 ? autoPriceSize(format(d.priceJpy), 10, 7) : 10}
+              color={colors.grnDk}
+              numberOfLines={1}
+              style={{ marginTop: 5 }}
+            >
               {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
             </PixelText>
           </View>
@@ -539,8 +546,13 @@ function ListRow({
                     )}
                   </View>
                   {/* 시세 + 등락률 */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
-                    <PixelText variant="pixel" size={10} color={colors.grnDk}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'nowrap' }}>
+                    <PixelText
+                      variant="pixel"
+                      size={d.priceJpy > 0 ? autoPriceSize(format(d.priceJpy), 10, 7) : 10}
+                      color={colors.grnDk}
+                      numberOfLines={1}
+                    >
                       {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
                     </PixelText>
                     <ChangeBadge trend={trend} />

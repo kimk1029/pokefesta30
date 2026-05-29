@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { autoPriceSize } from '../../shared/util/autoPriceSize';
 
 /**
  * 카드 스포트라이트 — 컬렉션에서 🔍 버튼을 누르면 그 카드 썸네일이 풀스크린으로
@@ -379,7 +380,8 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
               <div
                 style={{
                   fontFamily: 'var(--f1)',
-                  fontSize: 24,
+                  // 자릿수에 따라 자동 축소 — 1,234,567 같은 큰 금액도 한 줄에 다 표시.
+                  fontSize: autoPriceSize(data.priceLabel, 24, 13),
                   fontWeight: 700,
                   color: 'var(--gold)',
                   letterSpacing: 0.3,

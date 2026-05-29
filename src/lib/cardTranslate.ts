@@ -344,6 +344,10 @@ const CHARACTERS: Term[] = [
   { ko: '맥실러',   ja: 'マキシ',       en: 'Crasher Wake' },
   { ko: '멜리사',   ja: 'メリッサ',     en: 'Fantina' },
   { ko: '동골',     ja: 'トウガン',     en: 'Byron' },
+  // 콜라보 일러스트레이터/브랜드 — 한국에서는 한글 표기로 검색하지만 일본/북미는
+  // 브랜드명을 그대로 영문 'YU NAGABA' 로 노출. ja/en 동일.
+  { ko: '유나가바', ja: 'YU NAGABA',    en: 'YU NAGABA' },
+  { ko: '나가바',   ja: 'YU NAGABA',    en: 'YU NAGABA' },
 ];
 
 /**

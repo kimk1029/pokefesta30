@@ -18,6 +18,7 @@ import { usePriceMode } from '@/components/PriceModeProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { CardSpotlightModal, type CardSpotlightData } from '@/components/CardSpotlightModal';
+import { autoPriceSize } from '../../../shared/util/autoPriceSize';
 
 type ViewMode = 'grid' | 'list' | 'album' | 'film';
 type SortBy = 'name' | 'price' | 'grade' | 'recent';
@@ -621,12 +622,14 @@ function GridItem({
           <div
             style={{
               display: 'inline-block',
+              maxWidth: '100%',
               padding: '3px 6px',
               background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
               color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
               fontFamily: 'var(--f1)',
-              fontSize: 11,
+              fontSize: autoPriceSize(hasPrice ? label : null, 11, 8),
               letterSpacing: 0.3,
+              whiteSpace: 'nowrap',
               boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
             }}
           >
@@ -799,7 +802,14 @@ function ListView({
             <div style={{ marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden' }}>
               {priceLabel(c, format) ? (
                 <span style={{ display: 'inline-flex', alignItems: 'baseline', maxWidth: '100%' }}>
-                  <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--grn-dk)', letterSpacing: 0.3 }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--f1)',
+                      fontSize: autoPriceSize(priceLabel(c, format), 11, 8),
+                      color: 'var(--grn-dk)',
+                      letterSpacing: 0.3,
+                    }}
+                  >
                     {priceLabel(c, format)}
                   </span>
                   <ChangeBadge trend={trend} />

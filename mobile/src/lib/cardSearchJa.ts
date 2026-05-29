@@ -34,6 +34,10 @@ const EXTRA_KO_TO_JA: Record<string, string> = {
   보탄: 'ボタン',
   하사크: 'ハッサク',
   미모사: 'ミモザ', // Miriam — SV 아카데미 양호교사
+  // 콜라보 일러스트레이터/브랜드 — snkrdunk 는 영문 'YU NAGABA' 로 노출되므로
+  // ja 변환 결과를 그대로 영문으로.
+  유나가바: 'YU NAGABA',
+  나가바: 'YU NAGABA',
   // 클래식 트레이너 + 구어체 별칭 (snkrdunk 트레이너/구판 카드 검색용)
   이슬이: 'カスミ', // Misty
   비주기: 'サカキ', // Giovanni

@@ -15,6 +15,7 @@ import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg'
 import { PixelText } from './PixelText';
 import { colors } from '@/theme/tokens';
 import { fetchDominantNeon } from '@/services/cardScanApi';
+import { autoPriceSize } from '../../../shared/util/autoPriceSize';
 
 const DEFAULT_NEON = '#22F58C';
 
@@ -436,7 +437,7 @@ export function CardSpotlightModal({ data, origin, onClose }: Props) {
                   </PixelText>
                   <PixelText
                     variant="pixel"
-                    size={22}
+                    size={autoPriceSize(data.priceLabel, 22, 12)}
                     weight="bold"
                     color={colors.gold}
                     numberOfLines={1}
