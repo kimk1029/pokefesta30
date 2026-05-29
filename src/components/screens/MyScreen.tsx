@@ -18,6 +18,9 @@ interface Props {
   cardCount: number;
   tradeCount: number;
   savedCount: number;
+  /** 미로그인 게스트 모드. PortfolioTotal 안의 자체 오버레이가 보이도록 페이지
+   *  구조는 그대로 두고, 의미 없는 UI(LogoutButton)만 숨긴다. */
+  isGuest?: boolean;
 }
 
 const ACTIVITY: Array<{ em: string; bg: string; lb: string; href: string }> = [
@@ -41,10 +44,10 @@ const SETTINGS: Array<{ em: string; bg: string; lb: string; href?: string }> = [
   { em: '🔔', bg: '#E8DFB8', lb: '알림 설정 (준비중)' },
 ];
 
-export function MyScreen({ user, level, cardCount, tradeCount, savedCount }: Props) {
+export function MyScreen({ user, level, cardCount, tradeCount, savedCount, isGuest }: Props) {
   const p = level;
   const xpPct = Math.max(0, Math.min(100, Math.round((p.xp / p.xpNeeded) * 100)));
-  const name = user?.name ?? '트레이너';
+  const name = user?.name ?? (isGuest ? '게스트' : '트레이너');
 
   return (
     <>
@@ -182,9 +185,11 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount }: Pro
         )}
       </div>
 
-      <div style={{ margin: '0 var(--gap) var(--cg)' }}>
-        <LogoutButton />
-      </div>
+      {!isGuest && (
+        <div style={{ margin: '0 var(--gap) var(--cg)' }}>
+          <LogoutButton />
+        </div>
+      )}
       <div className="bggap" />
     </>
   );

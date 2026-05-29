@@ -13,14 +13,26 @@ interface SummaryResp {
 
 export const dynamic = 'force-dynamic';
 
+const GUEST_LEVEL: LevelInfo = {
+  level: 1,
+  xp: 0,
+  xpNeeded: 100,
+  title: '신규',
+} as LevelInfo;
+
 export default async function Page() {
   const user = await getServerUser();
+  // 미로그인 — LoginRequired 로 페이지 전체 가리지 않고 MyScreen 자체를 게스트
+  // 모드로 보여줘 PortfolioTotal 의 자체 오버레이가 보이게.
   if (!user?.id) {
     return (
-      <LoginRequired
-        title="마이페이지"
-        message="내 활동 · 포인트 · 상점은 로그인 후 이용 가능합니다"
-        callbackUrl="/my"
+      <MyScreen
+        user={{ name: null, email: null }}
+        level={GUEST_LEVEL}
+        cardCount={0}
+        tradeCount={0}
+        savedCount={0}
+        isGuest
       />
     );
   }
