@@ -4,6 +4,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { SnkrdunkSearchBar } from '@/components/SnkrdunkSearchBar';
+import { autoPriceSize } from '../../../../shared/util/autoPriceSize';
 import {
   downsamplePricePoints,
   type SnkrdunkApparel,
@@ -284,10 +285,17 @@ export default async function Page() {
                   className="sh-desc"
                   style={{
                     fontFamily: 'var(--f1)',
-                    fontSize: 11,
+                    // JPY 기준 라벨 길이로 추정해 자동 축소. KRW 모드면 length 가 살짝
+                    // 달라지지만 같은 자릿수 범위 안이라 결과는 거의 같음.
+                    fontSize: autoPriceSize(
+                      priceJpy > 0 ? `최저 ¥${priceJpy.toLocaleString('ja-JP')}` : '최저 —',
+                      11,
+                      7,
+                    ),
                     color: 'var(--ink)',
                     marginTop: 6,
                     letterSpacing: 0.3,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   최저 <Price jpy={priceJpy} empty="—" />

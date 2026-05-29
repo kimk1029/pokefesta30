@@ -16,6 +16,7 @@ import {
 } from '@/lib/snkrdunk';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { SNKRDUNK_FEATURED_CARDS } from '@/lib/snkrdunkCards';
+import { autoPriceSize } from '../../../../../shared/util/autoPriceSize';
 import { serverFetch } from '@/lib/apiServer';
 
 interface PageProps {
@@ -363,7 +364,12 @@ export default async function Page({ params }: PageProps) {
               <div style={{ fontSize: 8, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>싱글카드</div>
               <div
                 style={{
-                  fontSize: 11,
+                  // JPY 기준 라벨 길이로 추정 → 자릿수에 따라 자동 축소. 큰 금액도 잘리지 않게.
+                  fontSize: autoPriceSize(
+                    rawAvg.avg > 0 ? `¥${rawAvg.avg.toLocaleString('ja-JP')}` : '—',
+                    11,
+                    7,
+                  ),
                   color: 'var(--red)',
                   lineHeight: 1.1,
                   whiteSpace: 'nowrap',
@@ -376,7 +382,11 @@ export default async function Page({ params }: PageProps) {
               <div style={{ fontSize: 8, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>PSA10</div>
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: autoPriceSize(
+                    psa10Avg.avg > 0 ? `¥${psa10Avg.avg.toLocaleString('ja-JP')}` : '—',
+                    11,
+                    7,
+                  ),
                   color: psa10Avg.avg > 0 ? 'var(--gold-dk)' : 'var(--ink3)',
                   lineHeight: 1.1,
                   whiteSpace: 'nowrap',

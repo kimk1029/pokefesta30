@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useCurrency } from '@/components/CurrencyProvider';
 import type { PackHitCard } from '@/lib/cardPackHits';
+import { autoPriceSize } from '../../shared/util/autoPriceSize';
 
 type SortKey = 'price-desc' | 'recent-sale' | 'listing-desc';
 
@@ -140,8 +141,9 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
   const jpTitle = hit.name && hit.name !== koTitle ? hit.name : null;
   const hasPrice = hit.minPrice > 0;
   const priceStr = hasPrice ? format(hit.minPrice) : '시세 없음';
-  // 박스(1/3폭)를 넘지 않도록 글자수에 따라 폰트 축소.
-  const priceFont = priceStr.length > 12 ? 8 : priceStr.length > 10 ? 9 : priceStr.length > 8 ? 10 : 11;
+  // 자릿수 기반 단계적 축소 — 다른 가격 박스(컬렉션·검색·스포트라이트)와 동일한
+  // 헬퍼. 박스(그리드 1/3 폭) 안에 줄임표 없이 다 표시되도록 min 7.
+  const priceFont = autoPriceSize(priceStr, 11, 7);
   return (
     <Link
       href={`/cards/snkrdunk/${hit.apparelId}`}
@@ -211,7 +213,7 @@ function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
             fontSize: priceFont,
             letterSpacing: 0.3,
             whiteSpace: 'nowrap',
-            overflow: 'hidden',
+            // 줄임표 없이 다 표시 — fontSize 축소만으로 폭에 맞춤. 자르지 않음.
             boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
           }}
         >
