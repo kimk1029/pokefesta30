@@ -376,11 +376,22 @@ export async function getMyCardsWithPrices(
               .map((h) => h.price)
               .slice(0, 7);
           const psa10Prices = pickPrices((b) => PSA10_RE.test(b));
-          // 가격 통일: sales-chart 일별 최신 포인트(=오늘 거래 기준가)를 우선 사용.
+          // 싱글(raw) 단가는 PSA 등급 체결을 제외한 최근 체결 중앙값 기준.
+          const rawMedian = median(pickPrices((b) => !PSA_ANY_RE.test(b)));
+          // 주의: sales-chart/used 시리즈에는 PSA 등급 체결이 섞여 들어와, 직전에
+          // 등급 거래가 있으면 차트 끝점이 등급가로 튄다(예: 어제 PSA10 한 건 →
+          // 끝점 29800). raw 중앙값의 2.5배를 넘는 포인트는 등급 거래로 보고
+          // trend·단가에서 제외해 싱글 시세 오염을 막는다.
+          const rawCeil = rawMedian > 0 ? rawMedian * 2.5 : Infinity;
           const trendJpy = (chart?.points ?? [])
             .map((p) => p[1])
-            .filter((n) => typeof n === 'number' && n > 0);
-          let single = trendJpy.length > 0 ? trendJpy[trendJpy.length - 1] : median(pickPrices((b) => !PSA_ANY_RE.test(b)));
+            .filter((n) => typeof n === 'number' && n > 0 && n <= rawCeil);
+          let single =
+            rawMedian > 0
+              ? rawMedian
+              : trendJpy.length > 0
+                ? trendJpy[trendJpy.length - 1]
+                : 0;
           if (single === 0 && typeof a.minPrice === 'number' && a.minPrice > 0) {
             single = a.minPrice; // 데이터 없으면 현재 최저매물 폴백
           }

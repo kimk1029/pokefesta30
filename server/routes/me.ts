@@ -295,12 +295,18 @@ router.get('/portfolio', async (req: Request, res: Response) => {
                 .map((h) => h.price)
                 .slice(0, 7);
             const psa10Prices = pickPrices((b) => PSA10_RE.test(b));
-            // 가격 통일: sales-chart 마지막 두 포인트(어제/오늘 거래 기준가).
-            const pts = chart?.points ?? [];
+            // 싱글(raw) 단가는 PSA 등급 체결을 제외한 최근 체결 중앙값 기준.
+            const rawMedian = median(pickPrices((b) => !PSA_ANY_RE.test(b)));
+            // sales-chart/used 에는 PSA 등급 체결이 섞여 끝점이 등급가로 튈 수 있어,
+            // raw 중앙값의 2.5배 초과 포인트는 등락 계산(어제/오늘 비교)에서도 제외.
+            const rawCeil = rawMedian > 0 ? rawMedian * 2.5 : Infinity;
+            const pts = (chart?.points ?? []).filter(
+              (p) => typeof p[1] === 'number' && p[1] > 0 && p[1] <= rawCeil,
+            );
             const chartLast = pts.length >= 1 ? pts[pts.length - 1][1] : 0;
             const chartPrev = pts.length >= 2 ? pts[pts.length - 2][1] : 0;
-            // 표시/합산 단가도 차트 최신값(오늘 가격) 우선, 없으면 median→최저매물.
-            let single = chartLast > 0 ? chartLast : median(pickPrices((b) => !PSA_ANY_RE.test(b)));
+            // 표시/합산 단가는 raw 중앙값 우선, 없으면 차트 끝점→최저매물.
+            let single = rawMedian > 0 ? rawMedian : chartLast;
             if (single === 0 && a && typeof a.minPrice === 'number' && a.minPrice > 0) {
               single = a.minPrice;
             }
