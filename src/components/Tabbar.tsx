@@ -69,33 +69,54 @@ export function Tabbar(_props: { onFab?: () => void } = {}) {
                 className={`fab-circle${ballAnim ? ' fab-click' : ''}`}
                 onAnimationEnd={() => setBallAnim(false)}
               >
-                {/* 원피스 테마에서만 밀짚모자 SVG 렌더 — 다른 테마는 DOM 에 없음. */}
+                {/* 원피스 테마 — 둥근 버튼을 꽉 채우는 탑뷰 밀짚모자. */}
                 {theme === 'onepiece' && (
                   <svg
                     className="fab-strawhat"
                     viewBox="0 0 100 100"
-                    width="58"
-                    height="58"
+                    width="60"
+                    height="60"
                     aria-hidden
                   >
-                    <ellipse cx="50" cy="52" rx="46" ry="42" fill="#F4D272" stroke="#1A1A2E" strokeWidth="3" />
-                    <g stroke="rgba(95,55,15,.32)" strokeWidth="1.2">
-                      <line x1="50" y1="14" x2="50" y2="24" />
-                      <line x1="50" y1="80" x2="50" y2="90" />
-                      <line x1="6" y1="52" x2="16" y2="52" />
-                      <line x1="84" y1="52" x2="94" y2="52" />
-                      <line x1="20" y1="22" x2="27" y2="29" />
-                      <line x1="73" y1="29" x2="80" y2="22" />
-                      <line x1="20" y1="82" x2="27" y2="75" />
-                      <line x1="73" y1="75" x2="80" y2="82" />
+                    {/* 브림(짚 테두리) */}
+                    <circle cx="50" cy="50" r="47" fill="#F4D272" stroke="#1A1A2E" strokeWidth="3" />
+                    {/* 짚 짜임 — 방사선 */}
+                    <g stroke="rgba(120,80,20,.25)" strokeWidth="1.4">
+                      <line x1="50" y1="6" x2="50" y2="94" />
+                      <line x1="6" y1="50" x2="94" y2="50" />
+                      <line x1="19" y1="19" x2="81" y2="81" />
+                      <line x1="81" y1="19" x2="19" y2="81" />
                     </g>
-                    <ellipse cx="50" cy="52" rx="34" ry="30" fill="#D9A85D" />
-                    <ellipse cx="50" cy="52" rx="28" ry="24" fill="#E63946" stroke="#1A1A2E" strokeWidth="2" />
-                    <rect x="44" y="42" width="12" height="3" fill="#FFD23F" />
-                    <ellipse cx="50" cy="50" rx="18" ry="16" fill="#B8884B" stroke="#1A1A2E" strokeWidth="2" />
-                    <ellipse cx="42" cy="44" rx="6" ry="3" fill="#F4D272" opacity="0.6" />
-                    <line x1="4" y1="52" x2="14" y2="56" stroke="#1A1A2E" strokeWidth="2" />
-                    <line x1="86" y1="56" x2="96" y2="52" stroke="#1A1A2E" strokeWidth="2" />
+                    {/* 짚 짜임 — 동심원 */}
+                    <circle cx="50" cy="50" r="41" fill="none" stroke="rgba(120,80,20,.22)" strokeWidth="1.6" />
+                    {/* 빨간 밴드 */}
+                    <circle cx="50" cy="50" r="34" fill="#E63946" stroke="#1A1A2E" strokeWidth="2.5" />
+                    {/* 크라운(윗면) */}
+                    <circle cx="50" cy="50" r="25" fill="#E3B45A" stroke="#1A1A2E" strokeWidth="2.5" />
+                    {/* 하이라이트 */}
+                    <ellipse cx="42" cy="42" rx="8" ry="4.5" fill="#FFF1C9" opacity="0.5" />
+                  </svg>
+                )}
+
+                {/* 클린 테마 — 화이트 스캔 프레임 아이콘. */}
+                {theme === 'clean' && (
+                  <svg
+                    className="fab-scan"
+                    viewBox="0 0 24 24"
+                    width="28"
+                    height="28"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.1"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M4 9 V7 A3 3 0 0 1 7 4 H9" />
+                    <path d="M15 4 H17 A3 3 0 0 1 20 7 V9" />
+                    <path d="M20 15 V17 A3 3 0 0 1 17 20 H15" />
+                    <path d="M9 20 H7 A3 3 0 0 1 4 17 V15" />
+                    <line x1="4" y1="12" x2="20" y2="12" />
                   </svg>
                 )}
               </div>
