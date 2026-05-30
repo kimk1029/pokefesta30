@@ -365,7 +365,9 @@ export async function fetchMvcAuctionPage(page = 1): Promise<MvcAuctionPageResul
     return isSameKstDay(it.writtenAt, now);
   });
   // 목록 API가 representImage 를 누락한 글(attachImage=true)은 본문 첫 이미지로 폴백.
-  await fillMissingThumbnails(items);
+  // 오늘 마감 글은 한 페이지에 다수일 수 있어, 폴백 상한을 넉넉히(=오늘 글 전부) 둬
+  // 썸네일 누락(🔨 표시)을 최소화한다.
+  await fillMissingThumbnails(items, Math.max(12, items.length));
   return { items, hasNext, page: p };
 }
 
@@ -446,12 +448,20 @@ export async function fetchMvcLatestBid(
   const raw = await fetchCafeJson<RawLatestCommentsResponse>(url, articleId, { fresh: opts.fresh });
   const items = raw?.result?.comments?.items ?? [];
   const commentCount = raw?.result?.displayCommentCount ?? items.length;
-  // 정렬 가정에 의존하지 않고 '최대 updateDate' 유효 댓글 선택 → 상세와 동일 기준.
-  let latest: RawComment | null = null;
+  // 최종호가 = '금액이 파싱되는 가장 최근 댓글'(=실제 입찰). 질문/판매자답글 등
+  // 가격 없는 잡담은 제외해 상세페이지의 호가와 일치시킨다. 가격 댓글이 하나도
+  // 없을 때만 최신 댓글로 폴백(빈칸 방지). 상세의 pickLatestComment 와 동일 기준.
+  let latestBid: RawComment | null = null; // 가격 파싱되는 최신 댓글
+  let latestAny: RawComment | null = null; // 폴백: 가격 무관 최신 댓글
   for (const c of items) {
     if (c.isDeleted || !(c.content ?? '').trim()) continue;
-    if (!latest || (c.updateDate ?? 0) > (latest.updateDate ?? 0)) latest = c;
+    const ts = c.updateDate ?? 0;
+    if (!latestAny || ts > (latestAny.updateDate ?? 0)) latestAny = c;
+    if (parseBidAmount((c.content ?? '').trim()) != null) {
+      if (!latestBid || ts > (latestBid.updateDate ?? 0)) latestBid = c;
+    }
   }
+  const latest = latestBid ?? latestAny;
   if (!latest) return null;
   const content = (latest.content ?? '').trim();
   const writtenAt = latest.updateDate ?? 0;
@@ -566,14 +576,22 @@ export async function fetchMvcArticle(
   };
 }
 
-/** 가장 최근(최대 writtenAt) 유효 댓글 = 최종호가. 삭제/빈 댓글 제외. */
+/**
+ * 최종호가 = '금액이 파싱되는 가장 최근 댓글'(=실제 입찰). 질문/판매자답글 등
+ * 가격 없는 잡담은 제외한다. 가격 댓글이 하나도 없으면 최신 유효 댓글로 폴백.
+ * fetchMvcLatestBid(리스트)와 동일 기준 → 리스트·상세 호가 일치.
+ */
 function pickLatestComment(comments: MvcCommentItem[]): MvcCommentItem | null {
-  let best: MvcCommentItem | null = null;
+  let bestBid: MvcCommentItem | null = null;
+  let bestAny: MvcCommentItem | null = null;
   for (const c of comments) {
     if (c.deleted || !c.content) continue;
-    if (!best || c.writtenAt > best.writtenAt) best = c;
+    if (!bestAny || c.writtenAt > bestAny.writtenAt) bestAny = c;
+    if (parseBidAmount(c.content) != null) {
+      if (!bestBid || c.writtenAt > bestBid.writtenAt) bestBid = c;
+    }
   }
-  return best;
+  return bestBid ?? bestAny;
 }
 
 /** v2 댓글 API로 전 페이지 수집 (asc, hasNext 따라 진행, 중복 제거, cap 제한). */

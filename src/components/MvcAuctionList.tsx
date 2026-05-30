@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { mvcImgProxy, stripDeadlinePrefix, type MvcAuctionItem, type MvcAuctionPageResult, type MvcLatestBid } from '@/lib/navercafe';
+import { mvcImgProxy, stripDeadlinePrefix, upscaleCafeThumb, type MvcAuctionItem, type MvcAuctionPageResult, type MvcLatestBid } from '@/lib/navercafe';
 import { FavoriteStar } from '@/components/FavoriteStar';
+import { ListAdRow } from '@/components/ListAdRow';
 import { useListingFavorites, type ListingFavorite } from '@/lib/useListingFavorites';
 
 const MAX_PAGE = 30; // 안전 상한
@@ -74,12 +75,17 @@ function AuctionRow({
   item,
   bid,
   changed,
+  onImageZoom,
 }: {
   item: MvcAuctionItem;
   bid: MvcLatestBid | null | undefined;
   changed: boolean;
+  /** 썸네일 클릭 시 큰 이미지(원본 URL)를 라이트박스로 띄움. */
+  onImageZoom: (src: string) => void;
 }) {
+  const [imgError, setImgError] = useState(false);
   const hasComments = item.commentCount > 0;
+  const hasThumb = Boolean(item.thumbnailUrl) && !imgError;
   // 시각: 최신 호가 시각 > 마지막 댓글 시각 > 작성 시각
   const timeTs = bid?.writtenAt || item.lastCommentedAt || item.writtenAt;
   // 최종호가 칸엔 최신 입찰 '댓글 원문'을 그대로 노출. 댓글이 비어 있으면(관심목록
@@ -103,6 +109,19 @@ function AuctionRow({
     >
       <div
         className="sh-icon"
+        // 행 전체는 <Link>지만 썸네일 클릭은 라이트박스만 띄움(이동 방지).
+        onClick={
+          hasThumb && item.thumbnailUrl
+            ? (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // 목록 썸네일은 저해상(w300) → 라이트박스는 큰 사이즈(w800)로.
+                onImageZoom(mvcImgProxy(upscaleCafeThumb(item.thumbnailUrl!, 'w800')));
+              }
+            : undefined
+        }
+        role={hasThumb ? 'button' : undefined}
+        aria-label={hasThumb ? '사진 크게 보기' : undefined}
         style={{
           width: 84,
           height: 84,
@@ -110,17 +129,20 @@ function AuctionRow({
           color: 'var(--white)',
           overflow: 'hidden',
           alignSelf: 'stretch',
+          cursor: hasThumb ? 'zoom-in' : 'default',
         }}
       >
-        {item.thumbnailUrl ? (
+        {hasThumb ? (
           // 외부(네이버 카페) 이미지는 일반 <img> 사용
           // eslint-disable-next-line @next/next/no-img-element
           <img
             // 네이버 CDN은 우리 도메인 referer를 403 차단 → pstatic 이미지는 서버 프록시 경유
-            src={mvcImgProxy(item.thumbnailUrl)}
+            src={mvcImgProxy(item.thumbnailUrl!)}
             alt=""
             loading="lazy"
             referrerPolicy="no-referrer"
+            // 깨진 이미지(403/삭제 등)는 🔨 폴백으로 대체해 빈 칸 방지
+            onError={() => setImgError(true)}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         ) : (
@@ -207,6 +229,7 @@ export function MvcAuctionList({ initial }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [updatedAt, setUpdatedAt] = useState(0);
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null);
 
   const { isFav, toggle, favorites } = useListingFavorites('mvc');
 
@@ -430,7 +453,7 @@ export function MvcAuctionList({ initial }: Props) {
                 : undefined;
           return (
             <div key={`${pinnedRow ? 'p' : 'r'}-${id}`} style={{ position: 'relative' }}>
-              <AuctionRow item={item} bid={bid} changed={changedIds.has(item.articleId)} />
+              <AuctionRow item={item} bid={bid} changed={changedIds.has(item.articleId)} onImageZoom={setZoomSrc} />
               <FavoriteStar active={isFav(id)} onToggle={() => toggle(favFromItem(item, bids[item.articleId]))} />
             </div>
           );
@@ -455,7 +478,13 @@ export function MvcAuctionList({ initial }: Props) {
                 <div style={{ height: 8, borderBottom: '2px dashed var(--line)', margin: '0 var(--gap) 10px' }} />
               </>
             )}
-            {rest.map((it) => renderRow(it, false))}
+            {/* 경매 목록 사이사이 AdFit 광고 행 삽입 (6행마다, 다른 슬롯 매핑) */}
+            {rest.flatMap((it, i) => {
+              const row = renderRow(it, false);
+              return (i + 1) % 6 === 0
+                ? [row, <ListAdRow key={`ad-${i}`} slotIndex={Math.floor(i / 6)} />]
+                : [row];
+            })}
           </>
         );
       })()}
@@ -488,6 +517,61 @@ export function MvcAuctionList({ initial }: Props) {
       >
         {loading ? '불러오는 중…' : done ? `오늘 마감 경매 ${items.length}건 · 끝` : ''}
       </div>
+
+      {/* 사진 라이트박스 — 썸네일 클릭 시 큰 이미지로. 아무 곳이나 누르면 닫힘. */}
+      {zoomSrc && (
+        <div
+          onClick={() => setZoomSrc(null)}
+          role="dialog"
+          aria-label="사진 크게 보기"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'grid',
+            placeItems: 'center',
+            padding: 16,
+            cursor: 'zoom-out',
+          }}
+        >
+          {/* 외부(네이버 카페) 이미지는 일반 <img> 사용 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={zoomSrc}
+            alt=""
+            referrerPolicy="no-referrer"
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain',
+              boxShadow: '0 0 0 2px var(--ink)',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setZoomSrc(null)}
+            aria-label="닫기"
+            style={{
+              position: 'fixed',
+              top: 16,
+              right: 16,
+              width: 40,
+              height: 40,
+              fontFamily: 'var(--f1)',
+              fontSize: 16,
+              lineHeight: 1,
+              background: 'var(--white)',
+              color: 'var(--ink)',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </>
   );
 }
