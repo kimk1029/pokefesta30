@@ -286,6 +286,26 @@ export default function SnkrdunkSearchScreen() {
 
             <View style={{ height: 12 }} />
 
+            {/* 유의사항 배너 */}
+            <PixelFrame bg={colors.red} borderWidth={3} shadow={6} hi="rgba(255,255,255,0.18)" lo="rgba(0,0,0,0.36)">
+              <View style={{ padding: 14, flexDirection: 'row', gap: 12 }}>
+                <Text style={{ fontSize: 24, lineHeight: 26 }}>📢</Text>
+                <View style={{ flex: 1 }}>
+                  <PixelText variant="pixel" size={10} color={colors.gold}>
+                    유의사항
+                  </PixelText>
+                  <PixelText variant="ko" size={11} color={colors.white} style={{ marginTop: 8, lineHeight: 18 }}>
+                    SNKRDUNK는 한글 → 일본어로 번역 후 검색해요. 일본명이 다른 카드(예: 이슬이 → 카스미)는 결과가 안 나올 수 있어요. 이럴 땐 번개장터 탭에서 국내매물을 확인해 주세요.
+                  </PixelText>
+                  <PixelText variant="ko" size={11} color="rgba(255,255,255,0.85)" style={{ marginTop: 6, lineHeight: 18 }}>
+                    결과가 0건인 카드는 현재 파악 중이며, 2~3일 내로 SNKRDUNK 검색에도 나오도록 업데이트할 예정이에요.
+                  </PixelText>
+                </View>
+              </View>
+            </PixelFrame>
+
+            <View style={{ height: 12 }} />
+
             {cat === 'snkrdunk' ? (
               loading ? (
                 <Spinner />
