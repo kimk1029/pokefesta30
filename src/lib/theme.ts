@@ -1,4 +1,4 @@
-export type ThemeId = 'pokemon' | 'onepiece' | 'yugioh' | 'sports';
+export type ThemeId = 'pokemon' | 'onepiece' | 'yugioh' | 'sports' | 'clean';
 
 export const THEMES: ReadonlyArray<{
   id: ThemeId;
@@ -25,11 +25,22 @@ export const THEMES: ReadonlyArray<{
     label: '스포츠',
     desc: '스코어보드 + 잔디·스타디움 톤',
   },
+  {
+    id: 'clean',
+    label: '클린',
+    desc: '비트 아닌 깔끔·라운드 (모던)',
+  },
 ] as const;
 
 export const DEFAULT_THEME: ThemeId = 'pokemon';
 export const THEME_STORAGE_KEY = 'pokefesta-theme';
 
 export function isThemeId(v: unknown): v is ThemeId {
-  return v === 'pokemon' || v === 'onepiece' || v === 'yugioh' || v === 'sports';
+  return (
+    v === 'pokemon' ||
+    v === 'onepiece' ||
+    v === 'yugioh' ||
+    v === 'sports' ||
+    v === 'clean'
+  );
 }
