@@ -91,6 +91,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap"
           rel="stylesheet"
         />
+        {/* Pretendard — 클린(CardVault) 테마 본문 폰트 */}
+        <link
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
+          rel="stylesheet"
+        />
         {/* 테마 부트스트랩 — hydration 전에 동기 실행, FOUC 방지 */}
         <script
           dangerouslySetInnerHTML={{
