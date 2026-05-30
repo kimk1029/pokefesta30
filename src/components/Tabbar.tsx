@@ -78,21 +78,26 @@ export function Tabbar(_props: { onFab?: () => void } = {}) {
                     height="60"
                     aria-hidden
                   >
-                    {/* 브림(짚 테두리) */}
-                    <circle cx="50" cy="50" r="47" fill="#F4D272" stroke="#1A1A2E" strokeWidth="3" />
-                    {/* 짚 짜임 — 방사선 */}
-                    <g stroke="rgba(120,80,20,.25)" strokeWidth="1.4">
-                      <line x1="50" y1="6" x2="50" y2="94" />
-                      <line x1="6" y1="50" x2="94" y2="50" />
-                      <line x1="19" y1="19" x2="81" y2="81" />
-                      <line x1="81" y1="19" x2="19" y2="81" />
+                    {/* 브림 — stroke 없음(버튼 보더가 유일한 테두리). 배경 짚색과 이음 */}
+                    <circle cx="50" cy="50" r="47" fill="#F4D272" />
+                    <circle cx="50" cy="50" r="47" fill="none" stroke="#D8B25A" strokeWidth="2" opacity="0.6" />
+                    {/* 짚 짜임 — 바깥 링 짧은 방사 눈금(코너로 삐져나오지 않게 길이 제한) */}
+                    <g stroke="rgba(120,80,20,.28)" strokeWidth="1.4">
+                      <line x1="50" y1="6" x2="50" y2="15" />
+                      <line x1="50" y1="85" x2="50" y2="94" />
+                      <line x1="6" y1="50" x2="15" y2="50" />
+                      <line x1="85" y1="50" x2="94" y2="50" />
+                      <line x1="20" y1="20" x2="26" y2="26" />
+                      <line x1="80" y1="20" x2="74" y2="26" />
+                      <line x1="20" y1="80" x2="26" y2="74" />
+                      <line x1="80" y1="80" x2="74" y2="74" />
                     </g>
                     {/* 짚 짜임 — 동심원 */}
-                    <circle cx="50" cy="50" r="41" fill="none" stroke="rgba(120,80,20,.22)" strokeWidth="1.6" />
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(120,80,20,.2)" strokeWidth="1.4" />
                     {/* 빨간 밴드 */}
-                    <circle cx="50" cy="50" r="34" fill="#E63946" stroke="#1A1A2E" strokeWidth="2.5" />
+                    <circle cx="50" cy="50" r="34" fill="#E63946" />
                     {/* 크라운(윗면) */}
-                    <circle cx="50" cy="50" r="25" fill="#E3B45A" stroke="#1A1A2E" strokeWidth="2.5" />
+                    <circle cx="50" cy="50" r="25" fill="#E3B45A" stroke="#C99A4A" strokeWidth="1.5" />
                     {/* 하이라이트 */}
                     <ellipse cx="42" cy="42" rx="8" ry="4.5" fill="#FFF1C9" opacity="0.5" />
                   </svg>

@@ -2307,50 +2307,51 @@ a{color:inherit;text-decoration:none;}
 [data-theme="onepiece"] .fab-strawhat{display:block;position:relative;z-index:2;}
 /* base .fab-circle svg{width:16px} 보정 — 밀짚모자는 버튼을 꽉 채우게 */
 [data-theme="onepiece"] .fab-circle .fab-strawhat{width:60px;height:60px;}
+/* 밀짚모자 — 단일 잉크 테두리(버튼 보더 하나)만. 이중 레이어/inset 베벨 제거.
+   배경을 짚색으로 깔아 SVG 브림과 이음새가 보이지 않게. */
 [data-theme="onepiece"] .fab-circle{
   border-radius:50%;
   border:3px solid var(--ink);
-  background:transparent;     /* SVG 가 직접 그림 */
-  box-shadow:
-    inset 0 -4px 0 rgba(0,0,0,.12),
-    5px 5px 0 var(--ink);
+  background:#F4D272;
+  box-shadow:5px 5px 0 var(--ink);
   overflow:visible;
 }
 [data-theme="onepiece"] .fab-circle::before{display:none;}
 [data-theme="onepiece"] .fab-circle:active{
-  transform:translate(3px,3px) scaleX(1.16) scaleY(.86);
-  box-shadow:
-    inset 0 -4px 0 rgba(0,0,0,.12),
-    2px 2px 0 var(--ink);
+  transform:translate(3px,3px);
+  box-shadow:2px 2px 0 var(--ink);
 }
 [data-theme="onepiece"] .fab-circle.fab-click:active{
-  box-shadow:
-    inset 0 -4px 0 rgba(0,0,0,.12),
-    5px 5px 0 var(--ink);
+  box-shadow:5px 5px 0 var(--ink);
 }
+/* 클릭 — 모자 살짝 반동 + 고무고무 주먹이 앞으로(위로) 뻗었다 회수 */
 [data-theme="onepiece"] .fab-circle.fab-click{
-  animation:pf-rubber-hat .72s steps(8);
+  animation:pf-hat-recoil .7s ease-out;
 }
 [data-theme="onepiece"] .fab-circle.fab-click::after{
-  content:'';position:absolute;left:-22px;right:-22px;top:28px;height:8px;
-  background:var(--orn-lt);border:3px solid var(--ink);z-index:1;
-  box-shadow:inset 0 2px 0 rgba(255,255,255,.32),inset 0 -2px 0 rgba(0,0,0,.18);
-  animation:pf-rubber-arms .72s steps(8);
+  content:'';position:absolute;left:50%;bottom:44%;
+  width:18px;height:56px;margin-left:-9px;
+  transform-origin:bottom center;
+  border-radius:9px;
+  background:linear-gradient(#FFD9B0,#F2B988 58%,#E09A66);
+  border:2.5px solid #1A1A2E;z-index:3;
+  animation:pf-gum-punch .7s cubic-bezier(.2,.8,.3,1);
 }
 [data-theme="onepiece"] .fab-tab span{color:#F4D272;}
-@keyframes pf-rubber-hat{
-  0%{transform:scale(1) translateY(0);}
-  18%{transform:scaleX(1.34) scaleY(.72) translateY(8px);}
-  42%{transform:scaleX(.78) scaleY(1.28) translateY(-14px);}
-  66%{transform:scaleX(1.12) scaleY(.9) translateY(2px);}
+@keyframes pf-hat-recoil{
+  0%{transform:scale(1);}
+  16%{transform:scaleX(1.12) scaleY(.9) translateY(3px);}
+  46%{transform:scaleX(.96) scaleY(1.04) translateY(-2px);}
   100%{transform:scale(1) translateY(0);}
 }
-@keyframes pf-rubber-arms{
-  0%{opacity:0;transform:scaleX(.1);}
-  18%{opacity:1;transform:scaleX(1.4);}
-  42%{opacity:1;transform:scaleX(2.1);}
-  75%{opacity:.7;transform:scaleX(.7);}
-  100%{opacity:0;transform:scaleX(.1);}
+/* 캡슐 = 고무 팔(기둥) + 둥근 끝(주먹). bottom 기준으로 위로 쭉 뻗음 */
+@keyframes pf-gum-punch{
+  0%  {opacity:0;transform:scaleY(0);}
+  14% {opacity:1;transform:scaleY(.12);}
+  46% {opacity:1;transform:scaleY(1.08);}
+  60% {opacity:1;transform:scaleY(.95);}
+  80% {opacity:1;transform:scaleY(.45);}
+  100%{opacity:0;transform:scaleY(0);}
 }
 
 /* yugioh 테마 — 천년 퍼즐 정사각 + 호루스의 눈 가로 줄 */
@@ -2785,7 +2786,7 @@ a{color:inherit;text-decoration:none;}
   --f1:'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --f2:'Pretendard','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   /* 라운드/섀도우 토큰 */
-  --r:16px; --r-sm:12px; --r-pill:999px;
+  --r:18px; --r-sm:14px; --r-pill:999px;
 }
 /* 디픽셀화 — 이미지 보간 복원, 자간 정상화, 부드러운 폰트 렌더 */
 [data-theme="clean"] *{image-rendering:auto;letter-spacing:normal;}
@@ -2959,6 +2960,18 @@ a{color:inherit;text-decoration:none;}
 [data-theme="clean"] .pack-list-item:active{transform:none;box-shadow:0 1px 2px rgba(24,34,58,.06);}
 [data-theme="clean"] .pack-grid-card{border:1px solid var(--pap3);border-radius:var(--r);box-shadow:0 1px 2px rgba(24,34,58,.04),0 10px 24px rgba(24,34,58,.06);}
 [data-theme="clean"] .pack-grid-card:active{transform:none;box-shadow:0 1px 2px rgba(24,34,58,.06);}
+
+
+/* clean: 하드 잉크 보더 → 옅은 회색/라운드 (box-shadow 시그니처로 안 잡힌 것들) */
+[data-theme="clean"] .pf-pokeball-spinner{border:1px solid var(--pap3);border-radius:var(--r-sm);}
+[data-theme="clean"] .ticket::after{border:1px solid var(--pap3);border-radius:var(--r-sm);}
+[data-theme="clean"] .cv-strip-cell:not(:last-child){border-right:1px solid var(--pap3);}
+[data-theme="clean"] .cv-binder-info{border-top:1px solid var(--pap3);}
+[data-theme="clean"] .cv-album-meta{border-top:1px solid var(--pap3);}
+[data-theme="clean"] .cv-coll-noteflag{border:1px solid var(--pap3);border-radius:var(--r-sm);}
+[data-theme="clean"] .cv-archive-line{border:1px solid var(--pap3);border-radius:var(--r-sm);}
+[data-theme="clean"] .cv-manual-cat-btn{border:1px solid var(--pap3);border-radius:var(--r-sm);}
+[data-theme="clean"] .cv-manual-grade{border:1px solid var(--pap3);border-radius:var(--r-sm);}
 
 /* ── 셸/바 ── */
 [data-theme="clean"] .page-wrap{
@@ -3171,15 +3184,22 @@ a{color:inherit;text-decoration:none;}
   box-shadow:0 0 0 2px rgba(79,107,255,.35);}
 [data-theme="clean"] .tp-swatch{border-radius:var(--r-sm);box-shadow:none;}
 
-/* clean: 바로가기(퀵 그리드/대시보드 단축) — 아이콘·라벨 정돈 */
+/* clean: 바로가기(퀵 그리드/대시보드 단축) — 모던 파스텔 타일 */
 [data-theme="clean"] .quick-grid{gap:8px;}
-[data-theme="clean"] .qi{padding:12px 4px 10px;gap:7px;border-radius:var(--r-sm);}
-[data-theme="clean"] .qi-icon{width:40px;height:40px;border-radius:13px;
-  box-shadow:0 4px 10px rgba(36,42,57,.12);}
+[data-theme="clean"] .qi{padding:13px 4px 11px;gap:8px;border-radius:var(--r-sm);
+  background:var(--white);border:1px solid var(--pap3);
+  box-shadow:0 1px 2px rgba(24,34,58,.04),0 8px 18px rgba(24,34,58,.05);}
+[data-theme="clean"] .qi-icon{width:42px;height:42px;border-radius:14px;
+  font-size:22px;box-shadow:none;border:0;}
+/* 풀채도 → 옅은 파스텔 배경 + 액센트 글리프 */
+[data-theme="clean"] .qi-icon.r{background:#FFE8EC;color:var(--red);}
+[data-theme="clean"] .qi-icon.b{background:#E9EDFF;color:var(--blu);}
+[data-theme="clean"] .qi-icon.y{background:#FFF4D6;color:var(--yel-dk);}
+[data-theme="clean"] .qi-icon.g{background:#E1F7EF;color:var(--grn-dk);}
 [data-theme="clean"] .qi span{font-weight:700;color:var(--ink2);line-height:1.3;white-space:normal;}
-[data-theme="clean"] .dash-quick{padding:12px 4px;gap:7px;}
-[data-theme="clean"] .cv-quick-icon{width:40px;height:40px;border-radius:13px;
-  box-shadow:0 4px 10px rgba(36,42,57,.12);}
+[data-theme="clean"] .dash-quick{padding:13px 4px;gap:8px;}
+[data-theme="clean"] .cv-quick-icon{width:42px;height:42px;border-radius:14px;
+  font-size:22px;box-shadow:none;border:0;}
 [data-theme="clean"] .cv-quick-lbl,
 [data-theme="clean"] .dash-quick span{font-weight:700;color:var(--ink2);}
 
