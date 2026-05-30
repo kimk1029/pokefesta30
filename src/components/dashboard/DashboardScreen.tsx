@@ -8,6 +8,7 @@ import { useCurrency } from '@/components/CurrencyProvider';
 import type { HeroSlideData } from '@/components/HeroSlider';
 import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
 import { PortfolioLoginGate } from '@/components/PortfolioTotal';
+import { usePriceMode } from '@/components/PriceModeProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
@@ -234,6 +235,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
   // 실시간 포트폴리오 — 서버 일별 스냅샷 기반 등락 + history (KST 정각 reset).
   const [portfolio, setPortfolio] = useState<{
     totalJpy: number;
+    totalPsa10Jpy: number;
     changeAbsJpy: number | null;
     changePct: number | null;
     history: PortfolioPoint[];
@@ -247,6 +249,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
         const j = (await r.json()) as {
           data?: {
             totalJpy: number;
+            totalPsa10Jpy?: number;
             changeAbsJpy: number | null;
             changePct: number | null;
             history?: Array<{ date: string; totalJpy: number }>;
@@ -255,6 +258,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
         if (!alive || !j.data) return;
         setPortfolio({
           totalJpy: j.data.totalJpy,
+          totalPsa10Jpy: j.data.totalPsa10Jpy ?? 0,
           changeAbsJpy: j.data.changeAbsJpy,
           changePct: j.data.changePct,
           history: j.data.history ?? [],
@@ -266,11 +270,21 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
     return () => { alive = false; };
   }, []);
 
+  // 가격 모드(싱글/PSA10) — /my/cards·상세와 동일한 전역 토글. 컬렉션에 PSA10 시세가
+  // 하나라도 있어야 의미가 있으므로, 없으면 강제로 싱글. 모바일 홈과 동일 컨셉.
+  const { mode: globalPriceMode, setMode: setPriceMode } = usePriceMode();
+  const hasAnyPsa10 = cards.some((c) => c.pricePsa10Jpy > 0);
+  const priceMode = hasAnyPsa10 ? globalPriceMode : 'single';
+  // 한 카드의 표시 가격(JPY) — PSA10 모드면 PSA10 중앙값, 없으면 싱글로 폴백.
+  const cardJpyByMode = (c: MyCardWithPrice): number => {
+    const single = c.snkrdunkMinPriceJpy > 0 ? c.snkrdunkMinPriceJpy : c.latestPrice * USD_TO_JPY;
+    return priceMode === 'psa10' && c.pricePsa10Jpy > 0 ? c.pricePsa10Jpy : single;
+  };
+
   const owned: OwnedDisplay[] = cards.map((c) => {
     const catalog = c.cardId ? findCardEntry(c.cardId) : undefined;
-    // price 는 JPY 단위로 통일 — snkrdunk 카드는 JPY 그대로, 카탈로그 USD 는 환율 환산.
-    const snkJpy = c.snkrdunkMinPriceJpy ?? 0;
-    const priceJpy = snkJpy > 0 ? snkJpy : c.latestPrice * USD_TO_JPY;
+    // price 는 JPY 단위로 통일 — 가격 모드(싱글/PSA10)에 따라 카드별 시세 선택.
+    const priceJpy = cardJpyByMode(c);
     return {
       id: c.id,
       cardId: c.cardId,
@@ -303,7 +317,17 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
     chartMode,
   );
   const chartData = chartPoints.map((point) => point.totalJpy);
-  const totalVal = useReal && portfolio ? portfolio.totalJpy : chartData[chartData.length - 1] ?? 0;
+  // 모드별 총합 — 싱글: 기존 그대로(서버 총합 우선). PSA10: 서버 PSA10 총합이 있으면
+  // 그걸, 없으면 보유 카드들의 PSA10(폴백 싱글) 합으로. (차트/등락은 서버 싱글 기준 유지.)
+  const ownedTotalJpy = owned.reduce((a, c) => a + c.price, 0);
+  const totalVal =
+    priceMode === 'psa10'
+      ? useReal && portfolio && portfolio.totalPsa10Jpy > 0
+        ? portfolio.totalPsa10Jpy
+        : ownedTotalJpy
+      : useReal && portfolio
+        ? portfolio.totalJpy
+        : chartData[chartData.length - 1] ?? 0;
   const firstVal = chartData[0] ?? totalVal;
   const change = totalVal - firstVal;
   // 어제 대비 % (실 데이터). 없으면 차트 양끝 % 추정값.
@@ -335,8 +359,35 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
 
         {/* Label + value */}
         <div style={{ position: 'relative', marginBottom: 16 }}>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.35)', letterSpacing: 2, marginBottom: 8 }}>
-            TOTAL PORTFOLIO
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.35)', letterSpacing: 2 }}>
+              TOTAL PORTFOLIO{hasAnyPsa10 ? ` · ${priceMode === 'psa10' ? 'PSA10' : '싱글'}` : ''}
+            </div>
+            {/* 싱글/PSA10 시세 토글 — PSA10 시세가 있는 카드가 하나라도 있을 때만.
+                전역 모드라 /my/cards·상세와 동기화된다. */}
+            {hasAnyPsa10 && (
+              <div style={{ display: 'flex', gap: 2, position: 'relative', zIndex: 1 }}>
+                {(['single', 'psa10'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPriceMode(m)}
+                    style={{
+                      padding: '3px 8px',
+                      fontFamily: 'var(--f1)',
+                      fontSize: 9,
+                      letterSpacing: 0.5,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: priceMode === m ? 'var(--gold)' : 'rgba(255,255,255,.08)',
+                      color: priceMode === m ? 'var(--ink)' : 'rgba(255,210,63,.85)',
+                    }}
+                  >
+                    {m === 'single' ? '싱글' : 'PSA10'}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
             <div style={{
