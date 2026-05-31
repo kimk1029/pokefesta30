@@ -252,7 +252,8 @@ const CHARACTERS: Term[] = [
   { ko: '명희',     ja: 'メイ',         en: 'Rosa' },           // BW2 여주인공
   { ko: '메이',     ja: 'メイ',         en: 'Rosa' },           // KR 동인 표기 — 같은 인물
   { ko: '휴이',     ja: 'キョウヘイ',   en: 'Hugh' },           // BW2 남주인공
-  { ko: '모란',     ja: 'ナンジャモ',   en: 'Iono' },           // SV 전기 체육관 관장
+  { ko: '모야모',   ja: 'ナンジャモ',   en: 'Iono' },           // SV 전기 체육관 관장 (KR 공식명)
+  { ko: '모란',     ja: 'ボタン',       en: 'Penny' },          // SV — KR 공식명 '모란' = Penny(ボタン)
   { ko: '난천',     ja: 'シロナ',       en: 'Cynthia' },        // 신오 챔피언
   { ko: '풀잎',     ja: 'ナタネ',       en: 'Gardenia' },       // 신오 풀 체육관
   { ko: '단지',     ja: 'デンジ',       en: 'Volkner' },        // 신오 전기 체육관
@@ -351,6 +352,90 @@ const CHARACTERS: Term[] = [
 ];
 
 /**
+ * 인기 서포터/트레이너 카드 *전체 이름* (이름+효과). longest-first 매칭 덕분에
+ * 개별 이름보다 먼저 잡혀 한 번에 정확한 일본어 카드명으로 변환된다.
+ *   ex) '릴리에의 전력' → 'リーリエの全力'
+ */
+const SUPPORTER_CARDS: Term[] = [
+  { ko: '릴리에의 전력',   ja: 'リーリエの全力',     en: "Lillie's Full Force" },
+  { ko: '난천의 패기',     ja: 'シロナの覇気',       en: "Cynthia's Ambition" },
+  { ko: '마리의 프라이드', ja: 'マリィのプライド',   en: "Marnie's Pride" },
+  { ko: '보스의 지령',     ja: 'ボスの指令',         en: "Boss's Orders" },
+  { ko: '박사의 연구',     ja: '博士の研究',         en: "Professor's Research" },
+];
+
+/**
+ * 인기 서포터/트레이너 개인명 — 한/일 공식 표기 매핑.
+ * snkrdunk(일본) 검색이 한국어 표기로 안 잡히던 케이스 보강.
+ * 표기가 같아도 양방향 안정성을 위해 사전에 둔다.
+ */
+const TRAINERS_EXTRA: Term[] = [
+  // 인기 서포터
+  { ko: '릴리에',   ja: 'リーリエ',     en: 'Lillie' },
+  { ko: '마리',     ja: 'マリィ',       en: 'Marnie' },
+  // 박사 (SV/SM/XY/BW)
+  { ko: '플라타느박사', ja: 'プラターヌ博士', en: 'Professor Sycamore' },
+  { ko: '쿠쿠이박사',   ja: 'ククイ博士',     en: 'Professor Kukui' },
+  { ko: '주박사',       ja: 'アララギ博士',   en: 'Professor Juniper' },
+  { ko: '올림박사',     ja: 'オーリム博士',   en: 'Professor Sada' },
+  { ko: '투로박사',     ja: 'フトゥー博士',   en: 'Professor Turo' },
+  // 관동/성도 클래식 + 챔피언/라이벌
+  { ko: '이슬',     ja: 'カスミ',       en: 'Misty' },
+  { ko: '그린',     ja: 'グリーン',     en: 'Blue' },
+  { ko: '레드',     ja: 'レッド',       en: 'Red' },
+  { ko: '블루',     ja: 'ブルー',       en: 'Leaf' },
+  { ko: '카렌',     ja: 'カリン',       en: 'Karen' },
+  // 하나/칼로스
+  { ko: '벨',       ja: 'ベル',         en: 'Bianca' },
+  { ko: '카밀레',   ja: 'カミツレ',     en: 'Elesa' },
+  { ko: '사나',     ja: 'サナ',         en: 'Shauna' },
+  { ko: '티에르노', ja: 'ティエルノ',   en: 'Tierno' },
+  { ko: '트로바',   ja: 'トロバ',       en: 'Trevor' },
+  { ko: '카르네',   ja: 'カルネ',       en: 'Diantha' },
+  // 알로라 (썬문)
+  { ko: '하우',     ja: 'ハウ',         en: 'Hau' },
+  { ko: '글라디오', ja: 'グラジオ',     en: 'Gladion' },
+  { ko: '일리마',   ja: 'イリマ',       en: 'Ilima' },
+  { ko: '키아웨',   ja: 'カキ',         en: 'Kiawe' },
+  { ko: '수련',     ja: 'スイレン',     en: 'Lana' },
+  { ko: '아세로라', ja: 'アセロラ',     en: 'Acerola' },
+  { ko: '할라',     ja: 'ハラ',         en: 'Hala' },
+  { ko: '구즈마&할라', ja: 'グズマ&ハラ', en: 'Guzma & Hala' },
+  { ko: '말리화',   ja: 'マツリカ',     en: 'Mina' },
+  { ko: '나누',     ja: 'クチナシ',     en: 'Nanu' },
+  { ko: '라이치',   ja: 'ライチ',       en: 'Olivia' },
+  { ko: '비케',     ja: 'ビッケ',       en: 'Wicke' },
+  { ko: '플루메리', ja: 'プルメリ',     en: 'Plumeria' },
+  // 가라르 (소드실드)
+  { ko: '호브',     ja: 'ホップ',       en: 'Hop' },
+  { ko: '비트',     ja: 'ビート',       en: 'Bede' },
+  { ko: '소니아',   ja: 'ソニア',       en: 'Sonia' },
+  { ko: '야청',     ja: 'ルリナ',       en: 'Nessa' },
+  { ko: '채두',     ja: 'サイトウ',     en: 'Bea' },
+  { ko: '어니언',   ja: 'オニオン',     en: 'Allister' },
+  { ko: '순무',     ja: 'カブ',         en: 'Kabu' },
+  { ko: '포플러',   ja: 'ポプラ',       en: 'Opal' },
+  { ko: '금랑',     ja: 'キバナ',       en: 'Raihan' },
+  { ko: '두송',     ja: 'ネズ',         en: 'Piers' },
+  { ko: '올리브',   ja: 'オリーヴ',     en: 'Oleana' },
+  { ko: '멜론',     ja: 'メロン',       en: 'Melony' },
+  { ko: '피오니',   ja: 'ピオニー',     en: 'Peony' },
+  // 팔데아 (스칼렛바이올렛)
+  { ko: '클라벨',   ja: 'クラベル',     en: 'Clavell' },
+  { ko: '지니어',   ja: 'ジニア',       en: 'Jacq' },
+  { ko: '테사',     ja: 'オモダカ',     en: 'Geeta' },
+  { ko: '단풍',     ja: 'カエデ',       en: 'Katy' },
+  { ko: '콜사',     ja: 'コルサ',       en: 'Brassius' },
+  { ko: '곤포',     ja: 'ハイダイ',     en: 'Kofu' },
+  { ko: '청목',     ja: 'アオキ',       en: 'Larry' },
+  { ko: '라임',     ja: 'ライム',       en: 'Ryme' },
+  { ko: '리파',     ja: 'リップ',       en: 'Tulip' },
+  { ko: '그루샤',   ja: 'グルーシャ',   en: 'Grusha' },
+  { ko: '카지',     ja: 'スグリ',       en: 'Kieran' },
+  { ko: '시유',     ja: 'ゼイユ',       en: 'Carmine' },
+];
+
+/**
  * 박스/확장팩(세트) 이름 + 일본 지명. snkrdunk 의 박스 매물·지역 한정 프로모는
  * 한국어 표기가 달라(세트명) 혹은 한자라(지명) 검색이 안 잡히던 케이스.
  * 세트명은 cardNameKo 의 JA→KO 표기를 KO→JA 로 뒤집은 것.
@@ -420,7 +505,7 @@ const SETS_PLACES: Term[] = [
   { ko: '오키나와', ja: '沖縄' },
 ];
 
-const ALL: Term[] = [...POKEMON, ...CARD_TERMS, ...CHARACTERS, ...SETS_PLACES];
+const ALL: Term[] = [...POKEMON, ...CARD_TERMS, ...CHARACTERS, ...TRAINERS_EXTRA, ...SUPPORTER_CARDS, ...SETS_PLACES];
 
 /**
  * 사전을 lowercase key → value 로 빌드해서 대소문자 무시 매칭.
@@ -461,13 +546,18 @@ const CARD_NAME_PHRASES: Array<[RegExp, string]> = [
   // 트레이너 카드 이름 (한국 공식 표기) — 길이 긴 phrase 먼저
   [/メイのきまぐれ/g, '명희의 격려'],
   [/モランのストレッチ/g, '모란의 스트레치'],
-  [/ナンジャモのきまぐれ/g, '모란의 격려'],
+  [/ナンジャモのきまぐれ/g, '모야모의 격려'],
   [/シロナのお祝い/g, '난천의 축하'],
   [/ナタネのおもてなし/g, '풀잎의 환대'],
   [/ペパーのストックリスト/g, '페퍼의 스톡 리스트'],
   [/ボタンのファインプレー/g, '보탄의 파인 플레이'],
   [/アオキのスマートウォッチ/g, '아오키의 스마트워치'],
   [/ハッサクのトロフィー/g, '하사크의 트로피'],
+  [/リーリエの全力/g, '릴리에의 전력'],
+  [/シロナの覇気/g, '난천의 패기'],
+  [/マリィのプライド/g, '마리의 프라이드'],
+  [/ボスの指令/g, '보스의 지령'],
+  [/博士の研究/g, '박사의 연구'],
   // 카드 자주 등장하는 접두/접미사 — 길이 긴 패턴 먼저
   [/MEGAバトルアシスト/g, 'MEGA 배틀 어시스트'],
   [/メガしんかセット/g, '메가 진화 세트'],
