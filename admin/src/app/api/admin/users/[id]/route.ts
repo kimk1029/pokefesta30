@@ -38,7 +38,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   }).catch(() => null);
   if (!user) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
-  const [feeds, trades, pulls, lastViews, allPulls, packs] = await Promise.all([
+  const [feeds, trades, pulls, lastViews, allPulls, packs, userCards] = await Promise.all([
     one(prisma.feed.findMany({
       where: { authorId: id }, orderBy: { createdAt: 'desc' }, take: 10,
       select: { id: true, text: true, createdAt: true },
@@ -62,6 +62,18 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     one(prisma.oripaPack.findMany({
       select: { id: true, name: true, price: true },
     }), [] as Array<{ id: string; name: string; price: number }>),
+    one(prisma.userCard.findMany({
+      where: { userId: id }, orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, cardId: true, nickname: true, memo: true,
+        ocrSetCode: true, ocrCardNumber: true, snkrdunkApparelId: true,
+        gradeEstimate: true, centeringScore: true, photoUrl: true, createdAt: true,
+      },
+    }), [] as Array<{
+      id: number; cardId: string | null; nickname: string | null; memo: string | null;
+      ocrSetCode: string | null; ocrCardNumber: string | null; snkrdunkApparelId: number | null;
+      gradeEstimate: string | null; centeringScore: number | null; photoUrl: string | null; createdAt: Date;
+    }>),
   ]);
 
   const packById = new Map(packs.map((p) => [p.id, p]));
@@ -111,7 +123,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const inventorySpent = totalSpent - oripaSpent;
 
   return NextResponse.json({
-    user, feeds, trades, pulls, lastViews,
+    user, feeds, trades, pulls, lastViews, userCards,
     spending, totalSpent, oripaSpent, inventorySpent,
   });
 }

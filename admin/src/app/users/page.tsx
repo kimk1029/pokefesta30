@@ -39,6 +39,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         _count: { select: {
           feeds: true, trades: true, bookmarks: true,
           sentMessages: true, receivedMessages: true, oripaTickets: true,
+          userCards: true,
         }},
       },
     }),

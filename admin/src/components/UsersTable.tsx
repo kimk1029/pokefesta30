@@ -14,6 +14,7 @@ interface Row {
   counts: {
     feeds: number; trades: number; bookmarks: number;
     sentMessages: number; receivedMessages: number; oripaTickets: number;
+    userCards: number;
   };
 }
 
@@ -38,6 +39,7 @@ export function UsersTable({ rows }: { rows: Row[] }) {
             <th>이메일</th>
             <th>아바타</th>
             <th style={{ textAlign: 'right' }}>포인트</th>
+            <th style={{ textAlign: 'right' }}>컬렉션</th>
             <th style={{ textAlign: 'right' }}>피드</th>
             <th style={{ textAlign: 'right' }}>거래</th>
             <th style={{ textAlign: 'right' }}>찜</th>
@@ -58,6 +60,7 @@ export function UsersTable({ rows }: { rows: Row[] }) {
               <td className="mono" style={{ fontSize: 11 }}>{u.email ?? <span className="muted">-</span>}</td>
               <td className="mono">{u.avatarId}</td>
               <td className="mono" style={{ textAlign: 'right' }}>{u.points.toLocaleString()}</td>
+              <td className="mono" style={{ textAlign: 'right', fontWeight: u.counts.userCards > 0 ? 700 : 400 }}>{u.counts.userCards}</td>
               <td className="mono" style={{ textAlign: 'right' }}>{u.counts.feeds}</td>
               <td className="mono" style={{ textAlign: 'right' }}>{u.counts.trades}</td>
               <td className="mono" style={{ textAlign: 'right' }}>{u.counts.bookmarks}</td>

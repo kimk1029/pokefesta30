@@ -26,6 +26,11 @@ interface UserDetail {
   trades: Array<{ id: number; type: string; status: string; title: string; price: string | null; createdAt: string }>;
   pulls: Array<{ id: number; packId: string; index: number; grade: string | null; prizeName: string | null; drawnAt: string | null }>;
   lastViews: Array<{ id: number; path: string; ip: string | null; country: string | null; createdAt: string }>;
+  userCards: Array<{
+    id: number; cardId: string | null; nickname: string | null; memo: string | null;
+    ocrSetCode: string | null; ocrCardNumber: string | null; snkrdunkApparelId: number | null;
+    gradeEstimate: string | null; centeringScore: number | null; photoUrl: string | null; createdAt: string;
+  }>;
   spending: SpendItem[];
   totalSpent: number;
   oripaSpent: number;
@@ -148,6 +153,37 @@ export function UserDetailModal({ userId, onClose }: Props) {
                       <Row k="보유 프레임" v={data.user.ownedFrames.join(', ') || '-'} />
                     </tbody>
                   </table>
+                </Card>
+
+                <Card title={`내 컬렉션 카드 (${data.userCards.length})`}>
+                  {data.userCards.length === 0 ? <div className="muted">없음</div> : (
+                    <div style={{ maxHeight: 320, overflow: 'auto' }}>
+                      <table className="tbl">
+                        <thead><tr><th>사진</th><th>카드</th><th>등급</th><th>중심도</th><th>시세ID</th><th>등록</th></tr></thead>
+                        <tbody>
+                          {data.userCards.map((c) => (
+                            <tr key={c.id}>
+                              <td>
+                                {c.photoUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={c.photoUrl} alt="" style={{ width: 28, height: 38, objectFit: 'cover', borderRadius: 3, display: 'block' }} />
+                                ) : <span className="muted">-</span>}
+                              </td>
+                              <td title={c.memo ?? ''}>
+                                {c.nickname || c.cardId
+                                  || (c.ocrSetCode || c.ocrCardNumber ? `${c.ocrSetCode ?? ''} ${c.ocrCardNumber ?? ''}`.trim() : null)
+                                  || <span className="muted">미매칭</span>}
+                              </td>
+                              <td className="mono">{c.gradeEstimate ?? '-'}</td>
+                              <td className="mono">{c.centeringScore != null ? c.centeringScore.toFixed(0) : '-'}</td>
+                              <td className="mono muted">{c.snkrdunkApparelId ?? '-'}</td>
+                              <td className="mono muted">{fmt(c.createdAt)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </Card>
 
                 <Card title="최근 피드 (10)">

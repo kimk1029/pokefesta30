@@ -9,21 +9,24 @@ const PAGE_SIZE = 50;
 interface SearchParams {
   q?: string;
   source?: string;
+  zero?: string;
   page?: string;
 }
 
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
   const q = (searchParams.q ?? '').trim();
   const source = searchParams.source === 'web' || searchParams.source === 'mobile' ? searchParams.source : null;
+  const zeroOnly = searchParams.zero === '1';
   const page = parseIntParam(searchParams.page, 1);
   const skip = (page - 1) * PAGE_SIZE;
 
   const where = {
     ...(q ? { query: { contains: q, mode: 'insensitive' as const } } : {}),
     ...(source ? { source } : {}),
+    ...(zeroOnly ? { resultCount: 0 } : {}),
   };
 
-  const [rows, total] = await Promise.all([
+  const [rows, total, zeroTotal] = await Promise.all([
     prisma.searchLog.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -32,9 +35,27 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       include: { user: { select: { id: true, name: true, email: true } } },
     }),
     prisma.searchLog.count({ where }),
+    prisma.searchLog.count({
+      where: {
+        ...(q ? { query: { contains: q, mode: 'insensitive' as const } } : {}),
+        ...(source ? { source } : {}),
+        resultCount: 0,
+      },
+    }),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // 현재 필터를 유지하며 일부만 바꾼 링크 생성
+  const mkHref = (over: Partial<SearchParams>) => {
+    const c = new URLSearchParams();
+    const merged: SearchParams = { q, source: source ?? '', zero: zeroOnly ? '1' : '', ...over };
+    if (merged.q) c.set('q', merged.q);
+    if (merged.source) c.set('source', merged.source);
+    if (merged.zero === '1') c.set('zero', '1');
+    const qs = c.toString();
+    return qs ? `/searches?${qs}` : '/searches';
+  };
 
   return (
     <>
@@ -43,14 +64,19 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         총 {total.toLocaleString()}건 · {page} / {totalPages} 페이지 — 어떤 키워드를 누가 검색했고 결과가 몇 건이었는지
       </p>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        <FilterLink href="/searches" on={!source}>전체</FilterLink>
-        <FilterLink href="/searches?source=mobile" on={source === 'mobile'}>앱</FilterLink>
-        <FilterLink href="/searches?source=web" on={source === 'web'}>웹</FilterLink>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <FilterLink href={mkHref({ source: '' })} on={!source}>전체</FilterLink>
+        <FilterLink href={mkHref({ source: 'mobile' })} on={source === 'mobile'}>앱</FilterLink>
+        <FilterLink href={mkHref({ source: 'web' })} on={source === 'web'}>웹</FilterLink>
+        <span style={{ width: 1, background: '#E2E8F0', margin: '0 4px' }} />
+        <FilterLink href={mkHref({ zero: zeroOnly ? '' : '1' })} on={zeroOnly}>
+          결과 0건만 ({zeroTotal.toLocaleString()})
+        </FilterLink>
       </div>
 
       <form className="search" method="get">
         {source && <input type="hidden" name="source" value={source} />}
+        {zeroOnly && <input type="hidden" name="zero" value="1" />}
         <input name="q" placeholder="검색어로 필터" defaultValue={q} />
         <button type="submit">검색</button>
       </form>
@@ -74,7 +100,9 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
               <tr key={r.id}>
                 <td className="mono">{r.id}</td>
                 <td><b>{trunc(r.query, 40)}</b></td>
-                <td className="mono">{r.resultCount.toLocaleString()}</td>
+                <td className="mono" style={r.resultCount === 0 ? { color: '#DC2626', fontWeight: 700 } : undefined}>
+                  {r.resultCount.toLocaleString()}
+                </td>
                 <td>
                   {r.user ? (
                     <Link href={`/users?q=${encodeURIComponent(r.user.id)}`}>
@@ -92,7 +120,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         </table>
       )}
 
-      <Pager q={q} source={source} page={page} totalPages={totalPages} />
+      <Pager q={q} source={source} zero={zeroOnly} page={page} totalPages={totalPages} />
     </>
   );
 }
@@ -116,13 +144,14 @@ function FilterLink({ href, on, children }: { href: string; on: boolean; childre
 }
 
 function Pager({
-  q, source, page, totalPages,
-}: { q: string; source: string | null; page: number; totalPages: number }) {
+  q, source, zero, page, totalPages,
+}: { q: string; source: string | null; zero: boolean; page: number; totalPages: number }) {
   if (totalPages <= 1) return null;
   const mk = (p: number) => {
     const c = new URLSearchParams();
     if (q) c.set('q', q);
     if (source) c.set('source', source);
+    if (zero) c.set('zero', '1');
     c.set('page', String(p));
     return `/searches?${c.toString()}`;
   };
