@@ -2,6 +2,7 @@ import { VisitorChart } from '@/components/VisitorChart';
 import { DeltaStat } from '@/components/DeltaStat';
 import { HourlyChart } from '@/components/HourlyChart';
 import { SignupSparkline } from '@/components/SignupSparkline';
+import { RankBars } from '@/components/RankBars';
 import { prisma } from '@/lib/prisma';
 import { fmtDate } from '@/lib/format';
 
@@ -33,6 +34,7 @@ async function loadStats() {
     signupsToday, signupsYesterday,
     visitorsYesterday, loginsYesterday, viewsYesterday,
     todayPageViews, signupRows,
+    topClicksRaw, topSearchesRaw, topPages7dRaw, topActorsRaw,
   ] = await Promise.all([
     one(prisma.user.count(), 0),
     one(prisma.feed.count(), 0),
@@ -143,7 +145,70 @@ async function loadStats() {
       }),
       [] as Array<{ createdAt: Date }>,
     ),
+    // ── 행동 로그 (최근 7일) ──────────────────────────────
+    // 많이 클릭한 요소 (ActionLog type=click, target 별)
+    one(
+      prisma.actionLog.groupBy({
+        by: ['target'],
+        where: { type: 'click', createdAt: { gte: start7d }, target: { not: '' } },
+        _count: { _all: true },
+        orderBy: { _count: { target: 'desc' } },
+        take: 12,
+      }) as unknown as Promise<Array<{ target: string; _count: { _all: number } }>>,
+      [] as Array<{ target: string; _count: { _all: number } }>,
+    ),
+    // 많이 검색한 검색어 (SearchLog query 별)
+    one(
+      prisma.searchLog.groupBy({
+        by: ['query'],
+        where: { createdAt: { gte: start7d }, query: { not: '' } },
+        _count: { _all: true },
+        orderBy: { _count: { query: 'desc' } },
+        take: 12,
+      }) as unknown as Promise<Array<{ query: string; _count: { _all: number } }>>,
+      [] as Array<{ query: string; _count: { _all: number } }>,
+    ),
+    // 많이 들어간 페이지 (PageView path 별, 7일)
+    one(
+      prisma.pageView.groupBy({
+        by: ['path'],
+        where: { createdAt: { gte: start7d } },
+        _count: { _all: true },
+        orderBy: { _count: { path: 'desc' } },
+        take: 12,
+      }) as unknown as Promise<Array<{ path: string; _count: { _all: number } }>>,
+      [] as Array<{ path: string; _count: { _all: number } }>,
+    ),
+    // 행동 많이 한 유저 (ActionLog userId 별, 7일)
+    one(
+      prisma.actionLog.groupBy({
+        by: ['userId'],
+        where: { createdAt: { gte: start7d }, userId: { not: null } },
+        _count: { _all: true },
+        orderBy: { _count: { userId: 'desc' } },
+        take: 12,
+      }) as unknown as Promise<Array<{ userId: string | null; _count: { _all: number } }>>,
+      [] as Array<{ userId: string | null; _count: { _all: number } }>,
+    ),
   ]);
+
+  // 행동 상위 유저의 이름/포인트 resolve
+  const actorIds = topActorsRaw.map((a) => a.userId).filter((v): v is string => Boolean(v));
+  const actorUsers = await one(
+    prisma.user.findMany({
+      where: { id: { in: actorIds } },
+      select: { id: true, name: true, points: true },
+    }),
+    [] as Array<{ id: string; name: string; points: number }>,
+  );
+  const actorMap = new Map(actorUsers.map((u) => [u.id, u]));
+  const topActors = topActorsRaw
+    .map((a) => ({
+      userId: a.userId as string,
+      actions: a._count._all,
+      name: actorMap.get(a.userId as string)?.name ?? '(탈퇴/미상)',
+      points: actorMap.get(a.userId as string)?.points ?? 0,
+    }));
 
   return {
     ok: true as const,
@@ -153,6 +218,10 @@ async function loadStats() {
     topPaths, recentVisits, dailySeries, recentFeeds, recentUsers,
     hourly: buildHourly(todayPageViews),
     signups14: buildSignups14(signupRows),
+    topClicks: topClicksRaw.map((r) => ({ label: r.target, value: r._count._all })),
+    topSearches: topSearchesRaw.map((r) => ({ label: r.query, value: r._count._all })),
+    topPages7d: topPages7dRaw.map((r) => ({ label: r.path, value: r._count._all })),
+    topActors,
   };
 }
 
@@ -199,7 +268,8 @@ function buildSignups14(rows: Array<{ createdAt: Date }>) {
 
 export default async function Page() {
   const data = await loadStats();
-  const { stats, topPaths, recentVisits, dailySeries, recentFeeds, recentUsers, hourly, signups14 } = data;
+  const { stats, topPaths, recentVisits, dailySeries, recentFeeds, recentUsers, hourly, signups14,
+    topClicks, topSearches, topPages7d, topActors } = data;
 
   // 14일 시리즈: DB 에 없는 날은 0 으로 채워 차트에 빈 칸 안 생기게
   const series14 = build14Days(dailySeries);
@@ -231,6 +301,50 @@ export default async function Page() {
       <section className="card" style={{ marginTop: 16 }}>
         <h2>📈 최근 14일 방문자 · 로그인</h2>
         <VisitorChart points={series14} />
+      </section>
+
+      <h2 style={{ fontSize: 14, color: '#475569', margin: '24px 0 10px', letterSpacing: 0.3 }}>🔥 행동 로그 <span style={{ fontSize: 11, color: '#94A3B8' }}>(최근 7일)</span></h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 16 }}>
+        <section className="card">
+          <h2>🖱️ 많이 클릭한 요소</h2>
+          <RankBars items={topClicks} color="#6366F1" empty="클릭 로그 없음" />
+        </section>
+        <section className="card">
+          <h2>🔎 인기 검색어</h2>
+          <RankBars items={topSearches} color="#0EA5E9" unit="회" empty="검색 로그 없음" />
+        </section>
+        <section className="card">
+          <h2>📄 많이 들어간 페이지</h2>
+          <RankBars items={topPages7d} color="#10B981" mono empty="방문 로그 없음" />
+        </section>
+      </div>
+
+      <section className="card" style={{ marginTop: 16 }}>
+        <h2>🏃 행동 많이 한 유저 (Top 12)</h2>
+        {topActors.length === 0 ? (
+          <div className="muted">행동 로그 없음</div>
+        ) : (
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th style={{ width: 48 }}>#</th>
+                <th>유저</th>
+                <th style={{ textAlign: 'right' }}>행동 수 (7일)</th>
+                <th style={{ textAlign: 'right' }}>포인트</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topActors.map((u, i) => (
+                <tr key={u.userId}>
+                  <td className="mono" style={{ color: i < 3 ? '#6366F1' : '#94A3B8', fontWeight: 700 }}>{i + 1}</td>
+                  <td>{u.name}</td>
+                  <td className="mono" style={{ textAlign: 'right', fontWeight: 600 }}>{u.actions.toLocaleString()}</td>
+                  <td className="mono muted" style={{ textAlign: 'right' }}>{u.points.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
       <h2 style={{ fontSize: 14, color: '#475569', margin: '20px 0 10px', letterSpacing: 0.3 }}>📊 서비스</h2>
