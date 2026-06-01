@@ -10,21 +10,14 @@ import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
 import { PortfolioLoginGate } from '@/components/PortfolioTotal';
 import { usePriceMode } from '@/components/PriceModeProvider';
 import { AppBar } from '@/components/ui/AppBar';
+import { Panel } from '@/components/ui/Panel';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { useTheme } from '@/components/ThemeProvider';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
 import type { MyCardWithPrice } from '@/lib/queries';
 
-// ── 클린 테마 공통 박스/아이콘 ──────────────────────────────────────────
-// 픽셀 테마는 인라인 하드 잉크 box-shadow 를 쓰는데, 인라인이라 CSS [data-theme="clean"]
-// 오버라이드가 닿지 않는다. 그래서 클린일 땐 컴포넌트에서 직접 동일한 클린 박스 스타일을
-// 적용해, 카드검색 인풋·바로가기·레벨·핵심지표 박스가 모두 같은 디자인이 되도록 한다.
-const CLEAN_BOX: React.CSSProperties = {
-  background: 'var(--white)',
-  border: '1px solid var(--pap3)',
-  borderRadius: 'var(--r)',
-  boxShadow: '0 1px 2px rgba(24,34,58,.04),0 10px 24px rgba(24,34,58,.06)',
-};
+// ── 바로가기 클린 라인 아이콘 ───────────────────────────────────────────
+// 모든 박스 테두리/그림자는 <Panel> 이 테마별로 관리한다(픽셀 인라인 섀도우 금지).
 
 // 바로가기 색 키 → 클린 라인 아이콘 색(강/소프트 면).
 const CLEAN_ICON_COLORS: Record<string, { fg: string; bg: string }> = {
@@ -427,19 +420,26 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       <AppBar right={<AppBarUser />} />
 
       {/* ═══ HERO: PORTFOLIO CARD ═══ */}
-      <div style={{
-        margin: 'var(--gap) var(--gap) var(--cg)',
-        background: 'linear-gradient(135deg,#0F172A 0%,#1E293B 55%,#1B2E89 100%)',
-        boxShadow: '-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),inset 0 4px 0 rgba(100,130,255,.18),inset 0 -5px 0 rgba(0,0,0,.55),9px 9px 0 var(--ink)',
-        padding: '18px 16px 16px', position: 'relative', overflow: 'hidden',
-      }}>
-        {/* scanlines */}
-        <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)', pointerEvents: 'none' }} />
-        {/* corner brackets */}
-        <div style={{ position: 'absolute', top: 6, left: 6, width: 14, height: 14, borderTop: '2px solid rgba(255,210,63,.5)', borderLeft: '2px solid rgba(255,210,63,.5)' }} />
-        <div style={{ position: 'absolute', top: 6, right: 6, width: 14, height: 14, borderTop: '2px solid rgba(255,210,63,.5)', borderRight: '2px solid rgba(255,210,63,.5)' }} />
-        <div style={{ position: 'absolute', bottom: 6, left: 6, width: 14, height: 14, borderBottom: '2px solid rgba(255,210,63,.5)', borderLeft: '2px solid rgba(255,210,63,.5)' }} />
-        <div style={{ position: 'absolute', bottom: 6, right: 6, width: 14, height: 14, borderBottom: '2px solid rgba(255,210,63,.5)', borderRight: '2px solid rgba(255,210,63,.5)' }} />
+      <Panel
+        style={{
+          margin: 'var(--gap) var(--gap) var(--cg)',
+          background: 'linear-gradient(135deg,#0F172A 0%,#1E293B 55%,#1B2E89 100%)',
+          padding: '18px 16px 16px', position: 'relative', overflow: 'hidden',
+        }}
+        pixelShadow="-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),inset 0 4px 0 rgba(100,130,255,.18),inset 0 -5px 0 rgba(0,0,0,.55),9px 9px 0 var(--ink)"
+      >
+        {/* 픽셀 장식(스캔라인·코너 브래킷)은 클린에선 숨김 */}
+        {!isClean && (
+          <>
+            {/* scanlines */}
+            <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)', pointerEvents: 'none' }} />
+            {/* corner brackets */}
+            <div style={{ position: 'absolute', top: 6, left: 6, width: 14, height: 14, borderTop: '2px solid rgba(255,210,63,.5)', borderLeft: '2px solid rgba(255,210,63,.5)' }} />
+            <div style={{ position: 'absolute', top: 6, right: 6, width: 14, height: 14, borderTop: '2px solid rgba(255,210,63,.5)', borderRight: '2px solid rgba(255,210,63,.5)' }} />
+            <div style={{ position: 'absolute', bottom: 6, left: 6, width: 14, height: 14, borderBottom: '2px solid rgba(255,210,63,.5)', borderLeft: '2px solid rgba(255,210,63,.5)' }} />
+            <div style={{ position: 'absolute', bottom: 6, right: 6, width: 14, height: 14, borderBottom: '2px solid rgba(255,210,63,.5)', borderRight: '2px solid rgba(255,210,63,.5)' }} />
+          </>
+        )}
 
         {/* Label + value */}
         <div style={{ position: 'relative', marginBottom: 16 }}>
@@ -549,7 +549,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
         </div>
         {/* 미로그인 시 HERO 박스 전체에 dim+blur 오버레이 + 로그인 CTA */}
         {!isLoggedIn && <PortfolioLoginGate />}
-      </div>
+      </Panel>
 
       {/* ═══ ACTION ZONE: SEARCH + SHORTCUTS ═══ */}
       <div style={{ margin: '0 var(--gap) var(--cg)' }}>
@@ -589,19 +589,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       </div>
 
       {/* ═══ LEVEL · COMPACT ═══ — 한 줄로 LV/XP/포인트 모두 표시. */}
-      <div
-        style={{
-          margin: '0 var(--gap) var(--cg)',
-          padding: '10px 14px',
-          ...(isClean
-            ? CLEAN_BOX
-            : {
-                background: 'var(--white)',
-                boxShadow:
-                  '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.9),4px 4px 0 var(--ink)',
-              }),
-        }}
-      >
+      <Panel style={{ margin: '0 var(--gap) var(--cg)', padding: '10px 14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
@@ -638,7 +626,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
             🪙{POINTS.toLocaleString()}
           </div>
         </div>
-      </div>
+      </Panel>
 
       {/* ═══ 2×2 KEY METRICS ═══ */}
       <div className="sect">
@@ -657,31 +645,46 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
           <div className="sect-hd"><h2>게임별 현황</h2></div>
           {/* Game selector */}
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 10, paddingBottom: 2 }}>
-            {['전체', ...gameDist.map((x) => x.g)].map((g) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => setActiveGame(g)}
-                style={{
-                  flexShrink: 0, fontFamily: 'var(--f1)', fontSize: 10, padding: '6px 11px', cursor: 'pointer',
-                  background: activeGame === g ? 'var(--ink)' : (g !== '전체' ? GAME_COLORS[g] || 'var(--white)' : 'var(--white)'),
-                  color: activeGame === g ? 'var(--gold)' : (g !== '전체' ? 'var(--white)' : 'var(--ink)'),
-                  boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-                  border: 'none', letterSpacing: .3,
-                }}
-              >
-                {g === '전체' ? 'ALL' : g}
-              </button>
-            ))}
+            {['전체', ...gameDist.map((x) => x.g)].map((g) => {
+              const on = activeGame === g;
+              const gameColor = g !== '전체' ? GAME_COLORS[g] || 'var(--white)' : 'var(--white)';
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setActiveGame(g)}
+                  style={{
+                    flexShrink: 0, fontFamily: 'var(--f1)', fontSize: 10, padding: '6px 11px', cursor: 'pointer',
+                    letterSpacing: .3,
+                    ...(isClean
+                      ? {
+                          borderRadius: 'var(--r-pill)',
+                          border: `1px solid ${on ? 'transparent' : 'var(--pap3)'}`,
+                          background: on ? (g !== '전체' ? gameColor : 'var(--accent)') : 'var(--white)',
+                          color: on ? 'var(--white)' : 'var(--ink2)',
+                          fontWeight: 700,
+                          boxShadow: 'none',
+                        }
+                      : {
+                          border: 'none',
+                          background: on ? 'var(--ink)' : gameColor,
+                          color: on ? 'var(--gold)' : (g !== '전체' ? 'var(--white)' : 'var(--ink)'),
+                          boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
+                        }),
+                  }}
+                >
+                  {g === '전체' ? 'ALL' : g}
+                </button>
+              );
+            })}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {(activeGame === '전체' ? gameDist : gameDist.filter((x) => x.g === activeGame)).map(({ g, n, val }) => {
               const pct = owned.length > 0 ? Math.round((n / owned.length) * 100) : 0;
               const gGraded = owned.filter((c) => c.game === g && c.grade !== null).length;
               return (
-                <div key={g} style={{
-                  background: 'var(--white)', padding: '12px 12px',
-                  boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.14),4px 4px 0 var(--ink)',
+                <Panel key={g} style={{
+                  padding: '12px 12px',
                   borderTop: `4px solid ${GAME_COLORS[g] || 'var(--ink)'}`,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
@@ -710,7 +713,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
                       🏆 그레이딩 {gGraded}건
                     </div>
                   )}
-                </div>
+                </Panel>
               );
             })}
           </div>
@@ -731,13 +734,11 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
               const priceText = r.minPrice > 0 ? format(r.minPrice) : '—';
               const showJp = r.localizedName && r.localizedName !== r.shortName;
               return (
-                <Link
+                <Panel
                   key={r.apparelId}
                   href={`/cards/snkrdunk/${r.apparelId}`}
                   style={{
-                    flexShrink: 0, width: 108, cursor: 'pointer', textDecoration: 'none', color: 'inherit',
-                    background: 'var(--white)',
-                    boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.7),5px 5px 0 var(--ink)',
+                    flexShrink: 0, width: 108, cursor: 'pointer', overflow: 'hidden',
                     borderTop: `4px solid ${bg}`,
                   }}
                 >
@@ -757,7 +758,8 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
                     )}
                   </div>
                   <div style={{
-                    padding: '7px 8px 9px', borderTop: '3px solid var(--ink)',
+                    padding: '7px 8px 9px',
+                    borderTop: isClean ? '1px solid var(--pap3)' : '3px solid var(--ink)',
                     display: 'flex', flexDirection: 'column',
                   }}>
                     <div style={{ minHeight: 16, marginBottom: 5 }}>
@@ -790,7 +792,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
                       {r.listingCountText ? `매물 ${r.listingCountText}건` : ''}
                     </div>
                   </div>
-                </Link>
+                </Panel>
               );
             })}
           </div>
@@ -800,19 +802,23 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       {/* ═══ ACTIVITY LOG ═══ */}
       <div className="sect">
         <div className="sect-hd"><h2>최근 활동</h2></div>
-        <div style={{
-          background: 'var(--white)', padding: '14px 14px 6px',
-          boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,0,0,.12),5px 5px 0 var(--ink)',
-        }}>
+        <Panel style={{ padding: '14px 14px 6px' }}>
           {ACTIVITY.map((a, i) => (
             <div key={i} style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0',
-              borderBottom: i < ACTIVITY.length - 1 ? '2px solid var(--bg3)' : 'none',
+              borderBottom: i < ACTIVITY.length - 1
+                ? (isClean ? '1px solid var(--line2)' : '2px solid var(--bg3)')
+                : 'none',
             }}>
-              <div style={{
-                width: 32, height: 32, background: a.c, display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0,
-                boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.3),3px 3px 0 var(--ink)',
-              }}>
+              <div style={isClean
+                ? {
+                    width: 34, height: 34, borderRadius: 12, background: a.c, color: 'var(--white)',
+                    display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0,
+                  }
+                : {
+                    width: 32, height: 32, background: a.c, display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0,
+                    boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.3),3px 3px 0 var(--ink)',
+                  }}>
                 {a.icon}
               </div>
               <div style={{ flex: 1, fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: .3, lineHeight: 1.5 }}>{a.txt}</div>
@@ -822,7 +828,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
               </div>
             </div>
           ))}
-        </div>
+        </Panel>
       </div>
 
       <div className="bggap" />
@@ -840,8 +846,6 @@ interface BlockProps {
 }
 
 function Block({ label, value, sub, color, icon, href }: BlockProps) {
-  const { theme } = useTheme();
-  const isClean = theme === 'clean';
   const inner = (
     <>
       {icon && <div style={{ position: 'absolute', right: 10, top: 10, fontSize: 19, opacity: .15 }}>{icon}</div>}
@@ -878,31 +882,23 @@ function Block({ label, value, sub, color, icon, href }: BlockProps) {
       )}
     </>
   );
-  // 4 칸 동일 높이 — minHeight 로 통일.
+  // 4 칸 동일 높이 — minHeight 로 통일. 박스 테두리/그림자는 Panel 이 테마별로.
   const baseStyle: React.CSSProperties = {
     padding: '14px 12px',
     minHeight: 96,
     minWidth: 0,
-    ...(isClean
-      ? CLEAN_BOX
-      : {
-          background: 'var(--white)',
-          boxShadow:
-            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -4px 0 rgba(0,0,0,.14),5px 5px 0 var(--ink)',
-        }),
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-start',
     gap: 5,
     position: 'relative',
     overflow: 'hidden',
-    textDecoration: 'none',
-    color: 'inherit',
   };
-  if (href) {
-    return <Link href={href} style={baseStyle}>{inner}</Link>;
-  }
-  return <div style={baseStyle}>{inner}</div>;
+  return (
+    <Panel href={href} style={baseStyle}>
+      {inner}
+    </Panel>
+  );
 }
 
 function PackHitsSectionBlock({ pack }: { pack: PackRow }) {

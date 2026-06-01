@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Price } from '@/components/Price';
 import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
+import { Panel } from '@/components/ui/Panel';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
 import { CardActions } from '@/components/CardActions';
@@ -293,16 +294,14 @@ export default async function Page({ params }: PageProps) {
       <div style={{ height: 14 }} />
 
       {/* HERO: image + name + price */}
-      <div
+      <Panel
         style={{
           margin: '0 var(--gap) var(--cg)',
-          background: 'var(--white)',
           padding: 16,
           display: 'flex',
           gap: 14,
-          boxShadow:
-            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)',
         }}
+        pixelShadow="-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)"
       >
         <SnkrdunkImageZoom src={apparel.imageUrl ?? null} alt={displayName} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -411,7 +410,7 @@ export default async function Page({ params }: PageProps) {
             {apparel.productNumber ? ` · ${apparel.productNumber}` : ''}
           </div>
         </div>
-      </div>
+      </Panel>
 
       {/* 액션 — 컬렉션 추가 / 관심 / 스니덩크 외부링크 (한 줄, 컴팩트) */}
       <CardActions apparelId={apparelId} cardName={koDisplayName} />
@@ -422,16 +421,12 @@ export default async function Page({ params }: PageProps) {
           <h2>시세 차트</h2>
           <span className="more">{sectionMore}</span>
         </div>
-        <div
-          style={{
-            background: 'var(--white)',
-            padding: 14,
-            boxShadow:
-              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)',
-          }}
+        <Panel
+          style={{ padding: 14 }}
+          pixelShadow="-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)"
         >
           <PriceChart points={points} unitLabel={unitLabel} rawCount={allPoints.length} />
-        </div>
+        </Panel>
       </div>
 
       {/* Recent transactions — log style, one row per entry */}
@@ -440,13 +435,9 @@ export default async function Page({ params }: PageProps) {
           <h2>최근 거래내역</h2>
           <span className="more">{salesHistory?.history.length ?? 0}건</span>
         </div>
-        <div
-          style={{
-            background: 'var(--ink2)',
-            padding: '6px 10px',
-            boxShadow:
-              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
-          }}
+        <Panel
+          style={{ background: 'var(--ink2)', padding: '6px 10px' }}
+          pixelShadow="-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)"
         >
           {salesHistory && salesHistory.history.length > 0 ? (
             salesHistory.history.slice(0, 20).map((h, i, arr) => {
@@ -525,7 +516,7 @@ export default async function Page({ params }: PageProps) {
               거래내역이 없습니다
             </div>
           )}
-        </div>
+        </Panel>
       </div>
 
       <div style={{ height: 60 }} />

@@ -15,6 +15,7 @@ import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import type { MyCardWithPrice } from '@/lib/queries';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/components/PriceModeProvider';
+import { useTheme } from '@/components/ThemeProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { CardSpotlightModal, type CardSpotlightData } from '@/components/CardSpotlightModal';
@@ -68,6 +69,8 @@ const GAME_COLORS: Record<string, string> = {
 export function MyCardsScreen({ cards: initial }: Props) {
   const { format } = useCurrency();
   const { mode: priceMode, setMode: setPriceMode } = usePriceMode();
+  const { theme } = useTheme();
+  const isClean = theme === 'clean';
   const [cards, setCards] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -338,26 +341,34 @@ export function MyCardsScreen({ cards: initial }: Props) {
           ))}
         </div>
         {cards.some((c) => (c.pricePsa10Jpy ?? 0) > 0) && (
-          <div style={{ display: 'flex', boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)' }}>
-            {(['single', 'psa10'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setPriceMode(m)}
-                style={{
-                  padding: '6px 9px',
-                  border: 0,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--f1)',
-                  fontSize: 9,
-                  letterSpacing: 0.3,
-                  background: priceMode === m ? 'var(--gold)' : 'var(--white)',
-                  color: priceMode === m ? 'var(--ink)' : 'var(--ink3)',
-                }}
-              >
-                {m === 'single' ? '싱글' : 'PSA10'}
-              </button>
-            ))}
+          <div style={{
+            display: 'flex',
+            ...(isClean
+              ? { border: '1px solid var(--pap3)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }
+              : { boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)' }),
+          }}>
+            {(['single', 'psa10'] as const).map((m) => {
+              const on = priceMode === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setPriceMode(m)}
+                  style={{
+                    padding: '6px 9px',
+                    border: 0,
+                    cursor: 'pointer',
+                    fontFamily: 'var(--f1)',
+                    fontSize: 9,
+                    letterSpacing: 0.3,
+                    background: on ? (isClean ? 'var(--accent)' : 'var(--gold)') : 'var(--white)',
+                    color: on ? (isClean ? 'var(--white)' : 'var(--ink)') : 'var(--ink3)',
+                  }}
+                >
+                  {m === 'single' ? '싱글' : 'PSA10'}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -428,6 +439,8 @@ interface FavRow {
 
 function FavoritesView() {
   const { format } = useCurrency();
+  const { theme } = useTheme();
+  const isClean = theme === 'clean';
   const [rows, setRows] = useState<FavRow[]>([]);
   const [state, setState] = useState<'loading' | 'done' | 'error'>('loading');
 
@@ -506,7 +519,7 @@ function FavoritesView() {
                   </div>
                 )}
               </div>
-              <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
+              <div style={{ padding: '7px 8px 9px', borderTop: isClean ? '1px solid var(--pap3)' : '3px solid var(--ink)' }}>
                 <div
                   style={{
                     fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.2, marginBottom: 5,
@@ -519,10 +532,12 @@ function FavoritesView() {
                 <div
                   style={{
                     display: 'inline-block', maxWidth: '100%', padding: '3px 6px',
-                    background: has ? 'var(--ink)' : 'var(--pap2)',
-                    color: has ? 'var(--gold)' : 'var(--ink3)',
+                    background: has ? (isClean ? 'var(--accent)' : 'var(--ink)') : 'var(--pap2)',
+                    color: has ? (isClean ? 'var(--white)' : 'var(--gold)') : 'var(--ink3)',
                     fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: 0.3, whiteSpace: 'nowrap',
-                    boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                    ...(isClean
+                      ? { borderRadius: 'var(--r-sm)' }
+                      : { boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)' }),
                   }}
                 >
                   {has ? format(f.minPriceJpy) : '시세 없음'}

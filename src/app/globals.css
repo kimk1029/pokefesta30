@@ -3499,3 +3499,50 @@ a{color:inherit;text-decoration:none;}
 [data-theme="clean"] .snk-act .snk-act-icon{font-size:16px;}
 [data-theme="clean"] .snk-act .snk-act-label{font-size:11px;}
 [data-theme="clean"] .snk-act .snk-act-desc{font-size:10px;}
+
+/* ════════ clean: 내 컬렉션 탭·필터·뷰토글·썸네일 정리 (위 규칙들보다 뒤 → 우선) ════════ */
+/* 세그먼트 컨트롤(내카드/관심카드, 바둑판/리스트/앨범/필름) — 어두운 트랙 → 밝은 알약 트랙 */
+[data-theme="clean"] .cv-subseg{
+  background:var(--pap2);padding:4px;gap:4px;
+  border:1px solid var(--pap3);border-radius:var(--r-pill);box-shadow:none;}
+[data-theme="clean"] .cv-subseg button{
+  background:transparent;color:var(--ink3);border-radius:var(--r-pill);font-weight:700;
+  box-shadow:none;transition:background .12s ease,color .12s ease;}
+[data-theme="clean"] .cv-subseg button.on{
+  background:var(--white);color:var(--accent);box-shadow:0 1px 3px rgba(16,18,22,.12);}
+
+/* 필터 칩 — 알약 + 옅은 보더, 활성=에메랄드. 행이 세로로 잘리지 않게 위/아래 패딩 확보 */
+[data-theme="clean"] .cv-chip-row{padding-top:3px;padding-bottom:8px;}
+[data-theme="clean"] .cv-chip{
+  background:var(--white);border:1px solid var(--pap3);color:var(--ink2);
+  padding:7px 12px;transform:none;box-shadow:none;}
+[data-theme="clean"] .cv-chip.on{
+  background:var(--accent);border-color:transparent;color:var(--white);transform:none;box-shadow:none;}
+
+/* 정렬/뷰 버튼 — 작은 라운드, 하드 섀도우 제거, 활성=에메랄드 */
+[data-theme="clean"] .cv-sort-btn,
+[data-theme="clean"] .cv-view-btn{
+  background:var(--white);border:1px solid var(--pap3);border-radius:var(--r-sm);
+  box-shadow:none;color:var(--ink2);}
+[data-theme="clean"] .cv-sort-btn.on,
+[data-theme="clean"] .cv-view-btn.on{
+  background:var(--accent);border-color:transparent;color:var(--white);}
+
+/* 리스트 썸네일 — 카드와 동일하게 사각(라운드 제거) */
+[data-theme="clean"] .cv-list-thumb{
+  border:1px solid var(--pap3);border-radius:0;
+  box-shadow:0 1px 3px rgba(16,18,22,.12);overflow:hidden;}
+[data-theme="clean"] .cv-list-thumb img{border-radius:0;}
+
+/* 바둑판/리스트/앨범/필름 카드·타일 — 과한 24px 섀도우 → 잔잔하게, 컨테이너 밖 비침 방지 */
+[data-theme="clean"] .cv-list-card,
+[data-theme="clean"] .cv-binder-item,
+[data-theme="clean"] .cv-album-tile{
+  box-shadow:0 1px 3px rgba(16,18,22,.10),0 4px 12px rgba(16,18,22,.06);}
+/* 타일 내부 하드 잉크 구분선 → 옅은 라인 */
+[data-theme="clean"] .cv-binder-info,
+[data-theme="clean"] .cv-album-meta{border-top:1px solid var(--pap3);}
+/* 바인더(바둑판) 배경 패널 — 어두운 회색 면 → 밝은 면 */
+[data-theme="clean"] .cv-binder{background:var(--pap2);}
+[data-theme="clean"] .cv-album-img,
+[data-theme="clean"] .cv-binder-img{box-shadow:none;}

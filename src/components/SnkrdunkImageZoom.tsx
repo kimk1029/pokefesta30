@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTheme } from '@/components/ThemeProvider';
 
 interface Props {
   src: string | null;
@@ -9,6 +10,8 @@ interface Props {
 
 export function SnkrdunkImageZoom({ src, alt }: Props) {
   const [open, setOpen] = useState(false);
+  const { theme } = useTheme();
+  const isClean = theme === 'clean';
 
   useEffect(() => {
     if (!open) return;
@@ -40,10 +43,11 @@ export function SnkrdunkImageZoom({ src, alt }: Props) {
           display: 'grid',
           placeItems: 'center',
           overflow: 'hidden',
-          border: 'none',
           padding: 0,
           cursor: src ? 'zoom-in' : 'default',
-          boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)',
+          ...(isClean
+            ? { border: '1px solid var(--pap3)', borderRadius: 0, boxShadow: '0 1px 3px rgba(16,18,22,.12)' }
+            : { border: 'none', boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)' }),
         }}
       >
         {src ? (
