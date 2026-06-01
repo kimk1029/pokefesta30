@@ -50,6 +50,7 @@
  */
 
 import TCGdex from '@tcgdex/sdk';
+import { getCachedJpyKrw } from './fxRate.ts';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -313,10 +314,14 @@ const FX = {
 function priceSummary(pricing) {
   if (!pricing) return null;
   const cm = pricing.cardmarket;
-  if (cm && typeof cm.avg === 'number') {
+  // 헤드라인 값은 "현재 시세"에 가까운 trend → avg30 → avg7 순으로, 없을 때만 전기간
+  // 평균(avg). avg(전기간)는 현재가와 동떨어져 시세가 틀리게 보이던 원인.
+  const cmValue =
+    cm && (cm.trend ?? cm.avg30 ?? cm.avg7 ?? cm.avg1 ?? cm.avg);
+  if (cm && typeof cmValue === 'number') {
     return withRegions({
       source: 'cardmarket',
-      value: cm.avg,
+      value: cmValue,
       currency: /** @type {'EUR'} */ ('EUR'),
       low: cm.low ?? null,
       trend: cm.trend ?? null,
@@ -347,9 +352,10 @@ function priceSummary(pricing) {
 function withRegions(summary) {
   const eur = summary.currency === 'EUR' ? summary.value : null;
   const usd = summary.currency === 'USD' ? summary.value : null;
-  // Cross-rate from one anchor — pick whichever the source supplies.
+  // EUR/USD → JPY 는 정적 근사(라이브 EUR/USD 환율 소스가 없음), JPY → KRW 는
+  // 앱 전역과 동일한 라이브 환율(/api/fx 와 같은 소스)을 써서 KRW 표시를 일관되게.
   const jpy = eur != null ? eur * FX.EUR_JPY : usd != null ? usd * FX.USD_JPY : null;
-  const krw = eur != null ? eur * FX.EUR_KRW : usd != null ? usd * FX.USD_KRW : null;
+  const krw = jpy != null ? jpy * getCachedJpyKrw() : null;
   return {
     ...summary,
     byRegion: {

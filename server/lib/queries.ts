@@ -22,6 +22,7 @@ import type {
   TradeType,
 } from '@/lib/types';
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
+import { computeApparelPrices } from '@/lib/snkrdunkPrice';
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -352,16 +353,8 @@ export async function getMyCardsWithPrices(
         .filter((v): v is number => typeof v === 'number'),
     ),
   );
-  // apparel meta + 평균 시세. salesHistory 를 PSA10 vs raw 로 분리해서
-  // 각각 중앙값을 계산. 데이터 부족 시 apparel.minPrice 로 폴백.
-  const PSA10_RE = /PSA\s*10\b/i;
-  const PSA_ANY_RE = /PSA\s*\d+/i;
-  const median = (arr: number[]): number => {
-    if (arr.length === 0) return 0;
-    const sorted = [...arr].sort((a, b) => a - b);
-    return sorted[Math.floor(sorted.length / 2)];
-  };
-
+  // apparel meta + 시세. 계산은 [[snkrdunkPrice]] computeApparelPrices 로 통일 —
+  // 스캔 매칭 후보와 같은 함수를 써서 같은 카드에 같은 가격을 보인다(불일치 방지).
   const apparelInfo = new Map<
     number,
     {
@@ -383,37 +376,11 @@ export async function getMyCardsWithPrices(
             fetchSnkrdunkSalesChart(id).catch(() => null),
           ]);
           if (!a) return;
-          const history = hist?.history ?? [];
-          // raw (non-PSA) vs PSA10 분리. condition + label 둘 다 검사.
-          const pickPrices = (predicate: (badge: string) => boolean) =>
-            history
-              .filter((h) => typeof h.price === 'number' && h.price > 0)
-              .filter((h) => predicate((h.condition || h.label || '').trim()))
-              .map((h) => h.price)
-              .slice(0, 7);
-          const psa10Prices = pickPrices((b) => PSA10_RE.test(b));
-          // 싱글(raw) 단가는 PSA 등급 체결을 제외한 최근 체결 중앙값 기준.
-          const rawMedian = median(pickPrices((b) => !PSA_ANY_RE.test(b)));
-          // 주의: sales-chart/used 시리즈에는 PSA 등급 체결이 섞여 들어와, 직전에
-          // 등급 거래가 있으면 차트 끝점이 등급가로 튄다(예: 어제 PSA10 한 건 →
-          // 끝점 29800). raw 중앙값의 2.5배를 넘는 포인트는 등급 거래로 보고
-          // trend·단가에서 제외해 싱글 시세 오염을 막는다.
-          const rawCeil = rawMedian > 0 ? rawMedian * 2.5 : Infinity;
-          const trendJpy = (chart?.points ?? [])
-            .map((p) => p[1])
-            .filter((n) => typeof n === 'number' && n > 0 && n <= rawCeil);
-          // raw 체결이 없는데 PSA 등급 체결만 있는 카드는 차트 끝점/최저매물이
-          // 등급가로 오염되므로(rawCeil=Infinity로 필터도 못 함) 폴백하지 않는다.
-          // → 싱글 시세 없음(0)으로 두어 싱글 합계에 PSA가가 섞이지 않게 한다.
-          const hasGradedSales = pickPrices((b) => PSA_ANY_RE.test(b)).length > 0;
-          let single = rawMedian;
-          if (single === 0 && !hasGradedSales) {
-            single = trendJpy.length > 0 ? trendJpy[trendJpy.length - 1] : 0;
-            if (single === 0 && typeof a.minPrice === 'number' && a.minPrice > 0) {
-              single = a.minPrice; // 데이터 없으면 현재 최저매물 폴백
-            }
-          }
-          const psa10 = median(psa10Prices);
+          const { single, psa10, trendJpy } = computeApparelPrices(
+            hist?.history ?? [],
+            chart?.points ?? [],
+            a.minPrice ?? 0,
+          );
           apparelInfo.set(id, {
             name: a.localizedName || a.name || '',
             imageUrl: a.imageUrl,

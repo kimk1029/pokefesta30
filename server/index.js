@@ -22,6 +22,7 @@ import { lookupCard, searchTcgdexByName } from './lib/lookup.js';
 import { lookupIllustrator, searchTcgdexByIllustrator } from './lib/illustrator.js';
 import { dominantNeonForUrl } from './lib/imageColor.js';
 import { matchSnkrdunkForCard } from './lib/snkrdunkMatch.js';
+import { fetchApparelSingleJpy } from '@/lib/snkrdunkPrice';
 import { buildCors } from './middleware/cors.js';
 import authRouter from './routes/auth.js';
 import cardPacksRouter from './routes/cardPacks.ts';
@@ -467,6 +468,12 @@ app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
   }
 
   if (snkrdunk) {
+    // 가격은 "최저 매물가(minPrice)" 대신 "최근 raw 체결 중앙값" 으로 — 내 컬렉션/
+    // 포트폴리오(getMyCardsWithPrices)와 같은 함수([[snkrdunkPrice]])를 써서 같은
+    // 카드에 같은 시세를 보인다. 체결 데이터가 없으면 매칭이 준 minPrice 로 폴백.
+    const medianJpy = await fetchApparelSingleJpy(snkrdunk.apparelId).catch(() => 0);
+    const snkrPriceJpy = medianJpy > 0 ? medianJpy : (snkrdunk.priceJpy ?? 0);
+
     // Build a dedicated snkrdunk-match candidate at the top of the list,
     // sourced entirely from snkrdunk (image, JPY price, JP localized name).
     // This stops the previous "smear over all candidates" behavior that
@@ -486,24 +493,24 @@ app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
       language: 'ja',
       imageSmall: snkrdunk.imageUrl ?? null,
       imageLarge: snkrdunk.imageUrl ?? null,
-      priceSummary: typeof snkrdunk.priceJpy === 'number' && snkrdunk.priceJpy > 0
+      priceSummary: snkrPriceJpy > 0
         ? {
             source: 'snkrdunk',
-            value: snkrdunk.priceJpy,
+            value: snkrPriceJpy,
             currency: 'JPY',
             low: null,
             trend: null,
             byRegion: {
-              jpy: snkrdunk.priceJpy,
+              jpy: snkrPriceJpy,
               krw: null,
               eur: null,
               usd: null,
             },
           }
         : null,
-      price: typeof snkrdunk.priceJpy === 'number' && snkrdunk.priceJpy > 0
+      price: snkrPriceJpy > 0
         ? {
-            marketPrice: snkrdunk.priceJpy,
+            marketPrice: snkrPriceJpy,
             currency: 'JPY',
             source: 'snkrdunk',
             updatedAt: new Date().toISOString(),
@@ -813,12 +820,22 @@ function tcgdexCardToCandidate(card, source) {
     imageLarge: card.imageLarge ?? null,
     priceSummary: card.priceSummary ?? null,
     price: card.priceSummary?.byRegion
-      ? {
-          marketPrice: card.priceSummary.byRegion.jpy ?? card.priceSummary.byRegion.krw ?? null,
-          currency: 'JPY',
-          source: card.priceSummary.source,
-          updatedAt: new Date().toISOString(),
-        }
+      ? (() => {
+          // 값과 통화 라벨을 일치시킨다 — jpy 우선, 없으면 krw. (이전엔 krw 값에도
+          // 'JPY' 라벨이 붙어 ¥ 로 잘못 표시되던 버그)
+          const br = card.priceSummary.byRegion;
+          const jpy = br.jpy ?? null;
+          const krw = br.krw ?? null;
+          const useJpy = typeof jpy === 'number' && jpy > 0;
+          const marketPrice = useJpy ? jpy : krw;
+          if (marketPrice == null) return undefined;
+          return {
+            marketPrice,
+            currency: useJpy ? 'JPY' : 'KRW',
+            source: card.priceSummary.source,
+            updatedAt: new Date().toISOString(),
+          };
+        })()
       : undefined,
   };
 }

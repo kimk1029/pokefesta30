@@ -49,6 +49,19 @@ export interface JpyKrwRate {
   source: 'exchangerate.host' | 'frankfurter.app' | 'fallback' | 'cache';
 }
 
+/**
+ * 동기 접근자 — 마지막으로 캐시된 JPY→KRW (없으면 폴백). priceSummary 같은
+ * 동기 코드에서 환산용. 호출 시 캐시가 비어/만료됐으면 백그라운드 갱신을 건다.
+ */
+export function getCachedJpyKrw(): number {
+  const now = Date.now();
+  if (!cached || now - cached.fetchedAt >= TTL_MS) {
+    // fire-and-forget 갱신 — 이번 호출은 폴백/직전값으로 즉시 반환.
+    void getJpyKrwRate().catch(() => undefined);
+  }
+  return cached?.rate ?? FALLBACK_JPY_KRW;
+}
+
 export async function getJpyKrwRate(): Promise<JpyKrwRate> {
   const now = Date.now();
   if (cached && now - cached.fetchedAt < TTL_MS) {
