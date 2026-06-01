@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useCurrency } from '@/components/CurrencyProvider';
+import { useTheme } from '@/components/ThemeProvider';
 import { ListAdRow } from '@/components/ListAdRow';
 import { autoPriceSize } from '../../../../../shared/util/autoPriceSize';
 import type { BunjangItem } from '@/lib/bunjang';
@@ -225,6 +226,8 @@ function TabButton({
   loading?: boolean;
   onClick: () => void;
 }) {
+  const { theme } = useTheme();
+  const isClean = theme === 'clean';
   return (
     <button
       type="button"
@@ -232,16 +235,20 @@ function TabButton({
       style={{
         flex: 1,
         padding: '8px 0',
-        border: 'none',
+        border: isClean ? `1px solid ${active ? 'transparent' : 'var(--pap3)'}` : 'none',
         cursor: 'pointer',
         textAlign: 'center',
-        background: active ? 'var(--ink)' : 'var(--white)',
-        color: active ? 'var(--gold)' : 'var(--ink)',
+        background: active ? (isClean ? 'var(--accent)' : 'var(--ink)') : 'var(--white)',
+        color: active ? (isClean ? 'var(--white)' : 'var(--gold)') : (isClean ? 'var(--ink2)' : 'var(--ink)'),
         fontFamily: 'var(--f1)',
         letterSpacing: 0.5,
-        boxShadow: active
-          ? '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 var(--ink2),5px 5px 0 var(--gold-dk)'
-          : '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),4px 4px 0 var(--ink)',
+        ...(isClean
+          ? { borderRadius: 'var(--r-sm)', boxShadow: active ? '0 1px 3px rgba(16,18,22,.12)' : 'none' }
+          : {
+              boxShadow: active
+                ? '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 var(--ink2),5px 5px 0 var(--gold-dk)'
+                : '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),4px 4px 0 var(--ink)',
+            }),
       }}
     >
       <div style={{ fontSize: 11 }}>{label}</div>
@@ -296,6 +303,8 @@ function StatusNote({ text }: { text: string }) {
 }
 
 function EmptyBox({ text }: { text: string }) {
+  const { theme } = useTheme();
+  const isClean = theme === 'clean';
   return (
     <div
       style={{
@@ -305,8 +314,9 @@ function EmptyBox({ text }: { text: string }) {
         fontFamily: 'var(--f1)',
         fontSize: 10,
         color: 'var(--ink3)',
-        boxShadow:
-          '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)',
+        ...(isClean
+          ? { border: '1px solid var(--pap3)', borderRadius: 'var(--r)', boxShadow: '0 1px 2px rgba(24,34,58,.04),0 10px 24px rgba(24,34,58,.06)' }
+          : { boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)' }),
       }}
     >
       {text}
@@ -470,6 +480,8 @@ function BunjangCard({ item }: { item: BunjangItem }) {
 }
 
 function SearchHitCard({ hit }: { hit: HydratedHit }) {
+  const { theme } = useTheme();
+  const isClean = theme === 'clean';
   const koTitle = hit.koName || hit.jpName;
   const jpTitle = hit.jpName && hit.jpName !== koTitle ? hit.jpName : null;
   const hasPrice = hit.minPrice > 0;
@@ -477,7 +489,7 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
     <Link
       href={`/cards/snkrdunk/${hit.apparelId}`}
       className="pack-grid-card"
-      style={{ borderTop: `4px solid ${ACCENT}` }}
+      style={isClean ? {} : { borderTop: `4px solid ${ACCENT}` }}
     >
       <div
         style={{
@@ -499,7 +511,7 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
           </div>
         )}
       </div>
-      <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
+      <div style={{ padding: '7px 8px 9px', borderTop: isClean ? '1px solid var(--pap3)' : '3px solid var(--ink)' }}>
         <div
           style={{
             fontFamily: 'var(--f1)',
@@ -558,6 +570,8 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
  */
 function PriceBox({ jpy, hasPrice }: { jpy: number; hasPrice: boolean }) {
   const { format } = useCurrency();
+  const { theme } = useTheme();
+  const isClean = theme === 'clean';
   const label = hasPrice ? format(jpy) : '시세 없음';
   return (
     <div
@@ -565,14 +579,15 @@ function PriceBox({ jpy, hasPrice }: { jpy: number; hasPrice: boolean }) {
         display: 'inline-block',
         maxWidth: '100%',
         padding: '3px 6px',
-        background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
-        color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
+        background: hasPrice ? (isClean ? 'var(--accent)' : 'var(--ink)') : 'var(--pap2)',
+        color: hasPrice ? (isClean ? 'var(--white)' : 'var(--gold)') : 'var(--ink3)',
         fontFamily: 'var(--f1)',
         fontSize: autoPriceSize(label, 11, 7),
         letterSpacing: 0.3,
         whiteSpace: 'nowrap',
-        boxShadow:
-          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+        ...(isClean
+          ? { borderRadius: 'var(--r-sm)' }
+          : { boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)' }),
       }}
     >
       {label}

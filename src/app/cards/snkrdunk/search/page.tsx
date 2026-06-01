@@ -42,61 +42,17 @@ export default async function Page({
       <TranslationTicker />
 
       {/* 검색 폼 */}
-      <form
-        method="get"
-        style={{
-          margin: 'var(--cg) var(--gap)',
-          padding: '14px 16px',
-          background: 'var(--ink)',
-          color: 'var(--white)',
-          boxShadow:
-            '-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),8px 8px 0 var(--yel-dk)',
-        }}
-      >
-        <div
-          style={{
-            fontFamily: 'var(--f1)',
-            fontSize: 10,
-            color: 'var(--yel)',
-            letterSpacing: 0.5,
-            marginBottom: 8,
-          }}
-        >
-          한국어로 카드명 입력 → 🇯🇵 스니덩 검색
-        </div>
+      <form method="get" className="ko-search-box">
+        <div className="ko-search-hint">한국어로 카드명 입력 → 🇯🇵 스니덩 검색</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             name="q"
             defaultValue={q}
             placeholder="예) 리자몽, 피카츄, 이브이"
             autoFocus
-            style={{
-              flex: 1,
-              padding: '10px 12px',
-              background: 'var(--white)',
-              border: 'none',
-              outline: 'none',
-              fontFamily: 'var(--f1)',
-              fontSize: 11,
-              color: 'var(--ink)',
-              letterSpacing: 0.3,
-              boxShadow: 'inset 2px 2px 0 rgba(0,0,0,.1),inset -2px -2px 0 rgba(255,255,255,.8)',
-            }}
+            className="ko-search-input"
           />
-          <button
-            type="submit"
-            style={{
-              padding: '0 16px',
-              background: 'var(--red)',
-              color: 'var(--white)',
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'var(--f1)',
-              fontSize: 11,
-              letterSpacing: 1,
-              boxShadow: 'inset 0 3px 0 var(--red-lt),inset 0 -3px 0 var(--red-dk)',
-            }}
-          >
+          <button type="submit" className="ko-search-submit">
             검색
           </button>
         </div>
@@ -120,20 +76,7 @@ export default async function Page({
       ) : (
         <>
           {/* 번역 결과 / 카운트 */}
-          <div
-            style={{
-              margin: '0 var(--gap) var(--cg)',
-              padding: '10px 14px',
-              background: 'var(--pap2)',
-              fontFamily: 'var(--f1)',
-              fontSize: 9,
-              color: 'var(--ink2)',
-              letterSpacing: 0.3,
-              lineHeight: 1.8,
-              boxShadow:
-                '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-            }}
-          >
+          <div className="search-panel search-panel--muted">
             입력: <b style={{ color: 'var(--ink)' }}>{q}</b>
             {ja && ja !== q ? (
               <>

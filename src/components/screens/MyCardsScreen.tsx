@@ -502,7 +502,7 @@ function FavoritesView() {
               key={f.id}
               href={`/cards/snkrdunk/${f.snkrdunkApparelId}`}
               className="pack-grid-card"
-              style={{ borderTop: '4px solid var(--gold)' }}
+              style={isClean ? {} : { borderTop: '4px solid var(--gold)' }}
             >
               <div style={{ aspectRatio: '63 / 88', background: 'var(--pap2)', overflow: 'hidden' }}>
                 {f.imageUrl ? (
@@ -589,10 +589,12 @@ function GridItem({
   onSpotlight: (c: DisplayCard, originEl: HTMLElement | null) => void;
 }) {
   const { format } = useCurrency();
+  const { theme } = useTheme();
+  const isClean = theme === 'clean';
   const label = priceLabel(c, format);
   const hasPrice = label !== null;
   return (
-    <div className="pack-grid-card" style={{ borderTop: `4px solid ${gameAccent(c.game)}`, minWidth: 0, position: 'relative' }}>
+    <div className="pack-grid-card" style={{ minWidth: 0, position: 'relative', ...(isClean ? {} : { borderTop: `4px solid ${gameAccent(c.game)}` }) }}>
       <Link
         href={detailHref(c)}
         style={{ display: 'block', textDecoration: 'none', color: 'inherit', position: 'relative' }}
@@ -616,7 +618,7 @@ function GridItem({
           )}
           {c.src.memo && <div className="cv-coll-noteflag" title={c.src.memo}>📝</div>}
         </div>
-        <div style={{ padding: '7px 8px 6px', borderTop: '3px solid var(--ink)' }}>
+        <div style={{ padding: '7px 8px 6px', borderTop: isClean ? '1px solid var(--pap3)' : '3px solid var(--ink)' }}>
           <div
             style={{
               fontFamily: 'var(--f1)',
@@ -639,13 +641,15 @@ function GridItem({
               display: 'inline-block',
               maxWidth: '100%',
               padding: '3px 6px',
-              background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
-              color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
+              background: hasPrice ? (isClean ? 'var(--accent)' : 'var(--ink)') : 'var(--pap2)',
+              color: hasPrice ? (isClean ? 'var(--white)' : 'var(--gold)') : 'var(--ink3)',
               fontFamily: 'var(--f1)',
               fontSize: autoPriceSize(hasPrice ? label : null, 11, 8),
               letterSpacing: 0.3,
               whiteSpace: 'nowrap',
-              boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+              ...(isClean
+                ? { borderRadius: 'var(--r-sm)' }
+                : { boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)' }),
             }}
           >
             {hasPrice ? label : '시세 없음'}
@@ -654,7 +658,7 @@ function GridItem({
       </Link>
       {/* 🔍 카드 스포트라이트 floating 버튼 — 이미지 우상단 */}
       <SpotlightButton onPress={(btn) => onSpotlight(c, btn.closest('.pack-grid-card')?.querySelector('.cv-spot-origin') as HTMLElement | null)} />
-      <div style={{ display: 'flex', borderTop: '3px solid var(--ink)' }}>
+      <div style={{ display: 'flex', borderTop: isClean ? '1px solid var(--pap3)' : '3px solid var(--ink)' }}>
         <Link
           href={`/write/trade?userCardId=${c.src.id}`}
           style={{

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { TranslationTicker } from '@/components/TranslationTicker';
 import { AppBar } from '@/components/ui/AppBar';
+import { Panel } from '@/components/ui/Panel';
 import { ListAdRow } from '@/components/ListAdRow';
 import { autoPriceSize } from '../../../../shared/util/autoPriceSize';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -118,28 +119,10 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       </div>
 
       {/* 검색 박스 */}
-      <form
-        method="get"
-        style={{
-          margin: '0 var(--gap) var(--cg)',
-          padding: '14px 16px',
-          background: 'var(--ink)',
-          color: 'var(--white)',
-          boxShadow:
-            '-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),8px 8px 0 var(--yel-dk)',
-        }}
-      >
+      <form method="get" className="ko-search-box" style={{ margin: '0 var(--gap) var(--cg)' }}>
         {/* form 이 GET 으로 제출될 때 mode 도 보존 */}
         <input type="hidden" name="mode" value={mode} />
-        <div
-          style={{
-            fontFamily: 'var(--f1)',
-            fontSize: 10,
-            color: 'var(--yel)',
-            letterSpacing: 0.5,
-            marginBottom: 8,
-          }}
-        >
+        <div className="ko-search-hint">
           {mode === 'illustrator'
             ? '일러스트레이터 이름 (한국어 OK)'
             : '카드명 / 카드 코드 입력 (한·영 혼용 OK)'}
@@ -154,33 +137,9 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
                 : '예) 잉어킹 홀로, 리자몽, SV1-045'
             }
             autoFocus
-            style={{
-              flex: 1,
-              padding: '10px 12px',
-              background: 'var(--white)',
-              border: 'none',
-              outline: 'none',
-              fontFamily: 'var(--f1)',
-              fontSize: 11,
-              color: 'var(--ink)',
-              letterSpacing: 0.3,
-              boxShadow: 'inset 2px 2px 0 rgba(0,0,0,.1),inset -2px -2px 0 rgba(255,255,255,.8)',
-            }}
+            className="ko-search-input"
           />
-          <button
-            type="submit"
-            style={{
-              padding: '0 16px',
-              background: 'var(--red)',
-              color: 'var(--white)',
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'var(--f1)',
-              fontSize: 11,
-              letterSpacing: 1,
-              boxShadow: 'inset 0 3px 0 var(--red-lt),inset 0 -3px 0 var(--red-dk)',
-            }}
-          >
+          <button type="submit" className="ko-search-submit">
             검색
           </button>
         </div>
@@ -206,20 +165,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       ) : (
         <>
           {/* 번역 결과 표시 */}
-          <div
-            style={{
-              margin: '0 var(--gap) var(--cg)',
-              padding: '10px 14px',
-              background: 'var(--pap2)',
-              fontFamily: 'var(--f1)',
-              fontSize: 9,
-              color: 'var(--ink2)',
-              letterSpacing: 0.3,
-              lineHeight: 1.8,
-              boxShadow:
-                '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-            }}
-          >
+          <div className="search-panel search-panel--muted">
             입력: <b style={{ color: 'var(--ink)' }}>{q}</b>
             <br />
             🇯🇵 JA: <b style={{ color: 'var(--red)' }}>{jaQuery}</b>
@@ -230,15 +176,8 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
           {/* SNKRDUNK */}
           <div className="sect">
             <div
-              style={{
-                padding: '10px 14px',
-                background: 'var(--white)',
-                fontFamily: 'var(--f1)',
-                fontSize: 11,
-                letterSpacing: 0.5,
-                boxShadow:
-                  '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-              }}
+              className="search-panel"
+              style={{ margin: 0, fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.5 }}
             >
               <div style={{ marginBottom: 8, color: 'var(--ink2)' }}>🇯🇵 스니덩 (SNKRDUNK)</div>
               <Link
@@ -274,15 +213,8 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
           {/* eBay 실시간 결과 */}
           <div className="sect">
             <div
-              style={{
-                padding: '10px 14px',
-                background: 'var(--white)',
-                fontFamily: 'var(--f1)',
-                fontSize: 11,
-                letterSpacing: 0.5,
-                boxShadow:
-                  '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-              }}
+              className="search-panel"
+              style={{ margin: 0, fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.5 }}
             >
               <div style={{ marginBottom: 8, color: 'var(--ink2)' }}>
                 🇺🇸 eBay {ebay ? `· ${ebay.sampleN.toLocaleString()}건 호가 샘플` : ''}
@@ -532,13 +464,9 @@ function IllustratorCardTile({ c }: { c: IllustratorCard }) {
   const img = c.imageSmall || c.imageLarge;
   const num = c.number && c.totalNumber ? `${c.number}/${c.totalNumber}` : c.number ?? '';
   return (
-    <div
-      style={{
-        background: 'var(--white)',
-        boxShadow:
-          '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-        overflow: 'hidden',
-      }}
+    <Panel
+      style={{ overflow: 'hidden' }}
+      pixelShadow="-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)"
     >
       <div
         style={{
@@ -561,7 +489,7 @@ function IllustratorCardTile({ c }: { c: IllustratorCard }) {
           </div>
         )}
       </div>
-      <div style={{ padding: '6px 8px 8px', borderTop: '3px solid var(--ink)' }}>
+      <div className="cv-card-divider" style={{ padding: '6px 8px 8px' }}>
         <div
           style={{
             fontFamily: 'var(--f1)',
@@ -594,6 +522,6 @@ function IllustratorCardTile({ c }: { c: IllustratorCard }) {
           {[c.setCode?.toUpperCase(), num, c.rarity].filter(Boolean).join(' · ')}
         </div>
       </div>
-    </div>
+    </Panel>
   );
 }

@@ -3546,3 +3546,44 @@ a{color:inherit;text-decoration:none;}
 [data-theme="clean"] .cv-binder{background:var(--pap2);}
 [data-theme="clean"] .cv-album-img,
 [data-theme="clean"] .cv-binder-img{box-shadow:none;}
+
+/* ════════ 전광판(번역 티커) — clean ════════ */
+[data-theme="clean"] .tl-ticker{
+  background:var(--white);border-bottom:1px solid var(--line2);box-shadow:none;}
+[data-theme="clean"] .tl-ticker-item{color:var(--ink3);}
+[data-theme="clean"] .tl-ticker-item b{color:var(--ink);}
+[data-theme="clean"] .tl-ticker-item .tl-arr{color:var(--accent);}
+
+/* ════════ 카드 검색 폼/결과 박스 (서버 컴포넌트라 className 으로 테마 처리) ════════ */
+/* 검색 입력 박스 (한국어 검색 폼) — 픽셀: 다크 박스 + 노랑 그림자 */
+.ko-search-box{margin:var(--cg) var(--gap);padding:14px 16px;
+  background:var(--ink);color:var(--white);
+  box-shadow:-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),8px 8px 0 var(--yel-dk);}
+.ko-search-hint{font-family:var(--f1);font-size:10px;color:var(--yel);letter-spacing:.5px;margin-bottom:8px;}
+.ko-search-input{flex:1;padding:10px 12px;background:var(--white);border:none;outline:none;
+  font-family:var(--f1);font-size:11px;color:var(--ink);letter-spacing:.3px;
+  box-shadow:inset 2px 2px 0 rgba(0,0,0,.1),inset -2px -2px 0 rgba(255,255,255,.8);}
+.ko-search-submit{padding:0 16px;background:var(--red);color:var(--white);border:none;cursor:pointer;
+  font-family:var(--f1);font-size:11px;letter-spacing:1px;
+  box-shadow:inset 0 3px 0 var(--red-lt),inset 0 -3px 0 var(--red-dk);}
+/* 번역 결과 / 플랫폼 패널 — 픽셀 흰 박스 */
+.search-panel{margin:0 var(--gap) var(--cg);padding:10px 14px;background:var(--white);
+  box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink);}
+.search-panel--muted{background:var(--pap2);font-family:var(--f1);font-size:9px;color:var(--ink2);
+  letter-spacing:.3px;line-height:1.8;}
+
+/* clean 오버라이드 — 모두 흰 면 + 옅은 보더 + 라운드 + 소프트 섀도우 */
+[data-theme="clean"] .ko-search-box{
+  background:var(--white);color:var(--ink);border:1px solid var(--pap3);border-radius:var(--r);
+  box-shadow:0 1px 2px rgba(24,34,58,.04),0 10px 24px rgba(24,34,58,.06);}
+[data-theme="clean"] .ko-search-hint{color:var(--ink3);}
+[data-theme="clean"] .ko-search-submit{
+  background:var(--accent);color:var(--white);border-radius:var(--r-sm);box-shadow:none;}
+[data-theme="clean"] .search-panel{
+  background:var(--white);border:1px solid var(--pap3);border-radius:var(--r);
+  box-shadow:0 1px 2px rgba(24,34,58,.04),0 10px 24px rgba(24,34,58,.06);}
+[data-theme="clean"] .search-panel--muted{background:var(--surf2);}
+
+/* 카드 타일 내부 구분선 — 픽셀: 하드 잉크 / clean: 옅은 라인 */
+.cv-card-divider{border-top:3px solid var(--ink);}
+[data-theme="clean"] .cv-card-divider{border-top:1px solid var(--pap3);}

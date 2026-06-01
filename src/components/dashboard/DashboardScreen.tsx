@@ -685,7 +685,8 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
               return (
                 <Panel key={g} style={{
                   padding: '12px 12px',
-                  borderTop: `4px solid ${GAME_COLORS[g] || 'var(--ink)'}`,
+                  // 클린에선 상단 색 액센트 제거 → 바로가기/핵심지표와 동일한 평평한 박스
+                  ...(isClean ? {} : { borderTop: `4px solid ${GAME_COLORS[g] || 'var(--ink)'}` }),
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
                     <div style={{ flex: 1, fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: .3 }}>{g}</div>
@@ -739,7 +740,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
                   href={`/cards/snkrdunk/${r.apparelId}`}
                   style={{
                     flexShrink: 0, width: 108, cursor: 'pointer', overflow: 'hidden',
-                    borderTop: `4px solid ${bg}`,
+                    ...(isClean ? {} : { borderTop: `4px solid ${bg}` }),
                   }}
                 >
                   <div style={{
