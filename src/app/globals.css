@@ -2985,7 +2985,11 @@ a{color:inherit;text-decoration:none;}
 
 
 /* clean: 하드 잉크 보더 → 옅은 회색/라운드 (box-shadow 시그니처로 안 잡힌 것들) */
-[data-theme="clean"] .pf-pokeball-spinner{border:1px solid var(--pap3);border-radius:var(--r-sm);}
+/* 포켓볼 스피너 → 일반 링 스피너 (배경 그라데이션 제거, 액센트 링) */
+[data-theme="clean"] .pf-pokeball-spinner{
+  background:none;border:3px solid var(--pap3);border-top-color:var(--accent);border-radius:50%;}
+[data-theme="clean"] .pf-pokeball-spinner--sm,
+[data-theme="clean"] .pf-pokeball-spinner--xs{border-width:2px;}
 [data-theme="clean"] .ticket::after{border:1px solid var(--pap3);border-radius:var(--r-sm);}
 [data-theme="clean"] .cv-strip-cell:not(:last-child){border-right:1px solid var(--pap3);}
 [data-theme="clean"] .cv-binder-info{border-top:1px solid var(--pap3);}
@@ -2999,7 +3003,7 @@ a{color:inherit;text-decoration:none;}
 [data-theme="clean"] .page-wrap{
   background:#E6E7E3;background-image:none;padding:20px 0;}
 [data-theme="clean"] .phone{
-  border-radius:38px;border:1px solid rgba(16,18,22,.04);
+  border-radius:0;border:1px solid rgba(16,18,22,.04);
   box-shadow:var(--sh-lg),0 0 0 1px rgba(16,18,22,.04);}
 @media (max-width:480px){
   [data-theme="clean"] .phone{border-radius:0;border:0;box-shadow:none;}

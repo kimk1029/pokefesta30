@@ -11,8 +11,90 @@ import { PortfolioLoginGate } from '@/components/PortfolioTotal';
 import { usePriceMode } from '@/components/PriceModeProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { useTheme } from '@/components/ThemeProvider';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
 import type { MyCardWithPrice } from '@/lib/queries';
+
+// ── 클린 테마 공통 박스/아이콘 ──────────────────────────────────────────
+// 픽셀 테마는 인라인 하드 잉크 box-shadow 를 쓰는데, 인라인이라 CSS [data-theme="clean"]
+// 오버라이드가 닿지 않는다. 그래서 클린일 땐 컴포넌트에서 직접 동일한 클린 박스 스타일을
+// 적용해, 카드검색 인풋·바로가기·레벨·핵심지표 박스가 모두 같은 디자인이 되도록 한다.
+const CLEAN_BOX: React.CSSProperties = {
+  background: 'var(--white)',
+  border: '1px solid var(--pap3)',
+  borderRadius: 'var(--r)',
+  boxShadow: '0 1px 2px rgba(24,34,58,.04),0 10px 24px rgba(24,34,58,.06)',
+};
+
+// 바로가기 색 키 → 클린 라인 아이콘 색(강/소프트 면).
+const CLEAN_ICON_COLORS: Record<string, { fg: string; bg: string }> = {
+  'var(--grn)': { fg: 'var(--accent)', bg: 'var(--accent-soft)' },
+  'var(--gold)': { fg: 'var(--gold)', bg: 'var(--gold-soft)' },
+  'var(--blu)': { fg: 'var(--blu)', bg: 'var(--blu-soft)' },
+  'var(--red)': { fg: 'var(--red)', bg: 'var(--red-soft)' },
+};
+
+const lineIcon = {
+  width: 22,
+  height: 22,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.8,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
+function ScanLineIcon() {
+  return (
+    <svg {...lineIcon}>
+      <path d="M4 9V6.5A1.5 1.5 0 0 1 5.5 5H8" />
+      <path d="M16 5h2.5A1.5 1.5 0 0 1 20 6.5V9" />
+      <path d="M20 15v2.5a1.5 1.5 0 0 1-1.5 1.5H16" />
+      <path d="M8 19H5.5A1.5 1.5 0 0 1 4 17.5V15" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+function PriceLineIcon() {
+  return (
+    <svg {...lineIcon}>
+      <path d="M4 13.5 11.5 6H18a1 1 0 0 1 1 1v6.5L11.5 21z" />
+      <circle cx="14.5" cy="9.5" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+function AuctionLineIcon() {
+  return (
+    <svg {...lineIcon}>
+      <path d="M13.5 3.5 19 9l-2.5 2.5L11 6z" />
+      <path d="M11.5 7.5 5 14" />
+      <path d="M8 10.5 12 14.5" />
+      <path d="M4 20.5h9" />
+    </svg>
+  );
+}
+function MarketLineIcon() {
+  return (
+    <svg {...lineIcon}>
+      <path d="M4.5 9 6 5h12l1.5 4" />
+      <path d="M4.5 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 3 0" />
+      <path d="M5.5 11v8h13v-8" />
+      <path d="M10 19v-4h4v4" />
+    </svg>
+  );
+}
+function TradeLineIcon() {
+  return (
+    <svg {...lineIcon}>
+      <path d="M5 8h12" />
+      <path d="M14 5 17 8l-3 3" />
+      <path d="M19 16H7" />
+      <path d="M10 13 7 16l3 3" />
+    </svg>
+  );
+}
 
 export type SnkrdunkCategory = 'SAR' | '프로모' | 'SR' | '원피스';
 
@@ -229,6 +311,8 @@ function fmt(n: number): string {
 
 export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows = [], packs = [] }: Props) {
   const { format } = useCurrency();
+  const { theme } = useTheme();
+  const isClean = theme === 'clean';
   const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
   const [activeGame, setActiveGame] = useState<string>('전체');
 
@@ -477,22 +561,30 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
         <div className="sect-hd" style={{ marginBottom: 8 }}><h2>바로가기</h2></div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 6 }}>
           {([
-            { icon: '📷' as ReactNode, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
-            { icon: '¥' as ReactNode, lb: '시세확인', bg: 'var(--gold)', href: '/cards/packs' },
-            { icon: '🔨' as ReactNode, lb: 'MVC경매', bg: 'var(--blu)', href: '/cards/mvc-auction' },
-            { icon: <KoreaMarketIcon />, lb: '국내마켓', bg: 'var(--red)', href: '/cards/bunjang' },
-            { icon: '🤝' as ReactNode, lb: '거래', bg: 'var(--grn)', href: '/trade' },
-          ]).map(({ icon, lb, bg, href }) => (
-            <Link key={lb} href={href} className="dash-quick">
-              <div style={{
-                width: 32, height: 32, background: bg, display: 'grid', placeItems: 'center', fontSize: 17,
-                boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
-              }}>
-                {icon}
-              </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, lineHeight: 1.1, letterSpacing: 0, whiteSpace: 'nowrap' }}>{lb}</div>
-            </Link>
-          ))}
+            { icon: '📷' as ReactNode, cleanIcon: <ScanLineIcon />, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
+            { icon: '¥' as ReactNode, cleanIcon: <PriceLineIcon />, lb: '시세확인', bg: 'var(--gold)', href: '/cards/packs' },
+            { icon: '🔨' as ReactNode, cleanIcon: <AuctionLineIcon />, lb: 'MVC경매', bg: 'var(--blu)', href: '/cards/mvc-auction' },
+            { icon: <KoreaMarketIcon />, cleanIcon: <MarketLineIcon />, lb: '국내마켓', bg: 'var(--red)', href: '/cards/bunjang' },
+            { icon: '🤝' as ReactNode, cleanIcon: <TradeLineIcon />, lb: '거래', bg: 'var(--grn)', href: '/trade' },
+          ]).map(({ icon, cleanIcon, lb, bg, href }) => {
+            const cc = CLEAN_ICON_COLORS[bg] ?? CLEAN_ICON_COLORS['var(--grn)'];
+            return (
+              <Link key={lb} href={href} className="dash-quick">
+                <div style={isClean
+                  ? {
+                      width: 40, height: 40, borderRadius: 14, background: cc.bg, color: cc.fg,
+                      display: 'grid', placeItems: 'center',
+                    }
+                  : {
+                      width: 32, height: 32, background: bg, display: 'grid', placeItems: 'center', fontSize: 17,
+                      boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.25),3px 3px 0 var(--ink)',
+                    }}>
+                  {isClean ? cleanIcon : icon}
+                </div>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 10, lineHeight: 1.1, letterSpacing: 0, whiteSpace: 'nowrap' }}>{lb}</div>
+              </Link>
+            );
+          })}
         </div>
       </div>
 
@@ -500,10 +592,14 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       <div
         style={{
           margin: '0 var(--gap) var(--cg)',
-          background: 'var(--white)',
           padding: '10px 14px',
-          boxShadow:
-            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.9),4px 4px 0 var(--ink)',
+          ...(isClean
+            ? CLEAN_BOX
+            : {
+                background: 'var(--white)',
+                boxShadow:
+                  '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.9),4px 4px 0 var(--ink)',
+              }),
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -744,6 +840,8 @@ interface BlockProps {
 }
 
 function Block({ label, value, sub, color, icon, href }: BlockProps) {
+  const { theme } = useTheme();
+  const isClean = theme === 'clean';
   const inner = (
     <>
       {icon && <div style={{ position: 'absolute', right: 10, top: 10, fontSize: 19, opacity: .15 }}>{icon}</div>}
@@ -782,12 +880,16 @@ function Block({ label, value, sub, color, icon, href }: BlockProps) {
   );
   // 4 칸 동일 높이 — minHeight 로 통일.
   const baseStyle: React.CSSProperties = {
-    background: 'var(--white)',
     padding: '14px 12px',
     minHeight: 96,
     minWidth: 0,
-    boxShadow:
-      '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -4px 0 rgba(0,0,0,.14),5px 5px 0 var(--ink)',
+    ...(isClean
+      ? CLEAN_BOX
+      : {
+          background: 'var(--white)',
+          boxShadow:
+            '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),inset 0 -4px 0 rgba(0,0,0,.14),5px 5px 0 var(--ink)',
+        }),
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-start',
