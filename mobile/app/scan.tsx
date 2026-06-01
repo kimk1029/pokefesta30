@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, Pressable, TextInput, Text } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelBall } from '@/components/PixelBall';
@@ -18,6 +18,7 @@ import { CARDS, GAMES, fmt, priceLabel, displayCardName, inferCardCurrency, card
 import { addCards } from '@/lib/collection';
 import { usePriceMode } from '@/lib/priceMode';
 import { lookupCardInfo } from '@/services/cardScanApi';
+import { createMyCard } from '@/lib/myApi';
 import type { GuideRect, ScanLanguage } from '@/types/cardScan';
 
 type Mode = 'choose' | 'camera' | 'preview' | 'batch' | 'manual' | 'register' | 'result' | 'batchResult';
@@ -29,6 +30,14 @@ function currentYm(): string {
 }
 
 export default function ScanScreen() {
+  const params = useLocalSearchParams<{
+    mode?: string;
+    regApparelId?: string;
+    regName?: string;
+    regImage?: string;
+    regPrice?: string;
+  }>();
+  const initRef = useRef(false);
   const [mode, setMode] = useState<Mode>('choose');
   const [found, setFound] = useState<CardItem | null>(null);
   const [batchFound, setBatchFound] = useState<CardItem[]>([]);
@@ -91,6 +100,43 @@ export default function ScanScreen() {
     setMode('register');
   };
 
+  // 진입 파라미터 처리 (한 번만):
+  // - regApparelId: 시세 상세 "내 컬렉션" → 해당 카드로 바로 등록 시트
+  // - mode=manual: 직접 입력 진입
+  useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
+    if (params.regApparelId) {
+      const apparelId = parseInt(String(params.regApparelId), 10);
+      const priceJpy = params.regPrice ? parseInt(String(params.regPrice), 10) : 0;
+      if (Number.isFinite(apparelId) && apparelId > 0) {
+        openRegister(
+          {
+            id: Date.now(),
+            name: params.regName ? String(params.regName) : '카드',
+            set: '-',
+            num: '-',
+            game: '포켓몬',
+            rar: 'R',
+            grade: null,
+            price: priceJpy > 0 ? priceJpy : 0,
+            priceSingle: priceJpy > 0 ? priceJpy : undefined,
+            priceCurrency: 'JPY',
+            trend: [],
+            emoji: '🃏',
+            owned: true,
+            snkrdunkApparelId: apparelId,
+            imageUrl: params.regImage ? String(params.regImage) : undefined,
+          },
+          'manual',
+        );
+      }
+    } else if (params.mode === 'manual') {
+      setMode('manual');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** 6단계로 — 구매정보를 카드에 반영(또는 건너뛰고)해 저장. */
   const finalizeRegister = (skip: boolean) => {
     if (!pendingCard) return;
@@ -127,7 +173,26 @@ export default function ScanScreen() {
               buyDate: buyYm || undefined,
             };
     }
+    // 로컬 캐시(홈 등 로컬 기반 화면용) + 서버 DB 양쪽에 저장.
     addCards([card]);
+    // 서버 컬렉션(/api/me/cards)에도 등록 — 내 카드 화면은 서버에서 불러오므로 필수.
+    createMyCard({
+      snkrdunkApparelId: card.snkrdunkApparelId ?? null,
+      ocrSetCode: card.set && card.set !== '-' ? card.set : null,
+      ocrCardNumber: card.num && card.num !== '-' ? card.num.split('/')[0] : null,
+      nickname: card.name ?? null,
+      photoUrl: card.snkrdunkApparelId ? null : card.imageUrl ?? null,
+      buyPrice: card.buyPrice ?? null,
+      buyCurrency: card.buyCurrency ?? 'KRW',
+      qty: card.qty ?? 1,
+      buyDate: card.buyDate ?? null,
+      selfPulled: card.selfPulled ?? false,
+      graded: card.graded ?? false,
+      gradeCompany: card.gradeCompany ?? null,
+      gradeValue: card.gradeValue ?? null,
+    }).catch((e) => {
+      console.warn('[scan] createMyCard 실패:', e?.message ?? e);
+    });
     setFound(card);
     setMode('result');
   };

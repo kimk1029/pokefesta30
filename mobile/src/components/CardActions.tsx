@@ -10,6 +10,10 @@ interface Props {
   apparelId: number;
   /** 컬렉션 저장 시 별칭으로 들어갈 카드명 (한국어 우선). */
   cardName?: string;
+  /** 등록 시트에 표시할 이미지. */
+  imageUrl?: string | null;
+  /** 현재시세 (JPY) — 등록 시트 자동 표시/직접뽑기 기준가. */
+  currentPriceJpy?: number | null;
 }
 
 type Status = 'idle' | 'loading' | 'error';
@@ -20,11 +24,11 @@ type Status = 'idle' | 'loading' | 'error';
  * - 성공/실패 시 토스트
  * - 미로그인 (401) 이면 login 라우트로 이동
  */
-export function CardActions({ apparelId, cardName }: Props) {
-  const [collectStatus, setCollectStatus] = useState<Status>('idle');
+export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: Props) {
   const [favStatus, setFavStatus] = useState<Status>('idle');
   const [isCollected, setIsCollected] = useState(false);
   const [isFav, setIsFav] = useState(false);
+  const [authed, setAuthed] = useState(true);
   const toast = useToast();
   const router = useRouter();
 
@@ -39,8 +43,8 @@ export function CardActions({ apparelId, cardName }: Props) {
         if (!alive) return;
         setIsFav((favRes?.data ?? []).some((r) => r.snkrdunkApparelId === apparelId));
         setIsCollected((cardRes?.data ?? []).some((r) => r.snkrdunkApparelId === apparelId));
-      } catch {
-        // 미로그인 가능성 — 무시
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) setAuthed(false);
       }
     })();
     return () => {
@@ -50,38 +54,21 @@ export function CardActions({ apparelId, cardName }: Props) {
 
   const goLogin = () => router.push('/login');
 
-  const addToCollection = async () => {
-    if (collectStatus === 'loading') return;
-    setCollectStatus('loading');
-    try {
-      await api('/api/me/cards', {
-        method: 'POST',
-        body: {
-          snkrdunkApparelId: apparelId,
-          nickname: cardName?.slice(0, 60) ?? undefined,
-        },
-      });
-      setIsCollected(true);
-      setCollectStatus('idle');
-      toast.success('내 컬렉션에 추가되었습니다');
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        goLogin();
-        return;
-      }
-      setCollectStatus('error');
-      const msg =
-        err instanceof ApiError
-          ? // 서버가 { error, code, message } 를 돌려주면 message 우선
-            (err.body as { message?: string; error?: string } | null)?.message ??
-            (err.body as { error?: string } | null)?.error ??
-            `HTTP ${err.status}`
-          : err instanceof Error
-            ? err.message
-            : '추가 실패';
-      toast.error(`추가 실패: ${msg}`);
-      setTimeout(() => setCollectStatus('idle'), 1500);
+  // 바로 추가하지 않고 scan 의 "카드 등록" 시트로 이동 — 구매가/직접뽑기/등급 입력.
+  const openRegisterSheet = () => {
+    if (!authed) {
+      goLogin();
+      return;
     }
+    router.push({
+      pathname: '/scan',
+      params: {
+        regApparelId: String(apparelId),
+        regName: cardName ?? '',
+        regImage: imageUrl ?? '',
+        regPrice: currentPriceJpy != null ? String(Math.round(currentPriceJpy)) : '',
+      },
+    } as never);
   };
 
   const toggleFavorite = async () => {
@@ -119,8 +106,7 @@ export function CardActions({ apparelId, cardName }: Props) {
     <View style={styles.row}>
       <View style={styles.flex}>
         <PixelPress
-          onPress={addToCollection}
-          disabled={collectStatus === 'loading'}
+          onPress={openRegisterSheet}
           bg={colors.blu}
           borderWidth={3}
           shadow={4}
@@ -133,9 +119,7 @@ export function CardActions({ apparelId, cardName }: Props) {
           <Text style={[styles.label, styles.onColor]} numberOfLines={1}>
             내컬렉션
           </Text>
-          <Text style={[styles.desc, styles.onColor]}>
-            {collectStatus === 'loading' ? '...' : isCollected ? '✓' : '추가'}
-          </Text>
+          <Text style={[styles.desc, styles.onColor]}>{isCollected ? '✓' : '추가'}</Text>
         </PixelPress>
       </View>
       <View style={styles.flex}>

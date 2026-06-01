@@ -239,6 +239,8 @@ export default function SnkrdunkDetail() {
             <CardActions
               apparelId={apparelId}
               cardName={displayNameKo || displayName || undefined}
+              imageUrl={apparel.imageUrl ?? null}
+              currentPriceJpy={apparel.minPrice ?? null}
             />
 
             {/* Chart */}

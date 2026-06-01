@@ -413,7 +413,12 @@ export default async function Page({ params }: PageProps) {
       </Panel>
 
       {/* 액션 — 컬렉션 추가 / 관심 / 스니덩크 외부링크 (한 줄, 컴팩트) */}
-      <CardActions apparelId={apparelId} cardName={koDisplayName} />
+      <CardActions
+        apparelId={apparelId}
+        cardName={koDisplayName}
+        imageUrl={apparel.imageUrl ?? null}
+        currentPriceJpy={apparel.minPrice ?? null}
+      />
 
       {/* Sales chart */}
       <div className="sect">

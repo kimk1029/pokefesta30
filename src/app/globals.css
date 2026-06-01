@@ -2341,6 +2341,15 @@ a{color:inherit;text-decoration:none;}
 .cv-reg-pick{font-family:var(--f1);font-size:10px;color:var(--blu);letter-spacing:.5px;flex:none;}
 .cv-reg-back{align-self:flex-start;margin-bottom:12px;background:none;border:none;cursor:pointer;
   font-family:var(--f1);font-size:11px;color:var(--ink3);letter-spacing:.5px;padding:4px 0;}
+/* 카드등록 시트 모달 (시세 상세 → 내 컬렉션) */
+.cv-sheet-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.5);
+  display:flex;align-items:flex-end;justify-content:center;padding:0;}
+.cv-sheet-modal{width:100%;max-width:440px;max-height:90vh;overflow-y:auto;background:var(--white);padding:16px;
+  box-shadow:0 -4px 0 var(--ink);animation:cv-sheet-up .18s ease;}
+@keyframes cv-sheet-up{from{transform:translateY(30px);opacity:.6;}to{transform:translateY(0);opacity:1;}}
+.cv-sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.cv-sheet-close{background:none;border:none;cursor:pointer;font-size:16px;color:var(--ink3);padding:4px 8px;line-height:1;}
+@media(min-width:480px){.cv-sheet-overlay{align-items:center;}.cv-sheet-modal{border:3px solid var(--ink);}}
 
 /* ---- 포트폴리오 페이지 ---- */
 .cv-port-screen{margin:0 var(--gap);display:flex;flex-direction:column;gap:14px;}

@@ -175,6 +175,28 @@ export function fetchMyFavorites(): Promise<MyFavoriteRow[]> {
   return api<{ data: MyFavoriteRow[] }>('/api/me/favorites/with-prices').then((r) => r.data);
 }
 
+/** 카드 등록 페이로드 — 서버 POST /api/me/cards 와 동일 형태. */
+export interface CreateMyCardInput {
+  snkrdunkApparelId?: number | null;
+  cardId?: string | null;
+  ocrSetCode?: string | null;
+  ocrCardNumber?: string | null;
+  nickname?: string | null;
+  photoUrl?: string | null;
+  buyPrice?: number | null;
+  buyCurrency?: string;
+  qty?: number;
+  buyDate?: string | null;
+  selfPulled?: boolean;
+  graded?: boolean;
+  gradeCompany?: string | null;
+  gradeValue?: string | null;
+}
+
+export function createMyCard(input: CreateMyCardInput): Promise<{ data: MyCardRow }> {
+  return api<{ data: MyCardRow }>('/api/me/cards', { method: 'POST', body: input });
+}
+
 export function fetchPortfolio(): Promise<PortfolioSummary> {
   return api<{ data: PortfolioSummary }>('/api/me/portfolio').then((r) => r.data);
 }

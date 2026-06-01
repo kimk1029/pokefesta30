@@ -46,8 +46,19 @@ function fmtKrw(v: number | null | undefined): string {
 /**
  * 스캔/직접입력 공통 "카드 등록" 시트.
  * 이미지·세트·번호·등급·현재시세는 자동 표시, 사용자는 구매정보/등급/직접뽑기만 채운다.
+ *
+ * @param redirectOnSave 저장 후 /my/cards 로 이동할지. 모달 안에서 쓸 땐 false.
+ * @param onSaved 저장 성공 시 콜백 (모달 닫기 등).
  */
-export function CardRegisterSheet({ card }: { card: RegisterCardInput }) {
+export function CardRegisterSheet({
+  card,
+  redirectOnSave = true,
+  onSaved,
+}: {
+  card: RegisterCardInput;
+  redirectOnSave?: boolean;
+  onSaved?: () => void;
+}) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -127,9 +138,12 @@ export function CardRegisterSheet({ card }: { card: RegisterCardInput }) {
         throw new Error(body?.error ?? `HTTP ${r.status}`);
       }
       setSaved(true);
-      startRouteTransition();
-      router.push('/my/cards');
-      router.refresh();
+      onSaved?.();
+      if (redirectOnSave) {
+        startRouteTransition();
+        router.push('/my/cards');
+        router.refresh();
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : '저장 실패');
     } finally {

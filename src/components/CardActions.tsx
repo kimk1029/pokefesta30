@@ -3,11 +3,16 @@
 import { useEffect, useState } from 'react';
 import { snkrdunkApparelUrl } from '@/lib/snkrdunk';
 import { useToast } from '@/components/ToastProvider';
+import { CardRegisterSheet } from '@/components/cards/CardRegisterSheet';
 
 interface Props {
   apparelId: number;
   /** 추가시 별칭으로 저장될 카드명. 비우면 null. */
   cardName?: string;
+  /** 카드등록 시트에 표시할 이미지. */
+  imageUrl?: string | null;
+  /** 현재시세 (JPY) — 시트의 자동 표시/직접뽑기 기준가. */
+  currentPriceJpy?: number | null;
 }
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
@@ -18,11 +23,12 @@ type Status = 'idle' | 'loading' | 'done' | 'error';
  * 마운트 시 둘 다 fetch 해서 이미 추가된 카드면 ✓ 표시.
  * 미로그인 시 클릭하면 `/login` 으로 이동.
  */
-export function CardActions({ apparelId, cardName }: Props) {
-  const [collectStatus, setCollectStatus] = useState<Status>('idle');
+export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: Props) {
   const [favStatus, setFavStatus] = useState<Status>('idle');
   const [isFav, setIsFav] = useState<boolean>(false);
   const [isCollected, setIsCollected] = useState<boolean>(false);
+  const [sheetOpen, setSheetOpen] = useState<boolean>(false);
+  const [authed, setAuthed] = useState<boolean>(true);
   const toast = useToast();
 
   // 마운트 시 컬렉션/관심 여부 확인 — 이미 추가된 카드면 즉시 ✓ 로 표시.
@@ -35,6 +41,7 @@ export function CardActions({ apparelId, cardName }: Props) {
           fetch('/api/me/cards', { credentials: 'include', cache: 'no-store' }),
         ]);
         if (!alive) return;
+        if (favRes.status === 401 || cardRes.status === 401) setAuthed(false);
         if (favRes.ok) {
           const j = (await favRes.json()) as { data?: Array<{ snkrdunkApparelId: number }> };
           setIsFav((j.data ?? []).some((row) => row.snkrdunkApparelId === apparelId));
@@ -58,41 +65,13 @@ export function CardActions({ apparelId, cardName }: Props) {
     window.location.href = `/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`;
   };
 
-  const addToCollection = async () => {
-    if (collectStatus === 'loading') return;
-    setCollectStatus('loading');
-    try {
-      const r = await fetch('/api/me/cards', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          snkrdunkApparelId: apparelId,
-          nickname: cardName?.slice(0, 60) ?? undefined,
-        }),
-      });
-      if (r.status === 401) {
-        goLogin();
-        return;
-      }
-      if (!r.ok) {
-        // 서버가 { error, code, name, message } 로 더 자세한 정보를 줄 수 있음 — 그대로 노출.
-        const body = (await r.json().catch(() => null)) as
-          | { error?: string; code?: string; message?: string }
-          | null;
-        const detail = body?.message || body?.code || body?.error || `HTTP ${r.status}`;
-        throw new Error(detail);
-      }
-      setCollectStatus('done');
-      setIsCollected(true);
-      toast.success('내 컬렉션에 추가되었습니다');
-      setTimeout(() => setCollectStatus('idle'), 1500);
-    } catch (err) {
-      setCollectStatus('error');
-      const msg = err instanceof Error ? err.message : '추가 실패';
-      toast.error(`추가 실패: ${msg}`);
-      setTimeout(() => setCollectStatus('idle'), 1500);
+  // 바로 추가하지 않고 "카드 등록" 시트를 띄운다 (구매가/직접뽑기/등급 입력).
+  const openSheet = () => {
+    if (!authed) {
+      goLogin();
+      return;
     }
+    setSheetOpen(true);
   };
 
   const toggleFavorite = async () => {
@@ -134,26 +113,44 @@ export function CardActions({ apparelId, cardName }: Props) {
     }
   };
 
-  // 컬렉션 / 관심 둘 다 동일 패턴: loading="...", error="!", added="✓", 그 외 "추가".
-  const collectDesc =
-    collectStatus === 'loading'
-      ? '...'
-      : collectStatus === 'error'
-        ? '!'
-        : isCollected
-          ? '✓'
-          : '추가';
+  const collectDesc = isCollected ? '✓' : '추가';
 
   const favDesc =
     favStatus === 'loading' ? '...' : favStatus === 'error' ? '!' : isFav ? '✓' : '추가';
 
   return (
+    <>
+    {sheetOpen && (
+      <div className="cv-sheet-overlay" onClick={() => setSheetOpen(false)}>
+        <div className="cv-sheet-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="cv-sheet-head">
+            <span className="form-label" style={{ margin: 0 }}>＋ 카드 등록</span>
+            <button type="button" className="cv-sheet-close" onClick={() => setSheetOpen(false)} aria-label="닫기">
+              ✕
+            </button>
+          </div>
+          <CardRegisterSheet
+            card={{
+              snkrdunkApparelId: apparelId,
+              name: cardName ?? null,
+              imageUrl: imageUrl ?? null,
+              currentPriceJpy: currentPriceJpy ?? null,
+            }}
+            redirectOnSave={false}
+            onSaved={() => {
+              setIsCollected(true);
+              toast.success('내 컬렉션에 등록되었습니다');
+              setTimeout(() => setSheetOpen(false), 900);
+            }}
+          />
+        </div>
+      </div>
+    )}
     <div className="snk-act-row">
       <button
         type="button"
         className="snk-act"
-        onClick={addToCollection}
-        disabled={collectStatus === 'loading'}
+        onClick={openSheet}
         style={{ background: 'var(--blu)', color: 'var(--white)' }}
       >
         <span className="snk-act-icon" aria-hidden>{isCollected ? '✅' : '📦'}</span>
@@ -187,5 +184,6 @@ export function CardActions({ apparelId, cardName }: Props) {
         <span className="snk-act-desc">↗</span>
       </a>
     </div>
+    </>
   );
 }
