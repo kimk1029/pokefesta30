@@ -8,12 +8,24 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { flushSync } from 'react-dom';
 import {
   DEFAULT_THEME,
   isThemeId,
   THEME_STORAGE_KEY,
   type ThemeId,
 } from '@/lib/theme';
+
+type DocWithViewTransition = Document & {
+  startViewTransition?: (cb: () => void) => unknown;
+};
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+  );
+}
 
 interface Ctx {
   theme: ThemeId;
@@ -47,8 +59,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setTheme = useCallback((t: ThemeId) => {
-    setThemeState(t);
-    document.documentElement.setAttribute('data-theme', t);
+    // CSS 변수(data-theme) 교체 + React 상태(useTheme 구독 컴포넌트)를 한 번에 반영.
+    const apply = () => {
+      // flushSync 로 동기 커밋해야 View Transition 의 "after" 스냅샷에 새 테마가 잡힘.
+      flushSync(() => setThemeState(t));
+      document.documentElement.setAttribute('data-theme', t);
+    };
+
+    const doc = document as DocWithViewTransition;
+    if (typeof doc.startViewTransition === 'function' && !prefersReducedMotion()) {
+      // 이전 화면 → 새 테마 화면으로 부드럽게 크로스페이드(디졸브).
+      doc.startViewTransition(apply);
+    } else {
+      apply();
+    }
+
     try {
       localStorage.setItem(THEME_STORAGE_KEY, t);
     } catch {

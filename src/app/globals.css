@@ -3587,3 +3587,16 @@ a{color:inherit;text-decoration:none;}
 /* 카드 타일 내부 구분선 — 픽셀: 하드 잉크 / clean: 옅은 라인 */
 .cv-card-divider{border-top:3px solid var(--ink);}
 [data-theme="clean"] .cv-card-divider{border-top:1px solid var(--pap3);}
+
+/* ════════ 테마 전환 디졸브 (View Transitions API) ════════ */
+/* 이전/새 화면 스냅샷을 부드럽게 크로스페이드. 미지원 브라우저는 즉시 전환. */
+::view-transition-old(root),
+::view-transition-new(root){
+  animation-duration:380ms;
+  animation-timing-function:cubic-bezier(.4,0,.2,1);
+  mix-blend-mode:normal;
+}
+@media (prefers-reduced-motion: reduce){
+  ::view-transition-old(root),
+  ::view-transition-new(root){animation:none;}
+}
