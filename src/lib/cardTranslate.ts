@@ -191,6 +191,16 @@ const CARD_TERMS: Term[] = [
   { ko: 'GX',    en: 'GX',    ja: 'GX'    },
   { ko: 'V-UNION', en: 'V-UNION', ja: 'V-UNION' },
 
+  // 트레이너 카드 분류 (스니덩/이베이 카테고리 표기)
+  { ko: '서포터',    en: 'supporter',   ja: 'サポート' },
+  { ko: '서포트',    en: 'supporter',   ja: 'サポート' },
+  { ko: '트레이너스', en: 'trainer',    ja: 'トレーナーズ' },
+  { ko: '트레이너',  en: 'trainer',     ja: 'トレーナーズ' },
+  { ko: '아이템',    en: 'item',        ja: 'グッズ' },
+  { ko: '굿즈',      en: 'item',        ja: 'グッズ' },
+  { ko: '스타디움',  en: 'stadium',     ja: 'スタジアム' },
+  { ko: '도구',      en: 'tool',        ja: 'ポケモンのどうぐ' },
+
   // 포켓몬/상품
   { ko: '포켓몬',    en: 'pokemon',     ja: 'ポケモン' },
   { ko: '포켓몬스터', en: 'pokemon',    ja: 'ポケットモンスター' },
@@ -640,6 +650,20 @@ const MAP_KEYS_BY_TARGET: Record<TranslateTarget, string[]> = {
 };
 
 /**
+ * "주년"(anniversary) → "th". 숫자가 붙으면 함께 묶어 변환.
+ *   25주년 → 25th / 20주년 → 20th / 주년 → th
+ * 숫자와 주년이 띄어쓰기로 떨어진 경우(25 주년)도 처리.
+ * 사전 룩업(longest-first) 전에 선치환한다.
+ */
+function normalizeAnniversary(text: string): string {
+  return text
+    // "25주년", "25 주년" → "25th"
+    .replace(/(\d+)\s*주년/g, '$1th')
+    // 숫자 없는 "주년" → "th"
+    .replace(/주년/g, 'th');
+}
+
+/**
  * 입력 텍스트를 좌→우로 훑으며 사전 키 중 *가장 긴 것*을 우선 매칭해 치환.
  *
  * - 한글/일본어 키: 위치 i 에서 substring(i, k.length) 와 직접 비교 (case 무관)
@@ -654,6 +678,8 @@ export function translate(text: string, target: TranslateTarget): string {
   if (!text) return text;
   const map = target === 'en' ? MAP_EN : MAP_JA;
   const keys = MAP_KEYS_BY_TARGET[target];
+  // "25주년 → 25th" 등 주년 패턴을 먼저 정규화한 뒤 사전 룩업.
+  text = normalizeAnniversary(text);
   const lowered = text.toLowerCase();
 
   let out = '';

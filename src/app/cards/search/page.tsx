@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { TranslationTicker } from '@/components/TranslationTicker';
 import { AppBar } from '@/components/ui/AppBar';
 import { ListAdRow } from '@/components/ListAdRow';
 import { autoPriceSize } from '../../../../shared/util/autoPriceSize';
@@ -76,6 +77,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     <>
       <StatusBar />
       <AppBar title="카드 검색" showBack backHref="/cards" />
+      <TranslationTicker />
 
       <div style={{ height: 14 }} />
 
