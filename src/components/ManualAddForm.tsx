@@ -28,6 +28,10 @@ export function ManualAddForm({ catalog }: Props) {
   const [cardNumber, setCardNumber] = useState('');
   const [grade, setGrade] = useState<string>('미입력');
   const [memo, setMemo] = useState('');
+  const [buyDate, setBuyDate] = useState('');
+  const [buyPrice, setBuyPrice] = useState('');
+  const [buyCurrency, setBuyCurrency] = useState<'KRW' | 'JPY'>('KRW');
+  const [qty, setQty] = useState(1);
 
   const submit = () => {
     setErr(null);
@@ -39,6 +43,13 @@ export function ManualAddForm({ catalog }: Props) {
     if (cardNumber.trim()) payload.ocrCardNumber = cardNumber.trim();
     if (grade !== '미입력') payload.gradeEstimate = grade;
     if (memo.trim()) payload.memo = memo.trim();
+    const bp = parseInt(buyPrice, 10);
+    if (bp > 0) {
+      payload.buyPrice = bp;
+      payload.buyCurrency = buyCurrency;
+    }
+    if (buyDate.trim()) payload.buyDate = buyDate.trim();
+    if (qty > 1) payload.qty = qty;
 
     if (!payload.cardId && !payload.ocrSetCode && !payload.ocrCardNumber && !payload.nickname) {
       setErr('카탈로그 선택, 세트/번호, 또는 별칭 중 하나는 입력해 주세요');
@@ -136,6 +147,51 @@ export function ManualAddForm({ catalog }: Props) {
               onClick={() => setGrade(g)}
             >
               {g}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <div className="cv-manual-row">
+        <Field label="구매 시기 (선택)" hint="예) 2026-06">
+          <input
+            className="cv-manual-input"
+            maxLength={10}
+            value={buyDate}
+            onChange={(e) => setBuyDate(e.target.value)}
+            placeholder="2026-06"
+          />
+        </Field>
+        <Field label="수량">
+          <div className="cv-manual-qty">
+            <button type="button" className="cv-manual-qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))}>
+              −
+            </button>
+            <span className="cv-manual-qty-val">{qty}</span>
+            <button type="button" className="cv-manual-qty-btn" onClick={() => setQty((q) => Math.min(999, q + 1))}>
+              ＋
+            </button>
+          </div>
+        </Field>
+      </div>
+
+      <Field label="구매가 (선택)" hint="한 장당 매입가. 입력하면 수익률이 계산돼요.">
+        <div className="cv-manual-buyprice">
+          <input
+            className="cv-manual-input"
+            inputMode="numeric"
+            value={buyPrice}
+            onChange={(e) => setBuyPrice(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder={buyCurrency === 'JPY' ? '엔' : '원'}
+          />
+          {(['KRW', 'JPY'] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`cv-manual-cur${buyCurrency === c ? ' on' : ''}`}
+              onClick={() => setBuyCurrency(c)}
+            >
+              {c === 'JPY' ? '¥' : '₩'}
             </button>
           ))}
         </div>

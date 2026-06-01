@@ -263,6 +263,14 @@ model UserCard {
   centeringScore Float?
   /// 업로드한 카드 사진 URL (Vercel Blob).
   photoUrl       String?
+  /// 구매 단가 (정수). 통화는 buyCurrency. 미입력이면 null.
+  buyPrice       Int?
+  /// 구매가 통화 — 'KRW' | 'JPY'. 기본 KRW.
+  buyCurrency    String?  @default("KRW")
+  /// 보유 수량. 기본 1.
+  qty            Int      @default(1)
+  /// 구매 시기 (YYYY-MM). 표시용 문자열.
+  buyDate        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

@@ -14,11 +14,18 @@ import { ScanPreview } from '@/components/cv/ScanPreview';
 import { BatchScanPreview } from '@/components/cv/BatchScanPreview';
 import { useChrome } from '@/components/ChromeContext';
 import { colors } from '@/theme/tokens';
-import { CARDS, GAMES, fmt, priceLabel, displayCardName, inferCardCurrency, type CardItem, type Game, type Rarity } from '@/data/cardvault';
+import { CARDS, GAMES, fmt, priceLabel, displayCardName, inferCardCurrency, cardProfit, type CardItem, type Game, type Rarity, type PriceCurrency } from '@/data/cardvault';
 import { addCards } from '@/lib/collection';
+import { usePriceMode } from '@/lib/priceMode';
 import type { GuideRect, ScanLanguage } from '@/types/cardScan';
 
-type Mode = 'choose' | 'camera' | 'preview' | 'batch' | 'manual' | 'result' | 'batchResult';
+type Mode = 'choose' | 'camera' | 'preview' | 'batch' | 'manual' | 'register' | 'result' | 'batchResult';
+
+/** 이번 달을 YYYY-MM 으로. 등록 시트 구매 시기 기본값. */
+function currentYm(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 export default function ScanScreen() {
   const [mode, setMode] = useState<Mode>('choose');
@@ -43,12 +50,51 @@ export default function ScanScreen() {
     setHidden(mode === 'camera');
     return () => setHidden(false);
   }, [mode, setHidden]);
+  const { mode: priceMode } = usePriceMode();
   const [manName, setManName] = useState('');
   const [manSet, setManSet] = useState('');
   const [manNum, setManNum] = useState('');
   const [manGame, setManGame] = useState<Game>('포켓몬');
   const [manRar, setManRar] = useState<Rarity>('R');
-  const [manPrice, setManPrice] = useState('');
+
+  // 5단계 — 구매정보 입력 시트 상태. 카드 확인 직후 이 카드를 받아 띄운다.
+  const [pendingCard, setPendingCard] = useState<CardItem | null>(null);
+  const [pendingFrom, setPendingFrom] = useState<'scan' | 'manual'>('scan');
+  const [buyYm, setBuyYm] = useState(currentYm());
+  const [buyPriceStr, setBuyPriceStr] = useState('');
+  const [buyCur, setBuyCur] = useState<PriceCurrency>('KRW');
+  const [buyQty, setBuyQty] = useState(1);
+
+  /** 확정된 카드를 받아 구매정보 입력 단계로. 입력값은 매번 초기화. */
+  const openRegister = (card: CardItem, from: 'scan' | 'manual') => {
+    setPendingCard(card);
+    setPendingFrom(from);
+    setBuyYm(currentYm());
+    setBuyPriceStr('');
+    // 시세가 JPY 인 카드는 구매가도 JPY 로 입력할 확률이 높다 → 기본 통화 맞춤.
+    setBuyCur(inferCardCurrency(card));
+    setBuyQty(1);
+    setMode('register');
+  };
+
+  /** 6단계로 — 구매정보를 카드에 반영(또는 건너뛰고)해 저장. */
+  const finalizeRegister = (skip: boolean) => {
+    if (!pendingCard) return;
+    const price = parseInt(buyPriceStr, 10);
+    const card: CardItem =
+      skip || !(price > 0)
+        ? { ...pendingCard, qty: Math.max(1, buyQty) }
+        : {
+            ...pendingCard,
+            buyPrice: price,
+            buyCurrency: buyCur,
+            qty: Math.max(1, buyQty),
+            buyDate: buyYm || undefined,
+          };
+    addCards([card]);
+    setFound(card);
+    setMode('result');
+  };
 
   const submitManual = () => {
     const card: CardItem = {
@@ -59,14 +105,12 @@ export default function ScanScreen() {
       game: manGame,
       rar: manRar,
       grade: null,
-      price: parseInt(manPrice) || 0,
-      trend: [parseInt(manPrice) || 0],
+      price: 0,
+      trend: [],
       emoji: '🃏',
       owned: true,
     };
-    addCards([card]);
-    setFound(card);
-    setMode('result');
+    openRegister(card, 'manual');
   };
 
   if (mode === 'camera') {
@@ -99,6 +143,10 @@ export default function ScanScreen() {
             router.replace('/my/cards' as never);
             return;
           }
+          if (mode === 'register') {
+            setMode(pendingFrom === 'manual' ? 'manual' : 'choose');
+            return;
+          }
           if (mode === 'batchResult' || mode === 'batch') {
             setBatchFound([]);
             setCaptures([]);
@@ -117,11 +165,7 @@ export default function ScanScreen() {
           useAi={useAi}
           language={scanLang}
           onRetake={() => setMode('camera')}
-          onConfirm={(card) => {
-            addCards([card]);
-            setFound(card);
-            setMode('result');
-          }}
+          onConfirm={(card) => openRegister(card, 'scan')}
         />
       ) : mode === 'batch' ? (
         <BatchScanPreview
@@ -395,20 +439,6 @@ export default function ScanScreen() {
               </View>
             </View>
 
-            <View>
-              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                💰 구매가
-              </PixelText>
-              <TextInput
-                value={manPrice}
-                onChangeText={setManPrice}
-                placeholder="원"
-                placeholderTextColor={colors.ink4}
-                keyboardType="numeric"
-                style={inputStyle}
-              />
-            </View>
-
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <PixelPress wrapStyle={{ flex: 1 }} onPress={() => setMode('choose')}>
                 <View style={{ paddingVertical: 11, alignItems: 'center' }}>
@@ -427,13 +457,162 @@ export default function ScanScreen() {
               >
                 <View style={{ paddingVertical: 11, alignItems: 'center' }}>
                   <PixelText variant="pixel" size={11}>
-                    등록하기 ✓
+                    다음 ▶
                   </PixelText>
                 </View>
               </PixelPress>
             </View>
           </View>
         )}
+
+        {mode === 'register' && pendingCard && (() => {
+          const price = parseInt(buyPriceStr, 10);
+          const preview = cardProfit(
+            price > 0
+              ? { ...pendingCard, buyPrice: price, buyCurrency: buyCur, qty: buyQty }
+              : { ...pendingCard, qty: buyQty },
+            priceMode,
+          );
+          return (
+          <View style={{ paddingHorizontal: 14, gap: 16 }}>
+            {/* 확인된 카드 (3→4단계) */}
+            <PixelFrame borderWidth={3} shadow={5}>
+              <View style={{ flexDirection: 'row', gap: 12, padding: 12, alignItems: 'center' }}>
+                <View style={{ width: 56, height: 78, borderColor: colors.ink, borderWidth: 2 }}>
+                  <CardThumb card={pendingCard} height={74} emojiSize={26} showLabel={false} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <PixelText variant="pixel" size={10} color={colors.grn} style={{ marginBottom: 5 }}>
+                    ✓ 이 카드를 등록합니다
+                  </PixelText>
+                  <PixelText variant="ko" size={12} weight="bold" style={{ lineHeight: 18 }}>
+                    {displayCardName(pendingCard.name)}
+                  </PixelText>
+                  <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 3 }}>
+                    {pendingCard.set} · {pendingCard.num}
+                  </PixelText>
+                  <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <RarBadge rar={pendingCard.rar} />
+                    <PixelText variant="pixel" size={9} color={colors.ink3}>
+                      현재 {priceLabel(cardProfit(pendingCard, priceMode).currentKrw, 'KRW')}
+                    </PixelText>
+                  </View>
+                </View>
+              </View>
+            </PixelFrame>
+
+            {/* 구매 시기 */}
+            <View>
+              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                📅 구매 시기
+              </PixelText>
+              <TextInput
+                value={buyYm}
+                onChangeText={setBuyYm}
+                placeholder="2026-06"
+                placeholderTextColor={colors.ink4}
+                style={inputStyle}
+              />
+            </View>
+
+            {/* 구매가 + 통화 */}
+            <View>
+              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                💰 구매가 <Text style={{ color: colors.ink3 }}>(장당)</Text>
+              </PixelText>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  value={buyPriceStr}
+                  onChangeText={setBuyPriceStr}
+                  placeholder={buyCur === 'JPY' ? '엔' : '원'}
+                  placeholderTextColor={colors.ink4}
+                  keyboardType="numeric"
+                  style={[inputStyle, { flex: 1 }]}
+                />
+                {(['KRW', 'JPY'] as PriceCurrency[]).map((c) => (
+                  <Pressable
+                    key={c}
+                    onPress={() => setBuyCur(c)}
+                    style={{
+                      paddingHorizontal: 16,
+                      justifyContent: 'center',
+                      backgroundColor: buyCur === c ? colors.gold : colors.white,
+                      borderColor: colors.ink,
+                      borderWidth: 3,
+                    }}
+                  >
+                    <PixelText variant="pixel" size={12} color={buyCur === c ? colors.ink : colors.ink3}>
+                      {c === 'JPY' ? '¥' : '₩'}
+                    </PixelText>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* 수량 */}
+            <View>
+              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                🔢 수량
+              </PixelText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Pressable
+                  onPress={() => setBuyQty((q) => Math.max(1, q - 1))}
+                  style={qtyBtnStyle}
+                >
+                  <PixelText variant="pixel" size={16}>−</PixelText>
+                </Pressable>
+                <PixelText variant="pixel" size={15} style={{ minWidth: 40, textAlign: 'center' }}>
+                  {buyQty}
+                </PixelText>
+                <Pressable
+                  onPress={() => setBuyQty((q) => Math.min(999, q + 1))}
+                  style={qtyBtnStyle}
+                >
+                  <PixelText variant="pixel" size={16}>＋</PixelText>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* 6단계 — 수익률 실시간 미리보기 */}
+            {preview.hasBuy && (
+              <PixelFrame borderWidth={3} shadow={4} bg={colors.pap3}>
+                <View style={{ padding: 12, gap: 6 }}>
+                  <ProfitRow label="총 구매가" value={priceLabel(preview.investedKrw, 'KRW')} />
+                  <ProfitRow label="현재 시세" value={priceLabel(preview.currentKrw, 'KRW')} />
+                  <View style={{ height: 1, backgroundColor: colors.ink4, marginVertical: 2 }} />
+                  <ProfitRow
+                    label="예상 수익률"
+                    value={`${preview.profitKrw >= 0 ? '+' : ''}₩${fmt(Math.abs(preview.profitKrw))} (${
+                      preview.ratePct != null ? `${preview.ratePct >= 0 ? '+' : ''}${preview.ratePct.toFixed(1)}%` : '—'
+                    })`}
+                    color={preview.profitKrw >= 0 ? colors.grnDk : colors.red}
+                    bold
+                  />
+                </View>
+              </PixelFrame>
+            )}
+
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
+              <PixelPress wrapStyle={{ flex: 1 }} onPress={() => finalizeRegister(true)}>
+                <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                  <PixelText variant="pixel" size={10}>건너뛰기</PixelText>
+                </View>
+              </PixelPress>
+              <PixelPress
+                wrapStyle={{ flex: 2 }}
+                onPress={() => finalizeRegister(false)}
+                bg={colors.gold}
+                hi={colors.goldLt}
+                lo={colors.goldDk}
+              >
+                <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                  <PixelText variant="pixel" size={11} weight="bold">컬렉션에 등록 ✓</PixelText>
+                </View>
+              </PixelPress>
+            </View>
+          </View>
+          );
+        })()}
 
         {mode === 'result' && found && (
           <>
@@ -476,6 +655,43 @@ export default function ScanScreen() {
             </View>
             </PixelFrame>
             </View>
+            {(() => {
+              const p = cardProfit(found, priceMode);
+              return (
+                <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
+                  <PixelFrame borderWidth={3} shadow={4} bg={colors.pap3}>
+                    <View style={{ padding: 12, gap: 6 }}>
+                      <PixelText variant="pixel" size={10} color={colors.ink3} style={{ marginBottom: 2, letterSpacing: 1 }}>
+                        📈 수익률
+                      </PixelText>
+                      {p.hasBuy ? (
+                        <>
+                          <ProfitRow
+                            label={`구매가${p.qty > 1 ? ` ×${p.qty}` : ''}`}
+                            value={priceLabel(p.investedKrw, 'KRW')}
+                          />
+                          <ProfitRow label="현재 시세" value={priceLabel(p.currentKrw, 'KRW')} />
+                          <View style={{ height: 1, backgroundColor: colors.ink4, marginVertical: 2 }} />
+                          <ProfitRow
+                            label="손익"
+                            value={`${p.profitKrw >= 0 ? '+' : '-'}₩${fmt(Math.abs(p.profitKrw))} (${
+                              p.ratePct != null ? `${p.ratePct >= 0 ? '+' : ''}${p.ratePct.toFixed(1)}%` : '—'
+                            })`}
+                            color={p.profitKrw >= 0 ? colors.grnDk : colors.red}
+                            bold
+                          />
+                        </>
+                      ) : (
+                        <PixelText variant="pixel" size={10} color={colors.ink3} style={{ lineHeight: 16 }}>
+                          현재 시세 {priceLabel(p.currentKrw, 'KRW')}
+                          {`\n`}구매가를 입력하면 수익률이 표시됩니다
+                        </PixelText>
+                      )}
+                    </View>
+                  </PixelFrame>
+                </View>
+              );
+            })()}
             <View style={{ marginHorizontal: 14, flexDirection: 'row', gap: 8 }}>
               <PixelPress wrapStyle={{ flex: 1 }} onPress={() => setMode('choose')}>
                 <View style={{ paddingVertical: 11, alignItems: 'center' }}>
@@ -506,6 +722,29 @@ export default function ScanScreen() {
   );
 }
 
+function ProfitRow({
+  label,
+  value,
+  color,
+  bold,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+  bold?: boolean;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      <PixelText variant="pixel" size={10} color={colors.ink3}>
+        {label}
+      </PixelText>
+      <PixelText variant="pixel" size={bold ? 12 : 10} color={color ?? colors.ink} weight={bold ? 'bold' : undefined}>
+        {value}
+      </PixelText>
+    </View>
+  );
+}
+
 const inputStyle = {
   backgroundColor: colors.white,
   paddingHorizontal: 14,
@@ -513,6 +752,16 @@ const inputStyle = {
   fontSize: 17,
   fontFamily: 'Galmuri11',
   color: colors.ink,
+  borderColor: colors.ink,
+  borderWidth: 3,
+} as const;
+
+const qtyBtnStyle = {
+  width: 48,
+  height: 48,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: colors.white,
   borderColor: colors.ink,
   borderWidth: 3,
 } as const;

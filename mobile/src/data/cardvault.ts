@@ -33,6 +33,14 @@ export interface CardItem {
   snkrdunkApparelId?: number;
   /** 관심 카드 플래그. true 면 포트폴리오 합계에서 제외하고 /my/favorites 에 표시. */
   favorite?: boolean;
+  /** 구매 단가. 사용자가 등록 시 입력한 한 장당 매입가. */
+  buyPrice?: number;
+  /** `buyPrice` 통화. 기본 'KRW'. */
+  buyCurrency?: PriceCurrency;
+  /** 보유 수량. 기본 1. */
+  qty?: number;
+  /** 구매 시기 (YYYY-MM). 표시용 자유 문자열. */
+  buyDate?: string;
 }
 
 export interface MarketItem {
@@ -202,4 +210,31 @@ export function toJpy(price: number, currency: PriceCurrency = 'KRW'): number {
 /** Card-aware JPY value — feed to CurrencyProvider `format()`. */
 export function cardJpy(card: CardItem, mode: PriceMode = 'single'): number {
   return toJpy(cardPrice(card, mode), inferCardCurrency(card));
+}
+
+export interface CardProfit {
+  /** 보유 수량 (기본 1). */
+  qty: number;
+  /** 총 매입가 (KRW 환산, 수량 반영). 구매가 미입력이면 0. */
+  investedKrw: number;
+  /** 현재 시세 합계 (KRW 환산, 수량 반영). */
+  currentKrw: number;
+  /** 손익 (currentKrw - investedKrw). */
+  profitKrw: number;
+  /** 수익률 % (구매가 없으면 null). */
+  ratePct: number | null;
+  /** 구매가가 입력돼 수익률을 계산할 수 있는지. */
+  hasBuy: boolean;
+}
+
+/** 카드 한 장(또는 수량 묶음)의 수익률. 현재 시세는 가격모드(single/psa10)를
+ *  따르며 모두 KRW 로 환산해 비교한다. 구매가가 없으면 hasBuy=false. */
+export function cardProfit(card: CardItem, mode: PriceMode = 'single'): CardProfit {
+  const qty = Math.max(1, card.qty ?? 1);
+  const currentKrw = cardKrw(card, mode) * qty;
+  const hasBuy = typeof card.buyPrice === 'number' && card.buyPrice > 0;
+  const investedKrw = hasBuy ? toKrw(card.buyPrice as number, card.buyCurrency ?? 'KRW') * qty : 0;
+  const profitKrw = currentKrw - investedKrw;
+  const ratePct = hasBuy && investedKrw > 0 ? (profitKrw / investedKrw) * 100 : null;
+  return { qty, investedKrw, currentKrw, profitKrw, ratePct, hasBuy };
 }
