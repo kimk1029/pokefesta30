@@ -26,14 +26,34 @@ function detectInApp(ua: string): string | null {
   return null;
 }
 
+const DISMISS_KEY = 'inapp-notice-dismissed';
+
 export function InAppBrowserNotice() {
   const [source, setSource] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
 
   useEffect(() => {
     if (typeof navigator === 'undefined') return;
+    // 한 번 닫으면(✕) 다시 안 뜨도록 — 인앱 브라우저에서 매 페이지마다 반복 노출되던 문제.
+    try {
+      if (localStorage.getItem(DISMISS_KEY) === '1') {
+        setClosed(true);
+        return;
+      }
+    } catch {
+      // localStorage 불가(시크릿 등) — 무시하고 그냥 감지.
+    }
     setSource(detectInApp(navigator.userAgent));
   }, []);
+
+  const dismiss = () => {
+    setClosed(true);
+    try {
+      localStorage.setItem(DISMISS_KEY, '1');
+    } catch {
+      // 저장 실패는 무시 — 최소한 이번 세션 동안은 닫힘.
+    }
+  };
 
   const openExternal = () => {
     if (typeof window === 'undefined') return;
@@ -109,7 +129,7 @@ export function InAppBrowserNotice() {
       </button>
       <button
         type="button"
-        onClick={() => setClosed(true)}
+        onClick={dismiss}
         aria-label="닫기"
         style={{
           background: 'transparent',
