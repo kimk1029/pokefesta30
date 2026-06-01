@@ -126,15 +126,31 @@ export async function lookupCard(input) {
   };
 
   // 1) TCGdex — primary source. Image + pricing only come from here. Try JA
-  //    first (covers Korean-equivalent sets) then EN.
+  //    first (covers Korean-equivalent sets) then EN. 세트코드/번호 표기 차이를
+  //    흡수하기 위해 후보 id 들을 만들어 첫 매칭을 쓴다.
   if (fields.setCode && fields.cardNumber) {
-    const cardId = `${fields.setCode}-${fields.cardNumber}`;
-    for (const [client, langTag] of /** @type {Array<[TCGdex, 'tcgdex-ja' | 'tcgdex-en']>} */ ([
+    const setCands = setCodeVariants(fields.setCode);
+    const numCands = numberVariants(input.cardNumber);
+    /** @type {{ card: any, langTag: 'tcgdex-ja' | 'tcgdex-en' } | null} */
+    let hit = null;
+    outer: for (const [client, langTag] of /** @type {Array<[TCGdex, 'tcgdex-ja' | 'tcgdex-en']>} */ ([
       [tcgdexJa, 'tcgdex-ja'],
       [tcgdexEn, 'tcgdex-en'],
     ])) {
-      const card = await safeFetch(client, cardId);
-      if (card) {
+      for (const sc of setCands) {
+        for (const num of numCands) {
+          const card = await safeFetch(client, `${sc}-${num}`);
+          if (card) {
+            hit = { card, langTag };
+            break outer;
+          }
+        }
+      }
+    }
+    if (hit) {
+      {
+        const card = hit.card;
+        const langTag = hit.langTag;
         const normalized = normalizeCard(card, langTag === 'tcgdex-ja' ? 'ja' : 'en');
         // Merge: keep TCGdex data, but prefer the Korean name from local DB
         // when present (TCGdex doesn't have ko yet — JA/EN names are
@@ -350,4 +366,36 @@ function pad3(n) {
   const digits = String(n).replace(/^0+(?=\d)/, '');
   if (!digits) return '';
   return digits.padStart(3, '0');
+}
+
+/**
+ * 세트 코드 후보 생성. TCGdex 는 카탈로그/세트마다 표기가 달라서
+ * (EN 기본세트는 2자리 zero-pad: sv1→sv01, sv8→sv08 / 변형세트는 sv4a 그대로)
+ * 사용자가 친 코드 하나만으로는 자주 빗나간다. 알파접두사+숫자(+접미사) 패턴이면
+ * 숫자부를 2자리 패딩한 변형과 패딩 제거 변형을 함께 시도한다.
+ */
+function setCodeVariants(raw) {
+  const s = String(raw ?? '').toLowerCase().trim();
+  if (!s) return [];
+  const out = new Set([s]);
+  const m = s.match(/^([a-z]+)(\d+)([a-z0-9]*)$/);
+  if (m) {
+    const [, pre, num, suf] = m;
+    out.add(`${pre}${num.padStart(2, '0')}${suf}`); // sv1 → sv01
+    out.add(`${pre}${String(parseInt(num, 10))}${suf}`); // sv01 → sv1
+  }
+  return [...out];
+}
+
+/** 카드 번호 후보 — 3자리 zero-pad 와 패딩 제거(앞 0 제거) 둘 다 시도. */
+function numberVariants(raw) {
+  const out = new Set();
+  const p = pad3(raw);
+  if (p) {
+    out.add(p); // 001
+    out.add(String(parseInt(p, 10))); // 1
+  }
+  const t = String(raw ?? '').trim();
+  if (t) out.add(t); // 사용자가 친 원본 (TG01 등 비숫자 케이스)
+  return [...out].filter(Boolean);
 }
