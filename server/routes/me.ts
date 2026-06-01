@@ -102,6 +102,22 @@ router.post('/cards', async (req: Request, res: Response) => {
       ? body.photoUrl.slice(0, 500)
       : null;
 
+  // 구매 정보 (구매가/통화/수량/구매시기)
+  const buyPriceNum = Number(body.buyPrice);
+  const buyPrice = Number.isFinite(buyPriceNum) && buyPriceNum > 0 ? Math.round(buyPriceNum) : null;
+  const buyCurrency = body.buyCurrency === 'JPY' ? 'JPY' : 'KRW';
+  const qtyNum = Number(body.qty);
+  const qty = Number.isFinite(qtyNum) ? Math.max(1, Math.min(999, Math.round(qtyNum))) : 1;
+  const buyDate = typeof body.buyDate === 'string' ? body.buyDate.trim().slice(0, 10) || null : null;
+
+  // 직접뽑기 / 등급(그레이딩) 정보
+  const selfPulled = body.selfPulled === true;
+  const graded = body.graded === true;
+  const gradeCompany =
+    graded && typeof body.gradeCompany === 'string' ? body.gradeCompany.trim().slice(0, 16) || null : null;
+  const gradeValue =
+    graded && typeof body.gradeValue === 'string' ? body.gradeValue.trim().slice(0, 8) || null : null;
+
   try {
     await prisma.user.upsert({
       where: { id: userId },
@@ -120,6 +136,14 @@ router.post('/cards', async (req: Request, res: Response) => {
         gradeEstimate,
         centeringScore,
         photoUrl,
+        buyPrice,
+        buyCurrency,
+        qty,
+        buyDate,
+        selfPulled,
+        graded,
+        gradeCompany,
+        gradeValue,
       },
     });
     res.status(201).json({ data: created });

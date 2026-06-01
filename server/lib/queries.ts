@@ -269,6 +269,14 @@ export interface MyCardRow {
   gradeEstimate: string | null;
   centeringScore: number | null;
   photoUrl: string | null;
+  buyPrice: number | null;
+  buyCurrency: string | null;
+  qty: number;
+  buyDate: string | null;
+  selfPulled: boolean;
+  graded: boolean;
+  gradeCompany: string | null;
+  gradeValue: string | null;
   createdAt: string;
 }
 
@@ -290,6 +298,14 @@ export async function getMyCards(userId: string, limit = 100): Promise<MyCardRow
       gradeEstimate: r.gradeEstimate,
       centeringScore: r.centeringScore,
       photoUrl: r.photoUrl,
+      buyPrice: r.buyPrice,
+      buyCurrency: r.buyCurrency,
+      qty: r.qty,
+      buyDate: r.buyDate,
+      selfPulled: r.selfPulled,
+      graded: r.graded,
+      gradeCompany: r.gradeCompany,
+      gradeValue: r.gradeValue,
       createdAt: r.createdAt.toISOString(),
     }));
   } catch (err) {

@@ -17,6 +17,7 @@ import { colors } from '@/theme/tokens';
 import { CARDS, GAMES, fmt, priceLabel, displayCardName, inferCardCurrency, cardProfit, type CardItem, type Game, type Rarity, type PriceCurrency } from '@/data/cardvault';
 import { addCards } from '@/lib/collection';
 import { usePriceMode } from '@/lib/priceMode';
+import { lookupCardInfo } from '@/services/cardScanApi';
 import type { GuideRect, ScanLanguage } from '@/types/cardScan';
 
 type Mode = 'choose' | 'camera' | 'preview' | 'batch' | 'manual' | 'register' | 'result' | 'batchResult';
@@ -56,6 +57,11 @@ export default function ScanScreen() {
   const [manNum, setManNum] = useState('');
   const [manGame, setManGame] = useState<Game>('포켓몬');
   const [manRar, setManRar] = useState<Rarity>('R');
+  // 직접입력 검색 상태 — 세트코드+번호로 조회한 결과 리스트.
+  const [manSearching, setManSearching] = useState(false);
+  const [manSearched, setManSearched] = useState(false);
+  const [manErr, setManErr] = useState<string | null>(null);
+  const [manResults, setManResults] = useState<CardItem[]>([]);
 
   // 5단계 — 구매정보 입력 시트 상태. 카드 확인 직후 이 카드를 받아 띄운다.
   const [pendingCard, setPendingCard] = useState<CardItem | null>(null);
@@ -64,6 +70,10 @@ export default function ScanScreen() {
   const [buyPriceStr, setBuyPriceStr] = useState('');
   const [buyCur, setBuyCur] = useState<PriceCurrency>('KRW');
   const [buyQty, setBuyQty] = useState(1);
+  const [selfPulled, setSelfPulled] = useState(false);
+  const [graded, setGraded] = useState(false);
+  const [gradeCompany, setGradeCompany] = useState('PSA');
+  const [gradeValue, setGradeValue] = useState('');
 
   /** 확정된 카드를 받아 구매정보 입력 단계로. 입력값은 매번 초기화. */
   const openRegister = (card: CardItem, from: 'scan' | 'manual') => {
@@ -74,43 +84,113 @@ export default function ScanScreen() {
     // 시세가 JPY 인 카드는 구매가도 JPY 로 입력할 확률이 높다 → 기본 통화 맞춤.
     setBuyCur(inferCardCurrency(card));
     setBuyQty(1);
+    setSelfPulled(false);
+    setGraded(card.grade != null);
+    setGradeCompany('PSA');
+    setGradeValue(card.grade != null ? String(card.grade) : '');
     setMode('register');
   };
 
   /** 6단계로 — 구매정보를 카드에 반영(또는 건너뛰고)해 저장. */
   const finalizeRegister = (skip: boolean) => {
     if (!pendingCard) return;
-    const price = parseInt(buyPriceStr, 10);
-    const card: CardItem =
-      skip || !(price > 0)
-        ? { ...pendingCard, qty: Math.max(1, buyQty) }
-        : {
-            ...pendingCard,
-            buyPrice: price,
-            buyCurrency: buyCur,
-            qty: Math.max(1, buyQty),
-            buyDate: buyYm || undefined,
-          };
+    // 등급(그레이딩) 정보는 건너뛰기와 무관하게 항상 반영.
+    const gradingPatch: Partial<CardItem> = graded
+      ? { graded: true, gradeCompany: gradeCompany.trim() || undefined, gradeValue: gradeValue.trim() || undefined }
+      : { graded: false };
+
+    let card: CardItem;
+    if (selfPulled) {
+      // 직접뽑기 — 등록 시점 현재시세를 기준가로 박는다.
+      const basis = pendingCard.priceSingle ?? pendingCard.price;
+      card = {
+        ...pendingCard,
+        ...gradingPatch,
+        selfPulled: true,
+        buyPrice: basis > 0 ? basis : undefined,
+        buyCurrency: inferCardCurrency(pendingCard),
+        qty: Math.max(1, buyQty),
+        buyDate: buyYm || undefined,
+      };
+    } else {
+      const price = parseInt(buyPriceStr, 10);
+      card =
+        skip || !(price > 0)
+          ? { ...pendingCard, ...gradingPatch, selfPulled: false, qty: Math.max(1, buyQty) }
+          : {
+              ...pendingCard,
+              ...gradingPatch,
+              selfPulled: false,
+              buyPrice: price,
+              buyCurrency: buyCur,
+              qty: Math.max(1, buyQty),
+              buyDate: buyYm || undefined,
+            };
+    }
     addCards([card]);
     setFound(card);
     setMode('result');
   };
 
-  const submitManual = () => {
-    const card: CardItem = {
-      id: Date.now(),
-      name: manName || '무제 카드',
-      set: manSet || '-',
-      num: manNum || '-',
-      game: manGame,
-      rar: manRar,
-      grade: null,
-      price: 0,
-      trend: [],
-      emoji: '🃏',
-      owned: true,
-    };
-    openRegister(card, 'manual');
+  /** 입력값(또는 lookup 결과)으로 CardItem 구성. */
+  const buildManualCard = (over?: Partial<CardItem>): CardItem => ({
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    name: manName || '무제 카드',
+    set: manSet || '-',
+    num: manNum || '-',
+    game: manGame,
+    rar: manRar,
+    grade: null,
+    price: 0,
+    trend: [],
+    emoji: '🃏',
+    owned: true,
+    ...over,
+  });
+
+  /** 세트코드 + 카드번호로 검색 → 결과 리스트. */
+  const runManualSearch = async () => {
+    if (manSearching) return;
+    setManErr(null);
+    if (!manSet.trim() || !manNum.trim()) {
+      setManErr('세트 코드와 카드 번호를 입력해 주세요');
+      return;
+    }
+    setManSearching(true);
+    setManSearched(false);
+    setManResults([]);
+    try {
+      const res = await lookupCardInfo({
+        setCode: manSet.trim(),
+        cardNumber: manNum.trim().split('/')[0],
+        name: manName.trim() || undefined,
+      });
+      const list: CardItem[] = [];
+      if (res.found && res.card) {
+        const c = res.card;
+        const jpy = c.priceSummary?.byRegion?.jpy ?? null;
+        const krw = c.priceSummary?.byRegion?.krw ?? null;
+        const priceCur: PriceCurrency = jpy != null ? 'JPY' : 'KRW';
+        const priceVal = jpy != null ? jpy : krw ?? 0;
+        list.push(
+          buildManualCard({
+            name: c.localName || c.name || manName || '무제 카드',
+            set: c.setCode || manSet || '-',
+            num: c.number || manNum || '-',
+            price: Math.round(priceVal),
+            priceSingle: Math.round(priceVal),
+            priceCurrency: priceCur,
+            imageUrl: c.imageLarge || c.imageSmall || undefined,
+          }),
+        );
+      }
+      setManResults(list);
+      setManSearched(true);
+    } catch (e) {
+      setManErr(e instanceof Error ? e.message : '검색 실패');
+    } finally {
+      setManSearching(false);
+    }
   };
 
   if (mode === 'camera') {
@@ -388,7 +468,7 @@ export default function ScanScreen() {
 
             <View>
               <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                📛 카드명 <Text style={{ color: colors.red }}>*</Text>
+                📛 카드명 <Text style={{ color: colors.ink3 }}>(선택)</Text>
               </PixelText>
               <TextInput
                 value={manName}
@@ -402,24 +482,25 @@ export default function ScanScreen() {
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <PixelText variant="pixel" size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                  세트명
+                  세트 코드 <Text style={{ color: colors.red }}>*</Text>
                 </PixelText>
                 <TextInput
                   value={manSet}
-                  onChangeText={setManSet}
-                  placeholder="세트"
+                  onChangeText={(t) => setManSet(t.toUpperCase())}
+                  placeholder="예) SV1"
                   placeholderTextColor={colors.ink4}
+                  autoCapitalize="characters"
                   style={inputStyle}
                 />
               </View>
               <View style={{ flex: 1 }}>
                 <PixelText variant="pixel" size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                  카드 번호
+                  카드 번호 <Text style={{ color: colors.red }}>*</Text>
                 </PixelText>
                 <TextInput
                   value={manNum}
                   onChangeText={setManNum}
-                  placeholder="006/165"
+                  placeholder="006"
                   placeholderTextColor={colors.ink4}
                   style={inputStyle}
                 />
@@ -439,6 +520,12 @@ export default function ScanScreen() {
               </View>
             </View>
 
+            {manErr && (
+              <PixelText variant="pixel" size={10} color={colors.red}>
+                ⚠ {manErr}
+              </PixelText>
+            )}
+
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <PixelPress wrapStyle={{ flex: 1 }} onPress={() => setMode('choose')}>
                 <View style={{ paddingVertical: 11, alignItems: 'center' }}>
@@ -448,20 +535,63 @@ export default function ScanScreen() {
                 </View>
               </PixelPress>
               <PixelPress
-                wrapStyle={{ flex: 1 }}
-                onPress={submitManual}
-                disabled={!manName}
-                bg={manName ? colors.gold : colors.pap3}
-                hi={manName ? colors.goldLt : null}
-                lo={manName ? colors.goldDk : null}
+                wrapStyle={{ flex: 2 }}
+                onPress={runManualSearch}
+                disabled={manSearching || !manSet || !manNum}
+                bg={!manSearching && manSet && manNum ? colors.gold : colors.pap3}
+                hi={!manSearching && manSet && manNum ? colors.goldLt : null}
+                lo={!manSearching && manSet && manNum ? colors.goldDk : null}
               >
                 <View style={{ paddingVertical: 11, alignItems: 'center' }}>
                   <PixelText variant="pixel" size={11}>
-                    다음 ▶
+                    {manSearching ? '검색 중...' : '🔍 카드 검색'}
                   </PixelText>
                 </View>
               </PixelPress>
             </View>
+
+            {/* 검색 결과 리스트 → 선택 시 등록 시트로 */}
+            {manSearched && (
+              <View style={{ gap: 8 }}>
+                <PixelText variant="pixel" size={10} color={colors.ink3} style={{ letterSpacing: 1 }}>
+                  검색 결과 {manResults.length}건
+                </PixelText>
+                {manResults.map((c) => (
+                  <PixelPress key={c.id} onPress={() => openRegister(c, 'manual')} borderWidth={3} shadow={4}>
+                    <View style={{ flexDirection: 'row', gap: 10, padding: 10, alignItems: 'center' }}>
+                      <View style={{ width: 44, height: 60, borderColor: colors.ink, borderWidth: 2 }}>
+                        <CardThumb card={c} height={56} emojiSize={20} showLabel={false} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <PixelText variant="ko" size={11} weight="bold">{displayCardName(c.name)}</PixelText>
+                        <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 3 }}>
+                          {c.set} · {c.num}
+                        </PixelText>
+                        <PixelText variant="pixel" size={10} color={c.price > 0 ? colors.grnDk : colors.ink3} style={{ marginTop: 3 }}>
+                          {priceLabel(c.price, inferCardCurrency(c))}
+                        </PixelText>
+                      </View>
+                      <PixelText variant="pixel" size={10} color={colors.blu}>선택 ▶</PixelText>
+                    </View>
+                  </PixelPress>
+                ))}
+                {/* 검색에 안 잡혀도 입력값 그대로 등록 */}
+                <PixelPress onPress={() => openRegister(buildManualCard(), 'manual')} bg={colors.pap2} borderWidth={3} shadow={4}>
+                  <View style={{ flexDirection: 'row', gap: 10, padding: 10, alignItems: 'center' }}>
+                    <View style={{ width: 44, height: 60, borderColor: colors.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 20 }}>✍️</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <PixelText variant="pixel" size={11}>입력한 정보 그대로 등록</PixelText>
+                      <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 3 }}>
+                        {manName || '무제 카드'} · {manSet || '-'} · {manNum || '-'}
+                      </PixelText>
+                    </View>
+                    <PixelText variant="pixel" size={10} color={colors.blu}>선택 ▶</PixelText>
+                  </View>
+                </PixelPress>
+              </View>
+            )}
           </View>
         )}
 
@@ -501,6 +631,14 @@ export default function ScanScreen() {
               </View>
             </PixelFrame>
 
+            {/* 직접뽑기 토글 */}
+            <ToggleRow
+              on={selfPulled}
+              onPress={() => setSelfPulled((v) => !v)}
+              label="🎁 직접 뽑은 카드"
+              hint="구매가 대신 현재시세를 기준가로 사용"
+            />
+
             {/* 구매 시기 */}
             <View>
               <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
@@ -515,39 +653,55 @@ export default function ScanScreen() {
               />
             </View>
 
-            {/* 구매가 + 통화 */}
-            <View>
-              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                💰 구매가 <Text style={{ color: colors.ink3 }}>(장당)</Text>
-              </PixelText>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TextInput
-                  value={buyPriceStr}
-                  onChangeText={setBuyPriceStr}
-                  placeholder={buyCur === 'JPY' ? '엔' : '원'}
-                  placeholderTextColor={colors.ink4}
-                  keyboardType="numeric"
-                  style={[inputStyle, { flex: 1 }]}
-                />
-                {(['KRW', 'JPY'] as PriceCurrency[]).map((c) => (
-                  <Pressable
-                    key={c}
-                    onPress={() => setBuyCur(c)}
-                    style={{
-                      paddingHorizontal: 16,
-                      justifyContent: 'center',
-                      backgroundColor: buyCur === c ? colors.gold : colors.white,
-                      borderColor: colors.ink,
-                      borderWidth: 3,
-                    }}
-                  >
-                    <PixelText variant="pixel" size={12} color={buyCur === c ? colors.ink : colors.ink3}>
-                      {c === 'JPY' ? '¥' : '₩'}
+            {/* 구매가 + 통화 — 직접뽑기면 현재시세 기준가 안내로 대체 */}
+            {selfPulled ? (
+              <View>
+                <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                  💰 기준가
+                </PixelText>
+                <PixelFrame borderWidth={3} bg={colors.pap3}>
+                  <View style={{ padding: 12 }}>
+                    <PixelText variant="pixel" size={10} color={colors.ink3} style={{ lineHeight: 16 }}>
+                      현재시세 {priceLabel(cardProfit(pendingCard, priceMode).currentKrw / Math.max(1, buyQty), 'KRW')} 를
+                      {`\n`}기준가로 등록합니다
                     </PixelText>
-                  </Pressable>
-                ))}
+                  </View>
+                </PixelFrame>
               </View>
-            </View>
+            ) : (
+              <View>
+                <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                  💰 구매가 <Text style={{ color: colors.ink3 }}>(장당)</Text>
+                </PixelText>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    value={buyPriceStr}
+                    onChangeText={setBuyPriceStr}
+                    placeholder={buyCur === 'JPY' ? '엔' : '원'}
+                    placeholderTextColor={colors.ink4}
+                    keyboardType="numeric"
+                    style={[inputStyle, { flex: 1 }]}
+                  />
+                  {(['KRW', 'JPY'] as PriceCurrency[]).map((c) => (
+                    <Pressable
+                      key={c}
+                      onPress={() => setBuyCur(c)}
+                      style={{
+                        paddingHorizontal: 16,
+                        justifyContent: 'center',
+                        backgroundColor: buyCur === c ? colors.gold : colors.white,
+                        borderColor: colors.ink,
+                        borderWidth: 3,
+                      }}
+                    >
+                      <PixelText variant="pixel" size={12} color={buyCur === c ? colors.ink : colors.ink3}>
+                        {c === 'JPY' ? '¥' : '₩'}
+                      </PixelText>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
 
             {/* 수량 */}
             <View>
@@ -572,6 +726,43 @@ export default function ScanScreen() {
                 </Pressable>
               </View>
             </View>
+
+            {/* 등급여부 토글 + 등급사/등급 */}
+            <ToggleRow
+              on={graded}
+              onPress={() => setGraded((v) => !v)}
+              label="🏅 등급(그레이딩) 카드"
+              hint="PSA/BGS 등 슬랩 카드"
+            />
+            {graded && (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1.4 }}>
+                  <PixelText variant="pixel" size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                    등급사
+                  </PixelText>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    {['PSA', 'BGS', 'CGC', 'SGC'].map((co) => (
+                      <Chip key={co} on={gradeCompany === co} onPress={() => setGradeCompany(co)} size={9} px={8} py={6}>
+                        {co}
+                      </Chip>
+                    ))}
+                  </View>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <PixelText variant="pixel" size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                    등급
+                  </PixelText>
+                  <TextInput
+                    value={gradeValue}
+                    onChangeText={setGradeValue}
+                    placeholder="10"
+                    placeholderTextColor={colors.ink4}
+                    keyboardType="numeric"
+                    style={inputStyle}
+                  />
+                </View>
+              </View>
+            )}
 
             {/* 6단계 — 수익률 실시간 미리보기 */}
             {preview.hasBuy && (
@@ -719,6 +910,57 @@ export default function ScanScreen() {
       </ScrollView>
       )}
     </View>
+  );
+}
+
+function ToggleRow({
+  on,
+  onPress,
+  label,
+  hint,
+}: {
+  on: boolean;
+  onPress: () => void;
+  label: string;
+  hint?: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        padding: 12,
+        backgroundColor: on ? colors.gold : colors.white,
+        borderColor: colors.ink,
+        borderWidth: 3,
+      }}
+    >
+      <View
+        style={{
+          width: 24,
+          height: 24,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: on ? colors.ink : colors.pap3,
+          borderColor: colors.ink,
+          borderWidth: 2,
+        }}
+      >
+        {on && <PixelText variant="pixel" size={12} color={colors.gold}>✓</PixelText>}
+      </View>
+      <View style={{ flex: 1 }}>
+        <PixelText variant="pixel" size={11} color={colors.ink}>
+          {label}
+        </PixelText>
+        {hint && (
+          <PixelText variant="pixel" size={8} color={on ? colors.ink2 : colors.ink3} style={{ marginTop: 3 }}>
+            {hint}
+          </PixelText>
+        )}
+      </View>
+    </Pressable>
   );
 }
 

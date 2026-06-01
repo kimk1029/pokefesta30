@@ -66,6 +66,15 @@ export interface MyCardRow {
   priceSingleJpy?: number;
   /** PSA10 중앙값 시세 (있으면). */
   pricePsa10Jpy?: number;
+  /** 구매 정보 / 등급 정보. */
+  buyPrice?: number | null;
+  buyCurrency?: string | null;
+  qty?: number;
+  buyDate?: string | null;
+  selfPulled?: boolean;
+  graded?: boolean;
+  gradeCompany?: string | null;
+  gradeValue?: string | null;
 }
 
 export interface MyFavoriteRow {

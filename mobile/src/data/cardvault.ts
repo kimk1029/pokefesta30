@@ -41,6 +41,14 @@ export interface CardItem {
   qty?: number;
   /** 구매 시기 (YYYY-MM). 표시용 자유 문자열. */
   buyDate?: string;
+  /** 직접뽑기 여부 — true 면 구매가 없이 등록 시점 현재시세를 기준가로 사용. */
+  selfPulled?: boolean;
+  /** 등급(그레이딩) 카드 여부. */
+  graded?: boolean;
+  /** 등급사 — 'PSA' | 'BGS' | 'CGC' | 'SGC' 등. */
+  gradeCompany?: string;
+  /** 사용자가 입력한 실제 등급 값 — "10", "9.5" 등. */
+  gradeValue?: string;
 }
 
 export interface MarketItem {

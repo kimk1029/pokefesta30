@@ -76,6 +76,7 @@ export default function MyScreen() {
       title: '내 활동',
       items: [
         { icon: '✉️', iconBg: '#0D7377', label: '쪽지함', desc: '거래 채팅', onPress: () => router.push('/my/messages' as never) },
+        { icon: '📈', iconBg: '#16A357', label: '포트폴리오', desc: '평가액·등락률·일별 차트', onPress: () => router.push('/my/portfolio' as never) },
         { icon: '🃏', iconBg: '#FB923C', label: '내 카드', desc: `${cardCount}장 보유 중`, onPress: () => router.push('/my/cards' as never) },
         { icon: '⭐', iconBg: '#7C3AED', label: '관심카드', desc: '찜한 시세 카드', onPress: () => router.push('/my/favorites' as never) },
         { icon: '📝', iconBg: '#FFD23F', label: '내가 쓴 거래글', desc: `${tradeCount}건`, onPress: () => router.push('/my/trades' as never) },

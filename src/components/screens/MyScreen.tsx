@@ -24,6 +24,7 @@ interface Props {
 }
 
 const ACTIVITY: Array<{ em: string; bg: string; lb: string; href: string }> = [
+  { em: '📈', bg: '#16A357', lb: '포트폴리오', href: '/my/portfolio' },
   { em: '🃏', bg: '#FB923C', lb: '내 카드', href: '/my/cards' },
   { em: '⭐', bg: '#7C3AED', lb: '관심카드', href: '/my/favorites' },
   { em: '📝', bg: '#FFD23F', lb: '내가 쓴 거래글', href: '/my/trades' },
@@ -120,6 +121,25 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount, isGue
             </span>
           </div>
           <PortfolioTotal />
+          {!isGuest && (
+            <Link
+              href="/my/portfolio"
+              style={{
+                display: 'block',
+                marginTop: 8,
+                textAlign: 'center',
+                padding: '7px',
+                background: 'rgba(0,0,0,.3)',
+                color: 'var(--gold)',
+                fontFamily: 'var(--f1)',
+                fontSize: 10,
+                letterSpacing: 0.4,
+                textDecoration: 'none',
+              }}
+            >
+              📈 포트폴리오 자세히 보기 →
+            </Link>
+          )}
         </div>
       </div>
 

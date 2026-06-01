@@ -269,8 +269,16 @@ model UserCard {
   buyCurrency    String?  @default("KRW")
   /// 보유 수량. 기본 1.
   qty            Int      @default(1)
-  /// 구매 시기 (YYYY-MM). 표시용 문자열.
+  /// 구매 시기 (YYYY-MM 또는 YYYY-MM-DD). 표시용 문자열. 미입력이면 등록일.
   buyDate        String?
+  /// 직접뽑기 여부 — true 면 구매가 없이 등록 시점 현재시세를 기준가(buyPrice)로 저장.
+  selfPulled     Boolean  @default(false)
+  /// 등급(그레이딩) 카드 여부 — true 면 gradeCompany/gradeValue 사용.
+  graded         Boolean  @default(false)
+  /// 등급사 — 'PSA' | 'BGS' | 'CGC' | 'SGC' 등.
+  gradeCompany   String?
+  /// 사용자가 입력한 실제 등급 값 — "10", "9.5" 등.
+  gradeValue     String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

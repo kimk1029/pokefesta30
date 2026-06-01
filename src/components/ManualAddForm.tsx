@@ -1,8 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
-import { startRouteTransition } from '@/components/RouteProgress';
+import { useState } from 'react';
+import { CardRegisterSheet, type RegisterCardInput } from '@/components/cards/CardRegisterSheet';
 
 interface CatalogOption {
   id: string;
@@ -15,109 +14,92 @@ interface Props {
   catalog: CatalogOption[];
 }
 
-const PSA_OPTIONS = ['미입력', 'PSA 10 (Gem Mint)', 'PSA 9 (Mint)', 'PSA 8 (NM-MT)', 'PSA 7 (NM)', 'PSA 6 (EX-MT)'];
+/** /api/cards/lookup 응답의 card 부분 (필요한 필드만). */
+interface LookupCard {
+  id?: string;
+  name?: string;
+  localName?: string | null;
+  setName?: string;
+  setCode?: string;
+  number?: string;
+  rarity?: string;
+  imageSmall?: string | null;
+  imageLarge?: string | null;
+  priceSummary?: {
+    byRegion?: { jpy?: number | null; krw?: number | null } | null;
+  } | null;
+}
 
-export function ManualAddForm({ catalog }: Props) {
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const [err, setErr] = useState<string | null>(null);
-
-  const [cardId, setCardId] = useState<string>('');
-  const [nickname, setNickname] = useState('');
+/**
+ * 직접입력 플로우: 세트코드 + 카드번호로 검색 → 결과 카드 리스트 → 선택 →
+ * 스캔과 동일한 "카드 등록" 시트로 진입.
+ */
+export function ManualAddForm(_props: Props) {
   const [setCode, setSetCode] = useState('');
   const [cardNumber, setCardNumber] = useState('');
-  const [grade, setGrade] = useState<string>('미입력');
-  const [memo, setMemo] = useState('');
-  const [buyDate, setBuyDate] = useState('');
-  const [buyPrice, setBuyPrice] = useState('');
-  const [buyCurrency, setBuyCurrency] = useState<'KRW' | 'JPY'>('KRW');
-  const [qty, setQty] = useState(1);
+  const [name, setName] = useState('');
 
-  const submit = () => {
+  const [searching, setSearching] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
+  const [results, setResults] = useState<RegisterCardInput[]>([]);
+  const [selected, setSelected] = useState<RegisterCardInput | null>(null);
+
+  const runSearch = async () => {
+    if (searching) return;
     setErr(null);
-
-    const payload: Record<string, unknown> = {};
-    if (cardId) payload.cardId = cardId;
-    if (nickname.trim()) payload.nickname = nickname.trim();
-    if (setCode.trim()) payload.ocrSetCode = setCode.trim();
-    if (cardNumber.trim()) payload.ocrCardNumber = cardNumber.trim();
-    if (grade !== '미입력') payload.gradeEstimate = grade;
-    if (memo.trim()) payload.memo = memo.trim();
-    const bp = parseInt(buyPrice, 10);
-    if (bp > 0) {
-      payload.buyPrice = bp;
-      payload.buyCurrency = buyCurrency;
-    }
-    if (buyDate.trim()) payload.buyDate = buyDate.trim();
-    if (qty > 1) payload.qty = qty;
-
-    if (!payload.cardId && !payload.ocrSetCode && !payload.ocrCardNumber && !payload.nickname) {
-      setErr('카탈로그 선택, 세트/번호, 또는 별칭 중 하나는 입력해 주세요');
+    if (!setCode.trim() || !cardNumber.trim()) {
+      setErr('세트 코드와 카드 번호를 입력해 주세요');
       return;
     }
-    // API 가 cardId/OCR 둘 다 비면 거절하므로, 별칭만 있을 땐 별칭을 OCR 자리에 한 번 더
-    if (!payload.cardId && !payload.ocrSetCode && !payload.ocrCardNumber && payload.nickname) {
-      payload.ocrCardNumber = String(payload.nickname).slice(0, 16);
-    }
-
-    start(async () => {
-      try {
-        const r = await fetch('/api/me/cards', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!r.ok) {
-          const data = (await r.json().catch(() => ({}))) as { error?: string };
-          throw new Error(data.error ?? `HTTP ${r.status}`);
-        }
-        startRouteTransition();
-        router.push('/my/cards');
-        router.refresh();
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : '저장 실패');
+    setSearching(true);
+    setSearched(false);
+    setResults([]);
+    setSelected(null);
+    try {
+      const qs = new URLSearchParams({ setCode: setCode.trim(), number: cardNumber.trim() });
+      if (name.trim()) qs.set('name', name.trim());
+      const r = await fetch(`/api/cards/lookup?${qs.toString()}`, { cache: 'no-store' });
+      const data = (await r.json().catch(() => null)) as
+        | { ok?: boolean; found?: boolean; card?: LookupCard | null }
+        | null;
+      const list: RegisterCardInput[] = [];
+      if (data?.found && data.card) {
+        list.push(lookupToRegister(data.card));
       }
-    });
+      // 카탈로그 내 세트코드 부분일치도 같이 노출 (보조)
+      setResults(list);
+      setSearched(true);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '검색 실패');
+    } finally {
+      setSearching(false);
+    }
   };
+
+  // 검색이 비어도 입력값 그대로 등록할 수 있도록 fallback 카드 구성
+  const fallbackCard: RegisterCardInput = {
+    setCode: setCode.trim() || null,
+    cardNumber: cardNumber.trim() || null,
+    name: name.trim() || null,
+    imageUrl: null,
+  };
+
+  if (selected) {
+    return (
+      <div className="cv-manual-form">
+        <button type="button" className="cv-reg-back" onClick={() => setSelected(null)}>
+          ← 다른 카드 선택
+        </button>
+        <CardRegisterSheet card={selected} />
+      </div>
+    );
+  }
 
   return (
     <div className="cv-manual-form">
-      <Field label="카드 선택 (선택)" hint="카탈로그에 있다면 골라주세요. 없으면 비워두고 별칭만 입력해도 돼요.">
-        <div className="cv-manual-catalog">
-          <button
-            type="button"
-            className={`cv-manual-cat-btn${cardId === '' ? ' on' : ''}`}
-            onClick={() => setCardId('')}
-          >
-            없음
-          </button>
-          {catalog.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`cv-manual-cat-btn${cardId === c.id ? ' on' : ''}`}
-              onClick={() => setCardId(c.id)}
-              title={c.name}
-            >
-              <span style={{ marginRight: 4 }}>{c.emoji}</span>
-              {c.name}
-            </button>
-          ))}
-        </div>
-      </Field>
-
-      <Field label="별칭 (선택)" hint="‘리자몽 #1’ 처럼 내 컬렉션 안에서 부를 이름.">
-        <input
-          className="cv-manual-input"
-          maxLength={60}
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-          placeholder="예) 리자몽 베이스셋 1번"
-        />
-      </Field>
-
       <div className="cv-manual-row">
-        <Field label="세트 코드 (선택)">
+        <Field label="세트 코드">
           <input
             className="cv-manual-input"
             maxLength={16}
@@ -126,100 +108,89 @@ export function ManualAddForm({ catalog }: Props) {
             placeholder="예) SV1"
           />
         </Field>
-        <Field label="카드 번호 (선택)">
+        <Field label="카드 번호">
           <input
             className="cv-manual-input"
             maxLength={16}
             value={cardNumber}
             onChange={(e) => setCardNumber(e.target.value)}
-            placeholder="예) 045/198"
+            placeholder="예) 045"
           />
         </Field>
       </div>
-
-      <Field label="그레이딩 (선택)">
-        <div className="cv-manual-grades">
-          {PSA_OPTIONS.map((g) => (
-            <button
-              key={g}
-              type="button"
-              className={`cv-manual-grade${grade === g ? ' on' : ''}`}
-              onClick={() => setGrade(g)}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-      </Field>
-
-      <div className="cv-manual-row">
-        <Field label="구매 시기 (선택)" hint="예) 2026-06">
-          <input
-            className="cv-manual-input"
-            maxLength={10}
-            value={buyDate}
-            onChange={(e) => setBuyDate(e.target.value)}
-            placeholder="2026-06"
-          />
-        </Field>
-        <Field label="수량">
-          <div className="cv-manual-qty">
-            <button type="button" className="cv-manual-qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))}>
-              −
-            </button>
-            <span className="cv-manual-qty-val">{qty}</span>
-            <button type="button" className="cv-manual-qty-btn" onClick={() => setQty((q) => Math.min(999, q + 1))}>
-              ＋
-            </button>
-          </div>
-        </Field>
-      </div>
-
-      <Field label="구매가 (선택)" hint="한 장당 매입가. 입력하면 수익률이 계산돼요.">
-        <div className="cv-manual-buyprice">
-          <input
-            className="cv-manual-input"
-            inputMode="numeric"
-            value={buyPrice}
-            onChange={(e) => setBuyPrice(e.target.value.replace(/[^0-9]/g, ''))}
-            placeholder={buyCurrency === 'JPY' ? '엔' : '원'}
-          />
-          {(['KRW', 'JPY'] as const).map((c) => (
-            <button
-              key={c}
-              type="button"
-              className={`cv-manual-cur${buyCurrency === c ? ' on' : ''}`}
-              onClick={() => setBuyCurrency(c)}
-            >
-              {c === 'JPY' ? '¥' : '₩'}
-            </button>
-          ))}
-        </div>
-      </Field>
-
-      <Field label="메모 (선택)" hint="구입 경로, 보관 위치, 컨디션 등 자유 메모.">
-        <textarea
-          className="cv-manual-input cv-manual-textarea"
-          maxLength={500}
-          rows={4}
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-          placeholder="예) 2025년 6월 도쿄 출장에서 카드샵 X 에서 구입"
+      <Field label="카드 이름 (선택)" hint="검색 정확도를 높여줘요.">
+        <input
+          className="cv-manual-input"
+          maxLength={60}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="예) 리자몽 ex"
         />
       </Field>
 
       {err && <div className="cv-manual-err">⚠ {err}</div>}
 
-      <button
-        type="button"
-        className="cv-manual-submit"
-        disabled={pending}
-        onClick={submit}
-      >
-        {pending ? '저장 중...' : '＋ 컬렉션에 추가'}
+      <button type="button" className="cv-manual-submit" disabled={searching} onClick={runSearch}>
+        {searching ? '검색 중...' : '🔍 카드 검색'}
       </button>
+
+      {searched && (
+        <div className="cv-reg-results">
+          <div className="cv-manual-label" style={{ marginBottom: 8 }}>
+            검색 결과 {results.length}건
+          </div>
+          {results.map((c, i) => (
+            <button key={i} type="button" className="cv-reg-result" onClick={() => setSelected(c)}>
+              <div className="cv-reg-thumb">
+                {c.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={c.imageUrl} alt={c.name ?? '카드'} />
+                ) : (
+                  <span style={{ fontSize: 24 }}>🃏</span>
+                )}
+              </div>
+              <div className="cv-reg-meta">
+                <div className="cv-reg-name">{c.name ?? '이름 미상'}</div>
+                <div className="cv-reg-sub">
+                  {[c.setCode?.toUpperCase(), c.cardNumber].filter(Boolean).join(' · ')}
+                </div>
+                {c.currentPriceJpy != null && (
+                  <div className="cv-reg-price">현재시세 ¥{Math.round(c.currentPriceJpy).toLocaleString()}</div>
+                )}
+              </div>
+              <span className="cv-reg-pick">선택 ▶</span>
+            </button>
+          ))}
+
+          {/* 검색에 안 잡혀도 입력값 그대로 등록 */}
+          <button type="button" className="cv-reg-result cv-reg-result-manual" onClick={() => setSelected(fallbackCard)}>
+            <div className="cv-reg-thumb">
+              <span style={{ fontSize: 24 }}>✍️</span>
+            </div>
+            <div className="cv-reg-meta">
+              <div className="cv-reg-name">입력한 정보 그대로 등록</div>
+              <div className="cv-reg-sub">
+                {[setCode.toUpperCase(), cardNumber].filter(Boolean).join(' · ') || '세트/번호'}
+              </div>
+            </div>
+            <span className="cv-reg-pick">선택 ▶</span>
+          </button>
+        </div>
+      )}
     </div>
   );
+}
+
+function lookupToRegister(card: LookupCard): RegisterCardInput {
+  return {
+    cardId: null,
+    setCode: card.setCode ?? null,
+    cardNumber: card.number ?? null,
+    name: card.localName || card.name || null,
+    imageUrl: card.imageLarge || card.imageSmall || null,
+    currentPriceJpy: card.priceSummary?.byRegion?.jpy ?? null,
+    currentPriceKrw: card.priceSummary?.byRegion?.krw ?? null,
+  };
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {

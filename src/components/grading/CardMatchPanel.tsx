@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { CardPriceChart } from '@/components/CardPriceChart';
+import { CardRegisterSheet, type RegisterCardInput } from '@/components/cards/CardRegisterSheet';
 import type { CardOcrResult, ScanCandidate } from './cardOcr';
 import type { HistoryPoint, PriceCurrent } from '@/lib/cardPrices';
 import { matchCardFromOcr, type CardMatch } from '@/lib/grading/matchCard';
@@ -24,6 +25,26 @@ interface Props {
  */
 export function CardMatchPanel({ ocr, gradeLabel, centeringScore, selectedCandidate }: Props) {
   const match = useMemo(() => (ocr ? matchCardFromOcr(ocr) : null), [ocr]);
+
+  const registerCard = useMemo<RegisterCardInput | null>(() => {
+    if (!ocr) return null;
+    const cand = selectedCandidate;
+    const snkrId = cand?.snkrdunk?.apparelId ?? null;
+    const currentJpy = cand?.snkrdunk?.priceJpy ?? cand?.priceSummary?.byRegion?.jpy ?? null;
+    const currentKrw = cand?.priceSummary?.byRegion?.krw ?? null;
+    return {
+      cardId: match?.entry.id ?? null,
+      setCode: cand?.setCode ?? ocr.setCode ?? ocr.promoCode ?? null,
+      cardNumber: cand?.number ?? ocr.cardNumber?.raw ?? ocr.cardNumber?.left ?? null,
+      name: cand?.localName || cand?.name || match?.entry.name || ocr.name || null,
+      imageUrl: cand?.imageLarge || cand?.imageSmall || cand?.imageUrl || null,
+      snkrdunkApparelId: snkrId,
+      gradeEstimate: gradeLabel ?? null,
+      centeringScore: centeringScore ?? null,
+      currentPriceJpy: currentJpy,
+      currentPriceKrw: currentKrw,
+    };
+  }, [ocr, selectedCandidate, match, gradeLabel, centeringScore]);
 
   if (!ocr) return null;
 
@@ -54,141 +75,13 @@ export function CardMatchPanel({ ocr, gradeLabel, centeringScore, selectedCandid
         </div>
       )}
 
-      <SaveToArchive
-        ocr={ocr}
-        match={match}
-        gradeLabel={gradeLabel ?? null}
-        centeringScore={centeringScore ?? null}
-        selectedCandidate={selectedCandidate ?? null}
-      />
+      {registerCard && (
+        <div className="form-sect">
+          <div className="form-label">＋ 카드 등록</div>
+          <CardRegisterSheet card={registerCard} />
+        </div>
+      )}
     </>
-  );
-}
-
-/* ---------------------------------------------------------------- */
-
-function SaveToArchive({
-  ocr,
-  match,
-  gradeLabel,
-  centeringScore,
-  selectedCandidate,
-}: {
-  ocr: CardOcrResult;
-  match: CardMatch | null;
-  gradeLabel: string | null;
-  centeringScore: number | null;
-  selectedCandidate: ScanCandidate | null;
-}) {
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const onSave = async () => {
-    if (saving || saved) return;
-    setSaving(true);
-    setErr(null);
-    try {
-      // candidate 가 있으면 snkrdunkApparelId / 이미지 / 한글이름까지 같이 박는다.
-      // 그러면 내 컬렉션의 with-prices enrichment 가 그 apparelId 로 시세·이미지를
-      // 자동으로 가져오고, 사용자에게는 후보에서 본 그대로 보임. candidate 의 set/
-      // number 가 더 정확하면 ocrSetCode/ocrCardNumber 도 후보 기준으로 갱신.
-      const cand = selectedCandidate;
-      const snkrId = cand?.snkrdunk?.apparelId ?? null;
-      const candNum = cand?.number ? cand.number.split('/')[0] : null;
-      const candName = cand?.localName || cand?.name || null;
-      const candImage = cand?.imageLarge || cand?.imageSmall || cand?.imageUrl || null;
-      const r = await fetch('/api/me/cards', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          cardId: match?.entry.id ?? null,
-          ocrSetCode: cand?.setCode ?? ocr.setCode ?? ocr.promoCode ?? null,
-          ocrCardNumber: candNum ?? ocr.cardNumber?.left ?? null,
-          snkrdunkApparelId: snkrId,
-          // localName 은 한국어, name 은 일본어/영문일 수 있음. 한국어 우선.
-          nickname: candName,
-          // snkrdunkApparelId 가 있으면 서버가 snkrdunk 에서 이미지를 가져오니
-          // photoUrl 은 비워둠 (snkrdunkImageUrl 이 우선). 없을 때만 candidate
-          // 이미지를 직접 박아 컬렉션 표시에 사용.
-          photoUrl: snkrId ? null : candImage,
-          gradeEstimate: gradeLabel,
-          centeringScore,
-        }),
-      });
-      if (r.status === 401) {
-        setErr('로그인이 필요해요');
-        return;
-      }
-      if (!r.ok) {
-        const body = (await r.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? `HTTP ${r.status}`);
-      }
-      setSaved(true);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : '저장 실패');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="form-sect">
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving || saved}
-        style={{
-          width: '100%',
-          padding: '10px 12px',
-          background: saved ? 'var(--ink3)' : 'var(--ink)',
-          color: 'var(--white)',
-          fontFamily: 'var(--f1)',
-          fontSize: 12,
-          letterSpacing: 0.5,
-          border: 'none',
-          cursor: saving || saved ? 'default' : 'pointer',
-          boxShadow:
-            '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-        }}
-      >
-        {saved
-          ? '✓ 내 카드에 저장됨'
-          : saving
-            ? '저장 중...'
-            : '＋ 내 카드에 저장'}
-      </button>
-      {err && (
-        <div
-          style={{
-            marginTop: 8,
-            fontFamily: 'var(--f1)',
-            fontSize: 10,
-            color: 'var(--red)',
-            textAlign: 'center',
-            letterSpacing: 0.3,
-          }}
-        >
-          ⚠ {err}
-        </div>
-      )}
-      {saved && (
-        <div
-          style={{
-            marginTop: 8,
-            fontFamily: 'var(--f1)',
-            fontSize: 10,
-            color: 'var(--ink3)',
-            textAlign: 'center',
-            letterSpacing: 0.3,
-          }}
-        >
-          <Link href="/my/cards" style={{ color: 'var(--ink)', textDecoration: 'underline' }}>
-            내 카드 보기 →
-          </Link>
-        </div>
-      )}
-    </div>
   );
 }
 
