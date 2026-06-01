@@ -223,6 +223,29 @@ export default function MyCardsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <AppBar title="내 컬렉션" onBack={() => router.back()} />
+      {/* 전체 포트폴리오 바로가기 — 다크 인포그래픽 톤 */}
+      <Pressable
+        onPress={() => router.push('/my/portfolio' as never)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginHorizontal: 14,
+          marginTop: 10,
+          paddingVertical: 11,
+          paddingHorizontal: 14,
+          backgroundColor: colors.ink,
+          borderColor: colors.ink,
+          borderWidth: 2,
+        }}
+      >
+        <PixelText variant="pixel" size={10} color={colors.white} style={{ letterSpacing: 0.5 }}>
+          📈 전체 포트폴리오 보기
+        </PixelText>
+        <PixelText variant="pixel" size={10} color={colors.gold} style={{ letterSpacing: 0.5 }}>
+          등락률·차트 ▶
+        </PixelText>
+      </Pressable>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
         {loading && !data ? (
           <View style={{ paddingTop: 30 }}><LoadingState /></View>

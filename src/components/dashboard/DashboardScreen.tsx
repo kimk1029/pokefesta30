@@ -419,12 +419,14 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       <StatusBar />
       <AppBar right={<AppBarUser />} />
 
-      {/* ═══ HERO: PORTFOLIO CARD ═══ */}
+      {/* ═══ HERO: PORTFOLIO CARD ═══ (박스 클릭 → 전체 포트폴리오 페이지) */}
       <Panel
+        href="/my/portfolio"
+        ariaLabel="전체 포트폴리오 보기"
         style={{
           margin: 'var(--gap) var(--gap) var(--cg)',
           background: 'linear-gradient(135deg,#0F172A 0%,#1E293B 55%,#1B2E89 100%)',
-          padding: '18px 16px 16px', position: 'relative', overflow: 'hidden',
+          padding: '18px 16px 16px', position: 'relative', overflow: 'hidden', cursor: 'pointer',
         }}
         pixelShadow="-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),inset 0 4px 0 rgba(100,130,255,.18),inset 0 -5px 0 rgba(0,0,0,.55),9px 9px 0 var(--ink)"
       >
@@ -455,7 +457,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
                   <button
                     key={m}
                     type="button"
-                    onClick={() => setPriceMode(m)}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPriceMode(m); }}
                     style={{
                       padding: '3px 8px',
                       fontFamily: 'var(--f1)',
@@ -515,7 +517,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => setChartMode(mode)}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setChartMode(mode); }}
                   style={{
                     padding: '4px 9px', fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: .5, cursor: 'pointer',
                     background: chartMode === mode ? 'var(--gold)' : 'rgba(255,255,255,.06)',
@@ -546,6 +548,10 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
               <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,255,255,.3)', letterSpacing: .3 }}>{l}</div>
             </div>
           ))}
+        </div>
+        {/* 박스 클릭 시 전체 포트폴리오로 이동한다는 단서 */}
+        <div style={{ position: 'relative', marginTop: 10, textAlign: 'right', fontFamily: 'var(--f1)', fontSize: 9, color: 'rgba(255,210,63,.75)', letterSpacing: 0.5 }}>
+          전체 포트폴리오 보기 ▶
         </div>
         {/* 미로그인 시 HERO 박스 전체에 dim+blur 오버레이 + 로그인 CTA */}
         {!isLoggedIn && <PortfolioLoginGate />}

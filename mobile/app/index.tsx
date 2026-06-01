@@ -541,6 +541,16 @@ export default function Home() {
               </View>
             ))}
           </View>
+
+          {/* 전체 포트폴리오 페이지로 */}
+          <Pressable
+            onPress={() => router.push('/my/portfolio' as never)}
+            style={{ marginTop: 10, alignItems: 'flex-end' }}
+          >
+            <PixelText variant="pixel" size={9} color="rgba(255,210,63,0.75)" style={{ letterSpacing: 0.5 }}>
+              전체 포트폴리오 보기 ▶
+            </PixelText>
+          </Pressable>
         </View>
         </PixelFrame>
         </View>

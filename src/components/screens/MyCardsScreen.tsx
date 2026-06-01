@@ -250,6 +250,29 @@ export function MyCardsScreen({ cards: initial }: Props) {
       />
       <div style={{ height: 12 }} />
 
+      {/* 전체 포트폴리오 바로가기 — 다크 인포그래픽 톤 */}
+      <Link
+        href="/my/portfolio"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          margin: '0 var(--gap) 10px',
+          padding: '11px 14px',
+          textDecoration: 'none',
+          background: 'linear-gradient(135deg,#0F172A,#1B2E89)',
+          boxShadow:
+            '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),4px 4px 0 var(--ink)',
+        }}
+      >
+        <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: '#fff', letterSpacing: 0.5 }}>
+          📈 전체 포트폴리오 보기
+        </span>
+        <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--gold)', letterSpacing: 0.5 }}>
+          등락률·차트 ▶
+        </span>
+      </Link>
+
       {/* 내 카드 / 관심카드 탭 */}
       <div className="cv-subseg" style={{ marginBottom: 10 }}>
         <button type="button" className={tab === 'mine' ? 'on' : ''} onClick={() => setTab('mine')}>

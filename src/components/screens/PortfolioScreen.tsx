@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/components/PriceModeProvider';
 
@@ -42,13 +42,16 @@ interface CardRow {
   ocrCardNumber: string | null;
 }
 
+const UP = '#22C55E';
+const DOWN = '#E63946';
+
 export function PortfolioScreen() {
   const { format, rate } = useCurrency();
   const { mode: priceMode } = usePriceMode();
   const [port, setPort] = useState<PortfolioData | null>(null);
   const [cards, setCards] = useState<CardRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [selIdx, setSelIdx] = useState<number | null>(null);
+  const [sort, setSort] = useState<'value' | 'change'>('value');
 
   useEffect(() => {
     let alive = true;
@@ -74,10 +77,9 @@ export function PortfolioScreen() {
 
   const usePsa10 = priceMode === 'psa10';
 
-  // 카드별 현재가(JPY) + 구매기준가(JPY) + 등락률 계산.
   const rows = useMemo(() => {
     if (!cards) return [];
-    return cards.map((c) => {
+    const mapped = cards.map((c) => {
       const curJpy = usePsa10 && c.pricePsa10Jpy > 0 ? c.pricePsa10Jpy : c.priceSingleJpy;
       const qty = Math.max(1, c.qty || 1);
       const basisJpy =
@@ -87,14 +89,17 @@ export function PortfolioScreen() {
             : c.buyPrice / (rate || 1)
           : null;
       const profitPct = basisJpy && curJpy > 0 ? ((curJpy - basisJpy) / basisJpy) * 100 : null;
-      // 시세 일변동 (trend 마지막 2점)
       const t = c.trend ?? [];
-      const dayPct = t.length >= 2 && t[t.length - 2] > 0 ? ((t[t.length - 1] - t[t.length - 2]) / t[t.length - 2]) * 100 : null;
-      return { c, curJpy, qty, basisJpy, profitPct, dayPct };
+      const dayPct =
+        t.length >= 2 && t[t.length - 2] > 0 ? ((t[t.length - 1] - t[t.length - 2]) / t[t.length - 2]) * 100 : null;
+      return { c, curJpy, qty, basisJpy, profitPct, dayPct, changePct: profitPct ?? dayPct };
     });
-  }, [cards, usePsa10, rate]);
+    mapped.sort((a, b) =>
+      sort === 'value' ? b.curJpy * b.qty - a.curJpy * a.qty : (b.changePct ?? -999) - (a.changePct ?? -999),
+    );
+    return mapped;
+  }, [cards, usePsa10, rate, sort]);
 
-  // 전체 손익 (구매기준가 있는 카드만)
   const totals = useMemo(() => {
     let invested = 0;
     let current = 0;
@@ -109,14 +114,14 @@ export function PortfolioScreen() {
     return { invested, current, profit, pct };
   }, [rows]);
 
-  if (err) return <div className="cv-port-msg">⚠ {err}</div>;
-  if (!port || !cards) return <div className="cv-port-msg">불러오는 중…</div>;
+  if (err) return <div className="cv-pf-msg">⚠ {err}</div>;
+  if (!port || !cards) return <div className="cv-pf-msg">불러오는 중…</div>;
   if (port.totalCount === 0)
     return (
-      <div className="cv-port-msg">
+      <div className="cv-pf-msg">
         아직 보유 카드가 없어요.
         <br />
-        <Link href="/cards/add" style={{ color: 'var(--blu)', textDecoration: 'underline' }}>
+        <Link href="/cards/add" style={{ color: '#7FB0FF', textDecoration: 'underline' }}>
           카드 추가하러 가기 →
         </Link>
       </div>
@@ -124,79 +129,112 @@ export function PortfolioScreen() {
 
   const totalJpy = usePsa10 && port.totalPsa10Jpy > 0 ? port.totalPsa10Jpy : port.totalJpy;
   const up = (port.changePct ?? 0) >= 0;
+  const gradedCount = cards.filter((c) => c.graded).length;
 
   return (
-    <div className="cv-port-screen">
-      {/* 평가액 헤더 — 주식 호가창 톤 */}
-      <div className="cv-port-head">
-        <div className="cv-port-head-label">총 평가액 (스니덩크 시세 합계)</div>
-        <div className="cv-port-head-val">{format(totalJpy)}</div>
-        <div className="cv-port-head-row">
+    <div className="cv-pf">
+      {/* ═══ 평가액 인포그래픽 (홈 TOTAL PORTFOLIO 박스 확장판) ═══ */}
+      <div className="cv-pf-hero">
+        <div className="cv-pf-scan" />
+        <span className="cv-pf-br tl" /><span className="cv-pf-br tr" />
+        <span className="cv-pf-br bl" /><span className="cv-pf-br br" />
+
+        <div className="cv-pf-hero-label">TOTAL PORTFOLIO{usePsa10 ? ' · PSA10' : ''}</div>
+        <div className="cv-pf-hero-valrow">
+          <span className="cv-pf-hero-val">{format(totalJpy)}</span>
           {port.changePct != null && (
-            <span className={`cv-port-delta ${up ? 'up' : 'down'}`}>
-              {up ? '▲' : '▼'} {up ? '+' : ''}
-              {port.changePct.toFixed(2)}%
-              {port.changeAbsJpy != null && ` (${up ? '+' : '-'}${format(Math.abs(port.changeAbsJpy))})`}
+            <span className="cv-pf-chg" style={{ color: up ? UP : DOWN }}>
+              <span className="cv-pf-tri" style={{ borderBottomColor: up ? UP : 'transparent', borderTopColor: up ? 'transparent' : DOWN }} />
+              {up ? '+' : ''}{port.changePct.toFixed(2)}%
             </span>
           )}
-          <span className="cv-port-head-sub">{port.pricedCount}/{port.totalCount}장 시세 반영 · 어제(KST) 대비</span>
         </div>
+        <div className="cv-pf-hero-sub">
+          {port.changeAbsJpy != null && (
+            <span style={{ color: up ? UP : DOWN }}>
+              {up ? '+' : '-'}{format(Math.abs(port.changeAbsJpy))}{' '}
+            </span>
+          )}
+          vs 어제 (KST 정각)
+        </div>
+
+        {/* 큰 인터랙티브 차트 */}
+        <PortfolioChart history={port.history} format={format} />
+
+        {/* 통계 칩 */}
+        <div className="cv-pf-chips">
+          <Chip label="보유" value={`${cards.length}장`} color="rgba(255,255,255,.85)" />
+          <Chip label="시세반영" value={`${port.pricedCount}/${port.totalCount}`} color="#7FB0FF" />
+          <Chip label="그레이딩" value={`${gradedCount}건`} color="#A78BFA" />
+          {totals.pct != null ? (
+            <Chip
+              label="평가손익"
+              value={`${totals.pct >= 0 ? '+' : ''}${totals.pct.toFixed(1)}%`}
+              color={totals.profit >= 0 ? UP : DOWN}
+            />
+          ) : (
+            <Chip label="매입가" value="미입력" color="rgba(255,255,255,.4)" />
+          )}
+        </div>
+
         {totals.pct != null && (
-          <div className="cv-port-invest">
-            매입 {format(totals.invested)} → 현재 {format(totals.current)}{' '}
-            <span className={totals.profit >= 0 ? 'cv-port-up' : 'cv-port-down'}>
-              {totals.profit >= 0 ? '+' : '-'}
-              {format(Math.abs(totals.profit))} ({totals.profit >= 0 ? '+' : ''}
-              {totals.pct.toFixed(1)}%)
+          <div className="cv-pf-invest">
+            매입 <b>{format(totals.invested)}</b> → 현재 <b>{format(totals.current)}</b>
+            <span style={{ color: totals.profit >= 0 ? UP : DOWN, marginLeft: 6 }}>
+              {totals.profit >= 0 ? '+' : '-'}{format(Math.abs(totals.profit))}
             </span>
           </div>
         )}
       </div>
 
-      {/* 일별 차트 — 점 클릭 시 해당 일의 금액·등락률 표시 */}
-      <PortfolioChart history={port.history} format={format} selIdx={selIdx} onSelect={setSelIdx} />
+      {/* ═══ 보유 카드 — 주식 종목 리스트 ═══ */}
+      <div className="cv-pf-listhead">
+        <span>보유 종목 {rows.length}</span>
+        <div className="cv-pf-sort">
+          {(['value', 'change'] as const).map((s) => (
+            <button key={s} type="button" className={sort === s ? 'on' : ''} onClick={() => setSort(s)}>
+              {s === 'value' ? '평가액순' : '등락순'}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {/* 카드별 등락률 리스트 */}
-      <div className="cv-port-list-title">보유 카드 등락률 ({rows.length})</div>
-      <div className="cv-port-list">
-        {rows.map(({ c, curJpy, profitPct, dayPct, basisJpy }) => {
+      <div className="cv-pf-list">
+        {rows.map(({ c, curJpy, qty, changePct, basisJpy }) => {
           const img = c.snkrdunkImageUrl || c.photoUrl || null;
           const name = c.snkrdunkName || c.nickname || '이름 미상';
-          const changePct = profitPct ?? dayPct;
-          const changeUp = (changePct ?? 0) >= 0;
+          const cu = (changePct ?? 0) >= 0;
           return (
-            <div key={c.id} className="cv-port-card">
-              <div className="cv-reg-thumb" style={{ width: 40, height: 56 }}>
+            <div key={c.id} className="cv-pf-row">
+              <div className="cv-pf-thumb">
                 {img ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={img} alt={name} />
                 ) : (
-                  <span style={{ fontSize: 20 }}>🃏</span>
+                  <span>🃏</span>
                 )}
               </div>
-              <div className="cv-port-card-meta">
-                <div className="cv-port-card-name">
+              <div className="cv-pf-rowmid">
+                <div className="cv-pf-rowname">
                   {name}
-                  {c.graded && (
-                    <span className="cv-port-grade">
-                      {c.gradeCompany ?? 'PSA'} {c.gradeValue ?? ''}
-                    </span>
-                  )}
+                  {c.graded && <span className="cv-pf-badge">{c.gradeCompany ?? 'PSA'} {c.gradeValue ?? ''}</span>}
                 </div>
-                <div className="cv-port-card-sub">
+                <div className="cv-pf-rowsub">
                   {[c.ocrSetCode?.toUpperCase(), c.ocrCardNumber].filter(Boolean).join(' · ')}
-                  {c.qty > 1 ? ` · ×${c.qty}` : ''}
+                  {qty > 1 ? ` · ×${qty}` : ''}
                   {c.selfPulled ? ' · 직접뽑기' : ''}
                 </div>
               </div>
-              <div className="cv-port-card-price">
-                <div className="cv-port-card-cur">{curJpy > 0 ? format(curJpy) : '시세 없음'}</div>
-                {changePct != null && (
-                  <div className={`cv-port-card-delta ${changeUp ? 'up' : 'down'}`}>
-                    {changeUp ? '▲' : '▼'} {changeUp ? '+' : ''}
-                    {changePct.toFixed(1)}%
-                    <span className="cv-port-card-basis">{basisJpy != null ? '매입대비' : '전일대비'}</span>
+              <Spark trend={c.trend ?? []} up={cu} />
+              <div className="cv-pf-rowprice">
+                <div className="cv-pf-rowcur">{curJpy > 0 ? format(curJpy) : '—'}</div>
+                {changePct != null ? (
+                  <div className="cv-pf-rowchg" style={{ color: cu ? UP : DOWN }}>
+                    {cu ? '▲' : '▼'} {cu ? '+' : ''}{changePct.toFixed(1)}%
+                    <span className="cv-pf-rowbasis">{basisJpy != null ? '매입' : '전일'}</span>
                   </div>
+                ) : (
+                  <div className="cv-pf-rowchg" style={{ color: 'rgba(255,255,255,.3)' }}>—</div>
                 )}
               </div>
             </div>
@@ -207,86 +245,118 @@ export function PortfolioScreen() {
   );
 }
 
-/* ---------------- 인터랙티브 일별 차트 ---------------- */
+function Chip({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="cv-pf-chip">
+      <div className="cv-pf-chip-v" style={{ color }}>{value}</div>
+      <div className="cv-pf-chip-l">{label}</div>
+    </div>
+  );
+}
 
-function PortfolioChart({
-  history,
-  format,
-  selIdx,
-  onSelect,
-}: {
-  history: HistPoint[];
-  format: (jpy: number) => string;
-  selIdx: number | null;
-  onSelect: (i: number | null) => void;
-}) {
-  if (history.length < 2)
-    return <div className="cv-port-msg" style={{ fontSize: 10 }}>일별 데이터가 2일 이상 쌓이면 차트가 표시돼요</div>;
+/** 카드별 미니 스파크라인 (trend). */
+function Spark({ trend, up }: { trend: number[]; up: boolean }) {
+  const pts = (trend ?? []).filter((n) => typeof n === 'number' && n > 0);
+  if (pts.length < 2) return <div className="cv-pf-spark" />;
+  const W = 44;
+  const H = 22;
+  const min = Math.min(...pts);
+  const max = Math.max(...pts);
+  const span = Math.max(1, max - min);
+  const step = W / (pts.length - 1);
+  const d = pts.map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i * step).toFixed(1)} ${(H - 2 - ((v - min) / span) * (H - 4)).toFixed(1)}`).join(' ');
+  return (
+    <svg className="cv-pf-spark" width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+      <path d={d} fill="none" stroke={up ? UP : DOWN} strokeWidth={1.5} strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ───────── 인터랙티브 차트 (호버 툴팁 + 클릭 핀) ───────── */
+
+function PortfolioChart({ history, format }: { history: HistPoint[]; format: (jpy: number) => string }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<number | null>(null);
+  const [pinned, setPinned] = useState<number | null>(null);
+
+  if (history.length < 2) {
+    return <div className="cv-pf-chart-empty">일별 데이터가 2일 이상 쌓이면 차트가 표시돼요</div>;
+  }
 
   const W = 320;
-  const H = 120;
+  const H = 150;
   const PAD = 6;
+  const n = history.length;
   const vals = history.map((h) => h.totalJpy);
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   const span = Math.max(1, max - min);
-  const step = (W - PAD * 2) / (history.length - 1);
-  const xy = (i: number) => ({
-    x: PAD + i * step,
-    y: H - PAD - ((history[i].totalJpy - min) / span) * (H - PAD * 2),
-  });
-  const d = history.map((_, i) => {
-    const { x, y } = xy(i);
-    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(' ');
-  const overallUp = vals[vals.length - 1] >= vals[0];
-  const stroke = overallUp ? '#22C55E' : '#E63946';
+  const step = (W - PAD * 2) / (n - 1);
+  const xOf = (i: number) => PAD + i * step;
+  const yOf = (i: number) => H - PAD - ((history[i].totalJpy - min) / span) * (H - PAD * 2);
+  const line = history.map((_, i) => `${i === 0 ? 'M' : 'L'} ${xOf(i).toFixed(1)} ${yOf(i).toFixed(1)}`).join(' ');
+  const area = `${line} L ${xOf(n - 1).toFixed(1)} ${H} L ${xOf(0).toFixed(1)} ${H} Z`;
+  const overallUp = vals[n - 1] >= vals[0];
+  const stroke = overallUp ? UP : DOWN;
 
-  const sel = selIdx != null && selIdx >= 0 && selIdx < history.length ? selIdx : null;
-  const selPrev = sel != null && sel > 0 ? history[sel - 1].totalJpy : null;
-  const selVal = sel != null ? history[sel].totalJpy : null;
-  const selPct = sel != null && selPrev && selPrev > 0 ? ((history[sel].totalJpy - selPrev) / selPrev) * 100 : null;
+  const active = hover ?? pinned;
+  const aPrev = active != null && active > 0 ? history[active - 1].totalJpy : null;
+  const aPct = active != null && aPrev && aPrev > 0 ? ((history[active].totalJpy - aPrev) / aPrev) * 100 : null;
+
+  const idxFromClientX = (clientX: number): number => {
+    const el = wrapRef.current;
+    if (!el) return 0;
+    const r = el.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    return Math.round(frac * (n - 1));
+  };
 
   return (
-    <div className="cv-port-chart">
-      {sel != null ? (
-        <div className="cv-port-chart-detail">
-          <span className="cv-port-chart-date">{history[sel].date}</span>
-          <span className="cv-port-chart-amt">{format(selVal ?? 0)}</span>
-          {selPct != null && (
-            <span className={selPct >= 0 ? 'cv-port-up' : 'cv-port-down'}>
-              {selPct >= 0 ? '▲ +' : '▼ '}
-              {selPct.toFixed(2)}%
-            </span>
+    <div
+      ref={wrapRef}
+      className="cv-pf-chart"
+      onMouseMove={(e) => setHover(idxFromClientX(e.clientX))}
+      onMouseLeave={() => setHover(null)}
+      onClick={(e) => setPinned(idxFromClientX(e.clientX))}
+      onTouchStart={(e) => { if (e.touches[0]) setPinned(idxFromClientX(e.touches[0].clientX)); }}
+      onTouchMove={(e) => { if (e.touches[0]) setHover(idxFromClientX(e.touches[0].clientX)); }}
+      onTouchEnd={() => setHover(null)}
+    >
+      {/* 툴팁 */}
+      {active != null && (
+        <div
+          className="cv-pf-tip"
+          style={{ left: `${(active / (n - 1)) * 100}%` }}
+        >
+          <div className="cv-pf-tip-date">{history[active].date}</div>
+          <div className="cv-pf-tip-amt">{format(history[active].totalJpy)}</div>
+          {aPct != null && (
+            <div className="cv-pf-tip-pct" style={{ color: aPct >= 0 ? UP : DOWN }}>
+              {aPct >= 0 ? '▲ +' : '▼ '}{aPct.toFixed(2)}%
+            </div>
           )}
         </div>
-      ) : (
-        <div className="cv-port-chart-detail cv-port-chart-hint">차트의 점을 눌러 그 날의 금액·등락률을 확인하세요</div>
       )}
-      <svg
-        width="100%"
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        style={{ display: 'block', touchAction: 'none' }}
-      >
-        <path d={d} fill="none" stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
-        {history.map((_, i) => {
-          const { x, y } = xy(i);
-          const isSel = i === sel;
-          return (
-            <g key={i} onClick={() => onSelect(i)} style={{ cursor: 'pointer' }}>
-              {/* 넓은 투명 히트영역 */}
-              <rect x={x - step / 2} y={0} width={step} height={H} fill="transparent" />
-              {isSel && <line x1={x} y1={0} x2={x} y2={H} stroke="var(--ink3)" strokeWidth={1} strokeDasharray="3 3" />}
-              <circle cx={x} cy={y} r={isSel ? 4 : 2} fill={isSel ? 'var(--ink)' : stroke} />
-            </g>
-          );
-        })}
+      <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', touchAction: 'none' }}>
+        <defs>
+          <linearGradient id="pfFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={stroke} stopOpacity={0.35} />
+            <stop offset="100%" stopColor={stroke} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#pfFill)" stroke="none" />
+        <path d={line} fill="none" stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
+        {active != null && (
+          <>
+            <line x1={xOf(active)} y1={0} x2={xOf(active)} y2={H} stroke="rgba(255,255,255,.35)" strokeWidth={1} strokeDasharray="3 3" />
+            <circle cx={xOf(active)} cy={yOf(active)} r={4} fill="#fff" stroke={stroke} strokeWidth={2} />
+          </>
+        )}
       </svg>
-      <div className="cv-port-chart-axis">
+      <div className="cv-pf-axis">
         <span>{history[0].date}</span>
-        <span>최근 {history.length}일</span>
-        <span>{history[history.length - 1].date}</span>
+        <span>최근 {n}일 · 탭/호버로 상세</span>
+        <span>{history[n - 1].date}</span>
       </div>
     </div>
   );
