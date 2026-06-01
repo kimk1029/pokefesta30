@@ -89,11 +89,10 @@ a{color:inherit;text-decoration:none;}
   color:#FFB000;padding:0 16px;line-height:28px;display:inline-flex;align-items:center;gap:7px;
   text-shadow:0 0 5px rgba(255,176,0,.5);}
 .tl-ticker-item .tl-rank{display:inline-grid;place-items:center;min-width:17px;height:17px;
-  font-size:10px;color:#0A0A0F;background:#FFB000;border-radius:3px;
+  line-height:1;vertical-align:middle;font-size:10px;color:#0A0A0F;background:#FFB000;border-radius:3px;
   box-shadow:0 0 6px rgba(255,176,0,.7);}
 .tl-ticker-item .tl-rank.top{background:#FF5252;color:#fff;box-shadow:0 0 8px rgba(255,82,82,.8);}
 .tl-ticker-item .tl-q{color:#FFE066;text-shadow:0 0 6px rgba(255,224,102,.45);}
-.tl-ticker-item .tl-cnt{color:#7FE0FF;font-size:9px;text-shadow:0 0 5px rgba(127,224,255,.4);}
 @keyframes tl-marquee{from{transform:translateX(0);}to{transform:translateX(-50%);}}
 
 /* ── SINGLE APP BAR ── */

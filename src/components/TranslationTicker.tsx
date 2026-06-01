@@ -16,7 +16,6 @@ function RankList({ ranks }: { ranks: SearchRankItem[] }) {
         <span className="tl-ticker-item" key={`${r.query}-${i}`}>
           <b className={`tl-rank${i < 3 ? ' top' : ''}`}>{i + 1}</b>
           <span className="tl-q">{r.query}</span>
-          <span className="tl-cnt">{r.count.toLocaleString()}회</span>
         </span>
       ))}
     </>
