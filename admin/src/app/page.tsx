@@ -1,4 +1,7 @@
 import { VisitorChart } from '@/components/VisitorChart';
+import { DeltaStat } from '@/components/DeltaStat';
+import { HourlyChart } from '@/components/HourlyChart';
+import { SignupSparkline } from '@/components/SignupSparkline';
 import { prisma } from '@/lib/prisma';
 import { fmtDate } from '@/lib/format';
 
@@ -11,12 +14,15 @@ async function one<T>(p: Promise<T>, fb: T): Promise<T> {
 async function loadStats() {
   const startToday = new Date();
   startToday.setHours(0, 0, 0, 0);
+  const startYesterday = new Date(startToday);
+  startYesterday.setDate(startYesterday.getDate() - 1);
   const start7d = new Date();
   start7d.setDate(start7d.getDate() - 6);
   start7d.setHours(0, 0, 0, 0);
   const start14d = new Date();
   start14d.setDate(start14d.getDate() - 13);
   start14d.setHours(0, 0, 0, 0);
+  const yesterdayRange = { gte: startYesterday, lt: startToday };
 
   // 각 쿼리를 개별 try/catch — 하나 실패해도 나머지는 보여줌 (page_views/oripa_packs 테이블 미생성 시 graceful)
   const [
@@ -24,6 +30,9 @@ async function loadStats() {
     viewsToday, uniqueIpsToday, uniqueUsersToday,
     topPaths, recentVisits, dailySeries,
     recentFeeds, recentUsers,
+    signupsToday, signupsYesterday,
+    visitorsYesterday, loginsYesterday, viewsYesterday,
+    todayPageViews, signupRows,
   ] = await Promise.all([
     one(prisma.user.count(), 0),
     one(prisma.feed.count(), 0),
@@ -97,19 +106,100 @@ async function loadStats() {
       }),
       [] as Array<{ id: string; name: string; createdAt: Date; points: number }>,
     ),
+    // 오늘 / 어제 가입자
+    one(prisma.user.count({ where: { createdAt: { gte: startToday } } }), 0),
+    one(prisma.user.count({ where: { createdAt: yesterdayRange } }), 0),
+    // 어제 접속 비교
+    one(
+      prisma.pageView.findMany({
+        where: { createdAt: yesterdayRange, ip: { not: null } },
+        distinct: ['ip'],
+        select: { ip: true },
+      }).then((r) => r.length),
+      0,
+    ),
+    one(
+      prisma.pageView.findMany({
+        where: { createdAt: yesterdayRange, userId: { not: null } },
+        distinct: ['userId'],
+        select: { userId: true },
+      }).then((r) => r.length),
+      0,
+    ),
+    one(prisma.pageView.count({ where: { createdAt: yesterdayRange } }), 0),
+    // 오늘 페이지뷰 원본 (시간대별 집계용)
+    one(
+      prisma.pageView.findMany({
+        where: { createdAt: { gte: startToday } },
+        select: { ip: true, userId: true, createdAt: true },
+      }),
+      [] as Array<{ ip: string | null; userId: string | null; createdAt: Date }>,
+    ),
+    // 최근 14일 가입 원본 (일별 집계용)
+    one(
+      prisma.user.findMany({
+        where: { createdAt: { gte: start14d } },
+        select: { createdAt: true },
+      }),
+      [] as Array<{ createdAt: Date }>,
+    ),
   ]);
 
   return {
     ok: true as const,
     stats: { users, feedsAll, feedsToday, trades, messagesAll, unread,
-      viewsToday, uniqueIpsToday, uniqueUsersToday },
+      viewsToday, uniqueIpsToday, uniqueUsersToday,
+      signupsToday, signupsYesterday, visitorsYesterday, loginsYesterday, viewsYesterday },
     topPaths, recentVisits, dailySeries, recentFeeds, recentUsers,
+    hourly: buildHourly(todayPageViews),
+    signups14: buildSignups14(signupRows),
   };
+}
+
+/** 오늘 페이지뷰를 로컬 시간대 24시간 버킷으로 — 시간대별 고유 IP/유저/PV. */
+function buildHourly(rows: Array<{ ip: string | null; userId: string | null; createdAt: Date }>) {
+  const ipSets = Array.from({ length: 24 }, () => new Set<string>());
+  const userSets = Array.from({ length: 24 }, () => new Set<string>());
+  const views = new Array(24).fill(0);
+  for (const r of rows) {
+    const h = new Date(r.createdAt).getHours();
+    views[h] += 1;
+    if (r.ip) ipSets[h].add(r.ip);
+    if (r.userId) userSets[h].add(r.userId);
+  }
+  return Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    visitors: ipSets[hour].size,
+    logins: userSets[hour].size,
+    views: views[hour],
+  }));
+}
+
+/** 최근 14일 일별 가입자 — 빈 날은 0. */
+function buildSignups14(rows: Array<{ createdAt: Date }>) {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const d = new Date(r.createdAt);
+    d.setHours(0, 0, 0, 0);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    map.set(key, (map.get(key) ?? 0) + 1);
+  }
+  const out: Array<{ day: string; signups: number }> = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    out.push({ day: `${mm}-${dd}`, signups: map.get(key) ?? 0 });
+  }
+  return out;
 }
 
 export default async function Page() {
   const data = await loadStats();
-  const { stats, topPaths, recentVisits, dailySeries, recentFeeds, recentUsers } = data;
+  const { stats, topPaths, recentVisits, dailySeries, recentFeeds, recentUsers, hourly, signups14 } = data;
 
   // 14일 시리즈: DB 에 없는 날은 0 으로 채워 차트에 빈 칸 안 생기게
   const series14 = build14Days(dailySeries);
@@ -117,16 +207,28 @@ export default async function Page() {
   return (
     <>
       <h1 className="admin-h1">대시보드</h1>
-      <p className="admin-sub">전체 운영 현황 + 오늘 방문자 통계</p>
+      <p className="admin-sub">오늘 가입·접속 현황 + 전체 운영 통계</p>
 
-      <h2 style={{ fontSize: 14, color: '#475569', margin: '4px 0 10px', letterSpacing: 0.3 }}>🌐 오늘 방문</h2>
+      <h2 style={{ fontSize: 14, color: '#475569', margin: '4px 0 10px', letterSpacing: 0.3 }}>🟢 오늘 현황 <span style={{ fontSize: 11, color: '#94A3B8' }}>(어제 대비)</span></h2>
       <div className="grid-stats">
-        <Stat label="오늘 방문자" value={stats.uniqueIpsToday} sub="하루 1 IP = 1" />
-        <Stat label="오늘 로그인" value={stats.uniqueUsersToday} sub="고유 유저" />
-        <Stat label="오늘 페이지뷰" value={stats.viewsToday} sub="참고용" />
+        <DeltaStat label="오늘 가입자" value={stats.signupsToday} prev={stats.signupsYesterday} accent="#2563EB" sub="신규 회원" />
+        <DeltaStat label="오늘 접속자" value={stats.uniqueIpsToday} prev={stats.visitorsYesterday} accent="#0EA5E9" sub="고유 IP" />
+        <DeltaStat label="오늘 로그인" value={stats.uniqueUsersToday} prev={stats.loginsYesterday} accent="#10B981" sub="고유 유저" />
+        <DeltaStat label="오늘 페이지뷰" value={stats.viewsToday} prev={stats.viewsYesterday} sub="전체 PV" />
       </div>
 
-      <section className="card" style={{ marginTop: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(420px,1fr))', gap: 16, marginTop: 6 }}>
+        <section className="card">
+          <h2>⏰ 오늘 24시간 접속 분포</h2>
+          <HourlyChart hours={hourly} />
+        </section>
+        <section className="card">
+          <h2>🧑‍🤝‍🧑 최근 14일 가입자</h2>
+          <SignupSparkline days={signups14} />
+        </section>
+      </div>
+
+      <section className="card" style={{ marginTop: 16 }}>
         <h2>📈 최근 14일 방문자 · 로그인</h2>
         <VisitorChart points={series14} />
       </section>

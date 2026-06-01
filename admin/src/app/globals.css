@@ -30,6 +30,13 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
 .stat-card .lbl{font-size:11px;color:#64748B;letter-spacing:.5px;text-transform:uppercase;}
 .stat-card .val{font-size:28px;font-weight:700;margin-top:6px;color:#0F172A;}
 .stat-card .sub{font-size:11px;color:#94A3B8;margin-top:4px;}
+.stat-card .delta-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.stat-card .delta{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;
+  padding:2px 7px;border-radius:999px;letter-spacing:.2px;}
+.stat-card .delta.up{background:#DCFCE7;color:#15803D;}
+.stat-card .delta.down{background:#FEE2E2;color:#B91C1C;}
+.stat-card .delta.flat{background:#F1F5F9;color:#64748B;}
+.stat-card .delta-cmp{font-size:11px;color:#94A3B8;}
 
 table.tbl{width:100%;border-collapse:collapse;background:#fff;border:1px solid #E2E8F0;border-radius:8px;
   overflow:hidden;}
