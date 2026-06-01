@@ -30,4 +30,27 @@ router.post('/', optionalAuth, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/search-log/top — 인기 검색어 순위 (최근 30일, Top 10).
+ * 카드 검색 전광판(검색어 순위)용. 실패해도 빈 배열로 안전 응답.
+ */
+router.get('/top', async (_req: Request, res: Response) => {
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
+  try {
+    const rows = await prisma.searchLog.groupBy({
+      by: ['query'],
+      where: { createdAt: { gte: since }, query: { not: '' } },
+      _count: { _all: true },
+      orderBy: { _count: { query: 'desc' } },
+      take: 10,
+    });
+    const items = rows.map((r) => ({ query: r.query, count: r._count._all }));
+    res.json({ ok: true, items });
+  } catch (err) {
+    console.error('[search-log.top]', err);
+    res.json({ ok: true, items: [] });
+  }
+});
+
 export default router;

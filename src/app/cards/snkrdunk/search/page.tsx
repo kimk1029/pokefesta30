@@ -1,4 +1,4 @@
-import { TranslationTicker } from '@/components/TranslationTicker';
+import { TranslationTicker, type SearchRankItem } from '@/components/TranslationTicker';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { translate } from '@/lib/cardTranslate';
@@ -35,11 +35,16 @@ export default async function Page({
     }
   }
 
+  // 전광판용 인기 검색어 순위 (최근 30일 Top 10)
+  const topSearches =
+    (await serverFetch<{ items: SearchRankItem[] }>('/api/search-log/top', { auth: false })).data
+      ?.items ?? [];
+
   return (
     <>
       <StatusBar />
       <AppBar title="카드 검색" showBack backHref="/" />
-      <TranslationTicker />
+      <TranslationTicker items={topSearches} />
 
       {/* 검색 폼 */}
       <form method="get" className="ko-search-box">

@@ -63,17 +63,37 @@ a{color:inherit;text-decoration:none;}
   box-shadow:inset 0 1px 0 var(--yel-lt),inset 0 -1px 0 var(--yel-dk);}
 
 /* ── TRANSLATION TICKER (전광판) ── */
+/* ── 검색어 순위 전광판 (LED ticker) ── 글씨 50%↑ (7→11px), 진짜 전광판 느낌 */
 .tl-ticker{position:sticky;top:52px;z-index:29;
-  height:18px;overflow:hidden;display:flex;align-items:center;
-  background:var(--ink);border-bottom:2px solid var(--ink);
-  box-shadow:inset 0 1px 0 var(--ink2),inset 0 -1px 0 #000;}
+  height:28px;overflow:hidden;display:flex;align-items:stretch;
+  background:#0A0A0F;border-bottom:2px solid #000;
+  /* LED 도트 매트릭스 질감 + 위/아래 광택 */
+  background-image:
+    radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);
+  background-size:3px 3px;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);}
+/* 좌측 고정 타이틀 — 스크롤 안 됨 */
+.tl-ticker-title{flex-shrink:0;display:flex;align-items:center;gap:6px;
+  padding:0 12px;font-family:var(--f1);font-size:10px;letter-spacing:.5px;
+  color:#FFE066;background:linear-gradient(180deg,#161622,#0A0A0F);
+  border-right:2px solid #000;
+  text-shadow:0 0 6px rgba(255,200,50,.55);z-index:1;}
+.tl-ticker-live{color:#33FF66;font-size:8px;text-shadow:0 0 6px rgba(51,255,102,.9);
+  animation:tl-live-blink 1.1s steps(1) infinite;}
+@keyframes tl-live-blink{0%,60%{opacity:1;}61%,100%{opacity:.25;}}
+.tl-ticker-viewport{flex:1;min-width:0;overflow:hidden;display:flex;align-items:center;}
 .tl-ticker-track{display:flex;flex-shrink:0;white-space:nowrap;
-  will-change:transform;animation:tl-marquee 22s linear infinite;}
+  will-change:transform;animation:tl-marquee 26s linear infinite;}
 .tl-ticker:hover .tl-ticker-track{animation-play-state:paused;}
-.tl-ticker-item{font-family:var(--f1);font-size:7px;letter-spacing:.5px;
-  color:var(--yel);padding:0 18px;line-height:18px;}
-.tl-ticker-item b{color:var(--white);}
-.tl-ticker-item .tl-arr{color:var(--red-lt);margin:0 4px;}
+.tl-ticker-item{font-family:var(--f1);font-size:11px;letter-spacing:.5px;
+  color:#FFB000;padding:0 16px;line-height:28px;display:inline-flex;align-items:center;gap:7px;
+  text-shadow:0 0 5px rgba(255,176,0,.5);}
+.tl-ticker-item .tl-rank{display:inline-grid;place-items:center;min-width:17px;height:17px;
+  font-size:10px;color:#0A0A0F;background:#FFB000;border-radius:3px;
+  box-shadow:0 0 6px rgba(255,176,0,.7);}
+.tl-ticker-item .tl-rank.top{background:#FF5252;color:#fff;box-shadow:0 0 8px rgba(255,82,82,.8);}
+.tl-ticker-item .tl-q{color:#FFE066;text-shadow:0 0 6px rgba(255,224,102,.45);}
+.tl-ticker-item .tl-cnt{color:#7FE0FF;font-size:9px;text-shadow:0 0 5px rgba(127,224,255,.4);}
 @keyframes tl-marquee{from{transform:translateX(0);}to{transform:translateX(-50%);}}
 
 /* ── SINGLE APP BAR ── */
@@ -3547,12 +3567,10 @@ a{color:inherit;text-decoration:none;}
 [data-theme="clean"] .cv-album-img,
 [data-theme="clean"] .cv-binder-img{box-shadow:none;}
 
-/* ════════ 전광판(번역 티커) — clean ════════ */
-[data-theme="clean"] .tl-ticker{
-  background:var(--white);border-bottom:1px solid var(--line2);box-shadow:none;}
-[data-theme="clean"] .tl-ticker-item{color:var(--ink3);}
-[data-theme="clean"] .tl-ticker-item b{color:var(--ink);}
-[data-theme="clean"] .tl-ticker-item .tl-arr{color:var(--accent);}
+/* ════════ 전광판(검색어 순위) ════════ */
+/* 전광판은 모든 테마에서 LED 다크 보드 유지 — 클린에선 폰트만 살짝 또렷하게 */
+[data-theme="clean"] .tl-ticker-title,
+[data-theme="clean"] .tl-ticker-item{letter-spacing:0;font-weight:600;}
 
 /* ════════ 카드 검색 폼/결과 박스 (서버 컴포넌트라 className 으로 테마 처리) ════════ */
 /* 검색 입력 박스 (한국어 검색 폼) — 픽셀: 다크 박스 + 노랑 그림자 */

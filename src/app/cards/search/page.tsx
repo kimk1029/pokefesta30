@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { TranslationTicker } from '@/components/TranslationTicker';
+import { TranslationTicker, type SearchRankItem } from '@/components/TranslationTicker';
 import { AppBar } from '@/components/ui/AppBar';
 import { Panel } from '@/components/ui/Panel';
 import { ListAdRow } from '@/components/ListAdRow';
@@ -74,11 +74,16 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     : null;
   const illust = illustResp?.data ?? null;
 
+  // 전광판용 인기 검색어 순위 (최근 30일 Top 10)
+  const topSearches =
+    (await serverFetch<{ items: SearchRankItem[] }>('/api/search-log/top', { auth: false })).data
+      ?.items ?? [];
+
   return (
     <>
       <StatusBar />
       <AppBar title="카드 검색" showBack backHref="/cards" />
-      <TranslationTicker />
+      <TranslationTicker items={topSearches} />
 
       <div style={{ height: 14 }} />
 

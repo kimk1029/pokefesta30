@@ -1,45 +1,59 @@
 /**
- * 통합검색 헤더 아래 전광판(마퀴).
- * 최근 추가된 한글→일본어 검색 변환 항목을 왼쪽으로 흐르듯 보여준다.
- * 새 변환어를 추가하면 UPDATES 배열에 한 줄만 추가.
+ * 카드 검색 전광판 — 인기 검색어 순위 1~10위를 LED 전광판처럼 흘려보낸다.
+ * 좌측 고정 타이틀("인기 검색어") + 우측 스크롤 랭킹.
+ * items 가 비면 안내 문구로 폴백.
  */
 
-interface Update {
-  ko: string;
-  ja: string;
+export interface SearchRankItem {
+  query: string;
+  count: number;
 }
 
-// 최근 추가 순(위가 최신). 새 항목은 맨 위에.
-const UPDATES: Update[] = [
-  { ko: '25주년', ja: '25th' },
-  { ko: '서포터', ja: 'サポート' },
-  { ko: '트레이너스', ja: 'トレーナーズ' },
-  { ko: '아이템', ja: 'グッズ' },
-  { ko: '스타디움', ja: 'スタジアム' },
-  { ko: '도구', ja: 'ポケモンのどうぐ' },
-];
-
-function Items() {
+function RankList({ ranks }: { ranks: SearchRankItem[] }) {
   return (
     <>
-      {UPDATES.map((u, i) => (
-        <span className="tl-ticker-item" key={`${u.ko}-${i}`}>
-          NEW <b>{u.ko}</b>
-          <span className="tl-arr">→</span>
-          <b>{u.ja}</b> 검색 추가
+      {ranks.map((r, i) => (
+        <span className="tl-ticker-item" key={`${r.query}-${i}`}>
+          <b className={`tl-rank${i < 3 ? ' top' : ''}`}>{i + 1}</b>
+          <span className="tl-q">{r.query}</span>
+          <span className="tl-cnt">{r.count.toLocaleString()}회</span>
         </span>
       ))}
     </>
   );
 }
 
-export function TranslationTicker() {
+function Fallback() {
   return (
-    <div className="tl-ticker" aria-label="최근 추가된 검색 변환어">
-      {/* 끊김 없는 루프를 위해 동일 목록 2벌 (-50% 이동) */}
-      <div className="tl-ticker-track">
-        <Items />
-        <Items />
+    <span className="tl-ticker-item">
+      <span className="tl-q">아직 집계된 검색어가 없어요 — 카드를 검색해보세요</span>
+    </span>
+  );
+}
+
+export function TranslationTicker({ items = [] }: { items?: SearchRankItem[] }) {
+  const ranks = items.slice(0, 10);
+  const hasData = ranks.length > 0;
+  return (
+    <div className="tl-ticker" aria-label="인기 검색어 순위">
+      <div className="tl-ticker-title">
+        <span className="tl-ticker-live">●</span> 인기 검색어
+      </div>
+      <div className="tl-ticker-viewport">
+        {/* 끊김 없는 루프를 위해 동일 목록 2벌 (-50% 이동) */}
+        <div className="tl-ticker-track">
+          {hasData ? (
+            <>
+              <RankList ranks={ranks} />
+              <RankList ranks={ranks} />
+            </>
+          ) : (
+            <>
+              <Fallback />
+              <Fallback />
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
