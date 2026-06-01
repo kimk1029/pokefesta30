@@ -2,6 +2,22 @@
 
 import { useState } from 'react';
 import { CardRegisterSheet, type RegisterCardInput } from '@/components/cards/CardRegisterSheet';
+import { translate } from '@/lib/cardTranslate';
+
+/** snkrdunk 검색 결과 한 건. */
+interface SnkSearchRow {
+  apparelId: number;
+  name: string;
+  imageUrl: string | null;
+  priceText?: string;
+}
+
+/** "¥2,000" → 2000. 못 읽으면 null. */
+function parseYen(t?: string): number | null {
+  if (!t) return null;
+  const n = parseInt(t.replace(/[^0-9]/g, ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 interface CatalogOption {
   id: string;
@@ -57,17 +73,49 @@ export function ManualAddForm(_props: Props) {
     setResults([]);
     setSelected(null);
     try {
+      const list: RegisterCardInput[] = [];
+
+      // 1) TCGdex 정확 매칭 (setCode-번호) + 로컬 DB
       const qs = new URLSearchParams({ setCode: setCode.trim(), number: cardNumber.trim() });
       if (name.trim()) qs.set('name', name.trim());
       const r = await fetch(`/api/cards/lookup?${qs.toString()}`, { cache: 'no-store' });
       const data = (await r.json().catch(() => null)) as
         | { ok?: boolean; found?: boolean; card?: LookupCard | null }
         | null;
-      const list: RegisterCardInput[] = [];
       if (data?.found && data.card) {
         list.push(lookupToRegister(data.card));
       }
-      // 카탈로그 내 세트코드 부분일치도 같이 노출 (보조)
+
+      // 2) snkrdunk 보강 — 코드+번호로, 그리고 이름이 있으면 한→일 번역해서 검색.
+      //    (lookup 이 못 찾는 일본판/프로모/변형 카드를 이미지·시세·apparelId 와 함께 보강)
+      const seen = new Set<number>();
+      const queries = [`${setCode.trim()} ${cardNumber.trim()}`.trim()];
+      if (name.trim()) {
+        const ja = translate(name.trim(), 'ja');
+        queries.push(ja || name.trim());
+      }
+      for (const q of queries) {
+        if (!q) continue;
+        try {
+          const sr = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+          const sj = (await sr.json().catch(() => null)) as { results?: SnkSearchRow[] } | null;
+          for (const row of (sj?.results ?? []).slice(0, 20)) {
+            if (!row?.apparelId || seen.has(row.apparelId)) continue;
+            seen.add(row.apparelId);
+            list.push({
+              snkrdunkApparelId: row.apparelId,
+              name: row.name,
+              imageUrl: row.imageUrl ?? null,
+              currentPriceJpy: parseYen(row.priceText),
+              setCode: setCode.trim() || null,
+              cardNumber: cardNumber.trim() || null,
+            });
+          }
+        } catch {
+          // snkrdunk 실패는 무시 — lookup 결과만으로도 진행
+        }
+      }
+
       setResults(list);
       setSearched(true);
     } catch (e) {

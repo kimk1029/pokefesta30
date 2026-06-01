@@ -18,7 +18,16 @@ import { CARDS, GAMES, fmt, priceLabel, displayCardName, inferCardCurrency, card
 import { addCards } from '@/lib/collection';
 import { usePriceMode } from '@/lib/priceMode';
 import { lookupCardInfo } from '@/services/cardScanApi';
+import { searchSnkrdunkByQuery } from '@/services/snkrdunk';
+import { koToJaSearch } from '@/lib/cardSearchJa';
 import { createMyCard } from '@/lib/myApi';
+
+/** "¥2,000" → 2000. 못 읽으면 0. */
+function parseYen(t?: string): number {
+  if (!t) return 0;
+  const n = parseInt(t.replace(/[^0-9]/g, ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
 import type { GuideRect, ScanLanguage } from '@/types/cardScan';
 
 type Mode = 'choose' | 'camera' | 'preview' | 'batch' | 'manual' | 'register' | 'result' | 'batchResult';
@@ -231,6 +240,7 @@ export default function ScanScreen() {
         name: manName.trim() || undefined,
       });
       const list: CardItem[] = [];
+      // 1) TCGdex 정확 매칭 + 로컬 DB
       if (res.found && res.card) {
         const c = res.card;
         const jpy = c.priceSummary?.byRegion?.jpy ?? null;
@@ -249,6 +259,33 @@ export default function ScanScreen() {
           }),
         );
       }
+
+      // 2) snkrdunk 보강 — 코드+번호로, 이름이 있으면 한→일 번역해서도 검색.
+      const seen = new Set<number>();
+      const queries = [`${manSet.trim()} ${manNum.trim()}`.trim()];
+      if (manName.trim()) queries.push(koToJaSearch(manName.trim()) || manName.trim());
+      for (const q of queries) {
+        if (!q) continue;
+        const rows = await searchSnkrdunkByQuery(q).catch(() => []);
+        for (const row of rows.slice(0, 20)) {
+          if (!row?.apparelId || seen.has(row.apparelId)) continue;
+          seen.add(row.apparelId);
+          const price = parseYen(row.priceText);
+          list.push(
+            buildManualCard({
+              name: row.name,
+              set: manSet || '-',
+              num: manNum || '-',
+              price,
+              priceSingle: price > 0 ? price : undefined,
+              priceCurrency: 'JPY',
+              snkrdunkApparelId: row.apparelId,
+              imageUrl: row.imageUrl ?? undefined,
+            }),
+          );
+        }
+      }
+
       setManResults(list);
       setManSearched(true);
     } catch (e) {
