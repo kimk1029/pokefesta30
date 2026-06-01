@@ -386,14 +386,16 @@ export async function getMyCardsWithPrices(
           const trendJpy = (chart?.points ?? [])
             .map((p) => p[1])
             .filter((n) => typeof n === 'number' && n > 0 && n <= rawCeil);
-          let single =
-            rawMedian > 0
-              ? rawMedian
-              : trendJpy.length > 0
-                ? trendJpy[trendJpy.length - 1]
-                : 0;
-          if (single === 0 && typeof a.minPrice === 'number' && a.minPrice > 0) {
-            single = a.minPrice; // 데이터 없으면 현재 최저매물 폴백
+          // raw 체결이 없는데 PSA 등급 체결만 있는 카드는 차트 끝점/최저매물이
+          // 등급가로 오염되므로(rawCeil=Infinity로 필터도 못 함) 폴백하지 않는다.
+          // → 싱글 시세 없음(0)으로 두어 싱글 합계에 PSA가가 섞이지 않게 한다.
+          const hasGradedSales = pickPrices((b) => PSA_ANY_RE.test(b)).length > 0;
+          let single = rawMedian;
+          if (single === 0 && !hasGradedSales) {
+            single = trendJpy.length > 0 ? trendJpy[trendJpy.length - 1] : 0;
+            if (single === 0 && typeof a.minPrice === 'number' && a.minPrice > 0) {
+              single = a.minPrice; // 데이터 없으면 현재 최저매물 폴백
+            }
           }
           const psa10 = median(psa10Prices);
           apparelInfo.set(id, {

@@ -305,10 +305,17 @@ router.get('/portfolio', async (req: Request, res: Response) => {
             );
             const chartLast = pts.length >= 1 ? pts[pts.length - 1][1] : 0;
             const chartPrev = pts.length >= 2 ? pts[pts.length - 2][1] : 0;
-            // 표시/합산 단가는 raw 중앙값 우선, 없으면 차트 끝점→최저매물.
-            let single = rawMedian > 0 ? rawMedian : chartLast;
-            if (single === 0 && a && typeof a.minPrice === 'number' && a.minPrice > 0) {
-              single = a.minPrice;
+            // raw 체결이 없는데 PSA 등급 체결만 있는 카드는 차트 끝점/최저매물이
+            // 등급가로 오염되므로(rawCeil=Infinity로 필터도 못 함) 폴백하지 않는다.
+            // → 싱글 시세 없음(0)으로 두어 싱글 합계에 PSA가가 섞이지 않게 한다.
+            const hasGradedSales = pickPrices((b) => PSA_ANY_RE.test(b)).length > 0;
+            // 표시/합산 단가는 raw 중앙값 우선, 없으면(등급 체결도 없을 때만) 차트 끝점→최저매물.
+            let single = rawMedian;
+            if (single === 0 && !hasGradedSales) {
+              single = chartLast;
+              if (single === 0 && a && typeof a.minPrice === 'number' && a.minPrice > 0) {
+                single = a.minPrice;
+              }
             }
             const psa10 = median(psa10Prices);
             priceByApparel.set(id, { single, psa10, chartPrev, chartLast });
