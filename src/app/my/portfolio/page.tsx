@@ -27,7 +27,6 @@ export default async function Page() {
     <>
       <StatusBar />
       <AppBar title="포트폴리오" showBack backHref="/my" />
-      <div style={{ height: 12 }} />
       <PortfolioScreen />
       <div className="bggap" />
     </>

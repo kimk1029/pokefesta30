@@ -18,6 +18,7 @@ interface PortfolioData {
   changeAbsJpy: number | null;
   changePct: number | null;
   history: HistPoint[];
+  asOfDate?: string;
 }
 
 interface CardRow {
@@ -43,7 +44,11 @@ interface CardRow {
 }
 
 const UP = '#22C55E';
-const DOWN = '#E63946';
+const DOWN = '#FF5B6E';
+const GOLD = '#FFD23F';
+
+type Filter = 'all' | 'up' | 'down' | 'graded' | 'pull';
+type Range = 7 | 30 | 90 | 0; // 0 = 전체
 
 export function PortfolioScreen() {
   const { format, rate } = useCurrency();
@@ -52,6 +57,8 @@ export function PortfolioScreen() {
   const [cards, setCards] = useState<CardRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [sort, setSort] = useState<'value' | 'change'>('value');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [range, setRange] = useState<Range>(30);
 
   useEffect(() => {
     let alive = true;
@@ -77,7 +84,7 @@ export function PortfolioScreen() {
 
   const usePsa10 = priceMode === 'psa10';
 
-  const rows = useMemo(() => {
+  const allRows = useMemo(() => {
     if (!cards) return [];
     const mapped = cards.map((c) => {
       const curJpy = usePsa10 && c.pricePsa10Jpy > 0 ? c.pricePsa10Jpy : c.priceSingleJpy;
@@ -92,18 +99,26 @@ export function PortfolioScreen() {
       const t = c.trend ?? [];
       const dayPct =
         t.length >= 2 && t[t.length - 2] > 0 ? ((t[t.length - 1] - t[t.length - 2]) / t[t.length - 2]) * 100 : null;
-      return { c, curJpy, qty, basisJpy, profitPct, dayPct, changePct: profitPct ?? dayPct };
+      return { c, curJpy, qty, basisJpy, profitPct, dayPct, changePct: profitPct ?? dayPct, value: curJpy * qty };
     });
-    mapped.sort((a, b) =>
-      sort === 'value' ? b.curJpy * b.qty - a.curJpy * a.qty : (b.changePct ?? -999) - (a.changePct ?? -999),
-    );
     return mapped;
-  }, [cards, usePsa10, rate, sort]);
+  }, [cards, usePsa10, rate]);
+
+  const rows = useMemo(() => {
+    let r = allRows;
+    if (filter === 'up') r = r.filter((x) => (x.changePct ?? 0) > 0);
+    else if (filter === 'down') r = r.filter((x) => (x.changePct ?? 0) < 0);
+    else if (filter === 'graded') r = r.filter((x) => x.c.graded);
+    else if (filter === 'pull') r = r.filter((x) => x.c.selfPulled);
+    return [...r].sort((a, b) =>
+      sort === 'value' ? b.value - a.value : (b.changePct ?? -999) - (a.changePct ?? -999),
+    );
+  }, [allRows, filter, sort]);
 
   const totals = useMemo(() => {
     let invested = 0;
     let current = 0;
-    for (const r of rows) {
+    for (const r of allRows) {
       if (r.basisJpy && r.curJpy > 0) {
         invested += r.basisJpy * r.qty;
         current += r.curJpy * r.qty;
@@ -112,13 +127,25 @@ export function PortfolioScreen() {
     const profit = current - invested;
     const pct = invested > 0 ? (profit / invested) * 100 : null;
     return { invested, current, profit, pct };
-  }, [rows]);
+  }, [allRows]);
 
-  if (err) return <div className="cv-pf-msg">⚠ {err}</div>;
-  if (!port || !cards) return <div className="cv-pf-msg">불러오는 중…</div>;
+  const movers = useMemo(() => {
+    const withChg = allRows.filter((r) => r.changePct != null);
+    if (withChg.length === 0) return { up: null, down: null, nUp: 0, nDown: 0 };
+    const sorted = [...withChg].sort((a, b) => (b.changePct ?? 0) - (a.changePct ?? 0));
+    return {
+      up: sorted[0].changePct! > 0 ? sorted[0] : null,
+      down: sorted[sorted.length - 1].changePct! < 0 ? sorted[sorted.length - 1] : null,
+      nUp: withChg.filter((r) => (r.changePct ?? 0) > 0).length,
+      nDown: withChg.filter((r) => (r.changePct ?? 0) < 0).length,
+    };
+  }, [allRows]);
+
+  if (err) return <div className="cv-pf-board cv-pf-msg">⚠ {err}</div>;
+  if (!port || !cards) return <div className="cv-pf-board cv-pf-msg">불러오는 중…</div>;
   if (port.totalCount === 0)
     return (
-      <div className="cv-pf-msg">
+      <div className="cv-pf-board cv-pf-msg">
         아직 보유 카드가 없어요.
         <br />
         <Link href="/cards/add" style={{ color: '#7FB0FF', textDecoration: 'underline' }}>
@@ -130,64 +157,78 @@ export function PortfolioScreen() {
   const totalJpy = usePsa10 && port.totalPsa10Jpy > 0 ? port.totalPsa10Jpy : port.totalJpy;
   const up = (port.changePct ?? 0) >= 0;
   const gradedCount = cards.filter((c) => c.graded).length;
+  const pullCount = cards.filter((c) => c.selfPulled).length;
+  const hist = range === 0 ? port.history : port.history.slice(-range);
+
+  const FILTERS: Array<{ k: Filter; label: string; n: number }> = [
+    { k: 'all', label: '전체', n: allRows.length },
+    { k: 'up', label: '🔺상승', n: movers.nUp },
+    { k: 'down', label: '🔻하락', n: movers.nDown },
+    { k: 'graded', label: '🏅등급', n: gradedCount },
+    { k: 'pull', label: '🎁직뽑', n: pullCount },
+  ];
 
   return (
-    <div className="cv-pf">
-      {/* ═══ 평가액 인포그래픽 (홈 TOTAL PORTFOLIO 박스 확장판) ═══ */}
-      <div className="cv-pf-hero">
-        <div className="cv-pf-scan" />
-        <span className="cv-pf-br tl" /><span className="cv-pf-br tr" />
-        <span className="cv-pf-br bl" /><span className="cv-pf-br br" />
+    <div className="cv-pf-board">
+      <div className="cv-pf-grid" />
 
-        <div className="cv-pf-hero-label">TOTAL PORTFOLIO{usePsa10 ? ' · PSA10' : ''}</div>
-        <div className="cv-pf-hero-valrow">
-          <span className="cv-pf-hero-val">{format(totalJpy)}</span>
-          {port.changePct != null && (
-            <span className="cv-pf-chg" style={{ color: up ? UP : DOWN }}>
-              <span className="cv-pf-tri" style={{ borderBottomColor: up ? UP : 'transparent', borderTopColor: up ? 'transparent' : DOWN }} />
-              {up ? '+' : ''}{port.changePct.toFixed(2)}%
-            </span>
-          )}
-        </div>
-        <div className="cv-pf-hero-sub">
-          {port.changeAbsJpy != null && (
-            <span style={{ color: up ? UP : DOWN }}>
-              {up ? '+' : '-'}{format(Math.abs(port.changeAbsJpy))}{' '}
-            </span>
-          )}
-          vs 어제 (KST 정각)
-        </div>
-
-        {/* 큰 인터랙티브 차트 */}
-        <PortfolioChart history={port.history} format={format} />
-
-        {/* 통계 칩 */}
-        <div className="cv-pf-chips">
-          <Chip label="보유" value={`${cards.length}장`} color="rgba(255,255,255,.85)" />
-          <Chip label="시세반영" value={`${port.pricedCount}/${port.totalCount}`} color="#7FB0FF" />
-          <Chip label="그레이딩" value={`${gradedCount}건`} color="#A78BFA" />
-          {totals.pct != null ? (
-            <Chip
-              label="평가손익"
-              value={`${totals.pct >= 0 ? '+' : ''}${totals.pct.toFixed(1)}%`}
-              color={totals.profit >= 0 ? UP : DOWN}
-            />
-          ) : (
-            <Chip label="매입가" value="미입력" color="rgba(255,255,255,.4)" />
-          )}
-        </div>
-
-        {totals.pct != null && (
-          <div className="cv-pf-invest">
-            매입 <b>{format(totals.invested)}</b> → 현재 <b>{format(totals.current)}</b>
-            <span style={{ color: totals.profit >= 0 ? UP : DOWN, marginLeft: 6 }}>
-              {totals.profit >= 0 ? '+' : '-'}{format(Math.abs(totals.profit))}
-            </span>
-          </div>
+      {/* ── 전광판 헤더 ── */}
+      <div className="cv-pf-top">
+        <span className="cv-pf-id"><span className="cv-pf-dot" /> MY PORTFOLIO{usePsa10 ? ' · PSA10' : ''}</span>
+        <span className="cv-pf-asof">{port.asOfDate ?? '실시간'} · KST</span>
+      </div>
+      <div className="cv-pf-valrow">
+        <span className="cv-pf-val">{format(totalJpy)}</span>
+        {port.changePct != null && (
+          <span className="cv-pf-chg" style={{ color: up ? UP : DOWN }}>
+            <span className="cv-pf-tri" style={{ borderBottomColor: up ? UP : 'transparent', borderTopColor: up ? 'transparent' : DOWN }} />
+            {up ? '+' : ''}{port.changePct.toFixed(2)}%
+            {port.changeAbsJpy != null && <em> {up ? '+' : '-'}{format(Math.abs(port.changeAbsJpy))}</em>}
+          </span>
         )}
       </div>
 
-      {/* ═══ 보유 카드 — 주식 종목 리스트 ═══ */}
+      {/* ── KPI 인포그래픽 그리드 ── */}
+      <div className="cv-pf-kpis">
+        <Kpi label="매입 합계" value={totals.invested > 0 ? format(totals.invested) : '—'} />
+        <Kpi label="현재 평가" value={totals.current > 0 ? format(totals.current) : format(totalJpy)} color={GOLD} />
+        <Kpi
+          label="평가손익"
+          value={totals.pct != null ? `${totals.profit >= 0 ? '+' : '-'}${format(Math.abs(totals.profit))}` : '—'}
+          sub={totals.pct != null ? `${totals.pct >= 0 ? '+' : ''}${totals.pct.toFixed(1)}%` : undefined}
+          color={totals.pct == null ? undefined : totals.profit >= 0 ? UP : DOWN}
+        />
+        <Kpi label="보유" value={`${cards.length}장`} />
+        <Kpi label="시세반영" value={`${port.pricedCount}/${port.totalCount}`} color="#7FB0FF" />
+        <Kpi label="그레이딩" value={`${gradedCount}건`} color="#A78BFA" />
+      </div>
+
+      {/* ── 차트 (기간 탭 + 호버/탭 툴팁) ── */}
+      <div className="cv-pf-rangebar">
+        {([7, 30, 90, 0] as Range[]).map((r) => (
+          <button key={r} type="button" className={range === r ? 'on' : ''} onClick={() => setRange(r)}>
+            {r === 0 ? '전체' : `${r}일`}
+          </button>
+        ))}
+      </div>
+      <PortfolioChart history={hist} format={format} />
+
+      {/* ── 오늘의 등락 (movers) ── */}
+      {(movers.up || movers.down) && (
+        <div className="cv-pf-movers">
+          <Mover row={movers.up} dir="up" format={format} />
+          <Mover row={movers.down} dir="down" format={format} />
+        </div>
+      )}
+
+      {/* ── 필터 + 정렬 ── */}
+      <div className="cv-pf-filters">
+        {FILTERS.map((f) => (
+          <button key={f.k} type="button" className={filter === f.k ? 'on' : ''} onClick={() => setFilter(f.k)}>
+            {f.label} <em>{f.n}</em>
+          </button>
+        ))}
+      </div>
       <div className="cv-pf-listhead">
         <span>보유 종목 {rows.length}</span>
         <div className="cv-pf-sort">
@@ -199,7 +240,9 @@ export function PortfolioScreen() {
         </div>
       </div>
 
+      {/* ── 종목 리스트 ── */}
       <div className="cv-pf-list">
+        {rows.length === 0 && <div className="cv-pf-none">해당 조건의 종목이 없어요</div>}
         {rows.map(({ c, curJpy, qty, changePct, basisJpy }) => {
           const img = c.snkrdunkImageUrl || c.photoUrl || null;
           const name = c.snkrdunkName || c.nickname || '이름 미상';
@@ -241,20 +284,46 @@ export function PortfolioScreen() {
           );
         })}
       </div>
+
+      <div className="cv-pf-foot">스니덩크 최근 체결 중앙값 기준 · 관심카드 제외 · 어제(KST 정각) 대비</div>
     </div>
   );
 }
 
-function Chip({ label, value, color }: { label: string; value: string; color: string }) {
+function Kpi({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="cv-pf-chip">
-      <div className="cv-pf-chip-v" style={{ color }}>{value}</div>
-      <div className="cv-pf-chip-l">{label}</div>
+    <div className="cv-pf-kpi">
+      <div className="cv-pf-kpi-l">{label}</div>
+      <div className="cv-pf-kpi-v" style={color ? { color } : undefined}>{value}</div>
+      {sub && <div className="cv-pf-kpi-s" style={color ? { color } : undefined}>{sub}</div>}
     </div>
   );
 }
 
-/** 카드별 미니 스파크라인 (trend). */
+function Mover({
+  row,
+  dir,
+  format,
+}: {
+  row: { c: CardRow; changePct: number | null } | null;
+  dir: 'up' | 'down';
+  format: (j: number) => string;
+}) {
+  const color = dir === 'up' ? UP : DOWN;
+  if (!row) return <div className="cv-pf-mover"><span className="cv-pf-mover-h" style={{ color }}>{dir === 'up' ? '▲ TOP' : '▼ TOP'}</span><span className="cv-pf-mover-n">—</span></div>;
+  const name = row.c.snkrdunkName || row.c.nickname || '이름 미상';
+  return (
+    <div className="cv-pf-mover">
+      <span className="cv-pf-mover-h" style={{ color }}>{dir === 'up' ? '▲ 상승 TOP' : '▼ 하락 TOP'}</span>
+      <span className="cv-pf-mover-n">{name}</span>
+      <span className="cv-pf-mover-p" style={{ color }}>
+        {(row.changePct ?? 0) >= 0 ? '+' : ''}{(row.changePct ?? 0).toFixed(1)}%
+      </span>
+    </div>
+  );
+}
+
+/** 카드별 미니 스파크라인. */
 function Spark({ trend, up }: { trend: number[]; up: boolean }) {
   const pts = (trend ?? []).filter((n) => typeof n === 'number' && n > 0);
   if (pts.length < 2) return <div className="cv-pf-spark" />;
@@ -322,12 +391,8 @@ function PortfolioChart({ history, format }: { history: HistPoint[]; format: (jp
       onTouchMove={(e) => { if (e.touches[0]) setHover(idxFromClientX(e.touches[0].clientX)); }}
       onTouchEnd={() => setHover(null)}
     >
-      {/* 툴팁 */}
       {active != null && (
-        <div
-          className="cv-pf-tip"
-          style={{ left: `${(active / (n - 1)) * 100}%` }}
-        >
+        <div className="cv-pf-tip" style={{ left: `${(active / (n - 1)) * 100}%` }}>
           <div className="cv-pf-tip-date">{history[active].date}</div>
           <div className="cv-pf-tip-amt">{format(history[active].totalJpy)}</div>
           {aPct != null && (
@@ -340,7 +405,7 @@ function PortfolioChart({ history, format }: { history: HistPoint[]; format: (jp
       <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', touchAction: 'none' }}>
         <defs>
           <linearGradient id="pfFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={stroke} stopOpacity={0.35} />
+            <stop offset="0%" stopColor={stroke} stopOpacity={0.32} />
             <stop offset="100%" stopColor={stroke} stopOpacity={0} />
           </linearGradient>
         </defs>
@@ -348,14 +413,14 @@ function PortfolioChart({ history, format }: { history: HistPoint[]; format: (jp
         <path d={line} fill="none" stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
         {active != null && (
           <>
-            <line x1={xOf(active)} y1={0} x2={xOf(active)} y2={H} stroke="rgba(255,255,255,.35)" strokeWidth={1} strokeDasharray="3 3" />
+            <line x1={xOf(active)} y1={0} x2={xOf(active)} y2={H} stroke="rgba(255,255,255,.4)" strokeWidth={1} strokeDasharray="3 3" />
             <circle cx={xOf(active)} cy={yOf(active)} r={4} fill="#fff" stroke={stroke} strokeWidth={2} />
           </>
         )}
       </svg>
       <div className="cv-pf-axis">
         <span>{history[0].date}</span>
-        <span>최근 {n}일 · 탭/호버로 상세</span>
+        <span>{n}일 · 탭/호버 상세</span>
         <span>{history[n - 1].date}</span>
       </div>
     </div>
