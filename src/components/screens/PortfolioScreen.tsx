@@ -56,31 +56,54 @@ export function PortfolioScreen() {
   const [port, setPort] = useState<PortfolioData | null>(null);
   const [cards, setCards] = useState<CardRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
   const [sort, setSort] = useState<'value' | 'change'>('value');
   const [filter, setFilter] = useState<Filter>('all');
   const [range, setRange] = useState<Range>(30);
 
   useEffect(() => {
     let alive = true;
+    // 스니덩크 라이브 스크래핑이 느리거나 멈추면 응답이 안 와 스피너가 영원히 남는다.
+    // 20초 타임아웃 + 에러 응답(비-2xx) 처리로 무한 로딩을 방지한다.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    setErr(null);
+    setPort(null);
+    setCards(null);
     (async () => {
       try {
         const [pr, cr] = await Promise.all([
-          fetch('/api/me/portfolio', { credentials: 'include', cache: 'no-store' }),
-          fetch('/api/me/cards/with-prices', { credentials: 'include', cache: 'no-store' }),
+          fetch('/api/me/portfolio', { credentials: 'include', cache: 'no-store', signal: ctrl.signal }),
+          fetch('/api/me/cards/with-prices', { credentials: 'include', cache: 'no-store', signal: ctrl.signal }),
         ]);
         if (!alive) return;
+        if (!pr.ok) {
+          setErr(pr.status === 401 ? '로그인이 필요해요' : '포트폴리오를 불러오지 못했어요');
+          return;
+        }
+        // 에러 응답도 JSON 파싱은 성공하므로(throw 안 됨), data 유무로 판정해야 한다.
         const pj = (await pr.json().catch(() => null)) as { data?: PortfolioData } | null;
         const cj = (await cr.json().catch(() => null)) as { data?: CardRow[] } | null;
-        setPort(pj?.data ?? null);
+        if (!alive) return;
+        if (!pj?.data) {
+          setErr('포트폴리오를 불러오지 못했어요');
+          return;
+        }
+        setPort(pj.data);
         setCards(cj?.data ?? []);
       } catch {
-        if (alive) setErr('포트폴리오를 불러오지 못했어요');
+        // AbortController(타임아웃/언마운트) 포함 — 살아있을 때만 에러 표시.
+        if (alive) setErr('시세 조회가 지연되고 있어요. 잠시 후 다시 시도해주세요');
+      } finally {
+        clearTimeout(timer);
       }
     })();
     return () => {
       alive = false;
+      clearTimeout(timer);
+      ctrl.abort();
     };
-  }, []);
+  }, [reload]);
 
   const usePsa10 = priceMode === 'psa10';
 
@@ -141,7 +164,29 @@ export function PortfolioScreen() {
     };
   }, [allRows]);
 
-  if (err) return <div className="cv-pf-board cv-pf-msg">⚠ {err}</div>;
+  if (err)
+    return (
+      <div className="cv-pf-board cv-pf-msg">
+        ⚠ {err}
+        <br />
+        <button
+          type="button"
+          onClick={() => setReload((n) => n + 1)}
+          style={{
+            marginTop: 12,
+            padding: '8px 18px',
+            background: 'transparent',
+            color: '#7FB0FF',
+            border: '1px solid #7FB0FF',
+            borderRadius: 6,
+            cursor: 'pointer',
+            font: 'inherit',
+          }}
+        >
+          다시 시도
+        </button>
+      </div>
+    );
   if (!port || !cards) return <div className="cv-pf-board cv-pf-msg">불러오는 중…</div>;
   if (port.totalCount === 0)
     return (
