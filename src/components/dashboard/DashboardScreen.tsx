@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { AppBarUser } from '@/components/AppBarUser';
@@ -306,6 +307,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
   const { format } = useCurrency();
   const { theme } = useTheme();
   const isClean = theme === 'clean';
+  const router = useRouter();
   const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
   const [activeGame, setActiveGame] = useState<string>('전체');
 
@@ -421,7 +423,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
 
       {/* ═══ HERO: PORTFOLIO CARD ═══ (박스 클릭 → 전체 포트폴리오 페이지) */}
       <Panel
-        href="/my/portfolio"
+        onClick={() => router.push('/my/portfolio')}
         ariaLabel="전체 포트폴리오 보기"
         style={{
           margin: 'var(--gap) var(--gap) var(--cg)',
