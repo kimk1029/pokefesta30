@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { mvcImgProxy, stripDeadlinePrefix, upscaleCafeThumb, type MvcAuctionItem, type MvcAuctionPageResult, type MvcLatestBid } from '@/lib/navercafe';
 import { FavoriteStar } from '@/components/FavoriteStar';
@@ -83,6 +83,7 @@ function AuctionRow({
   /** 썸네일 클릭 시 큰 이미지(원본 URL)를 라이트박스로 띄움. */
   onImageZoom: (src: string) => void;
 }) {
+  const router = useRouter();
   const [imgError, setImgError] = useState(false);
   const hasComments = item.commentCount > 0;
   const hasThumb = Boolean(item.thumbnailUrl) && !imgError;
@@ -102,18 +103,20 @@ function AuctionRow({
           : '입찰';
 
   return (
-    <Link
-      href={`/cards/mvc-auction/${item.articleId}`}
+    <div
       className="shop-card"
-      style={{ textDecoration: 'none', color: 'inherit' }}
+      role="link"
+      onClick={() => router.push(`/cards/mvc-auction/${item.articleId}`)}
+      style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
     >
       <div
         className="sh-icon"
-        // 행 전체는 <Link>지만 썸네일 클릭은 라이트박스만 띄움(이동 방지).
+        // 행 전체는 클릭 시 상세로 이동하지만, 썸네일 클릭은 라이트박스만 띄움(이동 방지).
+        // Next <Link> 안에선 stopPropagation 으로도 이동을 못 막아(메모: panel-link-inner-button-nav)
+        // 행을 div+router.push 로 바꿔 썸네일 핸들러가 확실히 가로채도록 함.
         onClick={
           hasThumb && item.thumbnailUrl
             ? (e) => {
-                e.preventDefault();
                 e.stopPropagation();
                 // 목록 썸네일은 저해상(w300) → 라이트박스는 큰 사이즈(w800)로.
                 onImageZoom(mvcImgProxy(upscaleCafeThumb(item.thumbnailUrl!, 'w800')));
@@ -211,7 +214,7 @@ function AuctionRow({
           {timeTs > 0 && <span>🕒 {fmtClock(timeTs)}</span>}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
