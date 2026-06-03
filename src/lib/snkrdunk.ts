@@ -392,11 +392,16 @@ export function downsamplePricePoints(
     .map(([key, b]) => [key, Math.round(b.sum / b.n)] as [number, number]);
 }
 
+// 메인 결과 그리드 타일은 `/apparels/{id}/used/{listingId}` 처럼 id 뒤에 경로가 더
+// 붙는다(특정 중고매물로 링크). 예전 정규식은 id 바로 뒤 `"` 만 매칭해 그리드 타일을
+// 통째로 놓치고 상단 추천 캐러셀(맨 id 링크)만 ~20개 잡혀 "조금밖에 안 나오는" 원인이었다.
+// → id 뒤 선택적 경로(`(?:\/[^"]*)?`)를 허용. 캡처(\d+)는 여전히 apparelId 만 잡는다.
 const SEARCH_ITEM_RE =
-  /<a[^>]*href="https:\/\/snkrdunk\.com\/apparels\/(\d+)"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/g;
+  /<a[^>]*href="https:\/\/snkrdunk\.com\/apparels\/(\d+)(?:\/[^"]*)?"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/g;
 
-/** 검색 한 페이지당 파싱 상한. 이 수만큼 차면 다음 페이지(page+1)가 더 있다고 간주. */
-export const SNKRDUNK_SEARCH_LIMIT = 40;
+/** 검색 한 페이지당 파싱 상한. 이 수만큼 차면 다음 페이지(page+1)가 더 있다고 간주.
+ *  그리드까지 잡으면 한 페이지에 캐러셀+그리드 합쳐 40개를 넘길 수 있어 60으로 상향. */
+export const SNKRDUNK_SEARCH_LIMIT = 60;
 
 /** HTML 파서 — 검색 결과 카드를 추출. */
 export function parseSnkrdunkSearchHtml(html: string): SnkrdunkSearchResult[] {

@@ -368,11 +368,15 @@ export interface SnkrdunkSearchResult {
   priceText: string;
 }
 
+// 메인 결과 그리드 타일은 `/apparels/{id}/used/{listingId}` 처럼 id 뒤에 경로가 더
+// 붙는다. 예전 정규식은 id 바로 뒤 `"` 만 매칭해 그리드를 통째로 놓치고 상단 추천
+// 캐러셀만 ~20개 잡혀 "조금밖에 안 나오던" 원인. → id 뒤 선택적 경로를 허용.
 const SEARCH_ITEM_RE =
-  /<a[^>]*href="https:\/\/snkrdunk\.com\/apparels\/(\d+)"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/g;
+  /<a[^>]*href="https:\/\/snkrdunk\.com\/apparels\/(\d+)(?:\/[^"]*)?"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/g;
 
-/** 검색 한 페이지당 파싱 상한. 이 수만큼 차면 다음 페이지가 더 있다고 간주. */
-export const SNKRDUNK_SEARCH_LIMIT = 40;
+/** 검색 한 페이지당 파싱 상한. 이 수만큼 차면 다음 페이지가 더 있다고 간주.
+ *  캐러셀+그리드 합쳐 40을 넘길 수 있어 60으로 상향. */
+export const SNKRDUNK_SEARCH_LIMIT = 60;
 
 function decodeHtmlEntities(s: string): string {
   return s
