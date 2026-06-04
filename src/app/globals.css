@@ -4013,3 +4013,66 @@ a{color:inherit;text-decoration:none;}
 /* ── 잔여 텍스트 톤 ── */
 [data-theme="dark"] .empty,
 [data-theme="dark"] .empty *{color:var(--ink3);}
+
+/* ════════════════════════════════════════════════════════════════
+   CLEAN — "CardVault 시세·거래" 프로토타입 스타일 적용
+   (claude.ai/design · cardvault-trade.html). 레이아웃/마크업은 그대로 두고
+   팔레트·라운드·섀도우·액센트만 프로토타입 토큰으로 교체.
+   :is(clean,dark) 공유 블록을 clean 한정으로 덮어쓴다(소스순서 우선, dark 영향 없음).
+   ════════════════════════════════════════════════════════════════ */
+[data-theme="clean"]{
+  /* 면/배경 — 쿨 뉴트럴(웜 오프화이트 → 중립 그레이) */
+  --paper:#FFFFFF; --white:#FFFFFF; --surf2:#FFFFFF;
+  --pap2:#F7F8FA; --pap3:#EEF0F3; --line2:#F5F6F8; --papdk:#A8AFBC;
+  /* 잉크 */
+  --ink:#11141A; --ink2:#3C424E; --ink3:#7C8595; --ink4:#A8AFBC;
+  /* 액센트 = 브랜드 다크(주 버튼·탭·CTA) — 에메랄드 → 근블랙 */
+  --accent:#1A1D24; --accent-lt:#363B45; --accent-dk:#11141A; --accent-soft:#F1F2F4;
+  --nav:#1A1D24; --nav-lt:#363B45; --nav-dk:#11141A;
+  /* 의미색 — KR 주식 관례(상승=빨강, 하락=파랑) + 골드 */
+  --red:#F23645; --red-lt:#F76571; --red-dk:#C81E2C; --red-soft:#FEECEE;
+  --blu:#2F6BFF; --blu-lt:#6B97FF; --blu-dk:#1E4FD0; --blu-soft:#EAF1FF;
+  --gold:#C8941E; --gold-lt:#E0AC3C; --gold-dk:#A2760F; --gold-soft:#FBF4E2;
+  --yel:#C8941E; --yel-lt:#E0AC3C; --yel-dk:#A2760F;
+  --grn:#0E9C6E; --grn-lt:#2BB888; --grn-dk:#0A7A56;
+  --tel:#0E9C6E; --tel-lt:#2BB888; --tel-dk:#0A7A56;
+  --pur:#7C5CDB; --pur-lt:#A189EC; --pur-dk:#5C3FB0;
+  --orn:#E07B39; --orn-lt:#EC9C68; --orn-dk:#B85F22;
+  /* 라운드/섀도우 — 프로토타입 토큰(카드 16 · 버튼/인풋 ~10 · 가벼운 그림자) */
+  --r:16px; --r-sm:10px; --r-pill:999px; --r-xl:20px;
+  --sh-sm:0 1px 2px rgba(17,20,26,.04),0 2px 8px rgba(17,20,26,.04);
+  --sh-md:0 4px 16px rgba(17,20,26,.07);
+  --sh-lg:0 8px 28px rgba(17,20,26,.10),0 2px 8px rgba(17,20,26,.05);
+}
+/* 자간 살짝 타이트 + 숫자 탭률러(프로토타입 -0.02em) */
+[data-theme="clean"] *{letter-spacing:-0.02em;}
+[data-theme="clean"] .num,
+[data-theme="clean"] .price,
+[data-theme="clean"] .trow-price{font-variant-numeric:tabular-nums;}
+/* 카드/패널 — 프로토타입의 가벼운 2단 섀도우 + 라운드 */
+[data-theme="clean"] .card,
+[data-theme="clean"] .feed-item,
+[data-theme="clean"] .trade-card,
+[data-theme="clean"] .my-item,
+[data-theme="clean"] .cc-item,
+[data-theme="clean"] .qi,
+[data-theme="clean"] .shop-card,
+[data-theme="clean"] .stat-card,
+[data-theme="clean"] .sum-card,
+[data-theme="clean"] .place-card,
+[data-theme="clean"] .level-card,
+[data-theme="clean"] .thread-item,
+[data-theme="clean"] .hero-promo-card{
+  border:1px solid var(--pap3);border-radius:var(--r);
+  box-shadow:0 1px 2px rgba(17,20,26,.04),0 2px 8px rgba(17,20,26,.04);}
+/* 폰 — 데스크탑 프리뷰에서 라운드(모바일 전체화면은 직각 유지) */
+[data-theme="clean"] .phone{border-radius:32px;box-shadow:0 12px 40px rgba(17,20,26,.16),0 0 0 1px rgba(17,20,26,.04);}
+@media (max-width:480px){[data-theme="clean"] .phone{border-radius:0;box-shadow:none;}}
+/* 칩 활성 = 브랜드 다크 채움 */
+[data-theme="clean"] .chip.on{background:var(--ink);color:#fff;}
+/* 세그 활성 = 흰 면 + 소프트 섀도우(토스/주식앱 토글) */
+[data-theme="clean"] .seg-wrap{background:var(--pap2);border:none;border-radius:var(--r-sm);box-shadow:none;padding:3px;}
+[data-theme="clean"] .seg.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(17,20,26,.06),0 2px 8px rgba(17,20,26,.05);}
+/* 앱바 타이틀/로고 — 타이트 볼드 */
+[data-theme="clean"] .appbar-title,
+[data-theme="clean"] .appbar-logo{letter-spacing:-0.03em;font-weight:800;}
