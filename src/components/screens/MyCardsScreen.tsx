@@ -16,6 +16,7 @@ import type { MyCardWithPrice } from '@/lib/queries';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/components/PriceModeProvider';
 import { useTheme } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { CardSpotlightModal, type CardSpotlightData } from '@/components/CardSpotlightModal';
@@ -70,7 +71,7 @@ export function MyCardsScreen({ cards: initial }: Props) {
   const { format } = useCurrency();
   const { mode: priceMode, setMode: setPriceMode } = usePriceMode();
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  const isClean = isFlatTheme(theme);
   const [cards, setCards] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -463,7 +464,7 @@ interface FavRow {
 function FavoritesView() {
   const { format } = useCurrency();
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  const isClean = isFlatTheme(theme);
   const [rows, setRows] = useState<FavRow[]>([]);
   const [state, setState] = useState<'loading' | 'done' | 'error'>('loading');
 
@@ -613,7 +614,7 @@ function GridItem({
 }) {
   const { format } = useCurrency();
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  const isClean = isFlatTheme(theme);
   const label = priceLabel(c, format);
   const hasPrice = label !== null;
   return (

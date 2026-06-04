@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { startRouteTransition } from '@/components/RouteProgress';
 import { useTheme } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 
 // 클린 테마 공통 박스 — 흰 면 + 옅은 보더 + 소프트 섀도우 (라운드 18px).
 // 픽셀 테마의 하드 잉크 박스를 대체. DashboardScreen 의 패널들과 동일 스타일.
@@ -12,7 +13,7 @@ const CLEAN_BOX_SHADOW = '0 1px 2px rgba(24,34,58,.04),0 10px 24px rgba(24,34,58
 export function HomeKoSearchBar() {
   const router = useRouter();
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  const isClean = isFlatTheme(theme);
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 import { useTheme } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 
 /**
  * 앱 전역 공통 박스 컴포넌트.
@@ -55,7 +56,8 @@ export function Panel({
   ariaLabel,
 }: PanelProps) {
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  // clean·dark = 플랫(논픽셀) → 모던 라운드 박스. 그 외 = 픽셀 프레임.
+  const isClean = isFlatTheme(theme);
 
   const themeStyle: CSSProperties = isClean
     ? CLEAN_PANEL

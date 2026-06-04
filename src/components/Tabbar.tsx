@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { LineIcon, type LineIconName } from './Icons';
 import { useTheme } from './ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 
 type TabId = 'home' | 'collection' | 'fab' | 'community' | 'my';
 
@@ -104,7 +105,7 @@ export function Tabbar(_props: { onFab?: () => void } = {}) {
                 )}
 
                 {/* 클린 테마 — 화이트 스캔 프레임 아이콘. */}
-                {theme === 'clean' && (
+                {isFlatTheme(theme) && (
                   <svg
                     className="fab-scan"
                     viewBox="0 0 24 24"

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useTheme } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 import { ListAdRow } from '@/components/ListAdRow';
 import { autoPriceSize } from '../../../../../shared/util/autoPriceSize';
 import type { BunjangItem } from '@/lib/bunjang';
@@ -227,7 +228,7 @@ function TabButton({
   onClick: () => void;
 }) {
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  const isClean = isFlatTheme(theme);
   return (
     <button
       type="button"
@@ -304,7 +305,7 @@ function StatusNote({ text }: { text: string }) {
 
 function EmptyBox({ text }: { text: string }) {
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  const isClean = isFlatTheme(theme);
   return (
     <div
       style={{
@@ -481,7 +482,7 @@ function BunjangCard({ item }: { item: BunjangItem }) {
 
 function SearchHitCard({ hit }: { hit: HydratedHit }) {
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  const isClean = isFlatTheme(theme);
   const koTitle = hit.koName || hit.jpName;
   const jpTitle = hit.jpName && hit.jpName !== koTitle ? hit.jpName : null;
   const hasPrice = hit.minPrice > 0;
@@ -571,7 +572,7 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
 function PriceBox({ jpy, hasPrice }: { jpy: number; hasPrice: boolean }) {
   const { format } = useCurrency();
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  const isClean = isFlatTheme(theme);
   const label = hasPrice ? format(jpy) : '시세 없음';
   return (
     <div

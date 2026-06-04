@@ -14,6 +14,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { Panel } from '@/components/ui/Panel';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { useTheme } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
 import type { MyCardWithPrice } from '@/lib/queries';
 
@@ -306,7 +307,7 @@ function fmt(n: number): string {
 export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows = [], packs = [] }: Props) {
   const { format } = useCurrency();
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  const isClean = isFlatTheme(theme);
   const router = useRouter();
   const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
   const [activeGame, setActiveGame] = useState<string>('전체');

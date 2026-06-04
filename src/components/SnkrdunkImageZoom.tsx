@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTheme } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 
 interface Props {
   src: string | null;
@@ -11,7 +12,7 @@ interface Props {
 export function SnkrdunkImageZoom({ src, alt }: Props) {
   const [open, setOpen] = useState(false);
   const { theme } = useTheme();
-  const isClean = theme === 'clean';
+  const isClean = isFlatTheme(theme);
 
   useEffect(() => {
     if (!open) return;

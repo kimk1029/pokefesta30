@@ -40,6 +40,14 @@ export const THEMES: ReadonlyArray<{
 export const DEFAULT_THEME: ThemeId = 'pokemon';
 export const THEME_STORAGE_KEY = 'pokefesta-theme';
 
+/**
+ * "플랫(논픽셀)" 테마 여부 — clean·dark 는 픽셀 프레임/아이콘 대신
+ * 라운드+소프트(모던) 외형을 쓴다. 인라인 스타일 분기에서 이 헬퍼로 판정.
+ */
+export function isFlatTheme(t: ThemeId): boolean {
+  return t === 'clean' || t === 'dark';
+}
+
 export function isThemeId(v: unknown): v is ThemeId {
   return (
     v === 'pokemon' ||

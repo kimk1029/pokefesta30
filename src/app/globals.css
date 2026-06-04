@@ -3822,7 +3822,10 @@ a{color:inherit;text-decoration:none;}
   /* 잉크(텍스트) — 라이트 시안그레이 */
   --ink:#DCE6FA; --ink2:#A4B1CE; --ink3:#74819E; --ink4:#566179;
   /* 액센트 = 네온 시안 (clean 의 --accent 자리) */
-  --accent:#38D6FF; --accent-lt:#86E7FF; --accent-dk:#127FAE; --accent-soft:#0E2A38;
+  --accent:#38D6FF; --accent-lt:#86E7FF; --accent-dk:#127FAE; --accent-soft:#0C2632;
+  /* soft 토큰 — 아이콘 칩 배경(다크 틴트) */
+  --grn-soft:#06231A; --gold-soft:#2A2310; --blu-soft:#0C2632; --red-soft:#2A0F19;
+  --orn-soft:#2A1A0C; --pur-soft:#1C1430;
   /* 의미색 → 네온 (상승/매수=그린, 하락/매도=핑크) */
   --grn:#1DF7A0; --grn-lt:#74FFC8; --grn-dk:#0B7A4F;
   --red:#FF3D6E; --red-lt:#FF7095; --red-dk:#B01F45;
@@ -3930,6 +3933,17 @@ a{color:inherit;text-decoration:none;}
   border-radius:var(--r-sm);box-shadow:none;}
 [data-theme="dark"] .seg.on,
 [data-theme="dark"] .cv-subseg button.on{box-shadow:none;border-radius:var(--r-sm);}
+
+/* ── 인라인 픽셀 박스섀도우 일괄 디픽셀 ──
+   다수 컴포넌트가 style={{boxShadow:'-Npx 0 0 var(--ink)…'}} 로 픽셀 프레임을
+   인라인으로 박아넣어 CSS 변수로는 못 덮는다. 인라인 style 문자열에 픽셀 시그니처
+   "0 0 var(--ink)" 가 들어간 요소를 속성선택자로 직접 잡아 !important 로 디픽셀.
+   (모던 분기(isFlatTheme)를 타는 컴포넌트는 애초에 이 문자열이 없어 영향 없음) */
+[data-theme="dark"] [style*="0 0 var(--ink)"]{
+  border-radius:var(--r-sm) !important;
+  box-shadow:0 2px 10px rgba(0,0,0,.45),0 0 0 1px var(--pap3) !important;}
+/* 픽셀 보더탑 액센트(예: borderTop:'3px solid var(--ink)')도 라이트로 뒤집히므로 톤다운 */
+[data-theme="dark"] [style*="solid var(--ink)"]{border-color:var(--pap3) !important;}
 
 /* ── background:var(--ink) 로 다크바를 그리던 면들 → --ink 가 라이트라 뒤집힘. 재다크화 ── */
 [data-theme="dark"] .points-card,
