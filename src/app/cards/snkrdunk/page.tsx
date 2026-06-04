@@ -12,6 +12,7 @@ import {
   type SnkrdunkSearchResult,
 } from '@/lib/snkrdunk';
 import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCards';
+import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { serverFetch } from '@/lib/apiServer';
 
 // 추천 6장은 전체보기 리스트의 상단 6장과 동일해야 하므로 browse 순서를 그대로 사용.
@@ -20,6 +21,8 @@ import { serverFetch } from '@/lib/apiServer';
 interface DisplaySeed {
   apparelId: number;
   shortName: string;
+  /** 일본어 원문 (소제목 노출용). 한국어와 같으면 표시 생략. */
+  localizedName?: string;
   category: SnkrdunkCardSeed['category'] | null;
 }
 
@@ -58,13 +61,21 @@ function shortenName(name: string): string {
 }
 
 function searchToSeed(r: SnkrdunkSearchResult): DisplaySeed {
+  const jp = shortenName(r.name);
   const curated = FEATURED_BY_ID.get(r.apparelId);
   if (curated) {
-    return { apparelId: r.apparelId, shortName: curated.shortName, category: curated.category };
+    return {
+      apparelId: r.apparelId,
+      shortName: curated.shortName,
+      localizedName: jp,
+      category: curated.category,
+    };
   }
+  // 일본어 원문을 한국어로 자동 번역 — 사전 미수록 단어는 원문 유지.
   return {
     apparelId: r.apparelId,
-    shortName: shortenName(r.name),
+    shortName: shortenName(translateKnownCardNameToKo(r.name)),
+    localizedName: jp,
     category: inferCategory(r.name),
   };
 }
@@ -281,6 +292,20 @@ export default async function Page() {
                   )}
                   {seed.shortName}
                 </div>
+                {seed.localizedName && seed.localizedName !== seed.shortName ? (
+                  <div
+                    style={{
+                      fontFamily: 'var(--f1)',
+                      fontSize: 9,
+                      color: 'var(--ink3)',
+                      letterSpacing: 0.2,
+                      lineHeight: 1.4,
+                      marginTop: 4,
+                    }}
+                  >
+                    {seed.localizedName}
+                  </div>
+                ) : null}
                 <div
                   className="sh-desc"
                   style={{

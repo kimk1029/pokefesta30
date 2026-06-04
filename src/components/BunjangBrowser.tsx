@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { BunjangItem } from '@/lib/bunjang';
 import { FavoriteStar } from '@/components/FavoriteStar';
 import { useListingFavorites, type ListingFavorite } from '@/lib/useListingFavorites';
@@ -131,6 +131,8 @@ function favFromBunjangItem(item: BunjangItem): ListingFavorite {
   };
 }
 
+type SortKey = 'latest' | 'relevant';
+
 interface Props {
   initialItems: BunjangItem[];
   initialQuery: string;
@@ -141,7 +143,19 @@ export function BunjangBrowser({ initialItems, initialQuery }: Props) {
   const [activeQuery, setActiveQuery] = useState(initialQuery);
   const [items, setItems] = useState<BunjangItem[]>(initialItems);
   const [loading, setLoading] = useState(false);
+  // 기본 = 최신순(등록·갱신 시각 내림차순). '관련순' 은 번개장터 API 원본 순서(score).
+  const [sort, setSort] = useState<SortKey>('latest');
   const { isFav, toggle, favorites } = useListingFavorites('bunjang');
+
+  // 관심목록에 있는 매물은 상단 고정 섹션에서 이미 보여주므로 결과에선 제외 후 정렬.
+  const visibleItems = useMemo(() => {
+    const rest = items.filter((item) => !isFav(item.pid));
+    if (sort === 'latest') {
+      // updatedAt 0(미상)은 항상 뒤로.
+      return [...rest].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    }
+    return rest;
+  }, [items, sort, isFav]);
 
   async function submit(q: string) {
     const trimmed = q.trim();
@@ -246,6 +260,35 @@ export function BunjangBrowser({ initialItems, initialQuery }: Props) {
       <div className="sect">
         <div className="sect-title">
           <h2 style={{ margin: 0 }}>“{activeQuery}” 매물 {items.length}건</h2>
+          {/* 작은 정렬 필터 — 최신순 / 관련순 */}
+          <div style={{ display: 'flex', gap: 0, flexShrink: 0 }}>
+            {([
+              ['latest', '최신순'],
+              ['relevant', '관련순'],
+            ] as Array<[SortKey, string]>).map(([key, label]) => {
+              const on = sort === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSort(key)}
+                  aria-pressed={on}
+                  style={{
+                    fontFamily: 'var(--f1)',
+                    fontSize: 8,
+                    letterSpacing: 0.3,
+                    padding: '3px 7px',
+                    background: on ? 'var(--yel)' : 'transparent',
+                    color: on ? 'var(--ink)' : 'var(--pap3)',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
         {loading ? (
           <div
@@ -272,14 +315,12 @@ export function BunjangBrowser({ initialItems, initialQuery }: Props) {
             매물이 없습니다.
           </div>
         ) : (
-          items
-            .filter((item) => !isFav(item.pid))
-            .map((item) => (
-              <div key={item.pid} style={{ position: 'relative' }}>
-                <ItemRow item={item} />
-                <FavoriteStar active={false} onToggle={() => toggle(favFromBunjangItem(item))} />
-              </div>
-            ))
+          visibleItems.map((item) => (
+            <div key={item.pid} style={{ position: 'relative' }}>
+              <ItemRow item={item} />
+              <FavoriteStar active={false} onToggle={() => toggle(favFromBunjangItem(item))} />
+            </div>
+          ))
         )}
       </div>
     </>

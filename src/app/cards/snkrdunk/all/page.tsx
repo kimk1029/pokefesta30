@@ -6,6 +6,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { ListAdRow } from '@/components/ListAdRow';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { autoPriceSize } from '../../../../../shared/util/autoPriceSize';
 
 interface BrowseItem {
@@ -120,17 +121,40 @@ export default function Page() {
               )}
             </div>
             <div className="sh-main">
-              <div
-                className="sh-title"
-                style={{
-                  fontFamily: 'var(--f1)',
-                  fontSize: 12,
-                  letterSpacing: 0.3,
-                  lineHeight: 1.4,
-                }}
-              >
-                {shortenName(it.name)}
-              </div>
+              {(() => {
+                const jp = shortenName(it.name);
+                const ko = shortenName(translateKnownCardNameToKo(it.name));
+                const showJp = jp && jp !== ko;
+                return (
+                  <>
+                    <div
+                      className="sh-title"
+                      style={{
+                        fontFamily: 'var(--f1)',
+                        fontSize: 12,
+                        letterSpacing: 0.3,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {ko}
+                    </div>
+                    {showJp ? (
+                      <div
+                        style={{
+                          fontFamily: 'var(--f1)',
+                          fontSize: 9,
+                          color: 'var(--ink3)',
+                          letterSpacing: 0.2,
+                          lineHeight: 1.4,
+                          marginTop: 3,
+                        }}
+                      >
+                        {jp}
+                      </div>
+                    ) : null}
+                  </>
+                );
+              })()}
               <div
                 className="sh-desc"
                 style={{
