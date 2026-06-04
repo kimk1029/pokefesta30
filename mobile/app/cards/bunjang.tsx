@@ -45,6 +45,8 @@ export default function BunjangScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 기본 = 최신순(등록·갱신 시각 내림차순). '관련순' = 번개장터 API 원본 순서.
+  const [sort, setSort] = useState<'latest' | 'relevant'>('latest');
 
   const { isFav, toggle, favorites } = useListingFavorites('bunjang');
 
@@ -70,7 +72,11 @@ export default function BunjangScreen() {
   const favIdSet = new Set(favorites.map((f) => f.externalId));
   const liveById = new Map(items.map((it) => [it.pid, it]));
   const pinned = favorites.map((f) => liveById.get(f.externalId) ?? favToItem(f));
-  const rest = items.filter((it) => !favIdSet.has(it.pid));
+  const restRaw = items.filter((it) => !favIdSet.has(it.pid));
+  const rest =
+    sort === 'latest'
+      ? [...restRaw].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+      : restRaw;
 
   const renderRow = (item: BunjangItem) => (
     <MarketRow key={item.pid} item={item} fav={isFav(item.pid)} onToggleFav={() => toggle(favFromItem(item))} />
@@ -140,6 +146,29 @@ export default function BunjangScreen() {
             {pinned.map(renderRow)}
             <View style={{ height: 2, backgroundColor: colors.pap3, marginVertical: 2 }} />
           </>
+        )}
+
+        {/* 작은 정렬 필터 — 최신순 / 관련순 */}
+        {items.length > 0 && (
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 0, marginBottom: 2 }}>
+            {(['latest', 'relevant'] as const).map((k) => (
+              <Pressable
+                key={k}
+                onPress={() => setSort(k)}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  backgroundColor: sort === k ? colors.yel : 'transparent',
+                  borderColor: colors.ink,
+                  borderWidth: sort === k ? 1 : 0,
+                }}
+              >
+                <PixelText variant="pixel" size={8} color={sort === k ? colors.ink : colors.ink3}>
+                  {k === 'latest' ? '최신순' : '관련순'}
+                </PixelText>
+              </Pressable>
+            ))}
+          </View>
         )}
 
         {rest.map(renderRow)}
