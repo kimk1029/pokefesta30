@@ -3816,74 +3816,72 @@ a{color:inherit;text-decoration:none;}
    ════════════════════════════════════════════════════════════════ */
 [data-theme="dark"]{
   /* 면/배경 */
-  --paper:#10131C; --pap2:#06070D; --pap3:#283049; --papdk:#49506B;
-  --white:#161C2B;
-  --surf2:#10131C; --line2:#222A3E;
-  /* 잉크(텍스트) — 라이트 시안그레이 */
-  --ink:#DCE6FA; --ink2:#A4B1CE; --ink3:#74819E; --ink4:#566179;
-  /* 액센트 = 네온 시안 (clean 의 --accent 자리) */
-  --accent:#38D6FF; --accent-lt:#86E7FF; --accent-dk:#127FAE; --accent-soft:#0C2632;
+  /* 프로토타입(cardvault-cyber) 토큰에 정렬 */
+  --paper:#0A0D13; --pap2:#0A0D13; --pap3:#232B3A; --papdk:#454F61;
+  --white:#141925;
+  --surf2:#1A2030; --line2:#1A2030;
+  /* 잉크(텍스트) */
+  --ink:#F2F5FB; --ink2:#AEB6C6; --ink3:#6E7A90; --ink4:#454F61;
+  /* 액센트 = 네온 시안(--down) */
+  --accent:#36C5FF; --accent-lt:#7FDCFF; --accent-dk:#1487C0; --accent-soft:rgba(54,197,255,.14);
   /* soft 토큰 — 아이콘 칩 배경(다크 틴트) */
-  --grn-soft:#06231A; --gold-soft:#2A2310; --blu-soft:#0C2632; --red-soft:#2A0F19;
+  --grn-soft:#0A2A1C; --gold-soft:#2A2310; --blu-soft:rgba(54,197,255,.14); --red-soft:rgba(255,77,109,.14);
   --orn-soft:#2A1A0C; --pur-soft:#1C1430;
-  /* 의미색 → 네온 (상승/매수=그린, 하락/매도=핑크) */
-  --grn:#1DF7A0; --grn-lt:#74FFC8; --grn-dk:#0B7A4F;
-  --red:#FF3D6E; --red-lt:#FF7095; --red-dk:#B01F45;
-  --yel:#FFC83D; --yel-lt:#FFE082; --yel-dk:#8A6200;
-  --gold:#FFC83D; --gold-lt:#FFE082; --gold-dk:#8A6200;
-  --blu:#38D6FF; --blu-lt:#86E7FF; --blu-dk:#127FAE;
-  --orn:#FF9A3D; --orn-lt:#FFBE7A; --orn-dk:#B05E12;
-  --pur:#B36CFF; --pur-lt:#D2A6FF; --pur-dk:#7A3DCB;
-  --nav:#38D6FF; --nav-lt:#86E7FF; --nav-dk:#127FAE;
-  --tel:#1DF7A0; --tel-lt:#74FFC8; --tel-dk:#0B7A4F;
-  --c-e:#1DF7A0; --c-n:#FFC83D; --c-b:#FF9A3D; --c-f:#FF3D6E;
-  /* 어두운 패널 토큰(포트폴리오/히어로) — 그대로 어둡게 */
-  --dark:#0C0F18; --dark2:#11151F; --dark3:#0E2A38;
+  /* 의미색 — 상승=네온레드 / 하락=네온시안 (프로토타입) */
+  --grn:#5ED99B; --grn-lt:#86F0BB; --grn-dk:#1E7A52;
+  --red:#FF4D6D; --red-lt:#FF7F97; --red-dk:#C72847;
+  --yel:#FFD45E; --yel-lt:#FFE39A; --yel-dk:#A8841E;
+  --gold:#FFD45E; --gold-lt:#FFE39A; --gold-dk:#A8841E;
+  --blu:#36C5FF; --blu-lt:#7FDCFF; --blu-dk:#1487C0;
+  --orn:#F5A45A; --orn-lt:#FFC089; --orn-dk:#B86E2E;
+  --pur:#A78BFA; --pur-lt:#C7B2FF; --pur-dk:#6E4FC8;
+  --nav:#36C5FF; --nav-lt:#7FDCFF; --nav-dk:#1487C0;
+  --tel:#5ED99B; --tel-lt:#86F0BB; --tel-dk:#1E7A52;
+  --c-e:#5ED99B; --c-n:#FFD45E; --c-b:#F5A45A; --c-f:#FF4D6D;
+  /* 네온 글로우 */
+  --up-glow:rgba(255,77,109,.45); --down-glow:rgba(54,197,255,.45); --gold-glow:rgba(255,212,94,.4);
+  /* 어두운 패널 토큰 */
+  --dark:#10141D; --dark2:#141925; --dark3:#1A2030;
 }
 
-/* ── 페이지: 칠흑 배경 + 네온 시안 그리드 ── */
-[data-theme="dark"],[data-theme="dark"] body{background:#06070D;}
-[data-theme="dark"] .page-wrap{
-  background:#06070D;
-  background-image:
-    linear-gradient(rgba(56,214,255,.05) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(56,214,255,.05) 1px,transparent 1px);
-  background-size:30px 30px;}
+/* ── 페이지: 솔리드 다크(프로토타입 #05070A) ── */
+[data-theme="dark"],[data-theme="dark"] body{background:#05070A;}
+[data-theme="dark"] .page-wrap{background:#05070A;background-image:none;}
 
-/* ── 폰 본체: 시안 네온 베젤 + 외곽 글로우 (라운드 유지) ── */
+/* ── 폰 본체: 라운드 + 라인 보더 + 드롭(프로토타입) ── */
 [data-theme="dark"] .phone{
-  background:var(--paper);border:1px solid rgba(56,214,255,.22);
-  box-shadow:0 0 0 1px rgba(56,214,255,.10),0 0 32px rgba(56,214,255,.14),0 24px 60px rgba(0,0,0,.7);}
+  background:var(--paper);border-radius:32px;
+  box-shadow:0 0 0 1px var(--pap3),0 24px 60px rgba(0,0,0,.55);}
+@media (max-width:480px){[data-theme="dark"] .phone{border-radius:0;box-shadow:none;}}
 
-/* ── 상태바 / 앱바 / 탭바: clean 이 라이트로 칠한 면 → 다크 글래스 ── */
-[data-theme="dark"] .status{
-  background:#0A0D15;color:var(--blu-lt);border-bottom:1px solid rgba(56,214,255,.18);
-  text-shadow:0 0 6px rgba(56,214,255,.45);}
+/* ── 상태바 / 앱바 / 탭바: 절제된 다크(프로토타입) ── */
+[data-theme="dark"] .status{background:var(--paper);color:var(--ink2);border-bottom:none;box-shadow:none;text-shadow:none;}
 [data-theme="dark"] .appbar{
-  background:rgba(10,13,21,.86);backdrop-filter:saturate(1.2) blur(20px);
-  border-bottom:1px solid rgba(56,214,255,.22);
-  box-shadow:0 1px 0 rgba(56,214,255,.10),0 6px 20px rgba(0,0,0,.5);}
+  background:var(--paper);border-bottom:1px solid var(--line2);box-shadow:none;}
 [data-theme="dark"] .appbar-logo,
-[data-theme="dark"] .appbar-title{color:var(--blu-lt);text-shadow:0 0 10px rgba(56,214,255,.45);}
+[data-theme="dark"] .appbar-title{color:var(--ink);text-shadow:none;}
 [data-theme="dark"] .tabbar{
-  background:rgba(8,11,18,.88);backdrop-filter:blur(20px);
-  border-top:1px solid rgba(56,214,255,.30);
-  box-shadow:0 -1px 0 rgba(56,214,255,.14),0 -8px 24px rgba(0,0,0,.5);}
+  background:rgba(16,20,29,.95);backdrop-filter:blur(16px);
+  border-top:1px solid var(--pap3);box-shadow:none;}
 [data-theme="dark"] .tab span,
-[data-theme="dark"] .tab svg{color:var(--ink3);}
+[data-theme="dark"] .tab svg{color:var(--ink4);}
 [data-theme="dark"] .tab.on span,
 [data-theme="dark"] .tab.on svg,
-[data-theme="dark"] .fab-tab span{color:var(--blu-lt);}
-[data-theme="dark"] .tab.on span{text-shadow:0 0 8px rgba(56,214,255,.65);}
-[data-theme="dark"] .tab.on svg{filter:drop-shadow(0 0 6px rgba(56,214,255,.75));}
+[data-theme="dark"] .fab-tab span{color:var(--accent);}
+[data-theme="dark"] .tab.on span{text-shadow:none;}
+[data-theme="dark"] .tab.on svg{filter:drop-shadow(0 0 6px var(--down-glow));}
 
-/* ── 섹션 헤더 (clean = 투명 텍스트 헤더) → 시안 네온 톤 ── */
+/* ── 섹션 헤더 — 플레인 잉크(프로토타입) ── */
 [data-theme="dark"] .sect-title,
 [data-theme="dark"] .sect-hd,
 [data-theme="dark"] .sect-title h2,
 [data-theme="dark"] .sect-hd h2{
-  color:var(--blu-lt);text-shadow:0 0 9px rgba(56,214,255,.3);}
-[data-theme="dark"] .more{color:var(--accent);font-weight:600;}
+  color:var(--ink);text-shadow:none;font-weight:800;}
+[data-theme="dark"] .more{color:var(--ink3);font-weight:600;}
+
+/* ── 주식 티커/차트 유틸(프로토타입 글로우) ── */
+[data-theme="dark"] .pf-cyber-up{color:var(--red);text-shadow:0 0 12px var(--up-glow);}
+[data-theme="dark"] .pf-cyber-down{color:var(--blu);text-shadow:0 0 12px var(--down-glow);}
 
 /* ── 카드/패널: clean 의 라운드+보더 위에 깊이감(다크 섀도우)+미세 시안 글로우 ── */
 [data-theme="dark"] .card,
@@ -3908,8 +3906,8 @@ a{color:inherit;text-decoration:none;}
 [data-theme="dark"] .login-btn,
 [data-theme="dark"] .cv-list-card,
 [data-theme="dark"] .cv-coll-item{
-  border-color:var(--pap3);
-  box-shadow:0 1px 2px rgba(0,0,0,.5),0 10px 26px rgba(0,0,0,.5),0 0 0 1px rgba(56,214,255,.04);}
+  background:var(--white);border:1px solid var(--pap3) !important;border-color:var(--pap3);
+  box-shadow:none !important;}
 
 /* ── clean 디픽셀 목록이 놓친 픽셀 박스들 → 라운드+소프트로 디픽셀 ── */
 [data-theme="dark"] .cv-port-head,

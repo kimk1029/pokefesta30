@@ -422,8 +422,27 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       <StatusBar />
       <AppBar right={<AppBarUser />} />
 
-      {/* ═══ HERO: PORTFOLIO ═══ 클린=라이트(프로토타입) / 그 외=다크 보드 */}
-      {isClean ? (
+      {/* ═══ 다크(주식창): 실시간 인기 티커 바 ═══ */}
+      {theme === 'dark' && snkrdunkRows.length > 0 && (
+        <div style={{ display: 'flex', overflowX: 'auto', scrollbarWidth: 'none', borderBottom: '1px solid var(--line2)', background: 'var(--dark)' }}>
+          <div style={{ flexShrink: 0, padding: '9px 14px', borderRight: '1px solid var(--line2)', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--blu)' }}>🔥 실시간 인기</span>
+          </div>
+          {snkrdunkRows.slice(0, 8).map((r) => (
+            <Link
+              key={r.apparelId}
+              href={`/cards/snkrdunk/${r.apparelId}`}
+              style={{ flexShrink: 0, padding: '9px 13px', borderRight: '1px solid var(--line2)', display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none', color: 'inherit' }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink2)', maxWidth: 92, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.shortName}</span>
+              <span className="num" style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink)' }}>{r.minPrice > 0 ? format(r.minPrice) : '—'}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ HERO: PORTFOLIO ═══ 클린=라이트 / 다크=사이버 주식창 / 그 외=픽셀 보드 */}
+      {theme === 'clean' ? (
         <div
           onClick={() => router.push('/my/portfolio')}
           role="button"
@@ -498,6 +517,81 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
               ['거래', TRADES_THIS_WEEK + '건'],
             ] as Array<[string, string]>).map(([l, v], i) => (
               <div key={l} style={{ padding: '14px 6px', textAlign: 'center', borderRight: i < 3 ? '1px solid var(--pap3)' : 'none' }}>
+                <div className="num" style={{ fontSize: 15, fontWeight: 800 }}>{v}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink3)', marginTop: 4, fontWeight: 600 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+          {!isLoggedIn && <PortfolioLoginGate />}
+        </div>
+      ) : theme === 'dark' ? (
+        <div
+          onClick={() => router.push('/my/portfolio')}
+          role="button"
+          aria-label="전체 포트폴리오 보기"
+          style={{ position: 'relative', background: 'var(--paper)', borderBottom: '8px solid var(--dark)', cursor: 'pointer' }}
+        >
+          {/* 포트폴리오 평가액 + 싱글/PSA10 토글 */}
+          <div style={{ padding: '16px 16px 8px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink3)', letterSpacing: '0.02em' }}>내 포트폴리오 평가액</div>
+              {hasAnyPsa10 && (
+                <div style={{ display: 'flex', background: 'var(--dark)', padding: 2, border: '1px solid var(--pap3)' }}>
+                  {(['single', 'psa10'] as const).map((m) => (
+                    <button key={m} type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPriceMode(m); }}
+                      style={{
+                        padding: '4px 11px', fontSize: 11, fontWeight: 700,
+                        background: priceMode === m ? (m === 'psa10' ? 'var(--gold)' : 'var(--surf2)') : 'transparent',
+                        color: priceMode === m ? (m === 'psa10' ? '#1A1208' : 'var(--ink)') : 'var(--ink3)',
+                      }}>
+                      {m === 'single' ? '싱글' : 'PSA10'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="num" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1, marginTop: 8 }}>{format(totalVal)}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              <span className="num" style={{ fontSize: 14, fontWeight: 800, color: change >= 0 ? 'var(--red)' : 'var(--blu)', textShadow: change >= 0 ? '0 0 12px var(--up-glow)' : '0 0 12px var(--down-glow)' }}>
+                {change >= 0 ? '▲' : '▼'} {format(Math.abs(change))}
+              </span>
+              <span className="num" style={{ fontSize: 14, fontWeight: 800, color: change >= 0 ? 'var(--red)' : 'var(--blu)', background: change >= 0 ? 'var(--red-soft)' : 'var(--blu-soft)', padding: '3px 8px' }}>
+                {changePct >= 0 ? '+' : ''}{changePct}%
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--ink3)', fontWeight: 600 }}>전체 수익률</span>
+            </div>
+          </div>
+          {/* 차트 헤더 + 기간 토글 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 0' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink3)' }}>평가액 추이</span>
+            <div style={{ display: 'flex', background: 'var(--dark)', padding: 2, border: '1px solid var(--pap3)' }}>
+              {(['day', 'week', 'month'] as const).map((mode) => (
+                <button key={mode} type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setChartMode(mode); }}
+                  style={{
+                    padding: '4px 12px', fontSize: 11, fontWeight: 700,
+                    background: chartMode === mode ? 'var(--surf2)' : 'transparent',
+                    color: chartMode === mode ? 'var(--ink)' : 'var(--ink3)',
+                  }}>
+                  {PORTFOLIO_MODE_LABEL[mode]}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 차트 + 거래량 */}
+          <div style={{ padding: '6px 0 14px' }}>
+            <CyberAreaChart data={chartData} />
+          </div>
+          {/* 4칸 지표 스트립 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderTop: '1px solid var(--line2)' }}>
+            {([
+              ['보유', owned.length + '장'],
+              ['그레이딩', graded.length + '건'],
+              ['포인트', POINTS.toLocaleString() + 'P'],
+              ['거래', TRADES_THIS_WEEK + '건'],
+            ] as Array<[string, string]>).map(([l, v], i) => (
+              <div key={l} style={{ padding: '14px 6px', textAlign: 'center', borderRight: i < 3 ? '1px solid var(--line2)' : 'none' }}>
                 <div className="num" style={{ fontSize: 15, fontWeight: 800 }}>{v}</div>
                 <div style={{ fontSize: 11, color: 'var(--ink3)', marginTop: 4, fontWeight: 600 }}>{l}</div>
               </div>
@@ -814,8 +908,46 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
         </div>
       )}
 
-      {/* ═══ SNKRDUNK JP PRICES ═══ */}
-      {snkrdunkRows.length > 0 && (
+      {/* ═══ SNKRDUNK JP PRICES ═══ 다크=실시간 시세 종목리스트 / 그 외=인기 카드 캐러셀 */}
+      {snkrdunkRows.length > 0 && (theme === 'dark' ? (
+        <div className="sect">
+          <div className="sect-hd">
+            <h2>실시간 시세</h2>
+            <Link href="/cards/snkrdunk" className="more">전체 ▶</Link>
+          </div>
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 16px', borderBottom: '1px solid var(--pap3)', background: 'var(--dark)' }}>
+              <span style={{ width: 20, fontSize: 10, color: 'var(--ink4)', fontWeight: 700, textAlign: 'center' }}>#</span>
+              <span style={{ flex: 1, fontSize: 10, color: 'var(--ink4)', fontWeight: 700 }}>카드명</span>
+              <span style={{ fontSize: 10, color: 'var(--ink4)', fontWeight: 700 }}>현재가</span>
+            </div>
+            {snkrdunkRows.slice(0, 10).map((r, i, arr) => (
+              <Link
+                key={r.apparelId}
+                href={`/cards/snkrdunk/${r.apparelId}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--line2)' : 'none', textDecoration: 'none', color: 'inherit' }}
+              >
+                <div className="num" style={{ width: 20, textAlign: 'center', fontSize: 13, fontWeight: 800, color: i < 3 ? 'var(--red)' : 'var(--ink4)' }}>{i + 1}</div>
+                <div style={{ width: 34, height: 46, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: 'var(--surf2)', display: 'grid', placeItems: 'center' }}>
+                  {r.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={r.imageUrl} alt={r.shortName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (<span style={{ fontSize: 18 }}>🃏</span>)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.shortName}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink3)', marginTop: 3, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {r.localizedName && r.localizedName !== r.shortName
+                      ? r.localizedName
+                      : `${r.category ?? '카드'}${r.listingCountText ? ` · 매물 ${r.listingCountText}건` : ''}`}
+                  </div>
+                </div>
+                <div className="num" style={{ fontSize: 13, fontWeight: 800, textAlign: 'right', flexShrink: 0 }}>{r.minPrice > 0 ? format(r.minPrice) : '—'}</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : (
         <div className="sect">
           <div className="sect-hd">
             <h2>🔥 인기 카드들</h2>
@@ -891,7 +1023,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
             })}
           </div>
         </div>
-      )}
+      ))}
 
       {/* ═══ ACTIVITY LOG ═══ */}
       <div className="sect">
@@ -1095,6 +1227,51 @@ function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
  * 포트폴리오 일별 종합 가격 꺾은선 차트.
  * data: 오래된→최신 순. 점은 첫/마지막/최고/최저만 표시.
  */
+/** 다크(cyber) 포트폴리오 차트 — 네온 면그래프 + 글로우 + 거래량 막대 (프로토타입). */
+function CyberAreaChart({ data }: { data: number[] }) {
+  if (data.length < 2) {
+    return (
+      <div style={{
+        height: 78, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 10, color: 'var(--ink3)', letterSpacing: 0.3, borderBottom: '1px solid var(--line2)',
+      }}>
+        시세 이력이 부족합니다
+      </div>
+    );
+  }
+  const w = 350, h = 78;
+  const min = Math.min(...data), max = Math.max(...data), range = max - min || 1;
+  const pts = data.map((v, i) => [(i / (data.length - 1)) * w, h - ((v - min) / range) * (h - 8) - 4] as const);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  const area = `${line} L${w} ${h} L0 ${h} Z`;
+  const up = data[data.length - 1] >= data[0];
+  const col = up ? '#FF4D6D' : '#36C5FF';
+  const glow = up ? 'rgba(255,77,109,.55)' : 'rgba(54,197,255,.55)';
+  const vols = data.map((v, i) => (i === 0 ? 0 : Math.abs(v - data[i - 1])));
+  const vmax = Math.max(...vols, 1);
+  const last = pts[pts.length - 1];
+  return (
+    <>
+      <svg width="100%" height="78" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display: 'block', overflow: 'visible' }} aria-label="평가액 추이">
+        <defs>
+          <linearGradient id="pf-cyber-hg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={col} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={col} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#pf-cyber-hg)" />
+        <path d={line} fill="none" stroke={col} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" style={{ filter: `drop-shadow(0 0 5px ${glow})` }} />
+        <circle cx={last[0]} cy={last[1]} r="3.5" fill={col} style={{ filter: `drop-shadow(0 0 5px ${glow})` }} />
+      </svg>
+      <div style={{ display: 'flex', gap: 2, height: 22, alignItems: 'flex-end', padding: '4px 0 0' }}>
+        {vols.map((v, i) => (
+          <div key={i} style={{ flex: 1, height: `${Math.max(8, (v / vmax) * 100)}%`, background: i === vols.length - 1 ? col : 'var(--line2)', opacity: i === vols.length - 1 ? 0.9 : 0.55 }} />
+        ))}
+      </div>
+    </>
+  );
+}
+
 function PortfolioLineChart({
   data,
   width = 300,
