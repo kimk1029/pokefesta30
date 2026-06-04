@@ -32,8 +32,8 @@ export const THEMES: ReadonlyArray<{
   },
   {
     id: 'dark',
-    label: '사이버펑크',
-    desc: '네온 전광판 + 다크 (주식창)',
+    label: '다크',
+    desc: '네온 글로우 다크 모드 (모던)',
   },
 ] as const;
 
