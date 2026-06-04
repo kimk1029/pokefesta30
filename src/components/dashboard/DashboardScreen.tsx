@@ -422,7 +422,90 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       <StatusBar />
       <AppBar right={<AppBarUser />} />
 
-      {/* ═══ HERO: PORTFOLIO CARD ═══ (박스 클릭 → 전체 포트폴리오 페이지) */}
+      {/* ═══ HERO: PORTFOLIO ═══ 클린=라이트(프로토타입) / 그 외=다크 보드 */}
+      {isClean ? (
+        <div
+          onClick={() => router.push('/my/portfolio')}
+          role="button"
+          aria-label="전체 포트폴리오 보기"
+          style={{ position: 'relative', background: 'var(--paper)', borderBottom: '8px solid var(--pap2)', cursor: 'pointer' }}
+        >
+          {/* 평가액 + 손익 */}
+          <div style={{ padding: '18px 18px 8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+              <div style={{ fontSize: 12, color: 'var(--ink3)', fontWeight: 600 }}>
+                내 포트폴리오 평가액{hasAnyPsa10 ? ` · ${priceMode === 'psa10' ? 'PSA10' : '싱글'}` : ''}
+              </div>
+              {hasAnyPsa10 && (
+                <div style={{ display: 'flex', gap: 2 }}>
+                  {(['single', 'psa10'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPriceMode(m); }}
+                      style={{
+                        padding: '4px 9px', fontSize: 11, fontWeight: 700,
+                        background: priceMode === m ? 'var(--ink)' : 'var(--pap2)',
+                        color: priceMode === m ? '#fff' : 'var(--ink3)',
+                      }}
+                    >
+                      {m === 'single' ? '싱글' : 'PSA10'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="num" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1 }}>{format(totalVal)}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              <span className="num" style={{ fontSize: 14, fontWeight: 800, color: change >= 0 ? 'var(--red)' : 'var(--blu)' }}>
+                {change >= 0 ? '▲' : '▼'} {format(Math.abs(change))}
+              </span>
+              <span className="num" style={{
+                fontSize: 14, fontWeight: 800, color: change >= 0 ? 'var(--red)' : 'var(--blu)',
+                background: change >= 0 ? 'var(--red-soft)' : 'var(--blu-soft)', padding: '3px 8px',
+              }}>
+                {changePct >= 0 ? '+' : ''}{changePct}%
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--ink3)', fontWeight: 600 }}>전체 수익률</span>
+            </div>
+          </div>
+          {/* 차트 + 기간 토글 */}
+          <div style={{ padding: '4px 10px 12px' }}>
+            <PortfolioLineChart data={chartData} clean width={300} height={72} />
+            <div style={{ display: 'flex', gap: 6, marginTop: 12, padding: '0 8px' }}>
+              {(['day', 'week', 'month'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setChartMode(mode); }}
+                  style={{
+                    flex: 1, padding: '7px 0', fontSize: 13, fontWeight: 700,
+                    background: chartMode === mode ? 'var(--ink)' : 'var(--pap2)',
+                    color: chartMode === mode ? '#fff' : 'var(--ink3)',
+                  }}
+                >
+                  {PORTFOLIO_MODE_LABEL[mode]}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 4칸 지표 스트립 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderTop: '1px solid var(--pap3)' }}>
+            {([
+              ['보유', owned.length + '장'],
+              ['그레이딩', graded.length + '건'],
+              ['포인트', POINTS.toLocaleString() + 'P'],
+              ['거래', TRADES_THIS_WEEK + '건'],
+            ] as Array<[string, string]>).map(([l, v], i) => (
+              <div key={l} style={{ padding: '14px 6px', textAlign: 'center', borderRight: i < 3 ? '1px solid var(--pap3)' : 'none' }}>
+                <div className="num" style={{ fontSize: 15, fontWeight: 800 }}>{v}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink3)', marginTop: 4, fontWeight: 600 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+          {!isLoggedIn && <PortfolioLoginGate />}
+        </div>
+      ) : (
       <Panel
         onClick={() => router.push('/my/portfolio')}
         ariaLabel="전체 포트폴리오 보기"
@@ -559,6 +642,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
         {/* 미로그인 시 HERO 박스 전체에 dim+blur 오버레이 + 로그인 CTA */}
         {!isLoggedIn && <PortfolioLoginGate />}
       </Panel>
+      )}
 
       {/* ═══ ACTION ZONE: SEARCH + SHORTCUTS ═══ */}
       <div style={{ margin: '0 var(--gap) var(--cg)' }}>
@@ -1015,18 +1099,23 @@ function PortfolioLineChart({
   data,
   width = 300,
   height = 64,
+  clean = false,
 }: {
   data: number[];
   width?: number;
   height?: number;
+  /** 클린(라이트) 변형 — 상승=빨강·하락=파랑 + 라이트 구분선 (프로토타입 톤). */
+  clean?: boolean;
 }) {
+  const borderCol = clean ? '1px solid var(--pap3)' : '1px solid rgba(255,255,255,.1)';
   if (data.length < 2) {
     return (
       <div
         style={{
           width: '100%', height, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.35)', letterSpacing: 0.3,
-          borderBottom: '1px solid rgba(255,255,255,.1)',
+          fontFamily: 'var(--f1)', fontSize: 10,
+          color: clean ? 'var(--ink3)' : 'rgba(255,255,255,.35)', letterSpacing: 0.3,
+          borderBottom: borderCol,
         }}
       >
         시세 이력이 부족합니다
@@ -1056,8 +1145,12 @@ function PortfolioLineChart({
   const lastX = xOf(data.length - 1);
   const lastY = yOf(lastV);
   const trendUp = lastV >= data[0];
-  const stroke = trendUp ? 'var(--gold)' : '#E63946';
-  const fill = trendUp ? 'rgba(255,210,63,0.22)' : 'rgba(230,57,70,0.18)';
+  const stroke = clean
+    ? (trendUp ? 'var(--red)' : 'var(--blu)')
+    : (trendUp ? 'var(--gold)' : '#E63946');
+  const fill = clean
+    ? (trendUp ? 'rgba(242,54,69,0.14)' : 'rgba(47,107,255,0.12)')
+    : (trendUp ? 'rgba(255,210,63,0.22)' : 'rgba(230,57,70,0.18)');
 
   return (
     <svg
@@ -1065,7 +1158,7 @@ function PortfolioLineChart({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
-      style={{ display: 'block', borderBottom: '1px solid rgba(255,255,255,.1)' }}
+      style={{ display: 'block', borderBottom: borderCol }}
       aria-label="포트폴리오 차트"
     >
       <path d={areaPath} fill={fill} stroke="none" />
@@ -1078,7 +1171,7 @@ function PortfolioLineChart({
         strokeLinecap="round"
       />
       {/* 최신 시점 강조 */}
-      <circle cx={lastX} cy={lastY} r={3.2} fill={stroke} stroke="var(--ink)" strokeWidth={1} />
+      <circle cx={lastX} cy={lastY} r={3.2} fill={stroke} stroke={clean ? '#fff' : 'var(--ink)'} strokeWidth={1} />
     </svg>
   );
 }
