@@ -10,6 +10,7 @@ const SWATCH_BG: Record<ThemeId, string> = {
   yugioh: '#FFD23F',
   sports: '#16A34A',
   clean: '#4F6BFF',
+  dark: '#0B0E16',
 };
 
 const SWATCH_DOT: Record<ThemeId, string> = {
@@ -18,6 +19,7 @@ const SWATCH_DOT: Record<ThemeId, string> = {
   yugioh: '#7C3AED',
   sports: '#FFFFFF',
   clean: '#FFFFFF',
+  dark: '#38D6FF',
 };
 
 /**

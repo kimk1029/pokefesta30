@@ -1,4 +1,4 @@
-export type ThemeId = 'pokemon' | 'onepiece' | 'yugioh' | 'sports' | 'clean';
+export type ThemeId = 'pokemon' | 'onepiece' | 'yugioh' | 'sports' | 'clean' | 'dark';
 
 export const THEMES: ReadonlyArray<{
   id: ThemeId;
@@ -30,6 +30,11 @@ export const THEMES: ReadonlyArray<{
     label: '클린',
     desc: '비트 아닌 깔끔·라운드 (모던)',
   },
+  {
+    id: 'dark',
+    label: '사이버펑크',
+    desc: '네온 전광판 + 다크 (주식창)',
+  },
 ] as const;
 
 export const DEFAULT_THEME: ThemeId = 'pokemon';
@@ -41,6 +46,7 @@ export function isThemeId(v: unknown): v is ThemeId {
     v === 'onepiece' ||
     v === 'yugioh' ||
     v === 'sports' ||
-    v === 'clean'
+    v === 'clean' ||
+    v === 'dark'
   );
 }
