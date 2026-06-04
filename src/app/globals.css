@@ -3908,6 +3908,29 @@ a{color:inherit;text-decoration:none;}
   border-color:var(--pap3);
   box-shadow:0 1px 2px rgba(0,0,0,.5),0 10px 26px rgba(0,0,0,.5),0 0 0 1px rgba(56,214,255,.04);}
 
+/* ── clean 디픽셀 목록이 놓친 픽셀 박스들 → 라운드+소프트로 디픽셀 ── */
+[data-theme="dark"] .cv-port-head,
+[data-theme="dark"] .cv-port-chart,
+[data-theme="dark"] .cv-port-card,
+[data-theme="dark"] .cv-reg-result,
+[data-theme="dark"] .cv-reg-check,
+[data-theme="dark"] .cv-reg-preview,
+[data-theme="dark"] .cv-reg-selfprice,
+[data-theme="dark"] .cv-sheet-modal{
+  border:1px solid var(--pap3);border-radius:var(--r-sm);
+  box-shadow:0 1px 2px rgba(0,0,0,.5),0 8px 22px rgba(0,0,0,.5);}
+[data-theme="dark"] .cv-reg-result:active{transform:translateY(1px);box-shadow:0 1px 2px rgba(0,0,0,.5);}
+/* 아이콘/뱃지 사각 + 세그 활성 → 픽셀 외곽선·베벨 제거, 라운드 */
+[data-theme="dark"] .cv-reg-thumb,
+[data-theme="dark"] .stamp-spot .ss-num,
+[data-theme="dark"] .stamp-spot .ss-emoji,
+[data-theme="dark"] .stamp-steps li::before,
+[data-theme="dark"] .theme-pick-tile .tp-swatch,
+[data-theme="dark"] .map-pin.stamp-pin .stamp-pin-num{
+  border-radius:var(--r-sm);box-shadow:none;}
+[data-theme="dark"] .seg.on,
+[data-theme="dark"] .cv-subseg button.on{box-shadow:none;border-radius:var(--r-sm);}
+
 /* ── background:var(--ink) 로 다크바를 그리던 면들 → --ink 가 라이트라 뒤집힘. 재다크화 ── */
 [data-theme="dark"] .points-card,
 [data-theme="dark"] .cv-port-head,
