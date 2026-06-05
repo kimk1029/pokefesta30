@@ -168,6 +168,10 @@ const CARD_TERMS: Term[] = [
   { ko: '베이스셋',  en: 'base set',    ja: '旧裏' },
   { ko: '진화',      en: 'evolution',   ja: '進化' },
   { ko: '진화형',    en: 'evolution',   ja: '進化' },
+  // 이로치(색違い) = shiny. 한국 커뮤니티 줄임말 "이로치" → 일본어 色違い.
+  { ko: '이로치',    en: 'shiny',       ja: '色違い' },
+  { ko: '색이 다른', en: 'shiny',       ja: '色違い' },
+  { ko: '색이다른',  en: 'shiny',       ja: '色違い' },
 
   // 레어도 약어 — 한일영 모두 동일 사용 (대소문자 정규화)
   { ko: 'SAR',  en: 'SAR',  ja: 'SAR'  }, // Special Art Rare
