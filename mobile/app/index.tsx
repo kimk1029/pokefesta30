@@ -11,6 +11,8 @@ import { Chip } from '@/components/cv/Chip';
 import { RarBadge } from '@/components/cv/RarBadge';
 import { GradeBadge } from '@/components/cv/GradeBadge';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useTheme, useThemeTextVariant } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 import { isAuthenticated, subscribeSession } from '@/lib/session';
 
 /** 로그인 상태를 반응형으로 구독. */
@@ -174,6 +176,10 @@ const ACTIVITY: { icon: string; c: string; txt: string; time: string; pt: string
 
 export default function Home() {
   const authed = useAuthed();
+  const tc = useThemeColors();
+  const { theme } = useTheme();
+  const flat = isFlatTheme(theme);
+  const txt = useThemeTextVariant();
   const { format: formatCurrency } = useCurrency();
   const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
   const [activeGame, setActiveGame] = useState<string>('전체');
@@ -343,8 +349,33 @@ export default function Home() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar right={<ABtn onPress={() => router.push('/my' as never)}>👤</ABtn>} />
+      {/* 다크(주식창): 실시간 인기 티커 바 */}
+      {theme === 'dark' && snkrRows.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, backgroundColor: tc.pap2, borderBottomColor: tc.pap3, borderBottomWidth: 1 }}
+          contentContainerStyle={{ alignItems: 'center' }}
+        >
+          <View style={{ paddingHorizontal: 14, paddingVertical: 9, borderRightColor: tc.pap3, borderRightWidth: 1 }}>
+            <PixelText variant={txt} size={11} weight="bold" color={tc.blu}>🔥 실시간 인기</PixelText>
+          </View>
+          {snkrRows.slice(0, 8).map(({ seed, data }) => (
+            <Pressable
+              key={seed.apparelId}
+              onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, paddingVertical: 9, borderRightColor: tc.pap3, borderRightWidth: 1 }}
+            >
+              <PixelText variant={txt} size={11} color={tc.ink2} numberOfLines={1} style={{ maxWidth: 92 }}>{seed.shortName}</PixelText>
+              <PixelText variant={txt} size={11} weight="bold" color={tc.ink}>
+                {data && data.minPrice > 0 ? `¥${data.minPrice.toLocaleString('ja-JP')}` : '—'}
+              </PixelText>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: 12, paddingBottom: 110 }}
@@ -353,8 +384,27 @@ export default function Home() {
         {/* Hero — 미로그인 시 dim + 로그인 유도 오버레이 */}
         <View style={{ marginHorizontal: 14, marginBottom: 6, position: 'relative' }}>
         <View style={authed ? undefined : { opacity: 0.35 }} pointerEvents={authed ? 'auto' : 'none'}>
+        {flat ? (
+          <CleanDarkPortfolioHero
+            dark={theme === 'dark'}
+            tc={tc}
+            txt={txt}
+            value={serverPortfolio ? formatCurrency(serverPortfolio.totalJpy) : `₩${totalVal.toLocaleString()}`}
+            changePct={serverPortfolio?.changePct != null ? Math.round(serverPortfolio.changePct) : changePct}
+            hasAnyPsa10={hasAnyPsa10}
+            priceMode={priceMode}
+            togglePriceMode={togglePriceMode}
+            chartData={chartData}
+            chartMode={chartMode}
+            setChartMode={setChartMode}
+            ownedLen={owned.length}
+            gradedLen={graded.length}
+            points={POINTS}
+            trades={TRADES}
+          />
+        ) : (
         <PixelFrame
-          bg={colors.ink2}
+          bg={tc.ink2}
           borderWidth={4}
           shadow={6}
           hi="rgba(100,130,255,0.18)"
@@ -387,7 +437,7 @@ export default function Home() {
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <PixelText
-              variant="pixel"
+              variant={txt}
               size={9}
               color="rgba(255,255,255,0.35)"
               style={{ letterSpacing: 2 }}
@@ -408,13 +458,13 @@ export default function Home() {
                     style={{
                       paddingHorizontal: 7,
                       paddingVertical: 3,
-                      backgroundColor: priceMode === m ? colors.gold : 'transparent',
+                      backgroundColor: priceMode === m ? tc.gold : 'transparent',
                     }}
                   >
                     <PixelText
-                      variant="pixel"
+                      variant={txt}
                       size={8}
-                      color={priceMode === m ? colors.ink : 'rgba(255,210,63,0.85)'}
+                      color={priceMode === m ? tc.ink : 'rgba(255,210,63,0.85)'}
                     >
                       {m === 'single' ? '싱글' : 'PSA10'}
                     </PixelText>
@@ -426,9 +476,9 @@ export default function Home() {
 
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16 }}>
             <PixelText
-              variant="pixel"
+              variant={txt}
               size={26}
-              color={colors.gold}
+              color={tc.gold}
               style={{ letterSpacing: -2, marginRight: 12 }}
             >
               {serverPortfolio ? formatCurrency(serverPortfolio.totalJpy) : `₩${totalVal.toLocaleString()}`}
@@ -455,14 +505,14 @@ export default function Home() {
                           borderTopColor: up ? 'transparent' : '#E63946',
                         }}
                       />
-                      <PixelText variant="pixel" size={11} color={up ? '#22C55E' : '#E63946'}>
+                      <PixelText variant={txt} size={11} color={up ? '#22C55E' : '#E63946'}>
                         {up ? '+' : ''}{pct}%
                       </PixelText>
                     </>
                   );
                 })()}
               </View>
-              <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }}>
+              <PixelText variant={txt} size={9} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }}>
                 {serverPortfolio?.changePct != null ? 'vs 어제 (KST 정각)' : 'vs 지난주'}
               </PixelText>
             </View>
@@ -472,7 +522,7 @@ export default function Home() {
           <PortfolioLineChart data={chartData} height={64} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.25)">
+            <PixelText variant={txt} size={9} color="rgba(255,255,255,0.25)">
               {PORTFOLIO_MODE_HELP[chartMode]}
             </PixelText>
             <View style={{ flexDirection: 'row', gap: 5 }}>
@@ -485,12 +535,12 @@ export default function Home() {
                     style={{
                       paddingHorizontal: 9,
                       paddingVertical: 4,
-                      backgroundColor: on ? colors.gold : 'rgba(255,255,255,0.06)',
-                      borderColor: on ? colors.ink : 'rgba(255,255,255,0.12)',
+                      backgroundColor: on ? tc.gold : 'rgba(255,255,255,0.06)',
+                      borderColor: on ? tc.ink : 'rgba(255,255,255,0.12)',
                       borderWidth: 1,
                     }}
                   >
-                    <PixelText variant="pixel" size={9} color={on ? colors.ink : 'rgba(255,255,255,0.35)'}>
+                    <PixelText variant={txt} size={9} color={on ? tc.ink : 'rgba(255,255,255,0.35)'}>
                       {PORTFOLIO_MODE_LABEL[mode]}
                     </PixelText>
                   </Pressable>
@@ -504,7 +554,7 @@ export default function Home() {
             {[
               { l: '보유', v: `${owned.length}장`, c: 'rgba(255,255,255,0.7)' },
               { l: '그레이딩', v: `${graded.length}건`, c: '#A78BFA' },
-              { l: '포인트', v: `${POINTS.toLocaleString()}P`, c: colors.gold },
+              { l: '포인트', v: `${POINTS.toLocaleString()}P`, c: tc.gold },
               { l: '거래', v: `${TRADES}건`, c: '#22C55E' },
             ].map((s) => (
               <View
@@ -521,7 +571,7 @@ export default function Home() {
                 }}
               >
                 <PixelText
-                  variant="pixel"
+                  variant={txt}
                   size={10}
                   color={s.c}
                   numberOfLines={1}
@@ -531,7 +581,7 @@ export default function Home() {
                   {s.v}
                 </PixelText>
                 <PixelText
-                  variant="pixel"
+                  variant={txt}
                   size={8}
                   color="rgba(255,255,255,0.3)"
                   numberOfLines={1}
@@ -547,12 +597,13 @@ export default function Home() {
             onPress={() => router.push('/my/portfolio' as never)}
             style={{ marginTop: 10, alignItems: 'flex-end' }}
           >
-            <PixelText variant="pixel" size={9} color="rgba(255,210,63,0.75)" style={{ letterSpacing: 0.5 }}>
+            <PixelText variant={txt} size={9} color="rgba(255,210,63,0.75)" style={{ letterSpacing: 0.5 }}>
               전체 포트폴리오 보기 ▶
             </PixelText>
           </Pressable>
         </View>
         </PixelFrame>
+        )}
         </View>
         {!authed && (
           <Pressable
@@ -571,7 +622,7 @@ export default function Home() {
             <View
               style={{
                 backgroundColor: 'rgba(15,23,42,0.92)',
-                borderColor: colors.gold,
+                borderColor: tc.gold,
                 borderWidth: 3,
                 paddingHorizontal: 18,
                 paddingVertical: 14,
@@ -579,13 +630,13 @@ export default function Home() {
                 gap: 6,
               }}
             >
-              <PixelText variant="pixel" size={9} color={colors.gold} style={{ letterSpacing: 0.5 }}>
+              <PixelText variant={txt} size={9} color={tc.gold} style={{ letterSpacing: 0.5 }}>
                 🔒 PORTFOLIO LOCKED
               </PixelText>
-              <PixelText variant="ko" size={12} weight="bold" color={colors.white} style={{ textAlign: 'center', lineHeight: 18 }}>
+              <PixelText variant="ko" size={12} weight="bold" color={tc.white} style={{ textAlign: 'center', lineHeight: 18 }}>
                 로그인하고 나의{'\n'}가치변동을 확인하세요
               </PixelText>
-              <PixelText variant="pixel" size={9} color={colors.gold} style={{ marginTop: 4, letterSpacing: 0.5 }}>
+              <PixelText variant={txt} size={9} color={tc.gold} style={{ marginTop: 4, letterSpacing: 0.5 }}>
                 👉 TAP TO LOGIN
               </PixelText>
             </View>
@@ -602,10 +653,10 @@ export default function Home() {
                 height: 44,
                 flexDirection: 'row',
                 alignItems: 'center',
-                backgroundColor: colors.white,
+                backgroundColor: tc.white,
               }}
             >
-              <PixelText variant="pixel" size={12} color={colors.ink3} style={{ marginLeft: 12 }}>
+              <PixelText variant={txt} size={12} color={tc.ink3} style={{ marginLeft: 12 }}>
                 🔍
               </PixelText>
               <TextInput
@@ -615,12 +666,12 @@ export default function Home() {
                 returnKeyType="search"
                 inputMode="search"
                 placeholder="한국어로 카드 검색 (예: 리자몽, 피카츄)"
-                placeholderTextColor={colors.ink4}
+                placeholderTextColor={tc.ink4}
                 style={{
                   flex: 1,
                   height: '100%',
                   paddingHorizontal: 9,
-                  color: colors.ink,
+                  color: tc.ink,
                   fontFamily: 'Galmuri11',
                   fontSize: 11,
                 }}
@@ -630,7 +681,7 @@ export default function Home() {
                   onPress={() => setHomeSearch('')}
                   style={{ width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <PixelText variant="pixel" size={10} color={colors.ink3}>
+                  <PixelText variant={txt} size={10} color={tc.ink3}>
                     X
                   </PixelText>
                 </Pressable>
@@ -643,12 +694,12 @@ export default function Home() {
                   marginRight: 6,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: colors.ink,
-                  borderColor: colors.ink,
+                  backgroundColor: tc.ink,
+                  borderColor: tc.ink,
                   borderWidth: 1,
                 }}
               >
-                <PixelText variant="pixel" size={12} color={colors.gold}>
+                <PixelText variant={txt} size={12} color={tc.gold}>
                   ▶
                 </PixelText>
               </Pressable>
@@ -668,16 +719,16 @@ export default function Home() {
             marginBottom: 6,
           }}
         >
-          <QuickBtn icon="📷" label="스캔" bg={colors.grn} href="/cards/grading" />
-          <QuickBtn icon="¥" label="시세확인" bg={colors.gold} href="/cards/packs" />
-          <QuickBtn icon="🔨" label="MVC경매" bg={colors.blu} href="/cards/mvc-auction" />
-          <QuickBtn icon={<KoreaMarketIcon />} label="국내마켓" bg={colors.red} href="/cards/bunjang" />
-          <QuickBtn icon="🤝" label="거래" bg={colors.grn} href="/trade" />
+          <QuickBtn icon="📷" label="스캔" bg={tc.grn} href="/cards/grading" />
+          <QuickBtn icon="¥" label="시세확인" bg={tc.gold} href="/cards/packs" />
+          <QuickBtn icon="🔨" label="MVC경매" bg={tc.blu} href="/cards/mvc-auction" />
+          <QuickBtn icon={<KoreaMarketIcon />} label="국내마켓" bg={tc.red} href="/cards/bunjang" />
+          <QuickBtn icon="🤝" label="거래" bg={tc.grn} href="/trade" />
         </View>
 
         {/* XP / Level — 웹 메인과 동일하게 항상 표시 */}
         <View style={{ marginHorizontal: 14, marginBottom: 6 }}>
-          <PixelFrame bg={colors.white}>
+          <PixelFrame bg={tc.white}>
             <View style={{ padding: 13 }}>
               <View
                 style={{
@@ -692,8 +743,8 @@ export default function Home() {
                     style={{
                       width: 32,
                       height: 32,
-                      backgroundColor: colors.pur,
-                      borderColor: colors.ink,
+                      backgroundColor: tc.pur,
+                      borderColor: tc.ink,
                       borderWidth: 2,
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -702,17 +753,17 @@ export default function Home() {
                     <Text style={{ fontSize: 14 }}>🏆</Text>
                   </View>
                   <View>
-                    <PixelText variant="pixel" size={11}>{LEVEL_LABEL}</PixelText>
-                    <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 4 }}>
+                    <PixelText variant={txt} size={11}>{LEVEL_LABEL}</PixelText>
+                    <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 4 }}>
                       다음 레벨까지 {XP_MAX - XP_CURRENT}P
                     </PixelText>
                   </View>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <PixelText variant="pixel" size={13} color={colors.goldDk}>
+                  <PixelText variant={txt} size={13} color={tc.goldDk}>
                     🪙{POINTS.toLocaleString()}
                   </PixelText>
-                  <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 3 }}>
+                  <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 3 }}>
                     포인트
                   </PixelText>
                 </View>
@@ -720,8 +771,8 @@ export default function Home() {
               <View
                 style={{
                   height: 12,
-                  backgroundColor: colors.pap3,
-                  borderColor: colors.ink,
+                  backgroundColor: tc.pap3,
+                  borderColor: tc.ink,
                   borderWidth: 2,
                   position: 'relative',
                   overflow: 'hidden',
@@ -731,7 +782,7 @@ export default function Home() {
                   style={{
                     width: `${Math.round((XP_CURRENT / XP_MAX) * 100)}%`,
                     height: '100%',
-                    backgroundColor: colors.pur,
+                    backgroundColor: tc.pur,
                   }}
                 />
                 <View
@@ -747,10 +798,10 @@ export default function Home() {
                 />
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
-                <PixelText variant="pixel" size={9} color={colors.ink3}>
+                <PixelText variant={txt} size={9} color={tc.ink3}>
                   {XP_CURRENT} / {XP_MAX} XP
                 </PixelText>
-                <PixelText variant="pixel" size={9} color={colors.pur}>
+                <PixelText variant={txt} size={9} color={tc.pur}>
                   +80XP 이번 주
                 </PixelText>
               </View>
@@ -763,10 +814,10 @@ export default function Home() {
           <SectHd title="핵심 지표" />
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginHorizontal: 14, marginBottom: 6 }}>
-          <Block label="컬렉션 가치" value={formatCurrency(serverPortfolio?.totalJpy ?? totalJpy)} sub={`▲ +${changePct}% 지난주`} color={colors.goldDk} icon="💰" />
-          <Block label="그레이딩률" value={`${gradedPct}%`} sub={`${graded.length} / ${owned.length}장`} color={colors.pur} icon="🏆" />
-          <Block label="최고가 카드" value={formatCurrency(topCards[0] ? cardJpy(topCards[0], priceMode) : 0)} sub={topCards[0] ? displayCardName(topCards[0].name) : undefined} color={colors.grnDk} icon="🎯" />
-          <Block label="이번주 거래" value={`${TRADES}건`} sub="+45P 포인트 획득" color={colors.blu} icon="🤝" onPress={() => router.push('/feed' as never)} />
+          <Block label="컬렉션 가치" value={formatCurrency(serverPortfolio?.totalJpy ?? totalJpy)} sub={`▲ +${changePct}% 지난주`} color={tc.goldDk} icon="💰" />
+          <Block label="그레이딩률" value={`${gradedPct}%`} sub={`${graded.length} / ${owned.length}장`} color={tc.pur} icon="🏆" />
+          <Block label="최고가 카드" value={formatCurrency(topCards[0] ? cardJpy(topCards[0], priceMode) : 0)} sub={topCards[0] ? displayCardName(topCards[0].name) : undefined} color={tc.grnDk} icon="🎯" />
+          <Block label="이번주 거래" value={`${TRADES}건`} sub="+45P 포인트 획득" color={tc.blu} icon="🤝" onPress={() => router.push('/feed' as never)} />
         </View>
 
         {/* Section: 게임별 현황 */}
@@ -781,8 +832,8 @@ export default function Home() {
         >
           {(['전체', ...presentGames] as string[]).map((g) => {
             const on = activeGame === g;
-            const bg = on ? colors.ink : g !== '전체' ? gameColors[g as Game] : colors.white;
-            const fg = on ? colors.gold : g !== '전체' ? colors.white : colors.ink;
+            const bg = on ? tc.ink : g !== '전체' ? gameColors[g as Game] : tc.white;
+            const fg = on ? tc.gold : g !== '전체' ? tc.white : tc.ink;
             return (
               <Chip key={g} on={on} onPress={() => setActiveGame(g)} bg={bg} fg={fg} size={9} px={11} py={6}>
                 {g === '전체' ? 'ALL' : g}
@@ -808,22 +859,22 @@ export default function Home() {
                     }}
                   >
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                    <PixelText variant="pixel" size={12} style={{ flex: 1 }}>
+                    <PixelText variant={txt} size={12} style={{ flex: 1 }}>
                       {g}
                     </PixelText>
-                    <PixelText variant="pixel" size={11} color={colors.ink3}>
+                    <PixelText variant={txt} size={11} color={tc.ink3}>
                       {pct}%
                     </PixelText>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 4 }}>
-                    <PixelText variant="pixel" size={20} style={{ letterSpacing: -1 }}>
+                    <PixelText variant={txt} size={20} style={{ letterSpacing: -1 }}>
                       {n}
                     </PixelText>
-                    <PixelText variant="pixel" size={11} color={colors.ink3} style={{ marginLeft: 4 }}>
+                    <PixelText variant={txt} size={11} color={tc.ink3} style={{ marginLeft: 4 }}>
                       장
                     </PixelText>
                   </View>
-                  <PixelText variant="pixel" size={11} color={colors.grnDk} style={{ marginBottom: 8 }}>
+                  <PixelText variant={txt} size={11} color={tc.grnDk} style={{ marginBottom: 8 }}>
                     {formatCurrency(val)}
                   </PixelText>
                   <View style={{ flexDirection: 'row', height: 8 }}>
@@ -834,7 +885,7 @@ export default function Home() {
                     })}
                   </View>
                   {gGraded > 0 ? (
-                    <PixelText variant="pixel" size={9} color={colors.goldDk} style={{ marginTop: 6 }}>
+                    <PixelText variant={txt} size={9} color={tc.goldDk} style={{ marginTop: 6 }}>
                       🏆 그레이딩 {gGraded}건
                     </PixelText>
                   ) : null}
@@ -845,8 +896,44 @@ export default function Home() {
           })}
         </View>
 
-        {/* Section: 🔥 인기 카드들 (snkrdunk) */}
-        {snkrRows.length > 0 && (
+        {/* Section: 🔥 인기 카드들 / 다크=실시간 시세 종목 리스트 (snkrdunk) */}
+        {snkrRows.length > 0 && (theme === 'dark' ? (
+          <View style={{ marginHorizontal: 14, marginBottom: 6 }}>
+            <SectHd title="실시간 시세" more="전체보기 →" onMore={() => router.push('/cards/snkrdunk' as never)} />
+            <View style={{ backgroundColor: tc.white, borderColor: tc.pap3, borderWidth: 1, borderRadius: 14, overflow: 'hidden' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: tc.pap2, borderBottomColor: tc.pap3, borderBottomWidth: 1 }}>
+                <PixelText variant={txt} size={9} color={tc.ink4} style={{ width: 18, textAlign: 'center' }}>#</PixelText>
+                <PixelText variant={txt} size={9} color={tc.ink4} style={{ flex: 1 }}>카드명</PixelText>
+                <PixelText variant={txt} size={9} color={tc.ink4}>현재가</PixelText>
+              </View>
+              {snkrRows.slice(0, 10).map(({ seed, data }, i, arr) => (
+                <Pressable
+                  key={seed.apparelId}
+                  onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11, borderBottomColor: tc.pap3, borderBottomWidth: i < arr.length - 1 ? 1 : 0 }}
+                >
+                  <PixelText variant={txt} size={12} weight="bold" color={i < 3 ? tc.red : tc.ink4} style={{ width: 18, textAlign: 'center' }}>{i + 1}</PixelText>
+                  <View style={{ width: 34, height: 46, borderRadius: 6, overflow: 'hidden', backgroundColor: tc.pap2, alignItems: 'center', justifyContent: 'center' }}>
+                    {data?.imageUrl ? (
+                      <Image source={{ uri: data.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <Text style={{ fontSize: 16 }}>🃏</Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <PixelText variant={txt} size={13} weight="bold" color={tc.ink} numberOfLines={1}>{seed.shortName}</PixelText>
+                    <PixelText variant={txt} size={10} color={tc.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
+                      {(seed.category ?? '카드')}{data?.listingCountText ? ` · 매물 ${data.listingCountText}건` : ''}
+                    </PixelText>
+                  </View>
+                  <PixelText variant={txt} size={13} weight="bold" color={tc.ink}>
+                    {data && data.minPrice > 0 ? `¥${data.minPrice.toLocaleString('ja-JP')}` : '—'}
+                  </PixelText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : (
           <>
             <View style={{ marginHorizontal: 14 }}>
               <SectHd
@@ -862,7 +949,7 @@ export default function Home() {
               style={{ marginBottom: 6 }}
             >
               {snkrRows.map(({ seed, data }) => {
-                const bg = seed.category ? SNKR_CAT_BG[seed.category] : colors.ink2;
+                const bg = seed.category ? SNKR_CAT_BG[seed.category] : tc.ink2;
                 const priceText =
                   data && data.minPrice > 0 ? `¥${data.minPrice.toLocaleString('ja-JP')}` : '—';
                 return (
@@ -875,7 +962,7 @@ export default function Home() {
                         <View
                           style={{
                             height: 92,
-                            backgroundColor: colors.pap2,
+                            backgroundColor: tc.pap2,
                             alignItems: 'center',
                             justifyContent: 'center',
                             overflow: 'hidden',
@@ -894,7 +981,7 @@ export default function Home() {
                         <View
                           style={{
                             padding: 8,
-                            borderTopColor: colors.ink,
+                            borderTopColor: tc.ink,
                             borderTopWidth: 3,
                             flex: 1,
                           }}
@@ -907,31 +994,31 @@ export default function Home() {
                                   backgroundColor: bg,
                                   paddingHorizontal: 4,
                                   paddingVertical: 2,
-                                  borderColor: colors.ink,
+                                  borderColor: tc.ink,
                                   borderWidth: 1,
                                 }}
                               >
-                                <PixelText variant="pixel" size={8} color={colors.white}>
+                                <PixelText variant={txt} size={8} color={tc.white}>
                                   {seed.category}
                                 </PixelText>
                               </View>
                             ) : null}
                           </View>
                           <PixelText
-                            variant="pixel"
+                            variant={txt}
                             size={9}
                             numberOfLines={1}
                             style={{ marginBottom: 4 }}
                           >
                             {seed.shortName}
                           </PixelText>
-                          <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1}>
+                          <PixelText variant={txt} size={10} color={tc.red} numberOfLines={1}>
                             {priceText}
                           </PixelText>
                           <PixelText
-                            variant="pixel"
+                            variant={txt}
                             size={8}
-                            color={colors.ink3}
+                            color={tc.ink3}
                             numberOfLines={1}
                             style={{ marginTop: 'auto' }}
                           >
@@ -945,14 +1032,14 @@ export default function Home() {
               })}
             </ScrollView>
           </>
-        )}
+        ))}
 
         {/* Section: 최근 활동 */}
         <View style={{ marginHorizontal: 14 }}>
           <SectHd title="최근 활동" />
         </View>
         <View style={{ marginHorizontal: 14, marginBottom: 6 }}>
-          <PixelFrame bg={colors.white}>
+          <PixelFrame bg={tc.white}>
             <View style={{ padding: 14, paddingBottom: 6 }}>
               {ACTIVITY.map((a, i) => (
                 <View
@@ -963,7 +1050,7 @@ export default function Home() {
                     gap: 10,
                     paddingVertical: 10,
                     borderBottomWidth: i < ACTIVITY.length - 1 ? 2 : 0,
-                    borderBottomColor: colors.pap3,
+                    borderBottomColor: tc.pap3,
                   }}
                 >
                   <View
@@ -971,7 +1058,7 @@ export default function Home() {
                       width: 32,
                       height: 32,
                       backgroundColor: a.c,
-                      borderColor: colors.ink,
+                      borderColor: tc.ink,
                       borderWidth: 2,
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -979,14 +1066,14 @@ export default function Home() {
                   >
                     <Text style={{ fontSize: 14 }}>{a.icon}</Text>
                   </View>
-                  <PixelText variant="pixel" size={10} style={{ flex: 1, lineHeight: 15 }}>
+                  <PixelText variant={txt} size={10} style={{ flex: 1, lineHeight: 15 }}>
                     {a.txt}
                   </PixelText>
                   <View style={{ alignItems: 'flex-end', gap: 3 }}>
-                    <PixelText variant="pixel" size={10} color={colors.goldDk}>
+                    <PixelText variant={txt} size={10} color={tc.goldDk}>
                       {a.pt}
                     </PixelText>
-                    <PixelText variant="pixel" size={9} color={colors.ink3}>
+                    <PixelText variant={txt} size={9} color={tc.ink3}>
                       {a.time}
                     </PixelText>
                   </View>
@@ -1025,6 +1112,8 @@ function Block({
   icon?: string;
   onPress?: () => void;
 }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const content = (
     <View
       style={{
@@ -1048,13 +1137,13 @@ function Block({
           {icon}
         </Text>
       ) : null}
-      <PixelText variant="pixel" size={10} color={colors.ink3} numberOfLines={1}>
+      <PixelText variant={txt} size={10} color={tc.ink3} numberOfLines={1}>
         {label}
       </PixelText>
       <PixelText
-        variant="pixel"
+        variant={txt}
         size={18}
-        color={color ?? colors.ink}
+        color={color ?? tc.ink}
         numberOfLines={1}
         adjustsFontSizeToFit
         style={{ letterSpacing: -1, marginVertical: 5 }}
@@ -1062,7 +1151,7 @@ function Block({
         {value}
       </PixelText>
       {sub ? (
-        <PixelText variant="pixel" size={9} color={colors.ink3} numberOfLines={1}>
+        <PixelText variant={txt} size={9} color={tc.ink3} numberOfLines={1}>
           {sub}
         </PixelText>
       ) : null}
@@ -1095,6 +1184,8 @@ function KoreaMarketIcon() {
 }
 
 function QuickBtn({ icon, label, bg, href }: { icon: ReactNode; label: string; bg: string; href: string }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ width: '19%' }}>
       <PixelPress onPress={() => router.push(href as never)} borderWidth={3} shadow={5} inner={3}>
@@ -1104,7 +1195,7 @@ function QuickBtn({ icon, label, bg, href }: { icon: ReactNode; label: string; b
               width: 32,
               height: 32,
               backgroundColor: bg,
-              borderColor: colors.ink,
+              borderColor: tc.ink,
               borderWidth: 2,
               alignItems: 'center',
               justifyContent: 'center',
@@ -1112,7 +1203,7 @@ function QuickBtn({ icon, label, bg, href }: { icon: ReactNode; label: string; b
           >
             {typeof icon === 'string' ? <Text style={{ fontSize: 17 }}>{icon}</Text> : icon}
           </View>
-          <PixelText variant="pixel" size={9} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
+          <PixelText variant={txt} size={9} color={tc.ink} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
             {label}
           </PixelText>
         </View>
@@ -1124,11 +1215,110 @@ function QuickBtn({ icon, label, bg, href }: { icon: ReactNode; label: string; b
 
 
 /**
+ * 클린(라이트) / 다크(사이버 주식창) 포트폴리오 히어로 — 웹 프로토타입 이식.
+ * 평가액 + 싱글/PSA10 토글 + ▲/▼ 손익(상승=빨강·하락=파랑/시안) + 기간토글
+ * + 라인차트(다크=네온+거래량) + 4칸 지표 스트립.
+ */
+function CleanDarkPortfolioHero({
+  dark, tc, txt, value, changePct, hasAnyPsa10, priceMode, togglePriceMode,
+  chartData, chartMode, setChartMode, ownedLen, gradedLen, points, trades,
+}: {
+  dark: boolean;
+  tc: typeof colors;
+  txt: 'pixel' | 'ko';
+  value: string;
+  changePct: number;
+  hasAnyPsa10: boolean;
+  priceMode: 'single' | 'psa10';
+  togglePriceMode: () => void;
+  chartData: number[];
+  chartMode: PortfolioChartMode;
+  setChartMode: (m: PortfolioChartMode) => void;
+  ownedLen: number;
+  gradedLen: number;
+  points: number;
+  trades: number;
+}) {
+  const up = changePct >= 0;
+  const upColor = up ? tc.red : tc.blu;
+  const radius = dark ? 14 : 0;
+  const pillBg = up
+    ? dark ? 'rgba(255,77,109,0.16)' : 'rgba(242,54,69,0.12)'
+    : dark ? 'rgba(54,197,255,0.16)' : 'rgba(47,107,255,0.12)';
+  return (
+    <View style={{ backgroundColor: tc.paper, borderColor: tc.pap3, borderWidth: 1, borderRadius: radius, overflow: 'hidden' }}>
+      <View style={{ padding: 16, paddingBottom: 8 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <PixelText variant={txt} size={11} weight="bold" color={tc.ink3}>내 포트폴리오 평가액</PixelText>
+          {hasAnyPsa10 ? (
+            <Pressable onPress={togglePriceMode} style={{ flexDirection: 'row', backgroundColor: tc.pap2, borderColor: tc.pap3, borderWidth: 1 }}>
+              {(['single', 'psa10'] as const).map((m) => (
+                <View key={m} style={{ paddingHorizontal: 9, paddingVertical: 4, backgroundColor: priceMode === m ? tc.ink : 'transparent' }}>
+                  <PixelText variant={txt} size={10} weight="bold" color={priceMode === m ? tc.paper : tc.ink3}>{m === 'single' ? '싱글' : 'PSA10'}</PixelText>
+                </View>
+              ))}
+            </Pressable>
+          ) : null}
+        </View>
+        <PixelText variant={txt} size={30} weight="bold" color={tc.ink} style={{ letterSpacing: -1 }}>{value}</PixelText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          <PixelText variant={txt} size={14} weight="bold" color={upColor}>{up ? '▲' : '▼'} {Math.abs(changePct)}%</PixelText>
+          <View style={{ backgroundColor: pillBg, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <PixelText variant={txt} size={12} weight="bold" color={upColor}>{up ? '+' : ''}{changePct}%</PixelText>
+          </View>
+          <PixelText variant={txt} size={12} color={tc.ink3}>전체 수익률</PixelText>
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 2 }}>
+        <PixelText variant={txt} size={12} weight="bold" color={tc.ink3}>평가액 추이</PixelText>
+        <View style={{ flexDirection: 'row', backgroundColor: tc.pap2, borderColor: tc.pap3, borderWidth: 1 }}>
+          {(['day', 'week', 'month'] as const).map((m) => (
+            <Pressable key={m} onPress={() => setChartMode(m)} style={{ paddingHorizontal: 12, paddingVertical: 4, backgroundColor: chartMode === m ? (dark ? tc.white : tc.ink) : 'transparent' }}>
+              <PixelText variant={txt} size={11} weight="bold" color={chartMode === m ? (dark ? tc.ink : tc.paper) : tc.ink3}>{PORTFOLIO_MODE_LABEL[m]}</PixelText>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+      <View style={{ paddingHorizontal: 8, paddingTop: 6, paddingBottom: 8 }}>
+        <PortfolioLineChart data={chartData} height={72} variant={dark ? 'dark' : 'clean'} showVolume={dark} />
+      </View>
+      <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: tc.pap3 }}>
+        {([
+          ['보유', `${ownedLen}장`],
+          ['그레이딩', `${gradedLen}건`],
+          ['포인트', `${points.toLocaleString()}P`],
+          ['거래', `${trades}건`],
+        ] as Array<[string, string]>).map(([l, v], i) => (
+          <View key={l} style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center', borderRightWidth: i < 3 ? 1 : 0, borderRightColor: tc.pap3 }}>
+            <PixelText variant={txt} size={15} weight="bold" color={tc.ink} numberOfLines={1} adjustsFontSizeToFit>{v}</PixelText>
+            <PixelText variant={txt} size={11} color={tc.ink3} style={{ marginTop: 4 }}>{l}</PixelText>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/**
  * 모바일 포트폴리오 라인차트 — 컬렉션 일별 종합 가격 꺾은선.
  * react-native-svg 로 폴리라인 + 영역 채움. data: 오래된→최신.
  */
-function PortfolioLineChart({ data, height = 60 }: { data: number[]; height?: number }) {
+function PortfolioLineChart({
+  data,
+  height = 60,
+  variant,
+  showVolume = false,
+}: {
+  data: number[];
+  height?: number;
+  /** 'clean'=빨강/파랑 · 'dark'=네온 빨강/시안 · undefined=픽셀(골드/빨강) */
+  variant?: 'clean' | 'dark';
+  showVolume?: boolean;
+}) {
   const [width, setWidth] = useState(0);
+  const tc = useThemeColors();
+  const flat = variant === 'clean' || variant === 'dark';
+  const borderCol = flat ? tc.pap3 : 'rgba(255,255,255,0.1)';
 
   if (data.length < 2) {
     return (
@@ -1138,10 +1328,10 @@ function PortfolioLineChart({ data, height = 60 }: { data: number[]; height?: nu
           alignItems: 'center',
           justifyContent: 'center',
           borderBottomWidth: 1,
-          borderBottomColor: 'rgba(255,255,255,0.1)',
+          borderBottomColor: borderCol,
         }}
       >
-        <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.35)">
+        <PixelText variant={flat ? 'ko' : 'pixel'} size={flat ? 11 : 9} color={flat ? tc.ink3 : 'rgba(255,255,255,0.35)'}>
           시세 이력이 부족합니다
         </PixelText>
       </View>
@@ -1171,16 +1361,31 @@ function PortfolioLineChart({ data, height = 60 }: { data: number[]; height?: nu
   const lastX = xOf(data.length - 1);
   const lastY = yOf(lastV);
   const trendUp = lastV >= data[0];
-  const stroke = trendUp ? colors.gold : colors.red;
-  const fill = trendUp ? 'rgba(255,210,63,0.22)' : 'rgba(230,57,70,0.18)';
+  const stroke =
+    variant === 'clean'
+      ? trendUp ? '#F23645' : '#2F6BFF'
+      : variant === 'dark'
+        ? trendUp ? '#FF4D6D' : '#36C5FF'
+        : trendUp ? colors.gold : colors.red;
+  const fill =
+    variant === 'clean'
+      ? trendUp ? 'rgba(242,54,69,0.14)' : 'rgba(47,107,255,0.12)'
+      : variant === 'dark'
+        ? trendUp ? 'rgba(255,77,109,0.20)' : 'rgba(54,197,255,0.18)'
+        : trendUp ? 'rgba(255,210,63,0.22)' : 'rgba(230,57,70,0.18)';
+  const dotStroke = flat ? '#FFFFFF' : colors.ink;
+
+  // 거래량 막대(다크 주식창) — 일별 변동폭 기반.
+  const vols = showVolume ? data.map((v, i) => (i === 0 ? 0 : Math.abs(v - data[i - 1]))) : [];
+  const vmax = Math.max(...vols, 1);
 
   return (
     <View
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       style={{
-        height,
+        height: showVolume ? height + 26 : height,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.1)',
+        borderBottomColor: borderCol,
         marginBottom: 6,
       }}
     >
@@ -1191,12 +1396,27 @@ function PortfolioLineChart({ data, height = 60 }: { data: number[]; height?: nu
             points={points}
             fill="none"
             stroke={stroke}
-            strokeWidth={1.8}
+            strokeWidth={2.2}
             strokeLinejoin="round"
             strokeLinecap="round"
           />
-          <Circle cx={lastX} cy={lastY} r={3.2} fill={stroke} stroke={colors.ink} strokeWidth={1} />
+          <Circle cx={lastX} cy={lastY} r={3.2} fill={stroke} stroke={dotStroke} strokeWidth={1} />
         </Svg>
+      ) : null}
+      {showVolume && width > 0 ? (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 22, gap: 2, marginTop: 4 }}>
+          {vols.map((v, i) => (
+            <View
+              key={i}
+              style={{
+                flex: 1,
+                height: `${Math.max(8, (v / vmax) * 100)}%`,
+                backgroundColor: i === vols.length - 1 ? stroke : tc.pap3,
+                opacity: i === vols.length - 1 ? 0.9 : 0.55,
+              }}
+            />
+          ))}
+        </View>
       ) : null}
     </View>
   );
