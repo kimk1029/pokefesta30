@@ -8,6 +8,7 @@ import { SportsBall } from './SportsBall';
 import { StrawHatBall } from './StrawHatBall';
 import { TabIcon, type TabIconName } from './TabIcon';
 import { useTheme, useThemeColors, useThemeTextVariant } from './ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 
 type TabId = 'home' | 'collection' | 'fab' | 'community' | 'my';
 
@@ -43,10 +44,11 @@ export function Tabbar() {
   const active = activeId(pathname);
   const { theme } = useTheme();
   const c = useThemeColors();
+  const flat = isFlatTheme(theme);
 
   return (
-    <View style={[styles.bar, { backgroundColor: theme === 'onepiece' ? c.bluDk : c.ink, borderTopColor: c.ink }]}>
-      <View pointerEvents="none" style={[styles.topAccent, { backgroundColor: c.gold }]} />
+    <View style={[styles.bar, { backgroundColor: flat ? c.paper : theme === 'onepiece' ? c.bluDk : c.ink, borderTopColor: c.pap3 }]}>
+      <View pointerEvents="none" style={[styles.topAccent, { backgroundColor: flat ? c.pap3 : c.gold, height: flat ? 1 : undefined }]} />
       {TABS.map((t) => {
         const isOn = active === t.id;
         if (t.fab) return <FabTab key={t.id} on={isOn} label={t.label} href={t.href} />;
@@ -73,7 +75,11 @@ interface TabBtnProps {
 
 function TabBtn({ on, label, icon, href }: TabBtnProps) {
   const c = useThemeColors();
+  const { theme } = useTheme();
   const textVariant = useThemeTextVariant();
+  const flat = isFlatTheme(theme);
+  const onColor = flat ? (theme === 'dark' ? c.blu : c.ink) : c.gold;
+  const offColor = flat ? c.ink3 : c.pap3;
   const scale = useRef(new Animated.Value(1)).current;
   const onIn = () =>
     Animated.spring(scale, { toValue: 0.86, useNativeDriver: true, friction: 6, tension: 240 }).start();
@@ -87,12 +93,12 @@ function TabBtn({ on, label, icon, href }: TabBtnProps) {
       onPress={() => router.push(href as never)}
     >
       <Animated.View style={[styles.tabInner, { transform: [{ scale }] }]}>
-        {on ? <View style={[styles.activeDot, { backgroundColor: c.gold }]} /> : null}
-        <TabIcon name={icon} color={on ? c.gold : c.pap3} size={24} />
+        {on ? <View style={[styles.activeDot, { backgroundColor: onColor }]} /> : null}
+        <TabIcon name={icon} color={on ? onColor : offColor} size={24} />
         <PixelText
           variant={textVariant}
           size={11}
-          color={on ? c.gold : c.pap3}
+          color={on ? onColor : offColor}
           style={{ marginTop: 5, letterSpacing: 0.5 }}
         >
           {label}

@@ -1,7 +1,8 @@
 import { View, Pressable } from 'react-native';
 import { PixelText } from '../PixelText';
 import { PixelFrame } from './PixelFrame';
-import { useThemeColors, useThemeTextVariant } from '../ThemeProvider';
+import { useThemeColors, useThemeTextVariant, useTheme } from '../ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 
 interface Props {
   title: string;
@@ -10,12 +11,31 @@ interface Props {
 }
 
 /**
- * Dark section header — ink 박스 + 골드 하드 드롭섀도 + 상/하 베벨.
- * 다른 픽셀 박스와 동일하게 꼭지점 한 칸이 빈 큰-픽셀 노치 코너([[PixelFrame]] → [[PixelDeco]]).
+ * 섹션 헤더 — 픽셀 테마: ink 박스 + 골드 드롭섀도.
+ * 플랫(clean·dark) 테마: 박스 없이 깔끔한 텍스트 헤더(웹 프로토타입과 동일).
  */
 export function SectHd({ title, more, onMore }: Props) {
   const c = useThemeColors();
   const textVariant = useThemeTextVariant();
+  const { theme } = useTheme();
+
+  if (isFlatTheme(theme)) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingHorizontal: 2 }}>
+        <PixelText variant={textVariant} size={14} weight="bold" color={c.ink} style={{ flex: 1 }}>
+          {title}
+        </PixelText>
+        {more && onMore ? (
+          <Pressable onPress={onMore}>
+            <PixelText variant={textVariant} size={11} color={c.ink3}>
+              {more}
+            </PixelText>
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <PixelFrame
       bg={c.ink}
