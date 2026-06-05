@@ -5,14 +5,17 @@ import { SectHd } from '@/components/cv/SectHd';
 import { MyFeedRow } from '@/components/cv/MyRows';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchMyFeeds } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 
 export default function MyFeedsScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { data, loading, error, refresh } = useAsync(fetchMyFeeds);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="내 피드" />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 110 }}>
         <View style={{ marginHorizontal: 14 }}>

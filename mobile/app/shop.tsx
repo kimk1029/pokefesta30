@@ -4,6 +4,7 @@ import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelButton } from '@/components/PixelButton';
 import { colors, space } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { SHOP_ITEMS } from '@/lib/data';
 import type { ShopItem } from '@/lib/types';
 
@@ -21,6 +22,8 @@ const TAG_COLOR: Record<NonNullable<ShopItem['tag']>, string> = {
 };
 
 export default function Shop() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const [tab, setTab] = useState<Tab>('charge');
   const items = SHOP_ITEMS.filter((s) => s.category === tab);
 
@@ -33,14 +36,14 @@ export default function Shop() {
             key={t.id}
             style={[
               styles.tab,
-              tab === t.id && { backgroundColor: colors.ink },
+              tab === t.id && { backgroundColor: tc.ink },
             ]}
             onPress={() => setTab(t.id)}
           >
             <PixelText
-              variant="pixel"
+              variant={txt}
               size={10}
-              color={tab === t.id ? colors.yel : colors.ink}
+              color={tab === t.id ? tc.yel : tc.ink}
             >
               {t.label}
             </PixelText>
@@ -58,30 +61,30 @@ export default function Shop() {
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <PixelText variant="pixel" size={11} color={colors.ink}>
+                <PixelText variant={txt} size={11} color={tc.ink}>
                   {it.name}
                 </PixelText>
                 {it.tag ? (
                   <View
                     style={[styles.tag, { backgroundColor: TAG_COLOR[it.tag] }]}
                   >
-                    <PixelText variant="pixel" size={7} color={colors.white}>
+                    <PixelText variant={txt} size={7} color={tc.white}>
                       {it.tag.toUpperCase()}
                     </PixelText>
                   </View>
                 ) : null}
               </View>
               <PixelText
-                variant="pixel"
+                variant={txt}
                 size={9}
-                color={colors.ink3}
+                color={tc.ink3}
                 style={{ marginTop: 6, lineHeight: 14 }}
               >
                 {it.desc}
               </PixelText>
             </View>
-            <PixelButton bg={colors.red} padding={10}>
-              <PixelText variant="pixel" size={10} color={colors.white}>
+            <PixelButton bg={tc.red} padding={10}>
+              <PixelText variant={txt} size={10} color={tc.white}>
                 {it.price.toLocaleString()}
               </PixelText>
             </PixelButton>

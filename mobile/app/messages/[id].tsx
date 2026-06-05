@@ -13,10 +13,13 @@ import { useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { colors, space } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { CHAT_THREAD, MESSAGE_THREADS } from '@/lib/data';
 import type { ChatMessage } from '@/lib/types';
 
 export default function MessagesThread() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { id } = useLocalSearchParams<{ id: string }>();
   const peer = MESSAGE_THREADS.find((t) => t.peerId === id);
   const initial: ChatMessage[] = (id ? CHAT_THREAD[id] : undefined) ?? [];
@@ -70,15 +73,15 @@ export default function MessagesThread() {
                 ]}
               >
                 <PixelText
-                  variant="pixel"
+                  variant={txt}
                   size={10}
-                  color={m.mine ? colors.white : colors.ink}
+                  color={m.mine ? tc.white : tc.ink}
                   style={{ lineHeight: 16 }}
                 >
                   {m.text}
                 </PixelText>
               </View>
-              <PixelText variant="pixel" size={7} color={colors.ink3}>
+              <PixelText variant={txt} size={7} color={tc.ink3}>
                 {m.time}
               </PixelText>
             </View>
@@ -89,13 +92,13 @@ export default function MessagesThread() {
             value={input}
             onChangeText={setInput}
             placeholder="메시지 입력"
-            placeholderTextColor={colors.ink3}
+            placeholderTextColor={tc.ink3}
             style={styles.input}
             onSubmitEditing={send}
             returnKeyType="send"
           />
           <Pressable style={styles.sendBtn} onPress={send}>
-            <PixelText variant="pixel" size={10} color={colors.white}>
+            <PixelText variant={txt} size={10} color={tc.white}>
               전송
             </PixelText>
           </Pressable>

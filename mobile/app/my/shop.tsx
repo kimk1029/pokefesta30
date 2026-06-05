@@ -15,6 +15,7 @@ import { AVATARS, BACKGROUNDS, FRAMES } from '@/data/shopCatalog';
 import { fetchInventory, buyOrPick, type ShopKind, type InventorySnapshot } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 
 type Tab = ShopKind;
 const TABS: Array<{ id: Tab; label: string }> = [
@@ -24,6 +25,8 @@ const TABS: Array<{ id: Tab; label: string }> = [
 ];
 
 export default function ShopScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const [tab, setTab] = useState<Tab>('avatar');
   const [pending, setPending] = useState<string | null>(null);
   const { data, loading, error, refresh } = useAsync(fetchInventory);
@@ -49,14 +52,14 @@ export default function ShopScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar
         onBack={() => router.back()}
         title="꾸미기 샵"
         right={
           inv ? (
-            <View style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: colors.gold, borderColor: colors.ink, borderWidth: 2 }}>
-              <PixelText variant="pixel" size={9} color={colors.ink} weight="bold">
+            <View style={{ paddingHorizontal: 8, paddingVertical: 4, backgroundColor: tc.gold, borderColor: tc.ink, borderWidth: 2 }}>
+              <PixelText variant={txt} size={9} color={tc.ink} weight="bold">
                 {inv.points.toLocaleString('ko-KR')}P
               </PixelText>
             </View>
@@ -85,13 +88,13 @@ export default function ShopScreen() {
                 style={{
                   flex: 1,
                   paddingVertical: 10,
-                  backgroundColor: tab === t.id ? colors.ink : colors.white,
-                  borderColor: colors.ink,
+                  backgroundColor: tab === t.id ? tc.ink : tc.white,
+                  borderColor: tc.ink,
                   borderWidth: 3,
                   alignItems: 'center',
                 }}
               >
-                <PixelText variant="pixel" size={10} color={tab === t.id ? colors.gold : colors.ink}>
+                <PixelText variant={txt} size={10} color={tab === t.id ? tc.gold : tc.ink}>
                   {t.label}
                 </PixelText>
               </Pressable>
@@ -213,7 +216,9 @@ const TAG_STYLE: Record<NonNullable<TileProps['tag']>, { bg: string; fg: string;
 };
 
 function ItemTile({ preview, name, price, tag, owned, equipped, locked, pending, onPress }: TileProps) {
-  const bg = equipped ? colors.gold : owned ? colors.pap2 : colors.white;
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
+  const bg = equipped ? tc.gold : owned ? tc.pap2 : tc.white;
   return (
     <View style={{ width: '31%' }}>
       <PixelPress
@@ -229,23 +234,23 @@ function ItemTile({ preview, name, price, tag, owned, equipped, locked, pending,
       >
         <View style={{ padding: 8, alignItems: 'center', gap: 4 }}>
           <View style={{ width: '100%', height: 56, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.04)' }}>
-            <PixelText variant="pixel" size={26} color={colors.ink}>{preview}</PixelText>
+            <PixelText variant={txt} size={26} color={tc.ink}>{preview}</PixelText>
           </View>
-          <PixelText variant="ko" size={9} color={colors.ink} weight="bold" numberOfLines={1}>{name}</PixelText>
+          <PixelText variant="ko" size={9} color={tc.ink} weight="bold" numberOfLines={1}>{name}</PixelText>
           {tag ? (
-            <View style={{ paddingHorizontal: 4, backgroundColor: TAG_STYLE[tag].bg, borderColor: colors.ink, borderWidth: 1 }}>
-              <PixelText variant="pixel" size={7} color={TAG_STYLE[tag].fg}>{TAG_STYLE[tag].label}</PixelText>
+            <View style={{ paddingHorizontal: 4, backgroundColor: TAG_STYLE[tag].bg, borderColor: tc.ink, borderWidth: 1 }}>
+              <PixelText variant={txt} size={7} color={TAG_STYLE[tag].fg}>{TAG_STYLE[tag].label}</PixelText>
             </View>
           ) : null}
           <View style={{ height: 14, alignItems: 'center', justifyContent: 'center' }}>
             {equipped ? (
-              <PixelText variant="pixel" size={8} color={colors.ink} weight="bold">사용 중</PixelText>
+              <PixelText variant={txt} size={8} color={tc.ink} weight="bold">사용 중</PixelText>
             ) : owned ? (
-              <PixelText variant="pixel" size={8} color={colors.blu}>탭하여 적용</PixelText>
+              <PixelText variant={txt} size={8} color={tc.blu}>탭하여 적용</PixelText>
             ) : locked ? (
-              <PixelText variant="pixel" size={8} color={colors.ink3}>{price}</PixelText>
+              <PixelText variant={txt} size={8} color={tc.ink3}>{price}</PixelText>
             ) : (
-              <PixelText variant="pixel" size={8} color={colors.red}>{typeof price === 'number' ? `${price.toLocaleString('ko-KR')}P` : price}</PixelText>
+              <PixelText variant={txt} size={8} color={tc.red}>{typeof price === 'number' ? `${price.toLocaleString('ko-KR')}P` : price}</PixelText>
             )}
           </View>
         </View>

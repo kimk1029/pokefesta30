@@ -27,6 +27,7 @@ import { useCurrency } from '@/components/CurrencyProvider';
 import { useToast } from '@/components/ToastProvider';
 import { usePriceMode } from '@/lib/priceMode';
 import { colors, fonts, space } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import {
   fetchMyCards,
   deleteMyCard,
@@ -123,6 +124,8 @@ function useAuthed(): boolean {
 }
 
 export default function MyCardsScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const authed = useAuthed();
   const { format } = useCurrency();
   const { mode: priceMode } = usePriceMode();
@@ -221,7 +224,7 @@ export default function MyCardsScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar title="내 컬렉션" onBack={() => router.back()} />
       {/* 전체 포트폴리오 바로가기 — 다크 인포그래픽 톤 */}
       <Pressable
@@ -234,15 +237,15 @@ export default function MyCardsScreen() {
           marginTop: 10,
           paddingVertical: 11,
           paddingHorizontal: 14,
-          backgroundColor: colors.ink,
-          borderColor: colors.ink,
+          backgroundColor: tc.ink,
+          borderColor: tc.ink,
           borderWidth: 2,
         }}
       >
-        <PixelText variant="pixel" size={10} color={colors.white} style={{ letterSpacing: 0.5 }}>
+        <PixelText variant={txt} size={10} color={tc.white} style={{ letterSpacing: 0.5 }}>
           📈 전체 포트폴리오 보기
         </PixelText>
-        <PixelText variant="pixel" size={10} color={colors.gold} style={{ letterSpacing: 0.5 }}>
+        <PixelText variant={txt} size={10} color={tc.gold} style={{ letterSpacing: 0.5 }}>
           등락률·차트 ▶
         </PixelText>
       </Pressable>
@@ -267,21 +270,21 @@ export default function MyCardsScreen() {
           <>
             {/* 요약 스트립 */}
             <View style={styles.strip}>
-              <StripCell text={`총 ${filtered.length}장`} bg={colors.ink} fg={colors.gold} />
-              <StripCell text={format(totalJpy)} bg={colors.gold} fg={colors.ink} />
-              <StripCell text={`그레이딩 ${gradedN}`} bg={colors.pur} fg={colors.white} />
+              <StripCell text={`총 ${filtered.length}장`} bg={tc.ink} fg={tc.gold} />
+              <StripCell text={format(totalJpy)} bg={tc.gold} fg={tc.ink} />
+              <StripCell text={`그레이딩 ${gradedN}`} bg={tc.pur} fg={tc.white} />
             </View>
 
             {/* 검색 */}
             <View style={{ paddingHorizontal: space.gap, marginBottom: 2 }}>
               <PixelFrame shadow={5} inner={3}>
                 <View style={styles.searchRow}>
-                  <PixelText variant="pixel" size={14}>🔍</PixelText>
+                  <PixelText variant={txt} size={14}>🔍</PixelText>
                   <TextInput
                     value={search}
                     onChangeText={setSearch}
                     placeholder="카드명 검색..."
-                    placeholderTextColor={colors.ink3}
+                    placeholderTextColor={tc.ink3}
                     style={styles.searchInput}
                   />
                 </View>
@@ -298,13 +301,13 @@ export default function MyCardsScreen() {
                 <PixelPress
                   key={r}
                   onPress={() => setRar(r)}
-                  bg={rar === r ? colors.gold : colors.white}
+                  bg={rar === r ? tc.gold : tc.white}
                   borderWidth={3}
                   shadow={rar === r ? 2 : 4}
                   inner={2}
                 >
                   <View style={styles.chipInner}>
-                    <PixelText variant="pixel" size={9} color={colors.ink}>
+                    <PixelText variant={txt} size={9} color={tc.ink}>
                       {r === 'all' ? 'ALL' : r}
                     </PixelText>
                   </View>
@@ -318,14 +321,14 @@ export default function MyCardsScreen() {
                 <PixelPress
                   key={k}
                   onPress={() => setSort(k)}
-                  bg={sort === k ? colors.ink : colors.white}
+                  bg={sort === k ? tc.ink : tc.white}
                   borderWidth={3}
                   shadow={sort === k ? 2 : 4}
                   inner={2}
                   hi={sort === k ? null : 'rgba(255,255,255,0.85)'}
                 >
                   <View style={styles.sortInner}>
-                    <PixelText variant="pixel" size={9} color={sort === k ? colors.gold : colors.ink}>
+                    <PixelText variant={txt} size={9} color={sort === k ? tc.gold : tc.ink}>
                       {lb}
                     </PixelText>
                   </View>
@@ -335,7 +338,7 @@ export default function MyCardsScreen() {
 
             {/* 뷰 탭 — 웹 .cv-subseg (ink 컨테이너 + 입체) */}
             <View style={{ paddingHorizontal: space.gap, marginBottom: space.cg }}>
-              <PixelFrame bg={colors.ink} shadow={4} hi={null} lo={null} borderWidth={3}>
+              <PixelFrame bg={tc.ink} shadow={4} hi={null} lo={null} borderWidth={3}>
                 <View style={styles.subseg}>
                   {VIEW_TABS.map(([k, lb]) => (
                     <Pressable
@@ -343,7 +346,7 @@ export default function MyCardsScreen() {
                       onPress={() => setView(k)}
                       style={[styles.subsegBtn, view === k && styles.subsegBtnOn]}
                     >
-                      <PixelText variant="pixel" size={10} color={view === k ? colors.ink : colors.pap3}>
+                      <PixelText variant={txt} size={10} color={view === k ? tc.ink : tc.pap3}>
                         {lb}
                       </PixelText>
                     </Pressable>
@@ -355,7 +358,7 @@ export default function MyCardsScreen() {
             {/* 뷰 본문 */}
             {filtered.length === 0 ? (
               <View style={{ padding: 30, alignItems: 'center' }}>
-                <PixelText variant="pixel" size={10} color={colors.ink3}>
+                <PixelText variant={txt} size={10} color={tc.ink3}>
                   필터 결과가 없어요
                 </PixelText>
               </View>
@@ -410,6 +413,8 @@ function GridCell({
   format: (jpy: number) => string;
   onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
 }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const thumbRef = useRef<RNView | null>(null);
   return (
     <PixelFrame shadow={5} inner={3} style={styles.gridCell}>
@@ -426,15 +431,15 @@ function GridCell({
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
               <RarBadgeMini rar={d.rar} />
               {d.gradeNum != null && (
-                <PixelText variant="pixel" size={8} color={colors.goldDk}>
+                <PixelText variant={txt} size={8} color={tc.goldDk}>
                   P{d.gradeNum}
                 </PixelText>
               )}
             </View>
             <PixelText
-              variant="pixel"
+              variant={txt}
               size={d.priceJpy > 0 ? autoPriceSize(format(d.priceJpy), 10, 7) : 10}
-              color={colors.grnDk}
+              color={tc.grnDk}
               numberOfLines={1}
               style={{ marginTop: 5 }}
             >
@@ -450,15 +455,15 @@ function GridCell({
         <View style={styles.gridBtnRow}>
           <Pressable
             onPress={() => router.push(`/write/trade?userCardId=${d.src.id}&title=${encodeURIComponent(d.name)}` as never)}
-            style={[styles.gridBtn, { backgroundColor: colors.ink }]}
+            style={[styles.gridBtn, { backgroundColor: tc.ink }]}
           >
-            <PixelText variant="pixel" size={8} color={colors.gold}>거래</PixelText>
+            <PixelText variant={txt} size={8} color={tc.gold}>거래</PixelText>
           </Pressable>
           <Pressable
             onPress={() => onDelete(d.src.id)}
-            style={[styles.gridBtn, { borderLeftWidth: 2, borderLeftColor: colors.ink }]}
+            style={[styles.gridBtn, { borderLeftWidth: 2, borderLeftColor: tc.ink }]}
           >
-            <PixelText variant="pixel" size={8} color={colors.red}>삭제</PixelText>
+            <PixelText variant={txt} size={8} color={tc.red}>삭제</PixelText>
           </Pressable>
         </View>
       </View>
@@ -478,6 +483,8 @@ function SpotlightButton({
   targetRef: React.RefObject<RNView | null>;
   onCaptured: (origin: SpotlightOrigin | null) => void;
 }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <Pressable
       onPress={() => {
@@ -498,7 +505,7 @@ function SpotlightButton({
       accessibilityLabel="카드 자세히 보기"
       style={spotBtnStyles.btn}
     >
-      <PixelText variant="pixel" size={11} color={colors.gold}>🔍</PixelText>
+      <PixelText variant={txt} size={11} color={tc.gold}>🔍</PixelText>
     </Pressable>
   );
 }
@@ -546,6 +553,8 @@ function ListRow({
   format: (jpy: number) => string;
   onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
 }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const thumbRef = useRef<RNView | null>(null);
   const trend = d.src.trend;
   return (
@@ -563,7 +572,7 @@ function ListRow({
                   <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 5 }}>
                     <RarBadgeMini rar={d.rar} />
                     {d.gradeNum != null && (
-                      <PixelText variant="pixel" size={8} color={colors.goldDk}>
+                      <PixelText variant={txt} size={8} color={tc.goldDk}>
                         PSA {d.gradeNum}
                       </PixelText>
                     )}
@@ -571,9 +580,9 @@ function ListRow({
                   {/* 시세 + 등락률 */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'nowrap' }}>
                     <PixelText
-                      variant="pixel"
+                      variant={txt}
                       size={d.priceJpy > 0 ? autoPriceSize(format(d.priceJpy), 10, 7) : 10}
-                      color={colors.grnDk}
+                      color={tc.grnDk}
                       numberOfLines={1}
                     >
                       {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
@@ -588,7 +597,7 @@ function ListRow({
                 {trend && trend.length >= 2 ? (
                   <View style={{ alignItems: 'flex-end' }}>
                     <MiniSparkline points={trend} />
-                    <PixelText variant="pixel" size={7} color={colors.ink3} style={{ marginTop: 2 }}>
+                    <PixelText variant={txt} size={7} color={tc.ink3} style={{ marginTop: 2 }}>
                       최근 추이
                     </PixelText>
                   </View>
@@ -609,7 +618,7 @@ function ListRow({
                         }
                       });
                     }}
-                    bg={colors.ink}
+                    bg={tc.ink}
                     borderWidth={2}
                     shadow={2}
                     inner={2}
@@ -617,12 +626,12 @@ function ListRow({
                     lo={null}
                   >
                     <View style={{ paddingHorizontal: 9, paddingVertical: 5 }}>
-                      <PixelText variant="pixel" size={8} color={colors.gold}>🔍</PixelText>
+                      <PixelText variant={txt} size={8} color={tc.gold}>🔍</PixelText>
                     </View>
                   </PixelPress>
                   <PixelPress
                     onPress={() => router.push(`/write/trade?userCardId=${d.src.id}&title=${encodeURIComponent(d.name)}` as never)}
-                    bg={colors.ink}
+                    bg={tc.ink}
                     borderWidth={2}
                     shadow={2}
                     inner={2}
@@ -630,12 +639,12 @@ function ListRow({
                     lo={null}
                   >
                     <View style={{ paddingHorizontal: 9, paddingVertical: 5 }}>
-                      <PixelText variant="pixel" size={8} color={colors.gold}>거래</PixelText>
+                      <PixelText variant={txt} size={8} color={tc.gold}>거래</PixelText>
                     </View>
                   </PixelPress>
                   <PixelPress
                     onPress={() => onDelete(d.src.id)}
-                    bg={colors.white}
+                    bg={tc.white}
                     borderWidth={2}
                     shadow={2}
                     inner={2}
@@ -643,7 +652,7 @@ function ListRow({
                     lo={null}
                   >
                     <View style={{ paddingHorizontal: 9, paddingVertical: 5 }}>
-                      <PixelText variant="pixel" size={8} color={colors.red}>삭제</PixelText>
+                      <PixelText variant={txt} size={8} color={tc.red}>삭제</PixelText>
                     </View>
                   </PixelPress>
                 </View>
@@ -654,16 +663,20 @@ function ListRow({
 }
 
 function ChangeBadge({ trend }: { trend: number[] | undefined }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const ch = changeFromTrend(trend);
   if (!ch) return null;
   return (
-    <PixelText variant="pixel" size={8} color={CHANGE_COLOR[ch.dir]} style={{ marginLeft: 6 }}>
+    <PixelText variant={txt} size={8} color={CHANGE_COLOR[ch.dir]} style={{ marginLeft: 6 }}>
       {CHANGE_ARROW[ch.dir]} {Math.abs(ch.pct).toFixed(1)}%
     </PixelText>
   );
 }
 
 function MiniSparkline({ points }: { points: number[] }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const w = 60;
   const h = 26;
   if (!Array.isArray(points) || points.length < 2) return null;
@@ -676,7 +689,7 @@ function MiniSparkline({ points }: { points: number[] }) {
     .map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * stepX).toFixed(1)},${yOf(v).toFixed(1)}`)
     .join(' ');
   const up = points[points.length - 1] >= points[0];
-  const color = up ? colors.red : colors.blu;
+  const color = up ? tc.red : tc.blu;
   const lastX = (points.length - 1) * stepX;
   const lastY = yOf(points[points.length - 1]);
   return (
@@ -752,6 +765,8 @@ function FilmTile({
   format: (jpy: number) => string;
   onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
 }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const thumbRef = useRef<RNView | null>(null);
   return (
     <View style={styles.filmTile}>
@@ -763,7 +778,7 @@ function FilmTile({
           {d.name}
         </PixelText>
         {d.priceJpy > 0 && (
-          <PixelText variant="pixel" size={8} color={colors.grnDk} numberOfLines={1}>
+          <PixelText variant={txt} size={8} color={tc.grnDk} numberOfLines={1}>
             {format(d.priceJpy)}
           </PixelText>
         )}
@@ -782,32 +797,36 @@ function CardImage({
   aspect?: boolean;
   thumb?: boolean;
 }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const sizeStyle = thumb
     ? { width: 52, height: 72 }
     : aspect
       ? { width: '100%' as const, aspectRatio: 63 / 88 }
       : { height: 110 };
-  const bg = colors.ink2;
+  const bg = tc.ink2;
   if (d.imageUrl) {
     return (
       <Image
         source={{ uri: d.imageUrl }}
-        style={[sizeStyle, { backgroundColor: bg, borderColor: colors.ink, borderWidth: thumb ? 2 : 0 }]}
+        style={[sizeStyle, { backgroundColor: bg, borderColor: tc.ink, borderWidth: thumb ? 2 : 0 }]}
         resizeMode="cover"
       />
     );
   }
   return (
-    <View style={[sizeStyle, { backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderColor: colors.ink, borderWidth: thumb ? 2 : 0 }]}>
-      <PixelText variant="pixel" size={thumb ? 22 : 28} color={colors.gold}>🃏</PixelText>
+    <View style={[sizeStyle, { backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderColor: tc.ink, borderWidth: thumb ? 2 : 0 }]}>
+      <PixelText variant={txt} size={thumb ? 22 : 28} color={tc.gold}>🃏</PixelText>
     </View>
   );
 }
 
 function RarBadgeMini({ rar }: { rar: Rarity }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ backgroundColor: RARITY_BG[rar], paddingHorizontal: 5, paddingVertical: 2 }}>
-      <PixelText variant="pixel" size={7} color={RARITY_FG[rar]}>
+      <PixelText variant={txt} size={7} color={RARITY_FG[rar]}>
         {rar}
       </PixelText>
     </View>
@@ -815,9 +834,11 @@ function RarBadgeMini({ rar }: { rar: Rarity }) {
 }
 
 function StripCell({ text, bg, fg }: { text: string; bg: string; fg: string }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={[styles.stripCell, { backgroundColor: bg }]}>
-      <PixelText variant="pixel" size={9} color={fg}>{text}</PixelText>
+      <PixelText variant={txt} size={9} color={fg}>{text}</PixelText>
     </View>
   );
 }

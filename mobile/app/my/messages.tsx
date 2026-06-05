@@ -11,14 +11,17 @@ import { PixelPress } from '@/components/cv/PixelPress';
 import { SectHd } from '@/components/cv/SectHd';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchMessageThreads, type MessageThread } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 
 export default function MyMessagesScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { data, loading, error, refresh } = useAsync(fetchMessageThreads);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="쪽지함" />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 110 }}>
         <View style={{ marginHorizontal: 14 }}>
@@ -51,10 +54,12 @@ export default function MyMessagesScreen() {
 }
 
 function ThreadRow({ thread }: { thread: MessageThread }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <PixelPress
       onPress={() => router.push(`/messages/${thread.peerId}` as never)}
-      bg={colors.white}
+      bg={tc.white}
       borderWidth={2}
       shadow={3}
       hi={null}
@@ -62,23 +67,23 @@ function ThreadRow({ thread }: { thread: MessageThread }) {
       inner={0}
     >
       <View style={{ flexDirection: 'row', padding: 12, gap: 12, alignItems: 'center' }}>
-        <View style={{ width: 42, height: 42, borderColor: colors.ink, borderWidth: 2, backgroundColor: colors.pap2, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 42, height: 42, borderColor: tc.ink, borderWidth: 2, backgroundColor: tc.pap2, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 22 }}>{renderAvatar(thread.peerAvatar)}</Text>
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <PixelText variant="ko" size={12} weight="bold" color={colors.ink} style={{ flex: 1 }} numberOfLines={1}>
+            <PixelText variant="ko" size={12} weight="bold" color={tc.ink} style={{ flex: 1 }} numberOfLines={1}>
               {thread.peerName}
             </PixelText>
-            <PixelText variant="pixel" size={8} color={colors.ink3}>{relTime(thread.lastAt)}</PixelText>
+            <PixelText variant={txt} size={8} color={tc.ink3}>{relTime(thread.lastAt)}</PixelText>
           </View>
-          <PixelText variant="ko" size={10} color={colors.ink3} style={{ marginTop: 6, lineHeight: 14 }} numberOfLines={1}>
+          <PixelText variant="ko" size={10} color={tc.ink3} style={{ marginTop: 6, lineHeight: 14 }} numberOfLines={1}>
             {thread.lastFromMe ? '나: ' : ''}{thread.lastText}
           </PixelText>
         </View>
         {thread.unread > 0 ? (
-          <View style={{ minWidth: 22, height: 22, paddingHorizontal: 6, backgroundColor: colors.red, borderColor: colors.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
-            <PixelText variant="pixel" size={9} color={colors.white} weight="bold">
+          <View style={{ minWidth: 22, height: 22, paddingHorizontal: 6, backgroundColor: tc.red, borderColor: tc.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
+            <PixelText variant={txt} size={9} color={tc.white} weight="bold">
               {thread.unread > 99 ? '99+' : thread.unread}
             </PixelText>
           </View>

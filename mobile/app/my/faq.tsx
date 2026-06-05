@@ -6,6 +6,7 @@ import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { SectHd } from '@/components/cv/SectHd';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 
 /** 활동별 포인트 — 웹 src/lib/rewards.ts 와 동기화 */
 const REWARDS = {
@@ -110,8 +111,10 @@ const FAQ: Section[] = [
 ];
 
 export default function FaqScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="FAQ · 자주 묻는 질문" />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 110 }}>
         {FAQ.map((section) => (
@@ -130,20 +133,22 @@ export default function FaqScreen() {
 }
 
 function FaqRow({ qa }: { qa: QA }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const [open, setOpen] = useState(false);
   return (
-    <PixelFrame bg={colors.white} borderWidth={2} shadow={3} hi={null} lo={null} inner={0}>
+    <PixelFrame bg={tc.white} borderWidth={2} shadow={3} hi={null} lo={null} inner={0}>
       <Pressable onPress={() => setOpen((v) => !v)}>
         <View style={{ padding: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <PixelText variant="ko" size={11} color={colors.red} weight="bold">Q.</PixelText>
-            <PixelText variant="ko" size={11} color={colors.ink} style={{ flex: 1 }} weight="bold">{qa.q}</PixelText>
-            <PixelText variant="pixel" size={9} color={colors.ink3}>{open ? '▲' : '▼'}</PixelText>
+            <PixelText variant="ko" size={11} color={tc.red} weight="bold">Q.</PixelText>
+            <PixelText variant="ko" size={11} color={tc.ink} style={{ flex: 1 }} weight="bold">{qa.q}</PixelText>
+            <PixelText variant={txt} size={9} color={tc.ink3}>{open ? '▲' : '▼'}</PixelText>
           </View>
           {open ? (
             <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.15)', borderStyle: 'dashed', flexDirection: 'row', gap: 6 }}>
-              <PixelText variant="ko" size={10} color={colors.blu} weight="bold">A.</PixelText>
-              <PixelText variant="ko" size={10} color={colors.ink2} style={{ flex: 1, lineHeight: 18 }}>
+              <PixelText variant="ko" size={10} color={tc.blu} weight="bold">A.</PixelText>
+              <PixelText variant="ko" size={10} color={tc.ink2} style={{ flex: 1, lineHeight: 18 }}>
                 {qa.a}
               </PixelText>
             </View>

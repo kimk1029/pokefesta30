@@ -5,6 +5,7 @@ import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { Chip } from '@/components/cv/Chip';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchSnkrdunkBrowse, type SnkrdunkSearchResult } from '@/services/snkrdunk';
 import { localizeCardName } from '@/lib/cardNameKo';
 
@@ -31,6 +32,8 @@ function shortenName(name: string): string {
 }
 
 export default function SnkrdunkAll() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const [items, setItems] = useState<SnkrdunkSearchResult[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -90,7 +93,7 @@ export default function SnkrdunkAll() {
   }, [items, sortKey]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="스니덩크 전체 시세" />
 
       {/* Sort chips */}
@@ -101,9 +104,9 @@ export default function SnkrdunkAll() {
           paddingHorizontal: 14,
           paddingTop: 10,
           paddingBottom: 8,
-          backgroundColor: colors.paper,
+          backgroundColor: tc.paper,
           borderBottomWidth: 3,
-          borderBottomColor: colors.ink,
+          borderBottomColor: tc.ink,
         }}
       >
         {SORT_KEYS.map((k) => {
@@ -113,8 +116,8 @@ export default function SnkrdunkAll() {
               key={k}
               on={on}
               onPress={() => setSortKey(k)}
-              bg={on ? colors.ink : colors.white}
-              fg={on ? colors.gold : colors.ink}
+              bg={on ? tc.ink : tc.white}
+              fg={on ? tc.gold : tc.ink}
               size={9}
               px={10}
               py={5}
@@ -133,25 +136,25 @@ export default function SnkrdunkAll() {
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
         ItemSeparatorComponent={() => (
-          <View style={{ height: 1, backgroundColor: colors.pap3, marginHorizontal: 14 }} />
+          <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} />
         )}
         ListFooterComponent={
           <View style={{ paddingVertical: 24, alignItems: 'center' }}>
             {error ? (
               <Pressable onPress={() => loadPage(page)}>
-                <PixelText variant="pixel" size={9} color={colors.red}>
+                <PixelText variant={txt} size={9} color={tc.red}>
                   불러오기 오류: {error} · 재시도
                 </PixelText>
               </Pressable>
             ) : loading ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <ActivityIndicator size="small" color={colors.ink3} />
-                <PixelText variant="pixel" size={9} color={colors.ink3}>
+                <ActivityIndicator size="small" color={tc.ink3} />
+                <PixelText variant={txt} size={9} color={tc.ink3}>
                   불러오는 중…
                 </PixelText>
               </View>
             ) : done ? (
-              <PixelText variant="pixel" size={9} color={colors.ink3}>
+              <PixelText variant={txt} size={9} color={tc.ink3}>
                 {sortedItems.length === 0 ? '결과가 없습니다.' : '— 끝 —'}
               </PixelText>
             ) : null}
@@ -165,7 +168,7 @@ export default function SnkrdunkAll() {
               alignItems: 'center',
               paddingVertical: 10,
               paddingHorizontal: 14,
-              backgroundColor: pressed ? colors.pap2 : 'transparent',
+              backgroundColor: pressed ? tc.pap2 : 'transparent',
             })}
           >
             <View
@@ -174,7 +177,7 @@ export default function SnkrdunkAll() {
                 alignItems: 'center',
               }}
             >
-              <PixelText variant="pixel" size={9} color={colors.ink3}>
+              <PixelText variant={txt} size={9} color={tc.ink3}>
                 {String(index + 1).padStart(2, '0')}
               </PixelText>
             </View>
@@ -182,11 +185,11 @@ export default function SnkrdunkAll() {
               style={{
                 width: 44,
                 height: 44,
-                backgroundColor: colors.pap2,
+                backgroundColor: tc.pap2,
                 alignItems: 'center',
                 justifyContent: 'center',
                 overflow: 'hidden',
-                borderColor: colors.ink,
+                borderColor: tc.ink,
                 borderWidth: 2,
                 marginLeft: 6,
                 marginRight: 10,
@@ -213,9 +216,9 @@ export default function SnkrdunkAll() {
                 {shortenName(localizeCardName(item.name))}
               </PixelText>
               <PixelText
-                variant="pixel"
+                variant={txt}
                 size={7}
-                color={colors.ink3}
+                color={tc.ink3}
                 numberOfLines={1}
                 style={{ marginTop: 2 }}
               >
@@ -223,10 +226,10 @@ export default function SnkrdunkAll() {
               </PixelText>
             </View>
             <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
-              <PixelText variant="pixel" size={11} color={colors.red} numberOfLines={1}>
+              <PixelText variant={txt} size={11} color={tc.red} numberOfLines={1}>
                 {item.priceText || '—'}
               </PixelText>
-              <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginTop: 3 }}>
+              <PixelText variant={txt} size={8} color={tc.ink3} style={{ marginTop: 3 }}>
                 ▶
               </PixelText>
             </View>

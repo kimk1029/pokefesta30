@@ -6,6 +6,7 @@ import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { bunjangSearchUrl, fetchBunjangItems, type BunjangItem } from '@/services/marketplace';
 import { useListingFavorites, type ListingFavorite } from '@/lib/useListingFavorites';
 
@@ -39,6 +40,8 @@ function favFromItem(item: BunjangItem): ListingFavorite {
 }
 
 export default function BunjangScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const [query, setQuery] = useState(DEFAULT_QUERY);
   const [submitted, setSubmitted] = useState(DEFAULT_QUERY);
   const [items, setItems] = useState<BunjangItem[]>([]);
@@ -85,7 +88,7 @@ export default function BunjangScreen() {
   const isEmpty = !loading && !error && items.length === 0 && pinned.length === 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="국내마켓" />
       <ScrollView
         style={{ flex: 1 }}
@@ -93,23 +96,23 @@ export default function BunjangScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(submitted, true)} />}
         keyboardShouldPersistTaps="handled"
       >
-        <PixelFrame bg={colors.red} borderWidth={3} shadow={6} hi="rgba(255,255,255,0.18)" lo="rgba(0,0,0,0.36)">
+        <PixelFrame bg={tc.red} borderWidth={3} shadow={6} hi="rgba(255,255,255,0.18)" lo="rgba(0,0,0,0.36)">
           <View style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Text style={{ fontSize: 30 }}>🇰🇷</Text>
             <View style={{ flex: 1 }}>
-              <PixelText variant="pixel" size={11} color={colors.gold}>
+              <PixelText variant={txt} size={11} color={tc.gold}>
                 국내마켓
               </PixelText>
-              <PixelText variant="ko" size={10} color={colors.white} style={{ marginTop: 6, lineHeight: 15 }}>
+              <PixelText variant="ko" size={10} color={tc.white} style={{ marginTop: 6, lineHeight: 15 }}>
                 번개장터 국내 매물을 실시간으로 확인합니다.
               </PixelText>
             </View>
           </View>
         </PixelFrame>
 
-        <PixelFrame bg={colors.white} borderWidth={3} shadow={5}>
+        <PixelFrame bg={tc.white} borderWidth={3} shadow={5}>
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 }}>
-            <PixelText variant="pixel" size={12} color={colors.ink3}>
+            <PixelText variant={txt} size={12} color={tc.ink3}>
               🔍
             </PixelText>
             <TextInput
@@ -118,19 +121,19 @@ export default function BunjangScreen() {
               onSubmitEditing={() => setSubmitted(query.trim() || DEFAULT_QUERY)}
               returnKeyType="search"
               placeholder="검색어"
-              placeholderTextColor={colors.ink4}
+              placeholderTextColor={tc.ink4}
               style={{
                 flex: 1,
                 paddingVertical: 10,
                 paddingHorizontal: 8,
-                color: colors.ink,
+                color: tc.ink,
                 fontFamily: 'Galmuri11',
                 fontSize: 14,
               }}
             />
             <Pressable onPress={() => setSubmitted(query.trim() || DEFAULT_QUERY)}>
-              <View style={{ backgroundColor: colors.ink, paddingHorizontal: 9, paddingVertical: 7, borderColor: colors.ink, borderWidth: 1 }}>
-                <PixelText variant="pixel" size={8} color={colors.gold}>
+              <View style={{ backgroundColor: tc.ink, paddingHorizontal: 9, paddingVertical: 7, borderColor: tc.ink, borderWidth: 1 }}>
+                <PixelText variant={txt} size={8} color={tc.gold}>
                   검색
                 </PixelText>
               </View>
@@ -140,11 +143,11 @@ export default function BunjangScreen() {
 
         {pinned.length > 0 && (
           <>
-            <PixelText variant="pixel" size={9} color={colors.goldDk} style={{ marginTop: 2, letterSpacing: 0.5 }}>
+            <PixelText variant={txt} size={9} color={tc.goldDk} style={{ marginTop: 2, letterSpacing: 0.5 }}>
               ★ 관심목록 {pinned.length}
             </PixelText>
             {pinned.map(renderRow)}
-            <View style={{ height: 2, backgroundColor: colors.pap3, marginVertical: 2 }} />
+            <View style={{ height: 2, backgroundColor: tc.pap3, marginVertical: 2 }} />
           </>
         )}
 
@@ -158,12 +161,12 @@ export default function BunjangScreen() {
                 style={{
                   paddingHorizontal: 8,
                   paddingVertical: 3,
-                  backgroundColor: sort === k ? colors.yel : 'transparent',
-                  borderColor: colors.ink,
+                  backgroundColor: sort === k ? tc.yel : 'transparent',
+                  borderColor: tc.ink,
                   borderWidth: sort === k ? 1 : 0,
                 }}
               >
-                <PixelText variant="pixel" size={8} color={sort === k ? colors.ink : colors.ink3}>
+                <PixelText variant={txt} size={8} color={sort === k ? tc.ink : tc.ink3}>
                   {k === 'latest' ? '최신순' : '관련순'}
                 </PixelText>
               </Pressable>
@@ -176,9 +179,9 @@ export default function BunjangScreen() {
         {isEmpty && (
           <View style={{ paddingVertical: 28, alignItems: 'center' }}>
             {loading ? (
-              <ActivityIndicator color={colors.ink} />
+              <ActivityIndicator color={tc.ink} />
             ) : (
-              <PixelText variant="ko" size={12} color={colors.ink3}>
+              <PixelText variant="ko" size={12} color={tc.ink3}>
                 {error ? `불러오기 오류: ${error}` : '검색 결과가 없습니다.'}
               </PixelText>
             )}
@@ -187,14 +190,14 @@ export default function BunjangScreen() {
 
         {loading && !isEmpty && (
           <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-            <ActivityIndicator color={colors.ink} />
+            <ActivityIndicator color={tc.ink} />
           </View>
         )}
 
         {items.length > 0 && (
-          <PixelPress onPress={() => Linking.openURL(bunjangSearchUrl(submitted))} bg={colors.ink} borderWidth={3} shadow={5}>
+          <PixelPress onPress={() => Linking.openURL(bunjangSearchUrl(submitted))} bg={tc.ink} borderWidth={3} shadow={5}>
             <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-              <PixelText variant="pixel" size={9} color={colors.gold}>
+              <PixelText variant={txt} size={9} color={tc.gold}>
                 번개장터에서 더 보기
               </PixelText>
             </View>
@@ -206,17 +209,19 @@ export default function BunjangScreen() {
 }
 
 function MarketRow({ item, fav, onToggleFav }: { item: BunjangItem; fav: boolean; onToggleFav: () => void }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     // 웹 .shop-card 재현: 썸네일 84 + 본문(제목 / 가격 빨강 / 메타). 별은 우상단 오버레이.
     <View style={{ position: 'relative' }}>
-      <PixelPress onPress={() => router.push(`/cards/bunjang/${item.pid}`)} bg={colors.white} borderWidth={3} shadow={6} hi={null} lo={null}>
+      <PixelPress onPress={() => router.push(`/cards/bunjang/${item.pid}`)} bg={tc.white} borderWidth={3} shadow={6} hi={null} lo={null}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
           <View
             style={{
               width: 84,
               height: 84,
-              backgroundColor: colors.ink2,
-              borderColor: colors.ink,
+              backgroundColor: tc.ink2,
+              borderColor: tc.ink,
               borderWidth: 2,
               alignItems: 'center',
               justifyContent: 'center',
@@ -233,10 +238,10 @@ function MarketRow({ item, fav, onToggleFav }: { item: BunjangItem; fav: boolean
             <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17, paddingRight: 22 }}>
               {item.name}
             </PixelText>
-            <PixelText variant="pixel" size={14} color={colors.red} numberOfLines={1} style={{ marginTop: 7 }}>
+            <PixelText variant={txt} size={14} color={tc.red} numberOfLines={1} style={{ marginTop: 7 }}>
               {item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
             </PixelText>
-            <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
+            <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
               📍 {item.location || '지역 미표기'}   ❤ {item.favCount}
             </PixelText>
           </View>
@@ -244,7 +249,7 @@ function MarketRow({ item, fav, onToggleFav }: { item: BunjangItem; fav: boolean
       </PixelPress>
       {/* 별 토글 — 우상단 오버레이 (행 onPress 보다 우선) */}
       <Pressable onPress={onToggleFav} hitSlop={10} style={{ position: 'absolute', top: 8, right: 8, padding: 4, zIndex: 2 }}>
-        <Text style={{ fontSize: 20, lineHeight: 22, color: fav ? colors.gold : colors.ink4 }}>
+        <Text style={{ fontSize: 20, lineHeight: 22, color: fav ? tc.gold : tc.ink4 }}>
           {fav ? '★' : '☆'}
         </Text>
       </Pressable>

@@ -5,6 +5,7 @@ import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelButton } from '@/components/PixelButton';
 import { colors, space } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { ORIPA_BOXES, ORIPA_TICKETS } from '@/lib/data';
 import type { OripaGrade, OripaTicket } from '@/lib/types';
 
@@ -24,6 +25,8 @@ interface RevealResult {
 }
 
 export default function OripaPlay() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { id } = useLocalSearchParams<{ id: string }>();
   const box = ORIPA_BOXES.find((b) => b.id === id) ?? ORIPA_BOXES[0];
 
@@ -88,13 +91,13 @@ export default function OripaPlay() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headCard}>
-          <PixelText variant="pixel" size={9} color={colors.ink3}>
+          <PixelText variant={txt} size={9} color={tc.ink3}>
             잔여 티켓
           </PixelText>
           <PixelText
-            variant="pixel"
+            variant={txt}
             size={28}
-            color={colors.ink}
+            color={tc.ink}
             style={{ marginTop: 6 }}
           >
             {remaining} / 100
@@ -104,30 +107,30 @@ export default function OripaPlay() {
           </View>
           <View style={{ flexDirection: 'row', marginTop: 12, gap: 8 }}>
             <PixelButton
-              bg={colors.white}
+              bg={tc.white}
               padding={10}
               style={{ flex: 1 }}
               onPress={random}
             >
               <PixelText
-                variant="pixel"
+                variant={txt}
                 size={9}
-                color={colors.ink}
+                color={tc.ink}
                 style={{ textAlign: 'center' }}
               >
                 랜덤 선택
               </PixelText>
             </PixelButton>
             <PixelButton
-              bg={selected.size > 0 ? colors.red : colors.pap3}
+              bg={selected.size > 0 ? tc.red : tc.pap3}
               padding={10}
               style={{ flex: 2 }}
               onPress={draw}
             >
               <PixelText
-                variant="pixel"
+                variant={txt}
                 size={10}
-                color={colors.white}
+                color={tc.white}
                 style={{ textAlign: 'center' }}
               >
                 {selected.size}장 뽑기 · {box.price * Math.max(1, selected.size)}P
@@ -143,10 +146,10 @@ export default function OripaPlay() {
               const tBg = t.drawn
                 ? t.grade
                   ? G_BG[t.grade]
-                  : colors.ink2
+                  : tc.ink2
                 : isSel
-                  ? colors.yel
-                  : colors.white;
+                  ? tc.yel
+                  : tc.white;
               return (
                 <Pressable
                   key={t.index}
@@ -154,9 +157,9 @@ export default function OripaPlay() {
                   onPress={() => toggle(t.index)}
                 >
                   <PixelText
-                    variant="pixel"
+                    variant={txt}
                     size={8}
-                    color={t.drawn ? colors.white : colors.ink}
+                    color={t.drawn ? tc.white : tc.ink}
                   >
                     {t.drawn ? t.grade ?? 'X' : t.index + 1}
                   </PixelText>
@@ -171,40 +174,40 @@ export default function OripaPlay() {
         <View style={styles.overlay}>
           <View style={styles.pullCard}>
             <PixelText
-              variant="pixel"
+              variant={txt}
               size={9}
-              color={colors.ink3}
+              color={tc.ink3}
               style={{ textAlign: 'center' }}
             >
               티켓 #{(reveal?.index ?? 0) + 1}
             </PixelText>
             <Text style={styles.bigEmoji}>{reveal?.prizeEmoji}</Text>
             <PixelText
-              variant="pixel"
+              variant={txt}
               size={14}
-              color={colors.ink}
+              color={tc.ink}
               style={{ textAlign: 'center', marginTop: 8 }}
             >
               {reveal?.grade} 등급
             </PixelText>
             <PixelText
-              variant="pixel"
+              variant={txt}
               size={11}
-              color={colors.red}
+              color={tc.red}
               style={{ textAlign: 'center', marginTop: 8, lineHeight: 16 }}
             >
               {reveal?.prizeName}
             </PixelText>
             <View style={{ marginTop: 16 }}>
               <PixelButton
-                bg={colors.ink}
+                bg={tc.ink}
                 padding={12}
                 onPress={() => setReveal(null)}
               >
                 <PixelText
-                  variant="pixel"
+                  variant={txt}
                   size={10}
-                  color={colors.yel}
+                  color={tc.yel}
                   style={{ textAlign: 'center' }}
                 >
                   확인

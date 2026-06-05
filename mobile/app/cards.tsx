@@ -9,10 +9,13 @@ import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { fetchAllPacksWithHits, type PackWithHits } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 
 type SortMode = 'default' | 'name' | 'price';
 
 export default function PriceInfoScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortMode>('default');
   const { data, loading, error, refresh } = useAsync<PackWithHits[]>(
@@ -39,16 +42,16 @@ export default function PriceInfoScreen() {
   }, [packs, query, sort]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar title="시세확인" />
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
         <View style={{ marginHorizontal: 14, marginTop: 14, marginBottom: 12 }}>
-          <PixelFrame bg={colors.white} borderWidth={3} shadow={5} hi={null} lo={null}>
+          <PixelFrame bg={tc.white} borderWidth={3} shadow={5} hi={null} lo={null}>
             <View style={{ padding: 14 }}>
-              <PixelText variant="pixel" size={12} color={colors.ink} style={{ letterSpacing: 0.8 }}>
+              <PixelText variant={txt} size={12} color={tc.ink} style={{ letterSpacing: 0.8 }}>
                 포켓몬 카드 박스
               </PixelText>
-              <PixelText variant="ko" size={10} color={colors.ink3} style={{ marginTop: 7, lineHeight: 16 }}>
+              <PixelText variant="ko" size={10} color={tc.ink3} style={{ marginTop: 7, lineHeight: 16 }}>
                 박스를 선택하면 해당 박스에 포함된 싱글카드 시세를 확인할 수 있습니다.
               </PixelText>
             </View>
@@ -56,14 +59,14 @@ export default function PriceInfoScreen() {
         </View>
 
         <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
-          <PixelFrame bg={colors.white} borderWidth={3} shadow={4}>
+          <PixelFrame bg={tc.white} borderWidth={3} shadow={4}>
             <View style={styles.searchBox}>
-              <PixelText variant="pixel" size={13} color={colors.ink3}>🔍</PixelText>
+              <PixelText variant={txt} size={13} color={tc.ink3}>🔍</PixelText>
               <TextInput
                 value={query}
                 onChangeText={setQuery}
                 placeholder="박스명, 팩명 검색..."
-                placeholderTextColor={colors.ink4}
+                placeholderTextColor={tc.ink4}
                 style={styles.searchInput}
               />
             </View>
@@ -81,7 +84,7 @@ export default function PriceInfoScreen() {
               <PixelPress
                 key={key}
                 onPress={() => setSort(key)}
-                bg={on ? colors.ink : colors.white}
+                bg={on ? tc.ink : tc.white}
                 borderWidth={3}
                 shadow={4}
                 hi={on ? null : 'rgba(255,255,255,0.95)'}
@@ -89,7 +92,7 @@ export default function PriceInfoScreen() {
                 inner={3}
               >
                 <View style={styles.sortBtnInner}>
-                  <PixelText variant="pixel" size={9} color={on ? colors.gold : colors.ink}>
+                  <PixelText variant={txt} size={9} color={on ? tc.gold : tc.ink}>
                     {label}
                   </PixelText>
                 </View>
@@ -121,12 +124,14 @@ export default function PriceInfoScreen() {
 }
 
 function PackRow({ pack }: { pack: PackWithHits }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const topPrice = packTopPrice(pack);
   const firstHit = pack.hits[0] ?? null;
   return (
     <PixelPress
       onPress={() => router.push(`/cards/packs/${pack.code}` as never)}
-      bg={colors.white}
+      bg={tc.white}
       borderWidth={3}
       shadow={5}
       hi={null}
@@ -144,7 +149,7 @@ function PackRow({ pack }: { pack: PackWithHits }) {
           <PixelText variant="ko" size={12} weight="bold" numberOfLines={1}>
             {pack.name}
           </PixelText>
-          <PixelText variant="ko" size={9} color={colors.ink3} style={{ marginTop: 5, lineHeight: 14 }} numberOfLines={2}>
+          <PixelText variant="ko" size={9} color={tc.ink3} style={{ marginTop: 5, lineHeight: 14 }} numberOfLines={2}>
             {pack.boxKoName || pack.boxName || pack.shortName}
           </PixelText>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
@@ -153,24 +158,28 @@ function PackRow({ pack }: { pack: PackWithHits }) {
             {firstHit?.listingCountText ? <MetaPill text={`매물 ${firstHit.listingCountText}건`} /> : null}
           </View>
         </View>
-        <PixelText variant="pixel" size={14} color={colors.ink3}>›</PixelText>
+        <PixelText variant={txt} size={14} color={tc.ink3}>›</PixelText>
       </View>
     </PixelPress>
   );
 }
 
 function PricePill({ text }: { text: string }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
-    <View style={[styles.pill, { backgroundColor: colors.gold }]}>
-      <PixelText variant="pixel" size={8} color={colors.ink}>{text}</PixelText>
+    <View style={[styles.pill, { backgroundColor: tc.gold }]}>
+      <PixelText variant={txt} size={8} color={tc.ink}>{text}</PixelText>
     </View>
   );
 }
 
 function MetaPill({ text }: { text: string }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
-    <View style={[styles.pill, { backgroundColor: colors.pap2 }]}>
-      <PixelText variant="pixel" size={8} color={colors.ink3}>{text}</PixelText>
+    <View style={[styles.pill, { backgroundColor: tc.pap2 }]}>
+      <PixelText variant={txt} size={8} color={tc.ink3}>{text}</PixelText>
     </View>
   );
 }

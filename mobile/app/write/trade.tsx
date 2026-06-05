@@ -6,6 +6,7 @@ import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelButton } from '@/components/PixelButton';
 import { colors, space } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { api, ApiError } from '@/lib/apiClient';
 import { useToast } from '@/components/ToastProvider';
 import { uploadTradeImages } from '@/lib/uploads';
@@ -18,6 +19,8 @@ type TradeType = 'sell' | 'buy';
  * 만남장소는 제거(웹과 동일). 백엔드가 placeId 필수라 첫 장소를 기본값으로 전송.
  */
 export default function WriteTrade() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const toast = useToast();
   // 내 컬렉션에서 카드 [거래] 로 들어오면 카드명이 title 로 넘어온다 → 제목 기본값.
   const { title: titleParam } = useLocalSearchParams<{ title?: string }>();
@@ -99,7 +102,7 @@ export default function WriteTrade() {
   }, [submitting, uploading, title, note, price, kakaoId, ttype, placeId, images, toast]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar title="거래 쓰기" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={{ padding: space.gap, gap: 10, paddingBottom: 110 }}>
         {/* 유형 */}
@@ -108,15 +111,15 @@ export default function WriteTrade() {
         </PixelText>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1 }}>
-            <PixelButton bg={ttype === 'sell' ? colors.red : colors.white} padding={12} onPress={() => setTtype('sell')}>
-              <PixelText variant="ko" size={11} color={ttype === 'sell' ? colors.white : colors.ink} style={{ textAlign: 'center' }}>
+            <PixelButton bg={ttype === 'sell' ? tc.red : tc.white} padding={12} onPress={() => setTtype('sell')}>
+              <PixelText variant="ko" size={11} color={ttype === 'sell' ? tc.white : tc.ink} style={{ textAlign: 'center' }}>
                 ❤️ 팝니다
               </PixelText>
             </PixelButton>
           </View>
           <View style={{ flex: 1 }}>
-            <PixelButton bg={ttype === 'buy' ? colors.blu : colors.white} padding={12} onPress={() => setTtype('buy')}>
-              <PixelText variant="ko" size={11} color={ttype === 'buy' ? colors.white : colors.ink} style={{ textAlign: 'center' }}>
+            <PixelButton bg={ttype === 'buy' ? tc.blu : tc.white} padding={12} onPress={() => setTtype('buy')}>
+              <PixelText variant="ko" size={11} color={ttype === 'buy' ? tc.white : tc.ink} style={{ textAlign: 'center' }}>
                 💙 삽니다
               </PixelText>
             </PixelButton>
@@ -131,7 +134,7 @@ export default function WriteTrade() {
           value={title}
           onChangeText={setTitle}
           placeholder="거래 제목을 입력하세요"
-          placeholderTextColor={colors.ink3}
+          placeholderTextColor={tc.ink3}
           style={styles.input}
         />
 
@@ -147,7 +150,7 @@ export default function WriteTrade() {
             else setPrice(raw);
           }}
           placeholder="예) 15,000 / 정가 / 협의"
-          placeholderTextColor={colors.ink3}
+          placeholderTextColor={tc.ink3}
           inputMode="numeric"
           style={styles.input}
         />
@@ -160,7 +163,7 @@ export default function WriteTrade() {
           value={kakaoId}
           onChangeText={setKakaoId}
           placeholder="예) kakao_id 또는 오픈채팅 링크"
-          placeholderTextColor={colors.ink3}
+          placeholderTextColor={tc.ink3}
           autoCapitalize="none"
           style={styles.input}
         />
@@ -174,16 +177,16 @@ export default function WriteTrade() {
             <View key={url} style={{ position: 'relative' }}>
               <Image source={{ uri: url }} style={styles.thumb} resizeMode="cover" />
               <Pressable onPress={() => removeImage(url)} hitSlop={8} style={styles.removeBtn}>
-                <Text style={{ color: colors.white, fontSize: 13, lineHeight: 14 }}>×</Text>
+                <Text style={{ color: tc.white, fontSize: 13, lineHeight: 14 }}>×</Text>
               </Pressable>
             </View>
           ))}
           {images.length < MAX_IMAGES && (
             <Pressable onPress={pickImages} disabled={uploading} style={styles.addPhoto}>
               {uploading ? (
-                <ActivityIndicator color={colors.ink} />
+                <ActivityIndicator color={tc.ink} />
               ) : (
-                <PixelText variant="pixel" size={9} color={colors.ink3}>
+                <PixelText variant={txt} size={9} color={tc.ink3}>
                   ＋ 사진
                 </PixelText>
               )}
@@ -200,14 +203,14 @@ export default function WriteTrade() {
           onChangeText={setNote}
           multiline
           placeholder="거래 관련 상세 내용"
-          placeholderTextColor={colors.ink3}
+          placeholderTextColor={tc.ink3}
           style={[styles.input, { minHeight: 120, textAlignVertical: 'top' }]}
         />
 
         {/* 등록 */}
         <View style={{ marginTop: 4 }}>
-          <PixelButton bg={colors.blu} padding={14} onPress={submit} disabled={submitting}>
-            <PixelText variant="ko" size={11} color={colors.white} style={{ textAlign: 'center' }}>
+          <PixelButton bg={tc.blu} padding={14} onPress={submit} disabled={submitting}>
+            <PixelText variant="ko" size={11} color={tc.white} style={{ textAlign: 'center' }}>
               {submitting ? '등록 중…' : '거래글 등록'}
             </PixelText>
           </PixelButton>

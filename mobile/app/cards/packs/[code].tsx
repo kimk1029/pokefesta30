@@ -9,6 +9,7 @@ import { PixelText } from '@/components/PixelText';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchPackHits, type PackHitCard, type PackWithHits } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 import { useCurrency } from '@/components/CurrencyProvider';
@@ -17,6 +18,8 @@ type SortMode = 'price' | 'listing' | 'name';
 type ViewMode = 'grid' | 'list';
 
 export default function PackDetailScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { format: formatCurrency } = useCurrency();
   const params = useLocalSearchParams<{ code: string }>();
   const code = params.code ?? '';
@@ -29,7 +32,7 @@ export default function PackDetailScreen() {
   const cards = useMemo(() => sortHits(data?.hits ?? [], sort), [data?.hits, sort]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title={data?.shortName ?? '카드팩'} />
       {loading && !data ? (
         <LoadingState />
@@ -52,7 +55,7 @@ export default function PackDetailScreen() {
                 gap: 12,
                 padding: 12,
                 backgroundColor: data.bg,
-                borderColor: colors.ink,
+                borderColor: tc.ink,
                 borderWidth: 3,
               }}
             >
@@ -64,7 +67,7 @@ export default function PackDetailScreen() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: 'rgba(0,0,0,0.18)',
-                  borderColor: colors.ink,
+                  borderColor: tc.ink,
                   borderWidth: 2,
                   overflow: 'hidden',
                 }}
@@ -86,7 +89,7 @@ export default function PackDetailScreen() {
                     variant="ko"
                     size={13}
                     weight="bold"
-                    color={colors.white}
+                    color={tc.white}
                     style={{ letterSpacing: 0.5 }}
                     numberOfLines={2}
                   >
@@ -96,7 +99,7 @@ export default function PackDetailScreen() {
                     <PixelText
                       variant="ko"
                       size={10}
-                      color={colors.white}
+                      color={tc.white}
                       style={{ marginTop: 4, opacity: 0.85, lineHeight: 14 }}
                       numberOfLines={2}
                     >
@@ -106,11 +109,11 @@ export default function PackDetailScreen() {
                 </View>
                 <View style={{ gap: 4 }}>
                   {data.releasedAt ? (
-                    <PixelText variant="pixel" size={8} color={colors.white} style={{ opacity: 0.85, letterSpacing: 0.3 }} numberOfLines={1}>
+                    <PixelText variant={txt} size={8} color={tc.white} style={{ opacity: 0.85, letterSpacing: 0.3 }} numberOfLines={1}>
                       📅 {data.releasedAt} 출시
                     </PixelText>
                   ) : null}
-                  <PixelText variant="pixel" size={8} color={colors.white} style={{ opacity: 0.85, letterSpacing: 0.3 }} numberOfLines={1}>
+                  <PixelText variant={txt} size={8} color={tc.white} style={{ opacity: 0.85, letterSpacing: 0.3 }} numberOfLines={1}>
                     🎴 가격 있는 카드 {data.hits.length}장
                   </PixelText>
                 </View>
@@ -140,7 +143,7 @@ export default function PackDetailScreen() {
                 <PixelPress
                   key={key}
                   onPress={() => setSort(key)}
-                  bg={on ? colors.ink : colors.white}
+                  bg={on ? tc.ink : tc.white}
                   borderWidth={3}
                   shadow={4}
                   hi={on ? null : 'rgba(255,255,255,0.95)'}
@@ -148,7 +151,7 @@ export default function PackDetailScreen() {
                   inner={3}
                 >
                   <View style={{ paddingHorizontal: 10, paddingVertical: 8 }}>
-                    <PixelText variant="pixel" size={9} color={on ? colors.gold : colors.ink}>
+                    <PixelText variant={txt} size={9} color={on ? tc.gold : tc.ink}>
                       {label}
                     </PixelText>
                   </View>
@@ -167,7 +170,7 @@ export default function PackDetailScreen() {
                 <PixelPress
                   key={key}
                   onPress={() => setView(key)}
-                  bg={on ? colors.ink : colors.white}
+                  bg={on ? tc.ink : tc.white}
                   borderWidth={3}
                   shadow={4}
                   hi={on ? null : 'rgba(255,255,255,0.95)'}
@@ -175,7 +178,7 @@ export default function PackDetailScreen() {
                   inner={3}
                 >
                   <View style={{ paddingHorizontal: 9, paddingVertical: 6 }}>
-                    <PixelText variant="pixel" size={14} color={on ? colors.gold : colors.ink}>
+                    <PixelText variant={txt} size={14} color={on ? tc.gold : tc.ink}>
                       {icon}
                     </PixelText>
                   </View>
@@ -200,7 +203,7 @@ export default function PackDetailScreen() {
                         <View
                           style={{
                             height: 120,
-                            backgroundColor: colors.pap2,
+                            backgroundColor: tc.pap2,
                             alignItems: 'center',
                             justifyContent: 'center',
                             overflow: 'hidden',
@@ -212,17 +215,17 @@ export default function PackDetailScreen() {
                             <Text style={{ fontSize: 30 }}>🃏</Text>
                           )}
                         </View>
-                        <View style={{ padding: 5, borderTopColor: colors.ink, borderTopWidth: 3 }}>
+                        <View style={{ padding: 5, borderTopColor: tc.ink, borderTopWidth: 3 }}>
                           <PixelText variant="ko" size={11} weight="bold" numberOfLines={2} style={{ minHeight: 30, lineHeight: 15 }}>
                             {hit.koName || hit.shortName}
                           </PixelText>
-                          <PixelText variant="pixel" size={7} color={colors.ink3} numberOfLines={1} style={{ marginTop: 2 }}>
+                          <PixelText variant={txt} size={7} color={tc.ink3} numberOfLines={1} style={{ marginTop: 2 }}>
                             {hit.name}
                           </PixelText>
-                          <PixelText variant="pixel" size={10} color={colors.red} numberOfLines={1} style={{ marginTop: 6 }}>
+                          <PixelText variant={txt} size={10} color={tc.red} numberOfLines={1} style={{ marginTop: 6 }}>
                             {hit.minPrice > 0 ? formatCurrency(hit.minPrice) : '시세 없음'}
                           </PixelText>
-                          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
+                          <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
                             {hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
                           </PixelText>
                         </View>
@@ -246,6 +249,8 @@ export default function PackDetailScreen() {
 }
 
 function ListRow({ hit, accent }: { hit: PackHitCard; accent: string }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { format: formatCurrency } = useCurrency();
   return (
     <PixelPress
@@ -257,8 +262,8 @@ function ListRow({ hit, accent }: { hit: PackHitCard; accent: string }) {
           style={{
             width: 64,
             height: 88,
-            backgroundColor: colors.pap2,
-            borderColor: colors.ink,
+            backgroundColor: tc.pap2,
+            borderColor: tc.ink,
             borderWidth: 2,
             alignItems: 'center',
             justifyContent: 'center',
@@ -275,19 +280,19 @@ function ListRow({ hit, accent }: { hit: PackHitCard; accent: string }) {
           <PixelText variant="ko" size={12} weight="bold" numberOfLines={2}>
             {hit.koName || hit.shortName}
           </PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
+          <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
             {hit.name}
           </PixelText>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
-            <PixelText variant="pixel" size={11} color={colors.red}>
+            <PixelText variant={txt} size={11} color={tc.red}>
               {hit.minPrice > 0 ? formatCurrency(hit.minPrice) : '시세 없음'}
             </PixelText>
-            <PixelText variant="pixel" size={8} color={colors.ink3}>
+            <PixelText variant={txt} size={8} color={tc.ink3}>
               {hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
             </PixelText>
           </View>
         </View>
-        <PixelText variant="pixel" size={14} color={colors.ink3}>›</PixelText>
+        <PixelText variant={txt} size={14} color={tc.ink3}>›</PixelText>
       </View>
     </PixelPress>
   );

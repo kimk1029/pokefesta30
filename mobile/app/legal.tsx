@@ -11,6 +11,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { WEB_OAUTH_ORIGIN } from '@/lib/oauth';
 
 const DOCS = {
@@ -19,12 +20,14 @@ const DOCS = {
 } as const;
 
 export default function LegalScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { doc } = useLocalSearchParams<{ doc?: string }>();
   const [loading, setLoading] = useState(true);
   const meta = doc === 'privacy' ? DOCS.privacy : DOCS.terms;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <StatusBar barStyle="dark-content" />
       <AppBar onBack={() => router.back()} title={meta.title} />
       <View style={{ flex: 1 }}>
@@ -43,11 +46,11 @@ export default function LegalScreen() {
               bottom: 0,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: colors.paper,
+              backgroundColor: tc.paper,
             }}
           >
-            <ActivityIndicator color={colors.ink} />
-            <PixelText variant="pixel" size={10} color={colors.ink3} style={{ marginTop: 12 }}>
+            <ActivityIndicator color={tc.ink} />
+            <PixelText variant={txt} size={10} color={tc.ink3} style={{ marginTop: 12 }}>
               불러오는 중…
             </PixelText>
           </View>

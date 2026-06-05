@@ -11,21 +11,24 @@ import { PixelPress } from '@/components/cv/PixelPress';
 import { SectHd } from '@/components/cv/SectHd';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchOripaBoxes, type OripaBox } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 
 export default function OripaListScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { data, loading, error, refresh } = useAsync(fetchOripaBoxes);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="오리파" />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 110 }}>
         <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
-          <PixelFrame bg={colors.pur} borderWidth={3} shadow={5} hi={colors.purLt} lo={colors.purDk} inner={3}>
+          <PixelFrame bg={tc.pur} borderWidth={3} shadow={5} hi={tc.purLt} lo={tc.purDk} inner={3}>
             <View style={{ padding: 14 }}>
-              <PixelText variant="pixel" size={12} color={colors.white} style={{ letterSpacing: 1 }}>🎲 포인트 뽑기</PixelText>
-              <PixelText variant="ko" size={9} color={colors.white} style={{ marginTop: 8, lineHeight: 16, opacity: 0.9 }}>
+              <PixelText variant={txt} size={12} color={tc.white} style={{ letterSpacing: 1 }}>🎲 포인트 뽑기</PixelText>
+              <PixelText variant="ko" size={9} color={tc.white} style={{ marginTop: 8, lineHeight: 16, opacity: 0.9 }}>
                 박스를 선택해 수량을 고른 뒤 구매하면 바로 뽑기로 이동합니다.{'\n'}이미 뽑힌 티켓은 등급이 공개되고, 남은 티켓은 뒷면으로 숨겨져 있어요.
               </PixelText>
             </View>
@@ -62,6 +65,8 @@ const TIER_STYLE: Record<OripaBox['tier'], { bg: string; hi: string; lo: string;
 };
 
 function BoxCard({ box }: { box: OripaBox }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const t = TIER_STYLE[box.tier];
   const remaining = box.stats?.remaining ?? 0;
   const total = box.stats?.total ?? 0;
@@ -78,41 +83,41 @@ function BoxCard({ box }: { box: OripaBox }) {
     >
       <View style={{ padding: 14, gap: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.06)', borderColor: colors.ink, borderWidth: 2 }}>
-            <PixelText variant="pixel" size={28} color={colors.ink}>{box.emoji}</PixelText>
+          <View style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.06)', borderColor: tc.ink, borderWidth: 2 }}>
+            <PixelText variant={txt} size={28} color={tc.ink}>{box.emoji}</PixelText>
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <PixelText variant="ko" size={12} weight="bold" color={colors.ink} numberOfLines={1} style={{ flex: 1 }}>
+              <PixelText variant="ko" size={12} weight="bold" color={tc.ink} numberOfLines={1} style={{ flex: 1 }}>
                 {box.name}
               </PixelText>
-              <View style={{ paddingHorizontal: 6, paddingVertical: 2, backgroundColor: colors.ink, borderColor: colors.ink, borderWidth: 1 }}>
-                <PixelText variant="pixel" size={7} color={colors.gold}>{t.label}</PixelText>
+              <View style={{ paddingHorizontal: 6, paddingVertical: 2, backgroundColor: tc.ink, borderColor: tc.ink, borderWidth: 1 }}>
+                <PixelText variant={txt} size={7} color={tc.gold}>{t.label}</PixelText>
               </View>
             </View>
-            <PixelText variant="ko" size={9} color={colors.ink2} style={{ marginTop: 4 }} numberOfLines={2}>
+            <PixelText variant="ko" size={9} color={tc.ink2} style={{ marginTop: 4 }} numberOfLines={2}>
               {box.desc}
             </PixelText>
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.5)', borderColor: colors.ink, borderWidth: 1 }}>
-          <PixelText variant="pixel" size={8} color={colors.ink3}>{box.odds}</PixelText>
+        <View style={{ paddingHorizontal: 8, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.5)', borderColor: tc.ink, borderWidth: 1 }}>
+          <PixelText variant={txt} size={8} color={tc.ink3}>{box.odds}</PixelText>
         </View>
 
         {box.stats ? (
           <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-            <View style={{ flex: 1, height: 8, backgroundColor: colors.ink, borderColor: colors.ink, borderWidth: 1 }}>
-              <View style={{ width: `${pct}%`, height: '100%', backgroundColor: colors.gold }} />
+            <View style={{ flex: 1, height: 8, backgroundColor: tc.ink, borderColor: tc.ink, borderWidth: 1 }}>
+              <View style={{ width: `${pct}%`, height: '100%', backgroundColor: tc.gold }} />
             </View>
-            <PixelText variant="pixel" size={8} color={colors.ink}>{remaining}/{total}</PixelText>
+            <PixelText variant={txt} size={8} color={tc.ink}>{remaining}/{total}</PixelText>
           </View>
         ) : null}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <PixelText variant="pixel" size={10} color={colors.ink} weight="bold">🪙 {box.price.toLocaleString('ko-KR')}P / 회</PixelText>
-          <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: colors.red, borderColor: colors.ink, borderWidth: 2 }}>
-            <PixelText variant="pixel" size={9} color={colors.white}>▶ 뽑기 ▶</PixelText>
+          <PixelText variant={txt} size={10} color={tc.ink} weight="bold">🪙 {box.price.toLocaleString('ko-KR')}P / 회</PixelText>
+          <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: tc.red, borderColor: tc.ink, borderWidth: 2 }}>
+            <PixelText variant={txt} size={9} color={tc.white}>▶ 뽑기 ▶</PixelText>
           </View>
         </View>
       </View>

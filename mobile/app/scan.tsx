@@ -14,6 +14,7 @@ import { ScanPreview } from '@/components/cv/ScanPreview';
 import { BatchScanPreview } from '@/components/cv/BatchScanPreview';
 import { useChrome } from '@/components/ChromeContext';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { CARDS, GAMES, fmt, priceLabel, displayCardName, inferCardCurrency, cardProfit, type CardItem, type Game, type Rarity, type PriceCurrency } from '@/data/cardvault';
 import { addCards } from '@/lib/collection';
 import { usePriceMode } from '@/lib/priceMode';
@@ -39,6 +40,8 @@ function currentYm(): string {
 }
 
 export default function ScanScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const params = useLocalSearchParams<{
     mode?: string;
     regApparelId?: string;
@@ -318,7 +321,7 @@ export default function ScanScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar
         onBack={() => {
           if (mode === 'choose') {
@@ -364,10 +367,10 @@ export default function ScanScreen() {
       ) : mode === 'batchResult' ? (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 40 }}>
           <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
-            <PixelText variant="pixel" size={12} color={colors.grnDk} weight="bold" style={{ letterSpacing: 1 }}>
+            <PixelText variant={txt} size={12} color={tc.grnDk} weight="bold" style={{ letterSpacing: 1 }}>
               ✓ {batchFound.length}장 인식 완료
             </PixelText>
-            <PixelText variant="ko" size={10} color={colors.ink3} style={{ marginTop: 4 }}>
+            <PixelText variant="ko" size={10} color={tc.ink3} style={{ marginTop: 4 }}>
               아래 카드들을 컬렉션에 추가했습니다.
             </PixelText>
           </View>
@@ -375,18 +378,18 @@ export default function ScanScreen() {
             {batchFound.map((c) => (
               <PixelFrame key={c.id} borderWidth={3} shadow={5}>
                 <View style={{ flexDirection: 'row', gap: 10, padding: 10, alignItems: 'center' }}>
-                  <View style={{ width: 48, height: 64, borderColor: colors.ink, borderWidth: 2 }}>
+                  <View style={{ width: 48, height: 64, borderColor: tc.ink, borderWidth: 2 }}>
                     <CardThumb card={c} height={60} emojiSize={22} showLabel={false} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <PixelText variant="ko" size={12} weight="bold">{displayCardName(c.name)}</PixelText>
-                    <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 3 }}>
+                    <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 3 }}>
                       {c.set} · {c.num}
                     </PixelText>
                     <PixelText
-                      variant="pixel"
+                      variant={txt}
                       size={10}
-                      color={c.price > 0 ? colors.grnDk : colors.ink3}
+                      color={c.price > 0 ? tc.grnDk : tc.ink3}
                       style={{ marginTop: 3 }}
                     >
                       {priceLabel(c.price, inferCardCurrency(c))}
@@ -400,18 +403,18 @@ export default function ScanScreen() {
           <View style={{ marginHorizontal: 14, flexDirection: 'row', gap: 8 }}>
             <PixelPress wrapStyle={{ flex: 1 }} onPress={() => { setBatchFound([]); setCaptures([]); setMode('choose'); }}>
               <View style={{ paddingVertical: 11, alignItems: 'center' }}>
-                <PixelText variant="pixel" size={10}>처음으로</PixelText>
+                <PixelText variant={txt} size={10}>처음으로</PixelText>
               </View>
             </PixelPress>
             <PixelPress
               wrapStyle={{ flex: 1 }}
               onPress={() => router.push('/my/cards' as never)}
-              bg={colors.gold}
-              hi={colors.goldLt}
-              lo={colors.goldDk}
+              bg={tc.gold}
+              hi={tc.goldLt}
+              lo={tc.goldDk}
             >
               <View style={{ paddingVertical: 11, alignItems: 'center' }}>
-                <PixelText variant="pixel" size={10}>컬렉션으로 ✓</PixelText>
+                <PixelText variant={txt} size={10}>컬렉션으로 ✓</PixelText>
               </View>
             </PixelPress>
           </View>
@@ -422,10 +425,10 @@ export default function ScanScreen() {
           <>
             <View style={{ alignItems: 'center', paddingVertical: 24, gap: 10 }}>
               <PixelBall size={80} />
-              <PixelText variant="pixel" size={13} style={{ marginTop: 6, letterSpacing: 2 }}>
+              <PixelText variant={txt} size={13} style={{ marginTop: 6, letterSpacing: 2 }}>
                 카드 추가
               </PixelText>
-              <PixelText variant="pixel" size={10} color={colors.ink3} style={{ letterSpacing: 0.5 }}>
+              <PixelText variant={txt} size={10} color={tc.ink3} style={{ letterSpacing: 0.5 }}>
                 방법을 선택하세요
               </PixelText>
             </View>
@@ -433,7 +436,7 @@ export default function ScanScreen() {
             <View style={{ marginHorizontal: 14, gap: 12 }}>
               <PixelPress
                 onPress={() => setMode('camera')}
-                bg={colors.ink2}
+                bg={tc.ink2}
                 borderWidth={4}
                 shadow={7}
                 hi="rgba(255,255,255,0.08)"
@@ -452,24 +455,24 @@ export default function ScanScreen() {
                     style={{
                       width: 52,
                       height: 52,
-                      backgroundColor: colors.grn,
+                      backgroundColor: tc.grn,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderColor: colors.ink,
+                      borderColor: tc.ink,
                       borderWidth: 3,
                     }}
                   >
                     <Text style={{ fontSize: 26 }}>📷</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <PixelText variant="pixel" size={12} color={colors.white} style={{ marginBottom: 7, letterSpacing: 1 }}>
+                    <PixelText variant={txt} size={12} color={tc.white} style={{ marginBottom: 7, letterSpacing: 1 }}>
                       사진으로 스캔
                     </PixelText>
-                    <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.5)" style={{ lineHeight: 16 }}>
+                    <PixelText variant={txt} size={9} color="rgba(255,255,255,0.5)" style={{ lineHeight: 16 }}>
                       카드를 촬영하면 자동으로{`\n`}카드 정보를 인식합니다
                     </PixelText>
                   </View>
-                  <PixelText variant="pixel" size={16} color={colors.gold}>
+                  <PixelText variant={txt} size={16} color={tc.gold}>
                     ▶
                   </PixelText>
                 </View>
@@ -480,9 +483,9 @@ export default function ScanScreen() {
               <View
                 style={{
                   flexDirection: 'row',
-                  borderColor: colors.ink,
+                  borderColor: tc.ink,
                   borderWidth: 2,
-                  backgroundColor: colors.white,
+                  backgroundColor: tc.white,
                 }}
               >
                 {(
@@ -499,18 +502,18 @@ export default function ScanScreen() {
                       flex: 1,
                       paddingVertical: 11,
                       alignItems: 'center',
-                      backgroundColor: scanLang === opt.v ? colors.gold : 'transparent',
+                      backgroundColor: scanLang === opt.v ? tc.gold : 'transparent',
                       borderLeftWidth: i === 0 ? 0 : 2,
-                      borderLeftColor: colors.ink,
+                      borderLeftColor: tc.ink,
                     }}
                   >
-                    <PixelText variant="pixel" size={11} color={scanLang === opt.v ? colors.ink : colors.ink3}>
+                    <PixelText variant={txt} size={11} color={scanLang === opt.v ? tc.ink : tc.ink3}>
                       {opt.label}
                     </PixelText>
                   </Pressable>
                 ))}
               </View>
-              <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: -4, marginBottom: -2, marginLeft: 2 }}>
+              <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: -4, marginBottom: -2, marginLeft: 2 }}>
                 카드 이름이 어느 언어인지 골라주세요
               </PixelText>
 
@@ -527,24 +530,24 @@ export default function ScanScreen() {
                     style={{
                       width: 52,
                       height: 52,
-                      backgroundColor: colors.gold,
+                      backgroundColor: tc.gold,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderColor: colors.ink,
+                      borderColor: tc.ink,
                       borderWidth: 3,
                     }}
                   >
                     <Text style={{ fontSize: 26 }}>✏️</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <PixelText variant="pixel" size={12} style={{ marginBottom: 7, letterSpacing: 1 }}>
+                    <PixelText variant={txt} size={12} style={{ marginBottom: 7, letterSpacing: 1 }}>
                       직접 입력
                     </PixelText>
-                    <PixelText variant="pixel" size={9} color={colors.ink3} style={{ lineHeight: 16 }}>
+                    <PixelText variant={txt} size={9} color={tc.ink3} style={{ lineHeight: 16 }}>
                       카드 이름·세트·번호 등{`\n`}정보를 직접 입력해 등록합니다
                     </PixelText>
                   </View>
-                  <PixelText variant="pixel" size={16}>
+                  <PixelText variant={txt} size={16}>
                     ▶
                   </PixelText>
                 </View>
@@ -556,8 +559,8 @@ export default function ScanScreen() {
         {mode === 'manual' && (
           <View style={{ paddingHorizontal: 14, gap: 14 }}>
             <View>
-              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                🎮 게임 <Text style={{ color: colors.red }}>*</Text>
+              <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                🎮 게임 <Text style={{ color: tc.red }}>*</Text>
               </PixelText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {(GAMES.slice(1) as Game[]).map((g) => (
@@ -569,49 +572,49 @@ export default function ScanScreen() {
             </View>
 
             <View>
-              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                📛 카드명 <Text style={{ color: colors.ink3 }}>(선택)</Text>
+              <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                📛 카드명 <Text style={{ color: tc.ink3 }}>(선택)</Text>
               </PixelText>
               <TextInput
                 value={manName}
                 onChangeText={setManName}
                 placeholder="예) 리자몽 EX, 블랙 로터스"
-                placeholderTextColor={colors.ink4}
+                placeholderTextColor={tc.ink4}
                 style={inputStyle}
               />
             </View>
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}>
-                <PixelText variant="pixel" size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                  세트 코드 <Text style={{ color: colors.red }}>*</Text>
+                <PixelText variant={txt} size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                  세트 코드 <Text style={{ color: tc.red }}>*</Text>
                 </PixelText>
                 <TextInput
                   value={manSet}
                   onChangeText={(t) => setManSet(t.toUpperCase())}
                   placeholder="예) SV1"
-                  placeholderTextColor={colors.ink4}
+                  placeholderTextColor={tc.ink4}
                   autoCapitalize="characters"
                   style={inputStyle}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <PixelText variant="pixel" size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                  카드 번호 <Text style={{ color: colors.red }}>*</Text>
+                <PixelText variant={txt} size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                  카드 번호 <Text style={{ color: tc.red }}>*</Text>
                 </PixelText>
                 <TextInput
                   value={manNum}
                   onChangeText={setManNum}
                   placeholder="006"
-                  placeholderTextColor={colors.ink4}
+                  placeholderTextColor={tc.ink4}
                   style={inputStyle}
                 />
               </View>
             </View>
 
             <View>
-              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                ✨ 희귀도 <Text style={{ color: colors.red }}>*</Text>
+              <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                ✨ 희귀도 <Text style={{ color: tc.red }}>*</Text>
               </PixelText>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {(['C', 'U', 'R', 'SR', 'HR', 'S'] as Rarity[]).map((r) => (
@@ -623,7 +626,7 @@ export default function ScanScreen() {
             </View>
 
             {manErr && (
-              <PixelText variant="pixel" size={10} color={colors.red}>
+              <PixelText variant={txt} size={10} color={tc.red}>
                 ⚠ {manErr}
               </PixelText>
             )}
@@ -631,7 +634,7 @@ export default function ScanScreen() {
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <PixelPress wrapStyle={{ flex: 1 }} onPress={() => setMode('choose')}>
                 <View style={{ paddingVertical: 11, alignItems: 'center' }}>
-                  <PixelText variant="pixel" size={11}>
+                  <PixelText variant={txt} size={11}>
                     ← 뒤로
                   </PixelText>
                 </View>
@@ -640,12 +643,12 @@ export default function ScanScreen() {
                 wrapStyle={{ flex: 2 }}
                 onPress={runManualSearch}
                 disabled={manSearching || !manSet || !manNum}
-                bg={!manSearching && manSet && manNum ? colors.gold : colors.pap3}
-                hi={!manSearching && manSet && manNum ? colors.goldLt : null}
-                lo={!manSearching && manSet && manNum ? colors.goldDk : null}
+                bg={!manSearching && manSet && manNum ? tc.gold : tc.pap3}
+                hi={!manSearching && manSet && manNum ? tc.goldLt : null}
+                lo={!manSearching && manSet && manNum ? tc.goldDk : null}
               >
                 <View style={{ paddingVertical: 11, alignItems: 'center' }}>
-                  <PixelText variant="pixel" size={11}>
+                  <PixelText variant={txt} size={11}>
                     {manSearching ? '검색 중...' : '🔍 카드 검색'}
                   </PixelText>
                 </View>
@@ -655,41 +658,41 @@ export default function ScanScreen() {
             {/* 검색 결과 리스트 → 선택 시 등록 시트로 */}
             {manSearched && (
               <View style={{ gap: 8 }}>
-                <PixelText variant="pixel" size={10} color={colors.ink3} style={{ letterSpacing: 1 }}>
+                <PixelText variant={txt} size={10} color={tc.ink3} style={{ letterSpacing: 1 }}>
                   검색 결과 {manResults.length}건
                 </PixelText>
                 {manResults.map((c) => (
                   <PixelPress key={c.id} onPress={() => openRegister(c, 'manual')} borderWidth={3} shadow={4}>
                     <View style={{ flexDirection: 'row', gap: 10, padding: 10, alignItems: 'center' }}>
-                      <View style={{ width: 44, height: 60, borderColor: colors.ink, borderWidth: 2 }}>
+                      <View style={{ width: 44, height: 60, borderColor: tc.ink, borderWidth: 2 }}>
                         <CardThumb card={c} height={56} emojiSize={20} showLabel={false} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <PixelText variant="ko" size={11} weight="bold">{displayCardName(c.name)}</PixelText>
-                        <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 3 }}>
+                        <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 3 }}>
                           {c.set} · {c.num}
                         </PixelText>
-                        <PixelText variant="pixel" size={10} color={c.price > 0 ? colors.grnDk : colors.ink3} style={{ marginTop: 3 }}>
+                        <PixelText variant={txt} size={10} color={c.price > 0 ? tc.grnDk : tc.ink3} style={{ marginTop: 3 }}>
                           {priceLabel(c.price, inferCardCurrency(c))}
                         </PixelText>
                       </View>
-                      <PixelText variant="pixel" size={10} color={colors.blu}>선택 ▶</PixelText>
+                      <PixelText variant={txt} size={10} color={tc.blu}>선택 ▶</PixelText>
                     </View>
                   </PixelPress>
                 ))}
                 {/* 검색에 안 잡혀도 입력값 그대로 등록 */}
-                <PixelPress onPress={() => openRegister(buildManualCard(), 'manual')} bg={colors.pap2} borderWidth={3} shadow={4}>
+                <PixelPress onPress={() => openRegister(buildManualCard(), 'manual')} bg={tc.pap2} borderWidth={3} shadow={4}>
                   <View style={{ flexDirection: 'row', gap: 10, padding: 10, alignItems: 'center' }}>
-                    <View style={{ width: 44, height: 60, borderColor: colors.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 44, height: 60, borderColor: tc.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ fontSize: 20 }}>✍️</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <PixelText variant="pixel" size={11}>입력한 정보 그대로 등록</PixelText>
-                      <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 3 }}>
+                      <PixelText variant={txt} size={11}>입력한 정보 그대로 등록</PixelText>
+                      <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 3 }}>
                         {manName || '무제 카드'} · {manSet || '-'} · {manNum || '-'}
                       </PixelText>
                     </View>
-                    <PixelText variant="pixel" size={10} color={colors.blu}>선택 ▶</PixelText>
+                    <PixelText variant={txt} size={10} color={tc.blu}>선택 ▶</PixelText>
                   </View>
                 </PixelPress>
               </View>
@@ -710,22 +713,22 @@ export default function ScanScreen() {
             {/* 확인된 카드 (3→4단계) */}
             <PixelFrame borderWidth={3} shadow={5}>
               <View style={{ flexDirection: 'row', gap: 12, padding: 12, alignItems: 'center' }}>
-                <View style={{ width: 56, height: 78, borderColor: colors.ink, borderWidth: 2 }}>
+                <View style={{ width: 56, height: 78, borderColor: tc.ink, borderWidth: 2 }}>
                   <CardThumb card={pendingCard} height={74} emojiSize={26} showLabel={false} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <PixelText variant="pixel" size={10} color={colors.grn} style={{ marginBottom: 5 }}>
+                  <PixelText variant={txt} size={10} color={tc.grn} style={{ marginBottom: 5 }}>
                     ✓ 이 카드를 등록합니다
                   </PixelText>
                   <PixelText variant="ko" size={12} weight="bold" style={{ lineHeight: 18 }}>
                     {displayCardName(pendingCard.name)}
                   </PixelText>
-                  <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 3 }}>
+                  <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 3 }}>
                     {pendingCard.set} · {pendingCard.num}
                   </PixelText>
                   <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <RarBadge rar={pendingCard.rar} />
-                    <PixelText variant="pixel" size={9} color={colors.ink3}>
+                    <PixelText variant={txt} size={9} color={tc.ink3}>
                       현재 {priceLabel(cardProfit(pendingCard, priceMode).currentKrw, 'KRW')}
                     </PixelText>
                   </View>
@@ -743,14 +746,14 @@ export default function ScanScreen() {
 
             {/* 구매 시기 */}
             <View>
-              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+              <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
                 📅 구매 시기
               </PixelText>
               <TextInput
                 value={buyYm}
                 onChangeText={setBuyYm}
                 placeholder="2026-06"
-                placeholderTextColor={colors.ink4}
+                placeholderTextColor={tc.ink4}
                 style={inputStyle}
               />
             </View>
@@ -758,12 +761,12 @@ export default function ScanScreen() {
             {/* 구매가 + 통화 — 직접뽑기면 현재시세 기준가 안내로 대체 */}
             {selfPulled ? (
               <View>
-                <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
                   💰 기준가
                 </PixelText>
-                <PixelFrame borderWidth={3} bg={colors.pap3}>
+                <PixelFrame borderWidth={3} bg={tc.pap3}>
                   <View style={{ padding: 12 }}>
-                    <PixelText variant="pixel" size={10} color={colors.ink3} style={{ lineHeight: 16 }}>
+                    <PixelText variant={txt} size={10} color={tc.ink3} style={{ lineHeight: 16 }}>
                       현재시세 {priceLabel(cardProfit(pendingCard, priceMode).currentKrw / Math.max(1, buyQty), 'KRW')} 를
                       {`\n`}기준가로 등록합니다
                     </PixelText>
@@ -772,15 +775,15 @@ export default function ScanScreen() {
               </View>
             ) : (
               <View>
-                <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                  💰 구매가 <Text style={{ color: colors.ink3 }}>(장당)</Text>
+                <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                  💰 구매가 <Text style={{ color: tc.ink3 }}>(장당)</Text>
                 </PixelText>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <TextInput
                     value={buyPriceStr}
                     onChangeText={setBuyPriceStr}
                     placeholder={buyCur === 'JPY' ? '엔' : '원'}
-                    placeholderTextColor={colors.ink4}
+                    placeholderTextColor={tc.ink4}
                     keyboardType="numeric"
                     style={[inputStyle, { flex: 1 }]}
                   />
@@ -791,12 +794,12 @@ export default function ScanScreen() {
                       style={{
                         paddingHorizontal: 16,
                         justifyContent: 'center',
-                        backgroundColor: buyCur === c ? colors.gold : colors.white,
-                        borderColor: colors.ink,
+                        backgroundColor: buyCur === c ? tc.gold : tc.white,
+                        borderColor: tc.ink,
                         borderWidth: 3,
                       }}
                     >
-                      <PixelText variant="pixel" size={12} color={buyCur === c ? colors.ink : colors.ink3}>
+                      <PixelText variant={txt} size={12} color={buyCur === c ? tc.ink : tc.ink3}>
                         {c === 'JPY' ? '¥' : '₩'}
                       </PixelText>
                     </Pressable>
@@ -807,7 +810,7 @@ export default function ScanScreen() {
 
             {/* 수량 */}
             <View>
-              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+              <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
                 🔢 수량
               </PixelText>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -815,16 +818,16 @@ export default function ScanScreen() {
                   onPress={() => setBuyQty((q) => Math.max(1, q - 1))}
                   style={qtyBtnStyle}
                 >
-                  <PixelText variant="pixel" size={16}>−</PixelText>
+                  <PixelText variant={txt} size={16}>−</PixelText>
                 </Pressable>
-                <PixelText variant="pixel" size={15} style={{ minWidth: 40, textAlign: 'center' }}>
+                <PixelText variant={txt} size={15} style={{ minWidth: 40, textAlign: 'center' }}>
                   {buyQty}
                 </PixelText>
                 <Pressable
                   onPress={() => setBuyQty((q) => Math.min(999, q + 1))}
                   style={qtyBtnStyle}
                 >
-                  <PixelText variant="pixel" size={16}>＋</PixelText>
+                  <PixelText variant={txt} size={16}>＋</PixelText>
                 </Pressable>
               </View>
             </View>
@@ -839,7 +842,7 @@ export default function ScanScreen() {
             {graded && (
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 1.4 }}>
-                  <PixelText variant="pixel" size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                  <PixelText variant={txt} size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
                     등급사
                   </PixelText>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -851,14 +854,14 @@ export default function ScanScreen() {
                   </View>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <PixelText variant="pixel" size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                  <PixelText variant={txt} size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
                     등급
                   </PixelText>
                   <TextInput
                     value={gradeValue}
                     onChangeText={setGradeValue}
                     placeholder="10"
-                    placeholderTextColor={colors.ink4}
+                    placeholderTextColor={tc.ink4}
                     keyboardType="numeric"
                     style={inputStyle}
                   />
@@ -868,17 +871,17 @@ export default function ScanScreen() {
 
             {/* 6단계 — 수익률 실시간 미리보기 */}
             {preview.hasBuy && (
-              <PixelFrame borderWidth={3} shadow={4} bg={colors.pap3}>
+              <PixelFrame borderWidth={3} shadow={4} bg={tc.pap3}>
                 <View style={{ padding: 12, gap: 6 }}>
                   <ProfitRow label="총 구매가" value={priceLabel(preview.investedKrw, 'KRW')} />
                   <ProfitRow label="현재 시세" value={priceLabel(preview.currentKrw, 'KRW')} />
-                  <View style={{ height: 1, backgroundColor: colors.ink4, marginVertical: 2 }} />
+                  <View style={{ height: 1, backgroundColor: tc.ink4, marginVertical: 2 }} />
                   <ProfitRow
                     label="예상 수익률"
                     value={`${preview.profitKrw >= 0 ? '+' : ''}₩${fmt(Math.abs(preview.profitKrw))} (${
                       preview.ratePct != null ? `${preview.ratePct >= 0 ? '+' : ''}${preview.ratePct.toFixed(1)}%` : '—'
                     })`}
-                    color={preview.profitKrw >= 0 ? colors.grnDk : colors.red}
+                    color={preview.profitKrw >= 0 ? tc.grnDk : tc.red}
                     bold
                   />
                 </View>
@@ -888,18 +891,18 @@ export default function ScanScreen() {
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
               <PixelPress wrapStyle={{ flex: 1 }} onPress={() => finalizeRegister(true)}>
                 <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                  <PixelText variant="pixel" size={10}>건너뛰기</PixelText>
+                  <PixelText variant={txt} size={10}>건너뛰기</PixelText>
                 </View>
               </PixelPress>
               <PixelPress
                 wrapStyle={{ flex: 2 }}
                 onPress={() => finalizeRegister(false)}
-                bg={colors.gold}
-                hi={colors.goldLt}
-                lo={colors.goldDk}
+                bg={tc.gold}
+                hi={tc.goldLt}
+                lo={tc.goldDk}
               >
                 <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                  <PixelText variant="pixel" size={11} weight="bold">컬렉션에 등록 ✓</PixelText>
+                  <PixelText variant={txt} size={11} weight="bold">컬렉션에 등록 ✓</PixelText>
                 </View>
               </PixelPress>
             </View>
@@ -919,17 +922,17 @@ export default function ScanScreen() {
                 alignItems: 'flex-start',
               }}
             >
-              <View style={{ width: 68, height: 96, borderColor: colors.ink, borderWidth: 2 }}>
+              <View style={{ width: 68, height: 96, borderColor: tc.ink, borderWidth: 2 }}>
                 <CardThumb card={found} height={92} emojiSize={32} showLabel={false} />
               </View>
               <View style={{ flex: 1 }}>
-                <PixelText variant="pixel" size={10} color={colors.grn} style={{ marginBottom: 6 }}>
+                <PixelText variant={txt} size={10} color={tc.grn} style={{ marginBottom: 6 }}>
                   ✓ 인식 완료!
                 </PixelText>
-                <PixelText variant="pixel" size={12} style={{ marginBottom: 5, lineHeight: 18 }}>
+                <PixelText variant={txt} size={12} style={{ marginBottom: 5, lineHeight: 18 }}>
                   {displayCardName(found.name)}
                 </PixelText>
-                <PixelText variant="pixel" size={9} color={colors.ink3} style={{ lineHeight: 16 }}>
+                <PixelText variant={txt} size={9} color={tc.ink3} style={{ lineHeight: 16 }}>
                   {found.set} · {found.num}
                   {`\n`}
                   {found.game}
@@ -937,9 +940,9 @@ export default function ScanScreen() {
                 <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                   <RarBadge rar={found.rar} />
                   <PixelText
-                    variant="pixel"
+                    variant={txt}
                     size={10}
-                    color={found.price > 0 ? colors.grnDk : colors.ink3}
+                    color={found.price > 0 ? tc.grnDk : tc.ink3}
                   >
                     {priceLabel(found.price, inferCardCurrency(found))}
                   </PixelText>
@@ -952,9 +955,9 @@ export default function ScanScreen() {
               const p = cardProfit(found, priceMode);
               return (
                 <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
-                  <PixelFrame borderWidth={3} shadow={4} bg={colors.pap3}>
+                  <PixelFrame borderWidth={3} shadow={4} bg={tc.pap3}>
                     <View style={{ padding: 12, gap: 6 }}>
-                      <PixelText variant="pixel" size={10} color={colors.ink3} style={{ marginBottom: 2, letterSpacing: 1 }}>
+                      <PixelText variant={txt} size={10} color={tc.ink3} style={{ marginBottom: 2, letterSpacing: 1 }}>
                         📈 수익률
                       </PixelText>
                       {p.hasBuy ? (
@@ -964,18 +967,18 @@ export default function ScanScreen() {
                             value={priceLabel(p.investedKrw, 'KRW')}
                           />
                           <ProfitRow label="현재 시세" value={priceLabel(p.currentKrw, 'KRW')} />
-                          <View style={{ height: 1, backgroundColor: colors.ink4, marginVertical: 2 }} />
+                          <View style={{ height: 1, backgroundColor: tc.ink4, marginVertical: 2 }} />
                           <ProfitRow
                             label="손익"
                             value={`${p.profitKrw >= 0 ? '+' : '-'}₩${fmt(Math.abs(p.profitKrw))} (${
                               p.ratePct != null ? `${p.ratePct >= 0 ? '+' : ''}${p.ratePct.toFixed(1)}%` : '—'
                             })`}
-                            color={p.profitKrw >= 0 ? colors.grnDk : colors.red}
+                            color={p.profitKrw >= 0 ? tc.grnDk : tc.red}
                             bold
                           />
                         </>
                       ) : (
-                        <PixelText variant="pixel" size={10} color={colors.ink3} style={{ lineHeight: 16 }}>
+                        <PixelText variant={txt} size={10} color={tc.ink3} style={{ lineHeight: 16 }}>
                           현재 시세 {priceLabel(p.currentKrw, 'KRW')}
                           {`\n`}구매가를 입력하면 수익률이 표시됩니다
                         </PixelText>
@@ -988,7 +991,7 @@ export default function ScanScreen() {
             <View style={{ marginHorizontal: 14, flexDirection: 'row', gap: 8 }}>
               <PixelPress wrapStyle={{ flex: 1 }} onPress={() => setMode('choose')}>
                 <View style={{ paddingVertical: 11, alignItems: 'center' }}>
-                  <PixelText variant="pixel" size={10}>
+                  <PixelText variant={txt} size={10}>
                     처음으로
                   </PixelText>
                 </View>
@@ -996,12 +999,12 @@ export default function ScanScreen() {
               <PixelPress
                 wrapStyle={{ flex: 1 }}
                 onPress={() => router.push('/my/cards' as never)}
-                bg={colors.gold}
-                hi={colors.goldLt}
-                lo={colors.goldDk}
+                bg={tc.gold}
+                hi={tc.goldLt}
+                lo={tc.goldDk}
               >
                 <View style={{ paddingVertical: 11, alignItems: 'center' }}>
-                  <PixelText variant="pixel" size={10}>
+                  <PixelText variant={txt} size={10}>
                     컬렉션 추가 ✓
                   </PixelText>
                 </View>
@@ -1026,6 +1029,8 @@ function ToggleRow({
   label: string;
   hint?: string;
 }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <Pressable
       onPress={onPress}
@@ -1034,8 +1039,8 @@ function ToggleRow({
         alignItems: 'center',
         gap: 10,
         padding: 12,
-        backgroundColor: on ? colors.gold : colors.white,
-        borderColor: colors.ink,
+        backgroundColor: on ? tc.gold : tc.white,
+        borderColor: tc.ink,
         borderWidth: 3,
       }}
     >
@@ -1045,19 +1050,19 @@ function ToggleRow({
           height: 24,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: on ? colors.ink : colors.pap3,
-          borderColor: colors.ink,
+          backgroundColor: on ? tc.ink : tc.pap3,
+          borderColor: tc.ink,
           borderWidth: 2,
         }}
       >
-        {on && <PixelText variant="pixel" size={12} color={colors.gold}>✓</PixelText>}
+        {on && <PixelText variant={txt} size={12} color={tc.gold}>✓</PixelText>}
       </View>
       <View style={{ flex: 1 }}>
-        <PixelText variant="pixel" size={11} color={colors.ink}>
+        <PixelText variant={txt} size={11} color={tc.ink}>
           {label}
         </PixelText>
         {hint && (
-          <PixelText variant="pixel" size={8} color={on ? colors.ink2 : colors.ink3} style={{ marginTop: 3 }}>
+          <PixelText variant={txt} size={8} color={on ? tc.ink2 : tc.ink3} style={{ marginTop: 3 }}>
             {hint}
           </PixelText>
         )}
@@ -1077,12 +1082,14 @@ function ProfitRow({
   color?: string;
   bold?: boolean;
 }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <PixelText variant="pixel" size={10} color={colors.ink3}>
+      <PixelText variant={txt} size={10} color={tc.ink3}>
         {label}
       </PixelText>
-      <PixelText variant="pixel" size={bold ? 12 : 10} color={color ?? colors.ink} weight={bold ? 'bold' : undefined}>
+      <PixelText variant={txt} size={bold ? 12 : 10} color={color ?? tc.ink} weight={bold ? 'bold' : undefined}>
         {value}
       </PixelText>
     </View>

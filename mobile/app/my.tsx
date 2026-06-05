@@ -13,6 +13,7 @@ import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { CurrencySettingsItem } from '@/components/CurrencySettingsItem';
 import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { fetchMySummary, type MySummary } from '@/lib/myApi';
@@ -44,6 +45,8 @@ interface MenuSection {
 }
 
 export default function MyScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const authed = useAuthed();
   const { data, error } = useAsync<MySummary>(
     fetchMySummary,
@@ -97,19 +100,19 @@ export default function MyScreen() {
   const settingsNav: MenuItem[] = [
     { icon: '📢', iconBg: '#FFD23F', label: '공지사항', badge: 'NEW', onPress: () => router.push('/my/notices' as never) },
     { icon: '❓', iconBg: '#3A5BD9', label: 'FAQ · 자주 묻는 질문', onPress: () => router.push('/my/faq' as never) },
-    { icon: '📜', iconBg: colors.pap2, label: '이용약관', onPress: () => router.push('/legal?doc=terms' as never) },
+    { icon: '📜', iconBg: tc.pap2, label: '이용약관', onPress: () => router.push('/legal?doc=terms' as never) },
     { icon: '🔒', iconBg: '#0D7377', label: '개인정보처리방침', onPress: () => router.push('/legal?doc=privacy' as never) },
-    { icon: '🔔', iconBg: colors.pap2, label: '알림 설정', desc: '준비중', disabled: true },
+    { icon: '🔔', iconBg: tc.pap2, label: '알림 설정', desc: '준비중', disabled: true },
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.replace('/' as never)} title="마이" />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 110 }}>
         {/* Profile hero */}
         <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
           <PixelFrame
-            bg={colors.ink2}
+            bg={tc.ink2}
             borderWidth={4}
             shadow={7}
             hi="rgba(255,255,255,0.08)"
@@ -118,27 +121,27 @@ export default function MyScreen() {
           >
             <View style={{ padding: 18 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                <View style={{ width: 60, height: 60, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center', borderColor: colors.ink, borderWidth: 3 }}>
+                <View style={{ width: 60, height: 60, backgroundColor: tc.gold, alignItems: 'center', justifyContent: 'center', borderColor: tc.ink, borderWidth: 3 }}>
                   <Text style={{ fontSize: 30 }}>🃏</Text>
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <PixelText variant="pixel" size={14} color={colors.white} style={{ letterSpacing: 1 }} numberOfLines={1}>
+                  <PixelText variant={txt} size={14} color={tc.white} style={{ letterSpacing: 1 }} numberOfLines={1}>
                     {userName}
                   </PixelText>
-                  <PixelText variant="pixel" size={10} color={colors.gold} style={{ marginTop: 6, letterSpacing: 0.5 }} numberOfLines={1}>
+                  <PixelText variant={txt} size={10} color={tc.gold} style={{ marginTop: 6, letterSpacing: 0.5 }} numberOfLines={1}>
                     ★ LV.{level} · {points.toLocaleString('ko-KR')}P
                   </PixelText>
                 </View>
                 {authed ? (
-                  <PixelPress onPress={() => undefined} bg={colors.gold} hi={colors.goldLt} lo={colors.goldDk} shadow={4}>
+                  <PixelPress onPress={() => undefined} bg={tc.gold} hi={tc.goldLt} lo={tc.goldDk} shadow={4}>
                     <View style={{ paddingHorizontal: 10, paddingVertical: 8 }}>
-                      <PixelText variant="pixel" size={10} color={colors.ink}>편집</PixelText>
+                      <PixelText variant={txt} size={10} color={tc.ink}>편집</PixelText>
                     </View>
                   </PixelPress>
                 ) : (
-                  <PixelPress onPress={() => router.push('/login' as never)} bg={colors.gold} hi={colors.goldLt} lo={colors.goldDk} shadow={4}>
+                  <PixelPress onPress={() => router.push('/login' as never)} bg={tc.gold} hi={tc.goldLt} lo={tc.goldDk} shadow={4}>
                     <View style={{ paddingHorizontal: 10, paddingVertical: 8 }}>
-                      <PixelText variant="pixel" size={10} color={colors.ink}>로그인</PixelText>
+                      <PixelText variant={txt} size={10} color={tc.ink}>로그인</PixelText>
                     </View>
                   </PixelPress>
                 )}
@@ -150,7 +153,7 @@ export default function MyScreen() {
               </View>
               {!authed && error ? (
                 <View style={{ marginTop: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(255,255,255,0.08)' }}>
-                  <PixelText variant="ko" size={9} color={colors.white} style={{ lineHeight: 14, opacity: 0.7 }}>
+                  <PixelText variant="ko" size={9} color={tc.white} style={{ lineHeight: 14, opacity: 0.7 }}>
                     로그인하면 카드·포인트·거래글이 동기화됩니다.
                   </PixelText>
                 </View>
@@ -167,7 +170,7 @@ export default function MyScreen() {
                 {section.items.map((item, i) => (
                   <View key={item.label}>
                     <MenuRow item={item} />
-                    {i < section.items.length - 1 ? <View style={{ height: 1, backgroundColor: colors.pap3, marginHorizontal: 14 }} /> : null}
+                    {i < section.items.length - 1 ? <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} /> : null}
                   </View>
                 ))}
               </View>
@@ -181,13 +184,13 @@ export default function MyScreen() {
           <PixelFrame>
             <View>
               <CurrencySettingsItem />
-              <View style={{ height: 1, backgroundColor: colors.pap3, marginHorizontal: 14 }} />
+              <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} />
               <ThemeSettingsItem />
-              <View style={{ height: 1, backgroundColor: colors.pap3, marginHorizontal: 14 }} />
+              <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} />
               {settingsNav.map((item, i) => (
                 <View key={item.label}>
                   <MenuRow item={item} />
-                  {i < settingsNav.length - 1 ? <View style={{ height: 1, backgroundColor: colors.pap3, marginHorizontal: 14 }} /> : null}
+                  {i < settingsNav.length - 1 ? <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} /> : null}
                 </View>
               ))}
             </View>
@@ -201,12 +204,12 @@ export default function MyScreen() {
               setSession(null);
               router.replace('/login' as never);
             }}
-            bg={colors.white}
+            bg={tc.white}
             shadow={4}
           >
             <View style={{ paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
               <Text style={{ fontSize: 14 }}>🚪</Text>
-              <PixelText variant="ko" size={12} color={colors.ink3} weight="bold">로그아웃</PixelText>
+              <PixelText variant="ko" size={12} color={tc.ink3} weight="bold">로그아웃</PixelText>
             </View>
           </PixelPress>
         </View>
@@ -216,20 +219,24 @@ export default function MyScreen() {
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ flex: 1, alignItems: 'center', paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 2 }}>
-      <PixelText variant="pixel" size={11} color={colors.gold} weight="bold">{value}</PixelText>
-      <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.55)" style={{ marginTop: 4 }}>{label}</PixelText>
+      <PixelText variant={txt} size={11} color={tc.gold} weight="bold">{value}</PixelText>
+      <PixelText variant={txt} size={9} color="rgba(255,255,255,0.55)" style={{ marginTop: 4 }}>{label}</PixelText>
     </View>
   );
 }
 
 function MenuRow({ item }: { item: MenuItem }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const disabled = item.disabled === true;
   return (
     <PixelPress
       onPress={disabled ? () => undefined : (item.onPress ?? (() => undefined))}
-      bg={colors.white}
+      bg={tc.white}
       hi={null}
       lo={null}
       shadow={0}
@@ -237,21 +244,21 @@ function MenuRow({ item }: { item: MenuItem }) {
       inner={0}
     >
       <View style={{ paddingHorizontal: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: disabled ? 0.45 : 1 }}>
-        <View style={{ width: 36, height: 36, backgroundColor: item.iconBg ?? colors.pap3, borderColor: colors.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 36, height: 36, backgroundColor: item.iconBg ?? tc.pap3, borderColor: tc.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: 18 }}>{item.icon}</Text>
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <PixelText variant="ko" size={12} color={colors.ink} weight="bold" numberOfLines={1}>{item.label}</PixelText>
+          <PixelText variant="ko" size={12} color={tc.ink} weight="bold" numberOfLines={1}>{item.label}</PixelText>
           {item.desc ? (
-            <PixelText variant="ko" size={10} color={colors.ink3} style={{ marginTop: 2 }} numberOfLines={1}>{item.desc}</PixelText>
+            <PixelText variant="ko" size={10} color={tc.ink3} style={{ marginTop: 2 }} numberOfLines={1}>{item.desc}</PixelText>
           ) : null}
         </View>
         {item.badge ? (
-          <View style={{ paddingHorizontal: 6, paddingVertical: 2, backgroundColor: colors.red, borderColor: colors.ink, borderWidth: 2 }}>
-            <PixelText variant="pixel" size={9} color={colors.white} weight="bold">{item.badge}</PixelText>
+          <View style={{ paddingHorizontal: 6, paddingVertical: 2, backgroundColor: tc.red, borderColor: tc.ink, borderWidth: 2 }}>
+            <PixelText variant={txt} size={9} color={tc.white} weight="bold">{item.badge}</PixelText>
           </View>
         ) : null}
-        {!disabled ? <PixelText variant="pixel" size={14} color={colors.ink3}>▶</PixelText> : null}
+        {!disabled ? <PixelText variant={txt} size={14} color={tc.ink3}>▶</PixelText> : null}
       </View>
     </PixelPress>
   );

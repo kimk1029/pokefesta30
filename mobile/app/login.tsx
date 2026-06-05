@@ -12,11 +12,14 @@ import { PixelText } from '@/components/PixelText';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { PixelBall } from '@/components/PixelBall';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { getApiBaseUrl } from '@/lib/apiClient';
 import { isAuthenticated } from '@/lib/session';
 import { startSocialLogin, type AuthProvider } from '@/lib/oauth';
 
 export default function LoginScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const [busy, setBusy] = useState(false);
 
   const startLogin = async (provider: AuthProvider) => {
@@ -39,13 +42,13 @@ export default function LoginScreen() {
             style={{
               padding: 14,
               backgroundColor: 'rgba(255,255,255,0.04)',
-              borderColor: colors.gold,
+              borderColor: tc.gold,
               borderWidth: 3,
             }}
           >
             <PixelBall size={72} />
           </View>
-          <PixelText variant="pixel" size={17} color={colors.gold} style={{ letterSpacing: 2 }} numberOfLines={1}>
+          <PixelText variant={txt} size={17} color={tc.gold} style={{ letterSpacing: 2 }} numberOfLines={1}>
             CardVault
           </PixelText>
           <PixelText
@@ -63,12 +66,12 @@ export default function LoginScreen() {
             style={{
               marginBottom: 24,
               padding: 14,
-              backgroundColor: colors.grnDk,
-              borderColor: colors.ink,
+              backgroundColor: tc.grnDk,
+              borderColor: tc.ink,
               borderWidth: 3,
             }}
           >
-            <PixelText variant="pixel" size={10} color={colors.white} style={{ textAlign: 'center' }}>
+            <PixelText variant={txt} size={10} color={tc.white} style={{ textAlign: 'center' }}>
               ✓ 이미 로그인되어 있어요
             </PixelText>
           </View>
@@ -83,7 +86,7 @@ export default function LoginScreen() {
           }}
         >
           <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
-          <PixelText variant="pixel" size={8} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1 }}>
+          <PixelText variant={txt} size={8} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1 }}>
             소셜 로그인
           </PixelText>
           <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
@@ -100,15 +103,15 @@ export default function LoginScreen() {
           />
           <LoginBtn
             bg="#03C75A"
-            fg={colors.white}
+            fg={tc.white}
             icon="N"
             name="네이버로 시작하기"
             desc="네이버 계정으로 간편 로그인"
             onPress={() => startLogin('naver')}
           />
           <LoginBtn
-            bg={colors.white}
-            fg={colors.ink}
+            bg={tc.white}
+            fg={tc.ink}
             icon="G"
             name="구글로 시작하기"
             desc="Google 계정으로 간편 로그인"
@@ -120,7 +123,7 @@ export default function LoginScreen() {
           style={{ marginTop: 28, padding: 10, alignItems: 'center' }}
           onPress={() => router.replace('/' as never)}
         >
-          <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.35)" style={{ letterSpacing: 1 }}>
+          <PixelText variant={txt} size={9} color="rgba(255,255,255,0.35)" style={{ letterSpacing: 1 }}>
             로그인 없이 둘러보기 →
           </PixelText>
         </Pressable>
@@ -132,14 +135,14 @@ export default function LoginScreen() {
           style={{ marginTop: 24, textAlign: 'center', lineHeight: 16, paddingHorizontal: 14 }}
         >
           로그인 시{' '}
-          <PixelText variant="ko" size={9} color={colors.gold}>이용약관</PixelText>
+          <PixelText variant="ko" size={9} color={tc.gold}>이용약관</PixelText>
           {' · '}
-          <PixelText variant="ko" size={9} color={colors.gold}>개인정보처리방침</PixelText>
+          <PixelText variant="ko" size={9} color={tc.gold}>개인정보처리방침</PixelText>
           에{'\n'}동의한 것으로 간주됩니다.
         </PixelText>
 
         <PixelText
-          variant="pixel"
+          variant={txt}
           size={7}
           color="rgba(255,255,255,0.18)"
           style={{ marginTop: 24, textAlign: 'center', lineHeight: 12 }}
@@ -161,6 +164,8 @@ interface BtnProps {
 }
 
 function LoginBtn({ bg, fg, icon, name, desc, onPress }: BtnProps) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <PixelPress
       onPress={onPress}
@@ -194,11 +199,11 @@ function LoginBtn({ bg, fg, icon, name, desc, onPress }: BtnProps) {
           <Text style={{ fontSize: 22, color: fg, fontWeight: 'bold' }}>{icon}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <PixelText variant="pixel" size={11} color={fg} style={{ letterSpacing: 1 }}>
+          <PixelText variant={txt} size={11} color={fg} style={{ letterSpacing: 1 }}>
             {name}
           </PixelText>
           <PixelText
-            variant="pixel"
+            variant={txt}
             size={9}
             color={fg}
             style={{ marginTop: 5, opacity: 0.65, letterSpacing: 0.3 }}

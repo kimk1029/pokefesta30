@@ -18,6 +18,7 @@ import { PixelPress } from '@/components/cv/PixelPress';
 import { SectHd } from '@/components/cv/SectHd';
 import { SnkrdunkPriceChart } from '@/components/cv/SnkrdunkPriceChart';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import {
   downsamplePricePoints,
   fetchSnkrdunkApparel,
@@ -65,6 +66,8 @@ const PSA_GRADE_RE = /PSA\s*\d+/i;
 const PSA10_RE = /PSA\s*10\b/i;
 
 export default function SnkrdunkDetail() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { id } = useLocalSearchParams<{ id: string }>();
   const apparelId = Number(id);
   const seed = SNKRDUNK_FEATURED_CARDS.find((c) => c.apparelId === apparelId);
@@ -116,7 +119,7 @@ export default function SnkrdunkDetail() {
   const psa10Avg = pickRecentAverage(historyList, (b) => PSA10_RE.test(b));
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="시세 상세" />
       <ScrollView
         style={{ flex: 1 }}
@@ -125,13 +128,13 @@ export default function SnkrdunkDetail() {
       >
         {loading ? (
           <View style={{ padding: 40, alignItems: 'center' }}>
-            <PixelText variant="pixel" size={10} color={colors.ink3}>
+            <PixelText variant={txt} size={10} color={tc.ink3}>
               불러오는 중...
             </PixelText>
           </View>
         ) : !apparel ? (
           <View style={{ padding: 40, alignItems: 'center' }}>
-            <PixelText variant="pixel" size={10} color={colors.ink3}>
+            <PixelText variant={txt} size={10} color={tc.ink3}>
               상품 정보를 가져오지 못했습니다.
             </PixelText>
           </View>
@@ -139,7 +142,7 @@ export default function SnkrdunkDetail() {
           <>
             {/* Hero card — 아래 액션버튼과의 간격은 CardActions marginTop 로만(70% 축소). */}
             <View style={{ marginHorizontal: 14, marginBottom: 0 }}>
-              <PixelFrame bg={colors.white}>
+              <PixelFrame bg={tc.white}>
                 <View style={{ padding: 14, flexDirection: 'row', gap: 14 }}>
                   <Pressable
                     onPress={() => {
@@ -148,11 +151,11 @@ export default function SnkrdunkDetail() {
                     style={{
                       width: 88,
                       height: 88,
-                      backgroundColor: colors.pap2,
+                      backgroundColor: tc.pap2,
                       alignItems: 'center',
                       justifyContent: 'center',
                       overflow: 'hidden',
-                      borderColor: colors.ink,
+                      borderColor: tc.ink,
                       borderWidth: 2,
                     }}
                   >
@@ -171,15 +174,15 @@ export default function SnkrdunkDetail() {
                       <View
                         style={{
                           alignSelf: 'flex-start',
-                          backgroundColor: colors.orn,
+                          backgroundColor: tc.orn,
                           paddingHorizontal: 5,
                           paddingVertical: 2,
-                          borderColor: colors.ink,
+                          borderColor: tc.ink,
                           borderWidth: 1,
                           marginBottom: 6,
                         }}
                       >
-                        <PixelText variant="pixel" size={8} color={colors.white}>
+                        <PixelText variant={txt} size={8} color={tc.white}>
                           {seed.category}
                         </PixelText>
                       </View>
@@ -188,21 +191,21 @@ export default function SnkrdunkDetail() {
                       {displayNameKo}
                     </PixelText>
                     {originalJp && originalJp !== displayNameKo ? (
-                      <PixelText variant="pixel" size={7} color={colors.ink3} numberOfLines={1} style={{ marginBottom: 6 }}>
+                      <PixelText variant={txt} size={7} color={tc.ink3} numberOfLines={1} style={{ marginBottom: 6 }}>
                         {originalJp}
                       </PixelText>
                     ) : null}
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <PixelText variant="pixel" size={7} color={colors.ink3} style={{ marginBottom: 2 }} numberOfLines={1}>
+                        <PixelText variant={txt} size={7} color={tc.ink3} style={{ marginBottom: 2 }} numberOfLines={1}>
                           {rawAvg.count > 0 ? `싱글 평균 (최근 ${rawAvg.count}건)` : '싱글 평균'}
                         </PixelText>
                         {/* numberOfLines=1 + adjustsFontSizeToFit → 줄바꿈은 절대 발생하지 않고,
                             컬럼 폭이 부족하면 폰트 크기만 축소된다. */}
                         <PixelText
-                          variant="pixel"
+                          variant={txt}
                           size={13}
-                          color={colors.red}
+                          color={tc.red}
                           numberOfLines={1}
                           adjustsFontSizeToFit
                           minimumFontScale={0.5}
@@ -211,13 +214,13 @@ export default function SnkrdunkDetail() {
                         </PixelText>
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <PixelText variant="pixel" size={7} color={colors.ink3} style={{ marginBottom: 2 }} numberOfLines={1}>
+                        <PixelText variant={txt} size={7} color={tc.ink3} style={{ marginBottom: 2 }} numberOfLines={1}>
                           {psa10Avg.count > 0 ? `PSA10 평균 (최근 ${psa10Avg.count}건)` : 'PSA10 평균'}
                         </PixelText>
                         <PixelText
-                          variant="pixel"
+                          variant={txt}
                           size={13}
-                          color={psa10Avg.avg > 0 ? colors.orn : colors.ink3}
+                          color={psa10Avg.avg > 0 ? tc.orn : tc.ink3}
                           numberOfLines={1}
                           adjustsFontSizeToFit
                           minimumFontScale={0.5}
@@ -226,7 +229,7 @@ export default function SnkrdunkDetail() {
                         </PixelText>
                       </View>
                     </View>
-                    <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginTop: 6 }}>
+                    <PixelText variant={txt} size={8} color={tc.ink3} style={{ marginTop: 6 }}>
                       {`최저매물 ${fmtYen(apparel.minPrice)}`}
                       {apparel.listingCountText ? ` · 매물 ${apparel.listingCountText}건` : ''}
                     </PixelText>
@@ -248,7 +251,7 @@ export default function SnkrdunkDetail() {
               <SectHd title="시세 차트" more={sectionMore} />
             </View>
             <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
-              <PixelFrame bg={colors.white}>
+              <PixelFrame bg={tc.white}>
                 <View style={{ padding: 14 }}>
                   <SnkrdunkPriceChart points={points} unitLabel={unitLabel} rawCount={allPoints.length} />
                 </View>
@@ -263,7 +266,7 @@ export default function SnkrdunkDetail() {
               />
             </View>
             <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
-              <PixelFrame bg={colors.ink2}>
+              <PixelFrame bg={tc.ink2}>
                 <View style={{ paddingHorizontal: 10, paddingTop: 8, paddingBottom: 10, overflow: 'hidden' }}>
                   {history && history.history.length > 0 ? (
                     history.history.slice(0, 20).map((h, i, arr) => {
@@ -288,27 +291,27 @@ export default function SnkrdunkDetail() {
                               minWidth: 56,
                               paddingHorizontal: 5,
                               paddingVertical: 2,
-                              backgroundColor: isPsa ? colors.gold : 'rgba(255,255,255,0.12)',
-                              borderColor: isPsa ? colors.ink : 'rgba(255,255,255,0.18)',
+                              backgroundColor: isPsa ? tc.gold : 'rgba(255,255,255,0.12)',
+                              borderColor: isPsa ? tc.ink : 'rgba(255,255,255,0.18)',
                               borderWidth: 1,
                               marginRight: 8,
                               alignItems: 'center',
                             }}
                           >
-                            <PixelText variant="pixel" size={8} color={isPsa ? colors.ink : colors.white}>
+                            <PixelText variant={txt} size={8} color={isPsa ? tc.ink : tc.white}>
                               {badge}
                             </PixelText>
                           </View>
                           <PixelText
-                            variant="pixel"
+                            variant={txt}
                             size={10}
-                            color={colors.gold}
+                            color={tc.gold}
                             numberOfLines={1}
                             style={{ flex: 1 }}
                           >
                             {fmtYen(h.price)}
                           </PixelText>
-                          <PixelText variant="pixel" size={8} color="rgba(255,255,255,0.55)">
+                          <PixelText variant={txt} size={8} color="rgba(255,255,255,0.55)">
                             {date}
                           </PixelText>
                         </View>
@@ -316,7 +319,7 @@ export default function SnkrdunkDetail() {
                     })
                   ) : (
                     <View style={{ padding: 20, alignItems: 'center' }}>
-                      <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.55)">
+                      <PixelText variant={txt} size={9} color="rgba(255,255,255,0.55)">
                         거래내역이 없습니다
                       </PixelText>
                     </View>
@@ -326,7 +329,7 @@ export default function SnkrdunkDetail() {
             </View>
 
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-              <PixelText variant="pixel" size={8} color={colors.ink3}>
+              <PixelText variant={txt} size={8} color={tc.ink3}>
                 데이터 출처: snkrdunk.com
               </PixelText>
             </View>
@@ -350,8 +353,8 @@ export default function SnkrdunkDetail() {
               resizeMode="contain"
             />
           ) : null}
-          <View style={{ position: 'absolute', top: 40, right: 20, backgroundColor: colors.ink, paddingHorizontal: 10, paddingVertical: 6, borderColor: colors.gold, borderWidth: 2 }}>
-            <PixelText variant="pixel" size={11} color={colors.gold}>✕ 닫기</PixelText>
+          <View style={{ position: 'absolute', top: 40, right: 20, backgroundColor: tc.ink, paddingHorizontal: 10, paddingVertical: 6, borderColor: tc.gold, borderWidth: 2 }}>
+            <PixelText variant={txt} size={11} color={tc.gold}>✕ 닫기</PixelText>
           </View>
         </Pressable>
       </Modal>
@@ -378,6 +381,8 @@ interface ActionBtnProps {
  * 으로 버튼 높이가 약 절반으로 줄어듦.
  */
 function ActionBtn({ bg, fg, icon, iconImage, label, desc, onPress }: ActionBtnProps) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ flex: 1 }}>
       <PixelPress onPress={onPress} bg={bg} borderWidth={3} shadow={5} hi="rgba(255,255,255,0.35)" lo="rgba(0,0,0,0.25)" inner={0}>
@@ -415,7 +420,7 @@ function ActionBtn({ bg, fg, icon, iconImage, label, desc, onPress }: ActionBtnP
           </View>
           {desc ? (
             <PixelText
-              variant="pixel"
+              variant={txt}
               size={8}
               color={fg}
               style={{ opacity: 0.7, letterSpacing: 0.2 }}

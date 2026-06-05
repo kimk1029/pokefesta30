@@ -5,6 +5,7 @@ import { PixelText } from '@/components/PixelText';
 import { PixelButton } from '@/components/PixelButton';
 import { SectTitle } from '@/components/SectTitle';
 import { colors, space } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { ORIPA_BOXES, ORIPA_RESULTS } from '@/lib/data';
 import type { OripaTier } from '@/lib/types';
 
@@ -21,6 +22,8 @@ const TIER_LABEL: Record<OripaTier, string> = {
 };
 
 export default function Oripa() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ flex: 1 }}>
       <AppBar title="오리파" />
@@ -29,13 +32,13 @@ export default function Oripa() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.banner}>
-          <PixelText variant="pixel" size={11} color={colors.yel}>
+          <PixelText variant={txt} size={11} color={tc.yel}>
             랜덤 박스에서 한정 보상을!
           </PixelText>
           <PixelText
-            variant="pixel"
+            variant={txt}
             size={8}
-            color={colors.white}
+            color={tc.white}
             style={{ marginTop: 6, lineHeight: 14 }}
           >
             오늘만 보너스 +20% / 소진 시 자동 마감
@@ -52,22 +55,22 @@ export default function Oripa() {
               <View style={[styles.box, { backgroundColor: TIER_BG[b.tier] }]}>
                 <View style={styles.boxTop}>
                   <View style={styles.tierTag}>
-                    <PixelText variant="pixel" size={9} color={colors.ink}>
+                    <PixelText variant={txt} size={9} color={tc.ink}>
                       {TIER_LABEL[b.tier]}
                     </PixelText>
                   </View>
                   <Text style={styles.boxEmoji}>{b.emoji}</Text>
                 </View>
                 <PixelText
-                  variant="pixel"
+                  variant={txt}
                   size={13}
-                  color={colors.white}
+                  color={tc.white}
                   style={{ marginTop: 10 }}
                 >
                   {b.name}
                 </PixelText>
                 <PixelText
-                  variant="pixel"
+                  variant={txt}
                   size={8}
                   color="rgba(255,255,255,0.85)"
                   style={{ marginTop: 6, lineHeight: 14 }}
@@ -75,19 +78,19 @@ export default function Oripa() {
                   {b.desc}
                 </PixelText>
                 <PixelText
-                  variant="pixel"
+                  variant={txt}
                   size={8}
-                  color={colors.yelLt}
+                  color={tc.yelLt}
                   style={{ marginTop: 8 }}
                 >
                   {b.odds}
                 </PixelText>
                 <View style={styles.boxBottom}>
-                  <PixelText variant="pixel" size={11} color={colors.yel}>
+                  <PixelText variant={txt} size={11} color={tc.yel}>
                     {b.price}P
                   </PixelText>
                   <View style={styles.openBtn}>
-                    <PixelText variant="pixel" size={9} color={colors.ink}>
+                    <PixelText variant={txt} size={9} color={tc.ink}>
                       열기 ▶
                     </PixelText>
                   </View>
@@ -106,13 +109,13 @@ export default function Oripa() {
                 <Text style={{ fontSize: 18 }}>{r.user}</Text>
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <PixelText variant="pixel" size={10} color={colors.ink}>
+                <PixelText variant={txt} size={10} color={tc.ink}>
                   {r.box} 박스 · {r.reward}
                 </PixelText>
                 <PixelText
-                  variant="pixel"
+                  variant={txt}
                   size={8}
-                  color={colors.ink3}
+                  color={tc.ink3}
                   style={{ marginTop: 4 }}
                 >
                   {r.time}

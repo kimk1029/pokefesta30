@@ -9,6 +9,7 @@ import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchBunjangProduct, type BunjangProduct } from '@/services/marketplace';
 
 function fmtWon(n: number): string {
@@ -33,6 +34,8 @@ function fmtUpdated(ms: number): string {
 
 /** 원본 비율을 유지해 폭 100%로 렌더(웹 width:100% height:auto 재현). */
 function DetailImage({ uri }: { uri: string }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const [ratio, setRatio] = useState(0);
   useEffect(() => {
     let alive = true;
@@ -50,16 +53,18 @@ function DetailImage({ uri }: { uri: string }) {
   return (
     <Image
       source={{ uri }}
-      style={{ width: '100%', aspectRatio: ratio || 1, borderWidth: 2, borderColor: colors.pap3, backgroundColor: colors.ink2 }}
+      style={{ width: '100%', aspectRatio: ratio || 1, borderWidth: 2, borderColor: tc.pap3, backgroundColor: tc.ink2 }}
       resizeMode="cover"
     />
   );
 }
 
 function Badge({ label, bg, fg }: { label: string; bg: string; fg: string }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
-    <View style={{ backgroundColor: bg, paddingHorizontal: 7, paddingVertical: 3, borderColor: colors.ink, borderWidth: 1 }}>
-      <PixelText variant="pixel" size={8} color={fg}>
+    <View style={{ backgroundColor: bg, paddingHorizontal: 7, paddingVertical: 3, borderColor: tc.ink, borderWidth: 1 }}>
+      <PixelText variant={txt} size={8} color={fg}>
         {label}
       </PixelText>
     </View>
@@ -67,6 +72,8 @@ function Badge({ label, bg, fg }: { label: string; bg: string; fg: string }) {
 }
 
 export default function BunjangDetailScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { pid } = useLocalSearchParams<{ pid?: string }>();
   const [product, setProduct] = useState<BunjangProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,15 +99,15 @@ export default function BunjangDetailScreen() {
   const sold = product?.saleStatusText === '판매완료';
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="우리 장터 시세" />
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={colors.ink} />
+          <ActivityIndicator color={tc.ink} />
         </View>
       ) : error || !product ? (
         <View style={{ margin: 40, alignItems: 'center' }}>
-          <PixelText variant="ko" size={12} color={colors.ink3} style={{ textAlign: 'center', lineHeight: 20 }}>
+          <PixelText variant="ko" size={12} color={tc.ink3} style={{ textAlign: 'center', lineHeight: 20 }}>
             상품을 불러오지 못했습니다.{'\n'}판매 종료됐거나 일시적인 오류일 수 있어요.
           </PixelText>
         </View>
@@ -123,33 +130,33 @@ export default function BunjangDetailScreen() {
           <View style={{ paddingHorizontal: 14, paddingTop: 16 }}>
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
               {product.saleStatusText ? (
-                <Badge label={product.saleStatusText} bg={sold ? colors.ink3 : colors.grn} fg={colors.white} />
+                <Badge label={product.saleStatusText} bg={sold ? tc.ink3 : tc.grn} fg={tc.white} />
               ) : null}
-              {product.conditionText ? <Badge label={product.conditionText} bg={colors.pap2} fg={colors.ink} /> : null}
+              {product.conditionText ? <Badge label={product.conditionText} bg={tc.pap2} fg={tc.ink} /> : null}
             </View>
 
-            <PixelText variant="ko" size={16} weight="bold" color={colors.ink} style={{ lineHeight: 23 }}>
+            <PixelText variant="ko" size={16} weight="bold" color={tc.ink} style={{ lineHeight: 23 }}>
               {product.name}
             </PixelText>
 
-            <PixelText variant="pixel" size={20} color={colors.red} style={{ marginTop: 12, letterSpacing: -0.5 }}>
+            <PixelText variant={txt} size={20} color={tc.red} style={{ marginTop: 12, letterSpacing: -0.5 }}>
               {fmtWon(product.price)}
             </PixelText>
 
             {/* 메타 */}
             <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
-              <PixelText variant="pixel" size={9} color={colors.ink3}>❤ 찜 {product.favCount}</PixelText>
-              <PixelText variant="pixel" size={9} color={colors.ink3}>👁 조회 {product.viewCount}</PixelText>
-              <PixelText variant="pixel" size={9} color={colors.ink3}>💬 {product.commentCount}</PixelText>
+              <PixelText variant={txt} size={9} color={tc.ink3}>❤ 찜 {product.favCount}</PixelText>
+              <PixelText variant={txt} size={9} color={tc.ink3}>👁 조회 {product.viewCount}</PixelText>
+              <PixelText variant={txt} size={9} color={tc.ink3}>💬 {product.commentCount}</PixelText>
               {product.freeShipping ? (
-                <PixelText variant="pixel" size={9} color={colors.grnDk}>무료배송</PixelText>
+                <PixelText variant={txt} size={9} color={tc.grnDk}>무료배송</PixelText>
               ) : product.shippingFee > 0 ? (
-                <PixelText variant="pixel" size={9} color={colors.ink3}>
+                <PixelText variant={txt} size={9} color={tc.ink3}>
                   배송비 {product.shippingFee.toLocaleString('ko-KR')}원
                 </PixelText>
               ) : null}
             </View>
-            <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginTop: 8, lineHeight: 13 }}>
+            <PixelText variant={txt} size={8} color={tc.ink3} style={{ marginTop: 8, lineHeight: 13 }}>
               {[
                 product.shopName,
                 product.category,
@@ -167,12 +174,12 @@ export default function BunjangDetailScreen() {
                 marginHorizontal: 14,
                 marginTop: 16,
                 padding: 14,
-                backgroundColor: colors.pap2,
+                backgroundColor: tc.pap2,
                 borderWidth: 2,
-                borderColor: colors.pap3,
+                borderColor: tc.pap3,
               }}
             >
-              <PixelText variant="ko" size={13} color={colors.ink} style={{ lineHeight: 20 }}>
+              <PixelText variant="ko" size={13} color={tc.ink} style={{ lineHeight: 20 }}>
                 {product.description}
               </PixelText>
             </View>
@@ -180,9 +187,9 @@ export default function BunjangDetailScreen() {
 
           {/* 번개장터로 이동 */}
           <View style={{ marginHorizontal: 14, marginTop: 16 }}>
-            <PixelPress onPress={() => Linking.openURL(product.productUrl)} bg={colors.red} borderWidth={3} shadow={5}>
+            <PixelPress onPress={() => Linking.openURL(product.productUrl)} bg={tc.red} borderWidth={3} shadow={5}>
               <View style={{ paddingVertical: 13, alignItems: 'center' }}>
-                <PixelText variant="pixel" size={11} color={colors.white} style={{ letterSpacing: 0.5 }}>
+                <PixelText variant={txt} size={11} color={tc.white} style={{ letterSpacing: 0.5 }}>
                   번개장터에서 구매하기 →
                 </PixelText>
               </View>

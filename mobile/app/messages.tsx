@@ -3,9 +3,12 @@ import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { colors, space } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { MESSAGE_THREADS } from '@/lib/data';
 
 export default function Messages() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ flex: 1 }}>
       <AppBar title="쪽지함" />
@@ -24,17 +27,17 @@ export default function Messages() {
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <View style={styles.head}>
-                <PixelText variant="pixel" size={11} color={colors.ink}>
+                <PixelText variant={txt} size={11} color={tc.ink}>
                   {t.peerName}
                 </PixelText>
-                <PixelText variant="pixel" size={8} color={colors.ink3}>
+                <PixelText variant={txt} size={8} color={tc.ink3}>
                   {t.lastAt}
                 </PixelText>
               </View>
               <PixelText
-                variant="pixel"
+                variant={txt}
                 size={9}
-                color={colors.ink3}
+                color={tc.ink3}
                 style={{ marginTop: 6, lineHeight: 14 }}
                 numberOfLines={1}
               >
@@ -43,7 +46,7 @@ export default function Messages() {
             </View>
             {t.unread > 0 ? (
               <View style={styles.unread}>
-                <PixelText variant="pixel" size={9} color={colors.white}>
+                <PixelText variant={txt} size={9} color={tc.white}>
                   {t.unread}
                 </PixelText>
               </View>

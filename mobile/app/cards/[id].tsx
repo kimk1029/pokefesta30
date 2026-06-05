@@ -10,6 +10,7 @@ import { Seg } from '@/components/cv/Seg';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { cardPrice, displayCardName, fmt, inferCardCurrency, priceLabel, type CardItem } from '@/data/cardvault';
 import { updateCard, useCollection } from '@/lib/collection';
 import { usePriceMode } from '@/lib/priceMode';
@@ -42,6 +43,8 @@ type GradeResult = {
 };
 
 export default function CardDetail() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { id } = useLocalSearchParams<{ id: string }>();
   const collection = useCollection();
   const card = collection.find((c) => String(c.id) === String(id)) as CardItem | undefined;
@@ -51,10 +54,10 @@ export default function CardDetail() {
 
   if (!card) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.paper }}>
+      <View style={{ flex: 1, backgroundColor: tc.paper }}>
         <AppBar onBack={() => router.back()} title="카드 없음" />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <PixelText variant="pixel" size={11} color={colors.ink3}>
+          <PixelText variant={txt} size={11} color={tc.ink3}>
             카드를 찾을 수 없어요
           </PixelText>
         </View>
@@ -173,10 +176,10 @@ export default function CardDetail() {
   const psa10SeriesPoints = salesHistoryToPoints(snkrHistory, 'psa10');
   const chartSeries: ChartSeries[] = [];
   if (singleSeriesPoints.length >= 2) {
-    chartSeries.push({ label: '싱글', color: colors.red, points: singleSeriesPoints });
+    chartSeries.push({ label: '싱글', color: tc.red, points: singleSeriesPoints });
   }
   if (psa10SeriesPoints.length >= 2 && hasPsa10) {
-    chartSeries.push({ label: 'PSA10', color: colors.gold, points: psa10SeriesPoints });
+    chartSeries.push({ label: 'PSA10', color: tc.gold, points: psa10SeriesPoints });
   }
 
   // Sync both segment prices back to the collection so the home portfolio
@@ -208,7 +211,7 @@ export default function CardDetail() {
   }, [card, apparelId, liveSingle, livePsa10, liveMin]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title={displayName} right={<ABtn>🏷</ABtn>} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 40 }}>
         {/* Hero card image — portrait aspect ratio (63/88) so the card art
@@ -223,8 +226,8 @@ export default function CardDetail() {
                 width: '100%',
                 aspectRatio: 63 / 88,
                 position: 'relative',
-                backgroundColor: colors.pap3,
-                borderColor: colors.ink,
+                backgroundColor: tc.pap3,
+                borderColor: tc.ink,
                 borderWidth: 2,
                 overflow: 'hidden',
               }}
@@ -271,18 +274,18 @@ export default function CardDetail() {
               key={l}
               style={{
                 flex: 1,
-                backgroundColor: colors.white,
+                backgroundColor: tc.white,
                 paddingHorizontal: 8,
                 paddingVertical: 9,
                 alignItems: 'center',
-                borderColor: colors.ink,
+                borderColor: tc.ink,
                 borderWidth: 2,
               }}
             >
-              <PixelText variant="pixel" size={8} color={colors.ink3} style={{ marginBottom: 4 }}>
+              <PixelText variant={txt} size={8} color={tc.ink3} style={{ marginBottom: 4 }}>
                 {l}
               </PixelText>
-              <PixelText variant="pixel" size={9} numberOfLines={1} style={{ textAlign: 'center', lineHeight: 14 }}>
+              <PixelText variant={txt} size={9} numberOfLines={1} style={{ textAlign: 'center', lineHeight: 14 }}>
                 {v}
               </PixelText>
             </View>
@@ -323,13 +326,13 @@ export default function CardDetail() {
                   alignItems: 'center',
                   paddingVertical: 11,
                   borderBottomWidth: 2,
-                  borderBottomColor: colors.pap3,
+                  borderBottomColor: tc.pap3,
                 }}
               >
-                <PixelText variant="pixel" size={10} color={colors.ink3}>
+                <PixelText variant={txt} size={10} color={tc.ink3}>
                   {l}
                 </PixelText>
-                <PixelText variant="pixel" size={10}>
+                <PixelText variant={txt} size={10}>
                   {v}
                 </PixelText>
               </View>
@@ -339,18 +342,18 @@ export default function CardDetail() {
 
         {tab === 'grade' && (
           <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
-            <PixelFrame bg={colors.pap2} borderWidth={3}>
+            <PixelFrame bg={tc.pap2} borderWidth={3}>
             <View style={{ padding: 14 }}>
-              <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 0.5 }}>
+              <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 0.5 }}>
                 📷 AI 모의 그레이딩
               </PixelText>
-              <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginBottom: 12, lineHeight: 18 }}>
+              <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginBottom: 12, lineHeight: 18 }}>
                 카드 상태를 AI가 센터링·코너·엣지·표면 4항목으로 PSA 점수를 예측합니다
               </PixelText>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <PixelPress wrapStyle={{ flex: 1 }}>
                   <View style={{ paddingVertical: 10, alignItems: 'center' }}>
-                    <PixelText variant="pixel" size={10}>
+                    <PixelText variant={txt} size={10}>
                       📷 사진 촬영
                     </PixelText>
                   </View>
@@ -359,12 +362,12 @@ export default function CardDetail() {
                   wrapStyle={{ flex: 1 }}
                   onPress={runGrade}
                   disabled={analyzing}
-                  bg={colors.gold}
-                  hi={colors.goldLt}
-                  lo={colors.goldDk}
+                  bg={tc.gold}
+                  hi={tc.goldLt}
+                  lo={tc.goldDk}
                 >
                   <View style={{ paddingVertical: 10, alignItems: 'center', opacity: analyzing ? 0.6 : 1 }}>
-                    <PixelText variant="pixel" size={10}>
+                    <PixelText variant={txt} size={10}>
                       {analyzing ? '분석 중...' : '▶ 분석 시작'}
                     </PixelText>
                   </View>
@@ -374,7 +377,7 @@ export default function CardDetail() {
             </PixelFrame>
             {analyzing ? (
               <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                <PixelText variant="pixel" size={11} color={colors.ink3} style={{ lineHeight: 22, textAlign: 'center' }}>
+                <PixelText variant={txt} size={11} color={tc.ink3} style={{ lineHeight: 22, textAlign: 'center' }}>
                   AI 분석 중...{`\n`}잠시만 기다려주세요 🔍
                 </PixelText>
               </View>
@@ -383,7 +386,7 @@ export default function CardDetail() {
               <>
                 <View style={{ marginTop: 12, marginBottom: 12 }}>
                 <PixelFrame
-                  bg={colors.ink2}
+                  bg={tc.ink2}
                   borderWidth={4}
                   shadow={6}
                   hi="rgba(255,255,255,0.1)"
@@ -392,15 +395,15 @@ export default function CardDetail() {
                 >
                 <View style={{ padding: 16 }}>
                   <PixelText
-                    variant="pixel"
+                    variant={txt}
                     size={42}
-                    color={colors.gold}
+                    color={tc.gold}
                     style={{ textAlign: 'center', letterSpacing: -2, marginBottom: 4 }}
                   >
                     {gradeResult.score}
                   </PixelText>
                   <PixelText
-                    variant="pixel"
+                    variant={txt}
                     size={11}
                     color="rgba(255,255,255,0.6)"
                     style={{ textAlign: 'center', letterSpacing: 1, marginBottom: 14 }}
@@ -425,21 +428,21 @@ export default function CardDetail() {
                       key={nm}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}
                     >
-                      <PixelText variant="pixel" size={10} color="rgba(255,255,255,0.6)" style={{ width: 48 }}>
+                      <PixelText variant={txt} size={10} color="rgba(255,255,255,0.6)" style={{ width: 48 }}>
                         {nm}
                       </PixelText>
                       <View
                         style={{
                           flex: 1,
                           height: 11,
-                          backgroundColor: colors.ink,
-                          borderColor: colors.ink,
+                          backgroundColor: tc.ink,
+                          borderColor: tc.ink,
                           borderWidth: 1,
                         }}
                       >
                         <View style={{ width: `${val * 10}%`, height: '100%', backgroundColor: col }} />
                       </View>
-                      <PixelText variant="pixel" size={10} color={col} style={{ width: 22, textAlign: 'right' }}>
+                      <PixelText variant={txt} size={10} color={col} style={{ width: 22, textAlign: 'right' }}>
                         {val}
                       </PixelText>
                     </View>
@@ -447,9 +450,9 @@ export default function CardDetail() {
                 </View>
                 </PixelFrame>
                 </View>
-                <PixelFrame bg={colors.pap2} borderWidth={2}>
+                <PixelFrame bg={tc.pap2} borderWidth={2}>
                   <View style={{ padding: 12 }}>
-                    <PixelText variant="pixel" size={9} color={colors.ink2} style={{ lineHeight: 18 }}>
+                    <PixelText variant={txt} size={9} color={tc.ink2} style={{ lineHeight: 18 }}>
                       💡 PSA {Math.round(gradeResult.score)} 예상 — 참고용 수치입니다. 공식 그레이딩은 PSA/BGS에 의뢰하세요.
                     </PixelText>
                   </View>
@@ -463,7 +466,7 @@ export default function CardDetail() {
           <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
             {/* Header card — current price + snkrdunk source tag */}
             <PixelFrame
-              bg={colors.ink2}
+              bg={tc.ink2}
               borderWidth={4}
               shadow={5}
               hi="rgba(255,255,255,0.1)"
@@ -474,31 +477,31 @@ export default function CardDetail() {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <View style={{ flex: 1 }}>
                     {apparelId ? (
-                      <View style={{ alignSelf: 'flex-start', backgroundColor: colors.ink, paddingHorizontal: 5, paddingVertical: 2, borderColor: colors.gold, borderWidth: 1, marginBottom: 6 }}>
-                        <PixelText variant="pixel" size={8} color={colors.gold}>
+                      <View style={{ alignSelf: 'flex-start', backgroundColor: tc.ink, paddingHorizontal: 5, paddingVertical: 2, borderColor: tc.gold, borderWidth: 1, marginBottom: 6 }}>
+                        <PixelText variant={txt} size={8} color={tc.gold}>
                           🇯🇵 스니덩크 시세 {snkrLoading ? '· 로딩…' : snkrApparel ? '· LIVE' : '· 오프라인'}
                         </PixelText>
                       </View>
                     ) : null}
-                    <PixelText variant="pixel" size={20} color={colors.gold}>
+                    <PixelText variant={txt} size={20} color={tc.gold}>
                       {displayPrice}
                     </PixelText>
                     {apparelId ? (
-                      <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.55)" style={{ marginTop: 4 }}>
+                      <PixelText variant={txt} size={9} color="rgba(255,255,255,0.55)" style={{ marginTop: 4 }}>
                         {priceMode === 'psa10' ? 'PSA10 최근 체결가 평균' : '싱글 최근 체결가 평균'} (최근 5건)
                       </PixelText>
                     ) : null}
                     {apparelId && liveMin != null && liveMin > 0 ? (
-                      <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.45)" style={{ marginTop: 6 }}>
+                      <PixelText variant={txt} size={9} color="rgba(255,255,255,0.45)" style={{ marginTop: 6 }}>
                         최저 매물 ¥{liveMin.toLocaleString('ja-JP')}
                         {snkrApparel?.listingCountText ? ` · ${snkrApparel.listingCountText}건` : ''}
                       </PixelText>
                     ) : null}
                     {!apparelId ? (
                       <PixelText
-                        variant="pixel"
+                        variant={txt}
                         size={11}
-                        color={change >= 0 ? colors.grn : colors.red}
+                        color={change >= 0 ? tc.grn : tc.red}
                         style={{ marginTop: 6 }}
                       >
                         {change >= 0 ? '▲' : '▼'} {Math.abs(changePct)}% (7일)
@@ -516,7 +519,7 @@ export default function CardDetail() {
                         onPress={togglePriceMode}
                         style={{
                           flexDirection: 'row',
-                          borderColor: colors.gold,
+                          borderColor: tc.gold,
                           borderWidth: 1,
                           backgroundColor: 'rgba(0,0,0,0.3)',
                         }}
@@ -527,13 +530,13 @@ export default function CardDetail() {
                             style={{
                               paddingHorizontal: 8,
                               paddingVertical: 4,
-                              backgroundColor: priceMode === m ? colors.gold : 'transparent',
+                              backgroundColor: priceMode === m ? tc.gold : 'transparent',
                             }}
                           >
                             <PixelText
-                              variant="pixel"
+                              variant={txt}
                               size={9}
-                              color={priceMode === m ? colors.ink : colors.gold}
+                              color={priceMode === m ? tc.ink : tc.gold}
                             >
                               {m === 'single' ? '싱글' : 'PSA10'}
                             </PixelText>
@@ -544,10 +547,10 @@ export default function CardDetail() {
                   ) : null}
                   {!apparelId ? (
                     <View style={{ alignItems: 'flex-end' }}>
-                      <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.4)">
+                      <PixelText variant={txt} size={9} color="rgba(255,255,255,0.4)">
                         최고
                       </PixelText>
-                      <PixelText variant="pixel" size={11} color={colors.gold} style={{ marginTop: 4 }}>
+                      <PixelText variant={txt} size={11} color={tc.gold} style={{ marginTop: 4 }}>
                         {priceLabel(max, storedCurrency)}
                       </PixelText>
                     </View>
@@ -569,7 +572,7 @@ export default function CardDetail() {
                               flex: 1,
                               minHeight: 4,
                               height: `${h}%`,
-                              backgroundColor: isLast ? colors.gold : colors.ink3,
+                              backgroundColor: isLast ? tc.gold : tc.ink3,
                             }}
                           />
                         );
@@ -577,7 +580,7 @@ export default function CardDetail() {
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
                       {['-6일', '-5일', '-4일', '-3일', '-2일', '어제', '오늘'].map((l) => (
-                        <PixelText key={l} variant="pixel" size={9} color={colors.pap3}>
+                        <PixelText key={l} variant={txt} size={9} color={tc.pap3}>
                           {l}
                         </PixelText>
                       ))}
@@ -593,17 +596,17 @@ export default function CardDetail() {
                 so the user can compare graded vs un-graded at a glance. */}
             {apparelId ? (
               <View style={{ marginTop: 14 }}>
-                <PixelText variant="pixel" size={11} color={colors.ink} style={{ marginBottom: 8, letterSpacing: 0.5 }}>
+                <PixelText variant={txt} size={11} color={tc.ink} style={{ marginBottom: 8, letterSpacing: 0.5 }}>
                   시세 차트
                   {chartSeries.length > 0
                     ? ` · 거래 ${(snkrHistory?.history.length ?? 0)}건`
                     : ''}
                 </PixelText>
-                <PixelFrame bg={colors.white}>
+                <PixelFrame bg={tc.white}>
                   <View style={{ padding: 12 }}>
                     {snkrLoading && !snkrHistory ? (
                       <View style={{ padding: 20, alignItems: 'center' }}>
-                        <PixelText variant="pixel" size={9} color={colors.ink3}>
+                        <PixelText variant={txt} size={9} color={tc.ink3}>
                           불러오는 중…
                         </PixelText>
                       </View>
@@ -623,8 +626,8 @@ export default function CardDetail() {
             {apparelId ? (
               <View style={{ marginTop: 10 }}>
                 <PixelPress onPress={() => Linking.openURL(snkrdunkApparelUrl(apparelId))}>
-                  <View style={{ backgroundColor: colors.ink, paddingVertical: 12, alignItems: 'center' }}>
-                    <PixelText variant="pixel" size={10} color={colors.gold}>
+                  <View style={{ backgroundColor: tc.ink, paddingVertical: 12, alignItems: 'center' }}>
+                    <PixelText variant={txt} size={10} color={tc.gold}>
                       🇯🇵 스니덩크에서 보기 ↗
                     </PixelText>
                   </View>
@@ -636,15 +639,15 @@ export default function CardDetail() {
                 [badge] [price] ........ [time]. Newest first (API order). */}
             {apparelId ? (
               <View style={{ marginTop: 14 }}>
-                <PixelText variant="pixel" size={11} color={colors.ink} style={{ marginBottom: 8, letterSpacing: 0.5 }}>
+                <PixelText variant={txt} size={11} color={tc.ink} style={{ marginBottom: 8, letterSpacing: 0.5 }}>
                   최근 체결내역
                   {snkrHistory ? ` (${snkrHistory.history.length}건)` : ''}
                 </PixelText>
-                <PixelFrame bg={colors.ink2}>
+                <PixelFrame bg={tc.ink2}>
                   <View style={{ paddingHorizontal: 10, paddingTop: 8, paddingBottom: 10, overflow: 'hidden' }}>
                     {snkrLoading ? (
                       <View style={{ padding: 20, alignItems: 'center' }}>
-                        <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.55)">
+                        <PixelText variant={txt} size={9} color="rgba(255,255,255,0.55)">
                           불러오는 중…
                         </PixelText>
                       </View>
@@ -671,27 +674,27 @@ export default function CardDetail() {
                                 minWidth: 56,
                                 paddingHorizontal: 5,
                                 paddingVertical: 2,
-                                backgroundColor: isPsa ? colors.gold : 'rgba(255,255,255,0.12)',
-                                borderColor: isPsa ? colors.ink : 'rgba(255,255,255,0.18)',
+                                backgroundColor: isPsa ? tc.gold : 'rgba(255,255,255,0.12)',
+                                borderColor: isPsa ? tc.ink : 'rgba(255,255,255,0.18)',
                                 borderWidth: 1,
                                 marginRight: 8,
                                 alignItems: 'center',
                               }}
                             >
-                              <PixelText variant="pixel" size={8} color={isPsa ? colors.ink : colors.white}>
+                              <PixelText variant={txt} size={8} color={isPsa ? tc.ink : tc.white}>
                                 {badge}
                               </PixelText>
                             </View>
                             <PixelText
-                              variant="pixel"
+                              variant={txt}
                               size={10}
-                              color={colors.gold}
+                              color={tc.gold}
                               numberOfLines={1}
                               style={{ flex: 1 }}
                             >
                               ¥{h.price.toLocaleString('ja-JP')}
                             </PixelText>
-                            <PixelText variant="pixel" size={8} color="rgba(255,255,255,0.55)">
+                            <PixelText variant={txt} size={8} color="rgba(255,255,255,0.55)">
                               {date}
                             </PixelText>
                           </View>
@@ -699,7 +702,7 @@ export default function CardDetail() {
                       })
                     ) : (
                       <View style={{ padding: 20, alignItems: 'center' }}>
-                        <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.55)">
+                        <PixelText variant={txt} size={9} color="rgba(255,255,255,0.55)">
                           체결내역이 없습니다
                         </PixelText>
                       </View>
@@ -717,14 +720,14 @@ export default function CardDetail() {
                 them to pick a fair asking price. */}
             {apparelId ? (
               <View style={{ marginBottom: 14 }}>
-                <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 0.5 }}>
+                <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 0.5 }}>
                   최근 체결내역 (최근 5건)
                 </PixelText>
-                <PixelFrame bg={colors.ink2}>
+                <PixelFrame bg={tc.ink2}>
                   <View style={{ paddingHorizontal: 10, paddingTop: 8, paddingBottom: 10, overflow: 'hidden' }}>
                     {snkrLoading && !snkrHistory ? (
                       <View style={{ padding: 20, alignItems: 'center' }}>
-                        <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.55)">
+                        <PixelText variant={txt} size={9} color="rgba(255,255,255,0.55)">
                           불러오는 중…
                         </PixelText>
                       </View>
@@ -751,27 +754,27 @@ export default function CardDetail() {
                                 minWidth: 56,
                                 paddingHorizontal: 5,
                                 paddingVertical: 2,
-                                backgroundColor: isPsa ? colors.gold : 'rgba(255,255,255,0.12)',
-                                borderColor: isPsa ? colors.ink : 'rgba(255,255,255,0.18)',
+                                backgroundColor: isPsa ? tc.gold : 'rgba(255,255,255,0.12)',
+                                borderColor: isPsa ? tc.ink : 'rgba(255,255,255,0.18)',
                                 borderWidth: 1,
                                 marginRight: 8,
                                 alignItems: 'center',
                               }}
                             >
-                              <PixelText variant="pixel" size={8} color={isPsa ? colors.ink : colors.white}>
+                              <PixelText variant={txt} size={8} color={isPsa ? tc.ink : tc.white}>
                                 {badge}
                               </PixelText>
                             </View>
                             <PixelText
-                              variant="pixel"
+                              variant={txt}
                               size={10}
-                              color={colors.gold}
+                              color={tc.gold}
                               numberOfLines={1}
                               style={{ flex: 1 }}
                             >
                               ¥{h.price.toLocaleString('ja-JP')}
                             </PixelText>
-                            <PixelText variant="pixel" size={8} color="rgba(255,255,255,0.55)">
+                            <PixelText variant={txt} size={8} color="rgba(255,255,255,0.55)">
                               {date}
                             </PixelText>
                           </View>
@@ -779,7 +782,7 @@ export default function CardDetail() {
                       })
                     ) : (
                       <View style={{ padding: 20, alignItems: 'center' }}>
-                        <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.55)">
+                        <PixelText variant={txt} size={9} color="rgba(255,255,255,0.55)">
                           체결내역이 없습니다
                         </PixelText>
                       </View>
@@ -789,14 +792,14 @@ export default function CardDetail() {
               </View>
             ) : null}
 
-            <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+            <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
               판매 방식
             </PixelText>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
               {[
-                ['즉시 판매', colors.red, colors.white],
-                ['교환', colors.teal, colors.white],
-                ['경매', colors.gold, colors.ink],
+                ['즉시 판매', tc.red, tc.white],
+                ['교환', tc.teal, tc.white],
+                ['경매', tc.gold, tc.ink],
               ].map(([lb, bg, fg]) => (
                 <View
                   key={lb}
@@ -805,42 +808,42 @@ export default function CardDetail() {
                     backgroundColor: bg as string,
                     paddingVertical: 12,
                     alignItems: 'center',
-                    borderColor: colors.ink,
+                    borderColor: tc.ink,
                     borderWidth: 2,
                   }}
                 >
-                  <PixelText variant="pixel" size={10} color={fg as string}>
+                  <PixelText variant={txt} size={10} color={fg as string}>
                     {lb}
                   </PixelText>
                 </View>
               ))}
             </View>
-            <PixelText variant="pixel" size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+            <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
               희망 가격
             </PixelText>
             <TextInput
               keyboardType="numeric"
               placeholder={`시세: ${displayPrice}`}
-              placeholderTextColor={colors.ink4}
+              placeholderTextColor={tc.ink4}
               style={{
-                backgroundColor: colors.white,
+                backgroundColor: tc.white,
                 paddingHorizontal: 14,
                 paddingVertical: 12,
                 fontSize: 17,
                 fontFamily: 'Galmuri11',
-                color: colors.ink,
-                borderColor: colors.ink,
+                color: tc.ink,
+                borderColor: tc.ink,
                 borderWidth: 3,
                 marginBottom: 14,
               }}
             />
             <PixelPress
-              bg={colors.gold}
-              hi={colors.goldLt}
-              lo={colors.goldDk}
+              bg={tc.gold}
+              hi={tc.goldLt}
+              lo={tc.goldDk}
             >
               <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                <PixelText variant="pixel" size={12}>
+                <PixelText variant={txt} size={12}>
                   🏷 마켓에 등록하기
                 </PixelText>
               </View>

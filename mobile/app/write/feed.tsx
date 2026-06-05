@@ -3,27 +3,30 @@ import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelButton } from '@/components/PixelButton';
 import { colors, space } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 
 export default function WriteFeed() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ flex: 1 }}>
       <AppBar title="커뮤니티 글 쓰기" />
       <ScrollView contentContainerStyle={{ padding: space.gap, gap: space.cg }}>
-        <PixelText variant="pixel" size={10} color={colors.ink}>
+        <PixelText variant={txt} size={10} color={tc.ink}>
           하고 싶은 말
         </PixelText>
         <TextInput
           multiline
           placeholder="자랑 / 잡담 / 감정 요청 등 자유롭게"
-          placeholderTextColor={colors.ink3}
+          placeholderTextColor={tc.ink3}
           style={styles.textarea}
         />
 
-        <PixelButton bg={colors.yel} padding={14}>
+        <PixelButton bg={tc.yel} padding={14}>
           <PixelText
-            variant="pixel"
+            variant={txt}
             size={11}
-            color={colors.ink}
+            color={tc.ink}
             style={{ textAlign: 'center' }}
           >
             글 올리기

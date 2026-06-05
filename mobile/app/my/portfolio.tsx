@@ -9,8 +9,11 @@ import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/lib/priceMode';
 import { fetchPortfolio, fetchMyCards, type PortfolioSummary, type MyCardRow } from '@/lib/myApi';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 
 export default function PortfolioPage() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const { format, rate } = useCurrency();
   const { mode: priceMode } = usePriceMode();
   const [port, setPort] = useState<PortfolioSummary | null>(null);
@@ -71,21 +74,21 @@ export default function PortfolioPage() {
   }, [rows]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.push('/my' as never)} title="포트폴리오" />
       {err ? (
         <View style={{ padding: 30, alignItems: 'center' }}>
-          <PixelText variant="pixel" size={11} color={colors.red}>⚠ {err}</PixelText>
+          <PixelText variant={txt} size={11} color={tc.red}>⚠ {err}</PixelText>
         </View>
       ) : !port || !cards ? (
         <View style={{ padding: 40, alignItems: 'center' }}>
-          <ActivityIndicator color={colors.gold} />
+          <ActivityIndicator color={tc.gold} />
         </View>
       ) : port.totalCount === 0 ? (
         <View style={{ padding: 30, alignItems: 'center', gap: 12 }}>
-          <PixelText variant="pixel" size={11} color={colors.ink3}>아직 보유 카드가 없어요</PixelText>
+          <PixelText variant={txt} size={11} color={tc.ink3}>아직 보유 카드가 없어요</PixelText>
           <Pressable onPress={() => router.push('/cards/add' as never)}>
-            <PixelText variant="pixel" size={11} color={colors.blu}>카드 추가하러 가기 →</PixelText>
+            <PixelText variant={txt} size={11} color={tc.blu}>카드 추가하러 가기 →</PixelText>
           </Pressable>
         </View>
       ) : (
@@ -95,32 +98,32 @@ export default function PortfolioPage() {
             const totalJpy = usePsa10 && (port.totalPsa10Jpy ?? 0) > 0 ? (port.totalPsa10Jpy as number) : port.totalJpy;
             const up = (port.changePct ?? 0) >= 0;
             return (
-              <PixelFrame bg={colors.ink} borderWidth={3} shadow={6}>
+              <PixelFrame bg={tc.ink} borderWidth={3} shadow={6}>
                 <View style={{ padding: 14 }}>
-                  <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.5)" style={{ letterSpacing: 0.5 }}>
+                  <PixelText variant={txt} size={9} color="rgba(255,255,255,0.5)" style={{ letterSpacing: 0.5 }}>
                     총 평가액 (스니덩크 시세 합계)
                   </PixelText>
-                  <PixelText variant="pixel" size={24} color={colors.gold} style={{ marginTop: 6 }}>
+                  <PixelText variant={txt} size={24} color={tc.gold} style={{ marginTop: 6 }}>
                     {format(totalJpy)}
                   </PixelText>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                     {port.changePct != null && (
-                      <PixelText variant="pixel" size={12} color={up ? '#22C55E' : '#FF6B7A'}>
+                      <PixelText variant={txt} size={12} color={up ? '#22C55E' : '#FF6B7A'}>
                         {up ? '▲ +' : '▼ '}
                         {port.changePct.toFixed(2)}%
                         {port.changeAbsJpy != null ? ` (${up ? '+' : '-'}${format(Math.abs(port.changeAbsJpy))})` : ''}
                       </PixelText>
                     )}
-                    <PixelText variant="pixel" size={9} color="rgba(255,255,255,0.45)">
+                    <PixelText variant={txt} size={9} color="rgba(255,255,255,0.45)">
                       {port.pricedCount}/{port.totalCount}장 · 어제(KST)대비
                     </PixelText>
                   </View>
                   {totals.pct != null && (
                     <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)' }}>
-                      <PixelText variant="pixel" size={10} color="rgba(255,255,255,0.7)" style={{ lineHeight: 16 }}>
+                      <PixelText variant={txt} size={10} color="rgba(255,255,255,0.7)" style={{ lineHeight: 16 }}>
                         매입 {format(totals.invested)} → 현재 {format(totals.current)}
                         {`\n`}
-                        <PixelText variant="pixel" size={10} color={totals.profit >= 0 ? '#22C55E' : '#FF6B7A'}>
+                        <PixelText variant={txt} size={10} color={totals.profit >= 0 ? '#22C55E' : '#FF6B7A'}>
                           {totals.profit >= 0 ? '+' : '-'}
                           {format(Math.abs(totals.profit))} ({totals.profit >= 0 ? '+' : ''}
                           {totals.pct.toFixed(1)}%)
@@ -137,7 +140,7 @@ export default function PortfolioPage() {
           <PortfolioChart history={port.history} format={format} selIdx={selIdx} onSelect={setSelIdx} />
 
           {/* 카드별 등락률 */}
-          <PixelText variant="pixel" size={11} color={colors.ink2} style={{ letterSpacing: 1 }}>
+          <PixelText variant={txt} size={11} color={tc.ink2} style={{ letterSpacing: 1 }}>
             보유 카드 등락률 ({rows.length})
           </PixelText>
           <View style={{ gap: 8 }}>
@@ -149,11 +152,11 @@ export default function PortfolioPage() {
               return (
                 <PixelFrame key={c.id} borderWidth={3} shadow={4}>
                   <View style={{ flexDirection: 'row', gap: 10, padding: 10, alignItems: 'center' }}>
-                    <View style={{ width: 40, height: 56, borderColor: colors.ink, borderWidth: 2, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    <View style={{ width: 40, height: 56, borderColor: tc.ink, borderWidth: 2, backgroundColor: tc.white, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                       {img ? (
                         <Image source={{ uri: img }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                       ) : (
-                        <PixelText variant="pixel" size={18}>🃏</PixelText>
+                        <PixelText variant={txt} size={18}>🃏</PixelText>
                       )}
                     </View>
                     <View style={{ flex: 1 }}>
@@ -161,16 +164,16 @@ export default function PortfolioPage() {
                         {name}
                         {c.graded ? `  [${c.gradeCompany ?? 'PSA'} ${c.gradeValue ?? ''}]` : ''}
                       </PixelText>
-                      <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginTop: 3 }}>
+                      <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 3 }}>
                         {[c.ocrSetCode?.toUpperCase(), c.ocrCardNumber].filter(Boolean).join(' · ')}
                         {qty > 1 ? ` · ×${qty}` : ''}
                         {c.selfPulled ? ' · 직접뽑기' : ''}
                       </PixelText>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <PixelText variant="pixel" size={11}>{curJpy > 0 ? format(curJpy) : '시세없음'}</PixelText>
+                      <PixelText variant={txt} size={11}>{curJpy > 0 ? format(curJpy) : '시세없음'}</PixelText>
                       {changePct != null && (
-                        <PixelText variant="pixel" size={10} color={changeUp ? colors.grnDk : colors.red} style={{ marginTop: 3 }}>
+                        <PixelText variant={txt} size={10} color={changeUp ? tc.grnDk : tc.red} style={{ marginTop: 3 }}>
                           {changeUp ? '▲ +' : '▼ '}
                           {changePct.toFixed(1)}% {basisJpy != null ? '매입' : '전일'}
                         </PixelText>
@@ -198,11 +201,13 @@ function PortfolioChart({
   selIdx: number | null;
   onSelect: (i: number | null) => void;
 }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   if (history.length < 2) {
     return (
       <PixelFrame borderWidth={3} shadow={4}>
         <View style={{ padding: 16, alignItems: 'center' }}>
-          <PixelText variant="pixel" size={9} color={colors.ink3}>
+          <PixelText variant={txt} size={9} color={tc.ink3}>
             일별 데이터가 2일 이상 쌓이면 차트가 표시돼요
           </PixelText>
         </View>
@@ -239,17 +244,17 @@ function PortfolioChart({
       <View style={{ padding: 12 }}>
         {sel != null ? (
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
-            <PixelText variant="pixel" size={10} color={colors.ink3}>{history[sel].date}</PixelText>
-            <PixelText variant="pixel" size={14} color={colors.ink}>{format(history[sel].totalJpy)}</PixelText>
+            <PixelText variant={txt} size={10} color={tc.ink3}>{history[sel].date}</PixelText>
+            <PixelText variant={txt} size={14} color={tc.ink}>{format(history[sel].totalJpy)}</PixelText>
             {selPct != null && (
-              <PixelText variant="pixel" size={11} color={selPct >= 0 ? colors.grnDk : colors.red}>
+              <PixelText variant={txt} size={11} color={selPct >= 0 ? tc.grnDk : tc.red}>
                 {selPct >= 0 ? '▲ +' : '▼ '}
                 {selPct.toFixed(2)}%
               </PixelText>
             )}
           </View>
         ) : (
-          <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginBottom: 8 }}>
+          <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginBottom: 8 }}>
             차트의 점을 눌러 그 날의 금액·등락률을 확인하세요
           </PixelText>
         )}
@@ -271,18 +276,18 @@ function PortfolioChart({
             );
           })}
           {sel != null && (
-            <Line x1={xy(sel).x} y1={0} x2={xy(sel).x} y2={H} stroke={colors.ink3} strokeWidth={1} strokeDasharray="3,3" />
+            <Line x1={xy(sel).x} y1={0} x2={xy(sel).x} y2={H} stroke={tc.ink3} strokeWidth={1} strokeDasharray="3,3" />
           )}
           {history.map((_, i) => {
             const { x, y } = xy(i);
             const isSel = i === sel;
-            return <Circle key={`pt-${i}`} cx={x} cy={y} r={isSel ? 4 : 2} fill={isSel ? colors.ink : stroke} onPress={() => onSelect(i)} />;
+            return <Circle key={`pt-${i}`} cx={x} cy={y} r={isSel ? 4 : 2} fill={isSel ? tc.ink : stroke} onPress={() => onSelect(i)} />;
           })}
         </Svg>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-          <PixelText variant="pixel" size={8} color={colors.ink3}>{history[0].date}</PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3}>최근 {history.length}일</PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3}>{history[history.length - 1].date}</PixelText>
+          <PixelText variant={txt} size={8} color={tc.ink3}>{history[0].date}</PixelText>
+          <PixelText variant={txt} size={8} color={tc.ink3}>최근 {history.length}일</PixelText>
+          <PixelText variant={txt} size={8} color={tc.ink3}>{history[history.length - 1].date}</PixelText>
         </View>
       </View>
     </PixelFrame>

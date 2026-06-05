@@ -23,6 +23,7 @@ import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useToast } from '@/components/ToastProvider';
 import { colors, fonts, space } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import {
   fetchMyFavorites,
   removeFavorite,
@@ -38,6 +39,8 @@ function useAuthed(): boolean {
 }
 
 export default function FavoritesScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const authed = useAuthed();
   const { format } = useCurrency();
   const toast = useToast();
@@ -81,7 +84,7 @@ export default function FavoritesScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar title="관심카드" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
         {loading && !data ? (
@@ -106,18 +109,18 @@ export default function FavoritesScreen() {
             <View style={styles.summary}>
               <Text style={{ fontSize: 36 }}>⭐</Text>
               <View style={{ flex: 1 }}>
-                <PixelText variant="ko" size={13} weight="bold" color={colors.white}>
+                <PixelText variant="ko" size={13} weight="bold" color={tc.white}>
                   관심 카드 {rows.length}장
                 </PixelText>
                 <PixelText
-                  variant="pixel"
+                  variant={txt}
                   size={9}
                   color="rgba(255,255,255,0.65)"
                   style={{ marginTop: 6, lineHeight: 14 }}
                 >
                   합산 시세 {format(totalJpy)}
                 </PixelText>
-                <PixelText variant="ko" size={9} color={colors.gold} style={{ marginTop: 4, opacity: 0.85 }}>
+                <PixelText variant="ko" size={9} color={tc.gold} style={{ marginTop: 4, opacity: 0.85 }}>
                   ※ 포트폴리오 가치에는 포함되지 않습니다
                 </PixelText>
               </View>
@@ -128,16 +131,16 @@ export default function FavoritesScreen() {
               {rows.map((r) => (
                 <View key={r.id} style={styles.gridItem}>
                   <Pressable onPress={() => router.push(`/cards/snkrdunk/${r.snkrdunkApparelId}` as never)}>
-                    <View style={{ aspectRatio: 63 / 88, backgroundColor: colors.pap2, overflow: 'hidden' }}>
+                    <View style={{ aspectRatio: 63 / 88, backgroundColor: tc.pap2, overflow: 'hidden' }}>
                       {r.imageUrl ? (
                         <Image source={{ uri: r.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                       ) : (
                         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                          <PixelText variant="pixel" size={28}>🃏</PixelText>
+                          <PixelText variant={txt} size={28}>🃏</PixelText>
                         </View>
                       )}
                     </View>
-                    <View style={{ padding: 7, borderTopWidth: 3, borderTopColor: colors.ink }}>
+                    <View style={{ padding: 7, borderTopWidth: 3, borderTopColor: tc.ink }}>
                       <PixelText variant="ko" size={10} numberOfLines={2}>
                         {r.name ?? '(이름 없음)'}
                       </PixelText>
@@ -146,14 +149,14 @@ export default function FavoritesScreen() {
                           marginTop: 5,
                           paddingHorizontal: 5,
                           paddingVertical: 2,
-                          backgroundColor: r.minPriceJpy > 0 ? colors.ink : colors.pap2,
+                          backgroundColor: r.minPriceJpy > 0 ? tc.ink : tc.pap2,
                           alignSelf: 'flex-start',
                         }}
                       >
                         <PixelText
-                          variant="pixel"
+                          variant={txt}
                           size={10}
-                          color={r.minPriceJpy > 0 ? colors.gold : colors.ink3}
+                          color={r.minPriceJpy > 0 ? tc.gold : tc.ink3}
                         >
                           {r.minPriceJpy > 0 ? format(r.minPriceJpy) : '시세 없음'}
                         </PixelText>
@@ -161,7 +164,7 @@ export default function FavoritesScreen() {
                     </View>
                   </Pressable>
                   <Pressable onPress={() => onRemove(r.snkrdunkApparelId)} style={styles.removeBtn}>
-                    <PixelText variant="pixel" size={9} color={colors.red}>✕ 제거</PixelText>
+                    <PixelText variant={txt} size={9} color={tc.red}>✕ 제거</PixelText>
                   </Pressable>
                 </View>
               ))}

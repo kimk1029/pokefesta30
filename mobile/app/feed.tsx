@@ -9,12 +9,15 @@ import { Seg } from '@/components/cv/Seg';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { POSTS, MARKET, CARDS, fmt } from '@/data/cardvault';
 
 type Tab = 'feed' | 'market' | 'grade-req';
 type MktTab = 'all' | 'sell' | 'buy' | 'trade';
 
 export default function CommunityScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const [tab, setTab] = useState<Tab>('feed');
   const [mktTab, setMktTab] = useState<MktTab>('all');
   const [liked, setLiked] = useState<Record<number, boolean>>({});
@@ -22,7 +25,7 @@ export default function CommunityScreen() {
   const mktList = MARKET.filter((m) => mktTab === 'all' || m.type === mktTab);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar title="커뮤니티" right={<ABtn onPress={() => router.push('/write/feed' as never)}>✏</ABtn>} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 120 }}>
         <View style={{ marginHorizontal: 14 }}>
@@ -49,50 +52,50 @@ export default function CommunityScreen() {
                     style={{
                       width: 36,
                       height: 36,
-                      backgroundColor: colors.gold,
+                      backgroundColor: tc.gold,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderColor: colors.ink,
+                      borderColor: tc.ink,
                       borderWidth: 2,
                     }}
                   >
                     <Text style={{ fontSize: 18 }}>{post.avatar}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <PixelText variant="pixel" size={11} numberOfLines={1}>
+                    <PixelText variant={txt} size={11} numberOfLines={1}>
                       {post.user}
                     </PixelText>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 }}>
                       <View
                         style={{
-                          backgroundColor: post.type === 'showcase' ? colors.red : colors.grn,
+                          backgroundColor: post.type === 'showcase' ? tc.red : tc.grn,
                           paddingHorizontal: 6,
                           height: 18,
                           alignItems: 'center',
                           justifyContent: 'center',
-                          borderColor: colors.ink,
+                          borderColor: tc.ink,
                           borderWidth: 1,
                         }}
                       >
-                        <PixelText variant="pixel" size={8} color={post.type === 'showcase' ? colors.white : colors.ink}>
+                        <PixelText variant={txt} size={8} color={post.type === 'showcase' ? tc.white : tc.ink}>
                           {post.type === 'showcase' ? '자랑' : '잡담'}
                         </PixelText>
                       </View>
-                      <PixelText variant="pixel" size={9} color={colors.ink3}>
+                      <PixelText variant={txt} size={9} color={tc.ink3}>
                         {post.time}
                       </PixelText>
                     </View>
                   </View>
                 </View>
 
-                <PixelText variant="ko" size={13} color={colors.ink2} style={{ lineHeight: 20, marginBottom: 4 }}>
+                <PixelText variant="ko" size={13} color={tc.ink2} style={{ lineHeight: 20, marginBottom: 4 }}>
                   {post.text}
                 </PixelText>
 
                 {post.hasCard && post.card ? (
                   <Pressable
                     onPress={() => router.push(`/cards/${post.card!.id}` as never)}
-                    style={{ height: 96, marginTop: 10, borderColor: colors.ink, borderWidth: 2, overflow: 'hidden' }}
+                    style={{ height: 96, marginTop: 10, borderColor: tc.ink, borderWidth: 2, overflow: 'hidden' }}
                   >
                     <CardThumb card={post.card} height={92} emojiSize={36} showLabel={false} />
                   </Pressable>
@@ -145,33 +148,33 @@ export default function CommunityScreen() {
                         gap: 12,
                       }}
                     >
-                      <View style={{ width: 52, height: 72, borderColor: colors.ink, borderWidth: 2 }}>
+                      <View style={{ width: 52, height: 72, borderColor: tc.ink, borderWidth: 2 }}>
                         <CardThumb card={card} height={68} emojiSize={26} showLabel={false} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <PixelText variant="pixel" size={11} style={{ marginBottom: 6 }}>
+                        <PixelText variant={txt} size={11} style={{ marginBottom: 6 }}>
                           {card.name}
                         </PixelText>
-                        <PixelText variant="pixel" size={9} color={colors.ink3} style={{ marginBottom: 6 }}>
+                        <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginBottom: 6 }}>
                           {card.set}
                         </PixelText>
                         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                           <View
                             style={{
                               backgroundColor:
-                                m.type === 'sell' ? colors.red : m.type === 'buy' ? colors.blu : colors.teal,
+                                m.type === 'sell' ? tc.red : m.type === 'buy' ? tc.blu : tc.teal,
                               paddingHorizontal: 7,
                               paddingVertical: 3,
-                              borderColor: colors.ink,
+                              borderColor: tc.ink,
                               borderWidth: 1,
                             }}
                           >
-                            <PixelText variant="pixel" size={9} color={colors.white}>
+                            <PixelText variant={txt} size={9} color={tc.white}>
                               {m.type === 'sell' ? '팝니다' : m.type === 'buy' ? '삽니다' : '교환'}
                             </PixelText>
                           </View>
                           <RarBadge rar={card.rar} />
-                          <PixelText variant="pixel" size={9} color={colors.ink3}>
+                          <PixelText variant={txt} size={9} color={tc.ink3}>
                             {m.condition}
                           </PixelText>
                         </View>
@@ -184,15 +187,15 @@ export default function CommunityScreen() {
                           }}
                         >
                           {m.price ? (
-                            <PixelText variant="pixel" size={12} color={colors.grnDk}>
+                            <PixelText variant={txt} size={12} color={tc.grnDk}>
                               ₩{fmt(m.price)}
                             </PixelText>
                           ) : (
-                            <PixelText variant="pixel" size={10} color={colors.ink3}>
+                            <PixelText variant={txt} size={10} color={tc.ink3}>
                               협의
                             </PixelText>
                           )}
-                          <PixelText variant="pixel" size={9} color={colors.ink3}>
+                          <PixelText variant={txt} size={9} color={tc.ink3}>
                             {m.time} · {m.seller}
                           </PixelText>
                         </View>
@@ -216,48 +219,48 @@ export default function CommunityScreen() {
                     style={{
                       width: 36,
                       height: 36,
-                      backgroundColor: colors.gold,
+                      backgroundColor: tc.gold,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderColor: colors.ink,
+                      borderColor: tc.ink,
                       borderWidth: 2,
                     }}
                   >
                     <Text style={{ fontSize: 18 }}>{post.avatar}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <PixelText variant="pixel" size={11} numberOfLines={1}>
+                    <PixelText variant={txt} size={11} numberOfLines={1}>
                       {post.user}
                     </PixelText>
                     <View style={{ flexDirection: 'row', gap: 5, marginTop: 5, alignItems: 'center' }}>
                       <View
                         style={{
-                          backgroundColor: colors.orn,
+                          backgroundColor: tc.orn,
                           paddingHorizontal: 6,
                           height: 18,
                           alignItems: 'center',
                           justifyContent: 'center',
-                          borderColor: colors.ink,
+                          borderColor: tc.ink,
                           borderWidth: 1,
                         }}
                       >
-                        <PixelText variant="pixel" size={8} color={colors.white}>
+                        <PixelText variant={txt} size={8} color={tc.white}>
                           감정 요청
                         </PixelText>
                       </View>
-                      <PixelText variant="pixel" size={9} color={colors.ink3}>
+                      <PixelText variant={txt} size={9} color={tc.ink3}>
                         {post.time}
                       </PixelText>
                     </View>
                   </View>
                 </View>
 
-                <PixelText variant="ko" size={13} color={colors.ink2} style={{ lineHeight: 20 }}>
+                <PixelText variant="ko" size={13} color={tc.ink2} style={{ lineHeight: 20 }}>
                   {post.text}
                 </PixelText>
 
                 {post.hasCard && post.card ? (
-                  <View style={{ height: 96, marginTop: 10, borderColor: colors.ink, borderWidth: 2, overflow: 'hidden' }}>
+                  <View style={{ height: 96, marginTop: 10, borderColor: tc.ink, borderWidth: 2, overflow: 'hidden' }}>
                     <CardThumb card={post.card} height={92} emojiSize={36} showLabel={false} />
                   </View>
                 ) : null}
@@ -266,7 +269,7 @@ export default function CommunityScreen() {
                   <PostAct icon="♥" label={String(post.likes)} />
                   <PostAct icon="💬" label={String(post.comments)} />
                   <View style={{ flex: 1 }} />
-                  <PostAct icon="⏱" label="감정하기" bg={colors.pur} fg={colors.white} />
+                  <PostAct icon="⏱" label="감정하기" bg={tc.pur} fg={tc.white} />
                 </View>
               </View>
               </PixelFrame>
@@ -289,22 +292,24 @@ interface ActProps {
 }
 
 function PostAct({ icon, label, active, bg, fg, onPress }: ActProps) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <Pressable onPress={onPress}>
       <View
         style={{
-          backgroundColor: bg ?? colors.pap2,
+          backgroundColor: bg ?? tc.pap2,
           flexDirection: 'row',
           alignItems: 'center',
           gap: 5,
           paddingHorizontal: 8,
           paddingVertical: 5,
-          borderColor: colors.ink,
+          borderColor: tc.ink,
           borderWidth: 2,
         }}
       >
-        <Text style={{ fontSize: 12, color: active ? colors.red : fg ?? colors.ink3 }}>{icon}</Text>
-        <PixelText variant="pixel" size={10} color={active ? colors.red : fg ?? colors.ink3}>
+        <Text style={{ fontSize: 12, color: active ? tc.red : fg ?? tc.ink3 }}>{icon}</Text>
+        <PixelText variant={txt} size={10} color={active ? tc.red : fg ?? tc.ink3}>
           {label}
         </PixelText>
       </View>

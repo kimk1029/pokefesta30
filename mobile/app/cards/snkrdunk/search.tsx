@@ -7,6 +7,7 @@ import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { EmptyState } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import {
   fetchSnkrdunkApparel,
   searchSnkrdunkByQuery,
@@ -63,6 +64,8 @@ function fmtYen(n: number): string {
 }
 
 export default function SnkrdunkSearchScreen() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const params = useLocalSearchParams<{ q?: string }>();
   const initialQuery = useMemo(() => (params.q ?? '').trim(), [params.q]);
   const [query, setQuery] = useState(initialQuery);
@@ -216,7 +219,7 @@ export default function SnkrdunkSearchScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="카드 검색" />
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 110 }}
@@ -227,9 +230,9 @@ export default function SnkrdunkSearchScreen() {
           if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 600) loadMore();
         }}
       >
-        <PixelFrame bg={colors.white} borderWidth={3} shadow={5}>
+        <PixelFrame bg={tc.white} borderWidth={3} shadow={5}>
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 }}>
-            <PixelText variant="pixel" size={12} color={colors.ink3}>🔍</PixelText>
+            <PixelText variant={txt} size={12} color={tc.ink3}>🔍</PixelText>
             <TextInput
               value={query}
               onChangeText={setQuery}
@@ -237,18 +240,18 @@ export default function SnkrdunkSearchScreen() {
               returnKeyType="search"
               inputMode="search"
               placeholder="한국어로 카드 검색 (예: 리자몽, 피카츄)"
-              placeholderTextColor={colors.ink4}
+              placeholderTextColor={tc.ink4}
               style={{
                 flex: 1,
                 height: 44,
                 paddingHorizontal: 8,
-                color: colors.ink,
+                color: tc.ink,
                 fontFamily: 'Galmuri11',
                 fontSize: 12,
               }}
             />
-            <Pressable onPress={submit} style={{ backgroundColor: colors.ink, paddingHorizontal: 10, paddingVertical: 8 }}>
-              <PixelText variant="pixel" size={8} color={colors.gold}>검색</PixelText>
+            <Pressable onPress={submit} style={{ backgroundColor: tc.ink, paddingHorizontal: 10, paddingVertical: 8 }}>
+              <PixelText variant={txt} size={8} color={tc.gold}>검색</PixelText>
             </Pressable>
           </View>
         </PixelFrame>
@@ -287,14 +290,14 @@ export default function SnkrdunkSearchScreen() {
             <View style={{ height: 12 }} />
 
             {/* 유의사항 배너 */}
-            <PixelFrame bg={colors.red} borderWidth={3} shadow={6} hi="rgba(255,255,255,0.18)" lo="rgba(0,0,0,0.36)">
+            <PixelFrame bg={tc.red} borderWidth={3} shadow={6} hi="rgba(255,255,255,0.18)" lo="rgba(0,0,0,0.36)">
               <View style={{ padding: 14, flexDirection: 'row', gap: 12 }}>
                 <Text style={{ fontSize: 24, lineHeight: 26 }}>📢</Text>
                 <View style={{ flex: 1 }}>
-                  <PixelText variant="pixel" size={10} color={colors.gold}>
+                  <PixelText variant={txt} size={10} color={tc.gold}>
                     유의사항
                   </PixelText>
-                  <PixelText variant="ko" size={11} color={colors.white} style={{ marginTop: 8, lineHeight: 18 }}>
+                  <PixelText variant="ko" size={11} color={tc.white} style={{ marginTop: 8, lineHeight: 18 }}>
                     SNKRDUNK는 한글 → 일본어로 번역 후 검색해요. 일본명이 다른 카드(예: 이슬이 → 카스미)는 결과가 안 나올 수 있어요. 이럴 땐 번개장터 탭에서 국내매물을 확인해 주세요.
                   </PixelText>
                   <PixelText variant="ko" size={11} color="rgba(255,255,255,0.85)" style={{ marginTop: 6, lineHeight: 18 }}>
@@ -339,7 +342,7 @@ export default function SnkrdunkSearchScreen() {
                   ))}
                   <PixelPress
                     onPress={() => Linking.openURL(bunjangSearchUrl(initialQuery))}
-                    bg={colors.ink}
+                    bg={tc.ink}
                     borderWidth={3}
                     shadow={5}
                     hi={null}
@@ -347,7 +350,7 @@ export default function SnkrdunkSearchScreen() {
                     wrapStyle={{ marginTop: 2 }}
                   >
                     <View style={{ paddingVertical: 12, alignItems: 'center' }}>
-                      <PixelText variant="pixel" size={9} color={colors.gold}>번개장터에서 더 보기</PixelText>
+                      <PixelText variant={txt} size={9} color={tc.gold}>번개장터에서 더 보기</PixelText>
                     </View>
                   </PixelPress>
                 </View>
@@ -375,12 +378,14 @@ function CatTab({
   active: boolean;
   onPress: () => void;
 }) {
-  const fg = active ? colors.gold : colors.ink3;
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
+  const fg = active ? tc.gold : tc.ink3;
   return (
     <View style={{ flex: 1 }}>
       <PixelPress
         onPress={onPress}
-        bg={active ? colors.ink : colors.white}
+        bg={active ? tc.ink : tc.white}
         borderWidth={3}
         shadow={active ? 5 : 3}
         hi={null}
@@ -388,18 +393,18 @@ function CatTab({
         wrapStyle={{ flex: 1 }}
       >
         <View style={{ paddingVertical: 8, alignItems: 'center', gap: 3 }}>
-          <PixelText variant="pixel" size={9} color={active ? colors.gold : colors.ink}>
+          <PixelText variant={txt} size={9} color={active ? tc.gold : tc.ink}>
             {label}
           </PixelText>
           {loading ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, height: 12 }}>
               <ActivityIndicator size="small" color={fg} style={{ transform: [{ scale: 0.55 }] }} />
-              <PixelText variant="pixel" size={7} color={fg}>
+              <PixelText variant={txt} size={7} color={fg}>
                 검색중
               </PixelText>
             </View>
           ) : (
-            <PixelText variant="pixel" size={7} color={fg}>
+            <PixelText variant={txt} size={7} color={fg}>
               {sub}
             </PixelText>
           )}
@@ -410,17 +415,21 @@ function CatTab({
 }
 
 function Spinner({ pad = 40 }: { pad?: number }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ paddingVertical: pad, alignItems: 'center' }}>
-      <ActivityIndicator color={colors.ink} />
+      <ActivityIndicator color={tc.ink} />
     </View>
   );
 }
 
 function FooterNote({ text }: { text: string }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-      <PixelText variant="pixel" size={8} color={colors.ink3}>
+      <PixelText variant={txt} size={8} color={tc.ink3}>
         {text}
       </PixelText>
     </View>
@@ -428,10 +437,12 @@ function FooterNote({ text }: { text: string }) {
 }
 
 function SnkrdunkRow({ hit }: { hit: Hit }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <PixelPress
       onPress={() => router.push(`/cards/snkrdunk/${hit.apparelId}` as never)}
-      bg={colors.white}
+      bg={tc.white}
       borderWidth={3}
       shadow={5}
       hi={null}
@@ -442,8 +453,8 @@ function SnkrdunkRow({ hit }: { hit: Hit }) {
           style={{
             width: 84,
             height: 84,
-            backgroundColor: colors.ink2,
-            borderColor: colors.ink,
+            backgroundColor: tc.ink2,
+            borderColor: tc.ink,
             borderWidth: 2,
             alignItems: 'center',
             justifyContent: 'center',
@@ -460,10 +471,10 @@ function SnkrdunkRow({ hit }: { hit: Hit }) {
           <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17 }}>
             {hit.koName}
           </PixelText>
-          <PixelText variant="pixel" size={14} color={colors.red} numberOfLines={1} style={{ marginTop: 7 }}>
+          <PixelText variant={txt} size={14} color={tc.red} numberOfLines={1} style={{ marginTop: 7 }}>
             {fmtYen(hit.minPrice)}
           </PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
+          <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
             {hit.jpName}
             {hit.listingCountText ? `   매물 ${hit.listingCountText}건` : ''}
           </PixelText>
@@ -474,6 +485,8 @@ function SnkrdunkRow({ hit }: { hit: Hit }) {
 }
 
 function KreamPanel({ query, items, loading }: { query: string; items: KreamItem[]; loading: boolean }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <View style={{ gap: 6 }}>
       {loading ? (
@@ -481,9 +494,9 @@ function KreamPanel({ query, items, loading }: { query: string; items: KreamItem
       ) : items.length > 0 ? (
         items.map((item) => <KreamRow key={item.id} item={item} />)
       ) : (
-        <PixelFrame bg={colors.white} borderWidth={3} shadow={5}>
+        <PixelFrame bg={tc.white} borderWidth={3} shadow={5}>
           <View style={{ padding: 14 }}>
-            <PixelText variant="ko" size={10} color={colors.ink3} style={{ lineHeight: 16 }}>
+            <PixelText variant="ko" size={10} color={tc.ink3} style={{ lineHeight: 16 }}>
               KREAM 결과를 불러오지 못했습니다. 아래에서 KREAM 검색을 직접 열 수 있어요.
             </PixelText>
           </View>
@@ -492,7 +505,7 @@ function KreamPanel({ query, items, loading }: { query: string; items: KreamItem
       {/* KREAM은 차단에 취약해 결과가 비어도 항상 이동 버튼 제공 */}
       <PixelPress
         onPress={() => Linking.openURL(kreamSearchUrl(query))}
-        bg={colors.ink}
+        bg={tc.ink}
         borderWidth={3}
         shadow={5}
         hi={null}
@@ -500,7 +513,7 @@ function KreamPanel({ query, items, loading }: { query: string; items: KreamItem
         wrapStyle={{ marginTop: 2 }}
       >
         <View style={{ paddingVertical: 13, alignItems: 'center' }}>
-          <PixelText variant="ko" size={10} color={colors.gold}>
+          <PixelText variant="ko" size={10} color={tc.gold}>
             KREAM에서 “{query}” 검색 →
           </PixelText>
         </View>
@@ -510,10 +523,12 @@ function KreamPanel({ query, items, loading }: { query: string; items: KreamItem
 }
 
 function KreamRow({ item }: { item: KreamItem }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <PixelPress
       onPress={() => Linking.openURL(item.productUrl)}
-      bg={colors.white}
+      bg={tc.white}
       borderWidth={3}
       shadow={5}
       hi={null}
@@ -524,8 +539,8 @@ function KreamRow({ item }: { item: KreamItem }) {
           style={{
             width: 84,
             height: 84,
-            backgroundColor: colors.ink2,
-            borderColor: colors.ink,
+            backgroundColor: tc.ink2,
+            borderColor: tc.ink,
             borderWidth: 2,
             alignItems: 'center',
             justifyContent: 'center',
@@ -542,10 +557,10 @@ function KreamRow({ item }: { item: KreamItem }) {
           <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17 }}>
             {item.name}
           </PixelText>
-          <PixelText variant="pixel" size={14} color={colors.red} numberOfLines={1} style={{ marginTop: 7 }}>
+          <PixelText variant={txt} size={14} color={tc.red} numberOfLines={1} style={{ marginTop: 7 }}>
             {item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
           </PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
+          <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
             KREAM
           </PixelText>
         </View>
@@ -555,10 +570,12 @@ function KreamRow({ item }: { item: KreamItem }) {
 }
 
 function BunjangRow({ item }: { item: BunjangItem }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   return (
     <PixelPress
       onPress={() => Linking.openURL(item.productUrl)}
-      bg={colors.white}
+      bg={tc.white}
       borderWidth={3}
       shadow={5}
       hi={null}
@@ -569,8 +586,8 @@ function BunjangRow({ item }: { item: BunjangItem }) {
           style={{
             width: 84,
             height: 84,
-            backgroundColor: colors.ink2,
-            borderColor: colors.ink,
+            backgroundColor: tc.ink2,
+            borderColor: tc.ink,
             borderWidth: 2,
             alignItems: 'center',
             justifyContent: 'center',
@@ -587,10 +604,10 @@ function BunjangRow({ item }: { item: BunjangItem }) {
           <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17 }}>
             {item.name}
           </PixelText>
-          <PixelText variant="pixel" size={14} color={colors.red} numberOfLines={1} style={{ marginTop: 7 }}>
+          <PixelText variant={txt} size={14} color={tc.red} numberOfLines={1} style={{ marginTop: 7 }}>
             {item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
           </PixelText>
-          <PixelText variant="pixel" size={8} color={colors.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
+          <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
             📍 {item.location || '지역 미표기'}   ❤ {item.favCount}
           </PixelText>
         </View>
