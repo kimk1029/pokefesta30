@@ -10,7 +10,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { colors } from '@/theme/tokens';
-import { useThemeColors } from '../ThemeProvider';
+import { useThemeColors, useTheme } from '../ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 import { PixelDeco } from './PixelDeco';
 
 interface Props extends PressableProps {
@@ -57,6 +58,7 @@ export function PixelPress({
   ...rest
 }: Props) {
   const c = useThemeColors();
+  const { theme } = useTheme();
   const faceBg = bg === colors.white ? c.white : bg;
   const edge = border === colors.ink ? c.ink : border;
   const loThick = Math.max(2, inner + 1);
@@ -94,6 +96,28 @@ export function PixelPress({
   const shift = press.interpolate({ inputRange: [0, 1], outputRange: [0, travel] });
   const styleVal = typeof style === 'function' ? style({ pressed, hovered: false } as never) : style;
 
+  // 플랫(clean·dark) — 픽셀 데코/드롭섀도 대신 라인보더+라운드, 누르면 살짝 투명.
+  if (isFlatTheme(theme)) {
+    const radius = theme === 'dark' ? 12 : 0;
+    return (
+      <Pressable
+        {...rest}
+        onPressIn={handleIn}
+        onPressOut={handleOut}
+        style={({ pressed: p }) => [{ opacity: p ? 0.85 : 1 }, wrapStyle, styleVal]}
+      >
+        <View
+          style={[
+            { backgroundColor: faceBg, borderWidth: 1, borderColor: c.pap3, borderRadius: radius },
+            theme === 'clean' && shadowProp > 0 ? pressStyles.flatShadow : null,
+          ]}
+        >
+          <View style={[{ padding: Math.max(2, inner + 1) }, innerStyle]}>{children as React.ReactNode}</View>
+        </View>
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable {...rest} onPressIn={handleIn} onPressOut={handleOut}>
       <View style={[styles.wrap, { marginRight: shadow, marginBottom: shadow }, wrapStyle, styleVal]}>
@@ -130,4 +154,14 @@ export function PixelPress({
 const styles = StyleSheet.create({
   wrap: { position: 'relative' },
   face: { position: 'relative' },
+});
+
+const pressStyles = StyleSheet.create({
+  flatShadow: {
+    shadowColor: '#11141A',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
 });

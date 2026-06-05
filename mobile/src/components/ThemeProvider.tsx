@@ -102,6 +102,39 @@ export const THEME_COLORS: Record<ThemeId, typeof colors> = {
     pap3: '#B7C99A',
     papdk: '#647D3A',
   },
+  // ─── CLEAN (cardvault-trade 프로토타입: 쿨 뉴트럴 + 브랜드 다크 + KR 주식색) ───
+  clean: {
+    ...colors,
+    red: '#F23645', redLt: '#F76571', redDk: '#C81E2C',     // 상승=빨강
+    blu: '#2F6BFF', bluLt: '#6B97FF', bluDk: '#1E4FD0',     // 하락=파랑
+    grn: '#0E9C6E', grnLt: '#2BB888', grnDk: '#0A7A56',
+    orn: '#E07B39', ornLt: '#EC9C68', ornDk: '#B85F22',
+    pur: '#7C5CDB', purLt: '#A189EC', purDk: '#5C3FB0',
+    gold: '#C8941E', goldLt: '#E0AC3C', goldDk: '#A2760F',
+    yel: '#C8941E', yelLt: '#E0AC3C', yelDk: '#A2760F',
+    teal: '#0E9C6E',
+    nav: '#1A1D24', navLt: '#363B45', navDk: '#11141A',     // 브랜드 다크(주 액센트)
+    ink: '#11141A', ink2: '#3C424E', ink3: '#7C8595', ink4: '#A8AFBC',
+    bg: '#F7F8FA', paper: '#FFFFFF', pap2: '#F7F8FA', pap3: '#EEF0F3', papdk: '#A8AFBC',
+    white: '#FFFFFF',
+  },
+  // ─── DARK (cardvault-cyber 프로토타입: 네온 주식창, 상승=레드/하락=시안) ───
+  dark: {
+    ...colors,
+    red: '#FF4D6D', redLt: '#FF7F97', redDk: '#C72847',     // 상승=네온레드
+    blu: '#36C5FF', bluLt: '#7FDCFF', bluDk: '#1487C0',     // 하락=네온시안
+    grn: '#5ED99B', grnLt: '#86F0BB', grnDk: '#1E7A52',
+    orn: '#F5A45A', ornLt: '#FFC089', ornDk: '#B86E2E',
+    pur: '#A78BFA', purLt: '#C7B2FF', purDk: '#6E4FC8',
+    pnk: '#F472B6', pnkLt: '#F9A8D4', pnkDk: '#9D2463',
+    gold: '#FFD45E', goldLt: '#FFE39A', goldDk: '#A8841E',
+    yel: '#FFD45E', yelLt: '#FFE39A', yelDk: '#A8841E',
+    teal: '#5ED99B',
+    nav: '#36C5FF', navLt: '#7FDCFF', navDk: '#1487C0',
+    ink: '#F2F5FB', ink2: '#AEB6C6', ink3: '#6E7A90', ink4: '#454F61',
+    bg: '#0A0D13', paper: '#0A0D13', pap2: '#10141D', pap3: '#232B3A', papdk: '#454F61',
+    white: '#141925',
+  },
 };
 
 const ThemeCtx = createContext<Ctx | null>(null);
@@ -133,5 +166,6 @@ export function useThemeColors() {
 
 export function useThemeTextVariant(): 'pixel' | 'ko' {
   const { theme } = useTheme();
-  return theme === 'sports' ? 'ko' : 'pixel';
+  // sports·clean·dark = 논픽셀(모던) 폰트
+  return theme === 'sports' || theme === 'clean' || theme === 'dark' ? 'ko' : 'pixel';
 }

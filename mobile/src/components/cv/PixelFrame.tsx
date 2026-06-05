@@ -1,6 +1,7 @@
 import { View, type ViewProps, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
-import { useThemeColors } from '../ThemeProvider';
+import { useThemeColors, useTheme } from '../ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 import { PixelDeco } from './PixelDeco';
 
 interface Props extends ViewProps {
@@ -42,9 +43,28 @@ export function PixelFrame({
   ...rest
 }: Props) {
   const c = useThemeColors();
+  const { theme } = useTheme();
   const faceBg = bg === colors.white ? c.white : bg;
   const edge = border === colors.ink ? c.ink : border;
   const shadowFill = shadowColor ?? edge;
+
+  // 플랫(clean·dark) — 픽셀 데코 대신 라인보더+라운드(또는 직각). clean=직각, dark=라운드.
+  if (isFlatTheme(theme)) {
+    const radius = theme === 'dark' ? 14 : 0;
+    const pad = Math.max(2, borderWidth);
+    return (
+      <View
+        {...rest}
+        style={[
+          { backgroundColor: faceBg, borderWidth: 1, borderColor: c.pap3, borderRadius: radius },
+          theme === 'clean' && shadowProp > 0 ? styles.flatShadow : null,
+          style,
+        ]}
+      >
+        <View style={{ padding: pad }}>{children}</View>
+      </View>
+    );
+  }
   const loThick = Math.max(2, inner + 1); // 웹: 하단 음영(4px)이 상단 하이라이트(3px)보다 한 칸 두껍다
   const cut = borderWidth;
   // 앱은 ink 테두리(면 안쪽) + 드롭섀도(바깥)가 같은 색이라 합쳐져 웹보다 두껍게 보인다.
@@ -75,4 +95,11 @@ export function PixelFrame({
 const styles = StyleSheet.create({
   wrap: { position: 'relative' },
   face: { position: 'relative' },
+  flatShadow: {
+    shadowColor: '#11141A',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
 });

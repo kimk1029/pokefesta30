@@ -10,12 +10,16 @@ const SWATCH_BG: Record<ThemeId, string> = {
   onepiece: '#F4D272',
   yugioh: '#FFD23F',
   sports: '#16A34A',
+  clean: '#1A1D24',
+  dark: '#0A0D13',
 };
 const SWATCH_DOT: Record<ThemeId, string> = {
   pokemon: '#FFFFFF',
   onepiece: '#E63946',
   yugioh: '#7C3AED',
   sports: '#FFFFFF',
+  clean: '#F23645',
+  dark: '#36C5FF',
 };
 
 /** 마이페이지 설정 — 테마 행 + 모달 픽커. */

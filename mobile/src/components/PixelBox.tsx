@@ -1,6 +1,7 @@
 import { View, type ViewProps, StyleSheet } from 'react-native';
 import { colors } from '@/theme/tokens';
-import { useThemeColors } from './ThemeProvider';
+import { useThemeColors, useTheme } from './ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 import { PixelDeco } from './cv/PixelDeco';
 
 interface Props extends ViewProps {
@@ -30,10 +31,28 @@ export function PixelBox({
   ...rest
 }: Props) {
   const c = useThemeColors();
+  const { theme } = useTheme();
   const faceBg = bg === colors.white ? c.white : bg;
   const edge = border === colors.ink ? c.ink : border;
   const cut = borderWidth;
   const loThick = Math.max(2, borderWidth);
+
+  // 플랫(clean·dark) — 라인보더+라운드(clean=직각). 픽셀 데코/드롭섀도 생략.
+  if (isFlatTheme(theme)) {
+    const radius = theme === 'dark' ? 14 : 0;
+    return (
+      <View
+        {...rest}
+        style={[
+          { backgroundColor: faceBg, borderWidth: 1, borderColor: c.pap3, borderRadius: radius },
+          theme === 'clean' && !noShadow ? boxStyles.flatShadow : null,
+          style,
+        ]}
+      >
+        <View style={{ padding: Math.max(2, borderWidth) }}>{children}</View>
+      </View>
+    );
+  }
   const inner = (
     <View style={styles.face} {...rest}>
       <PixelDeco faceBg={faceBg} edge={edge} cut={cut} hi={hi} lo={lo} inner={3} loThick={loThick} />
@@ -62,4 +81,14 @@ export function PixelBox({
 const styles = StyleSheet.create({
   wrap: { position: 'relative' },
   face: { position: 'relative' },
+});
+
+const boxStyles = StyleSheet.create({
+  flatShadow: {
+    shadowColor: '#11141A',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
 });
