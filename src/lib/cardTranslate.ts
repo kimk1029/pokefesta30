@@ -172,6 +172,8 @@ const CARD_TERMS: Term[] = [
   { ko: '이로치',    en: 'shiny',       ja: '色違い' },
   { ko: '색이 다른', en: 'shiny',       ja: '色違い' },
   { ko: '색이다른',  en: 'shiny',       ja: '色違い' },
+  // 샤이니 = シャイニー (TCG shiny). 세트명 "샤이니 트레저/스타 V" 는 더 길어 우선 매칭됨.
+  { ko: '샤이니',    en: 'shiny',       ja: 'シャイニー' },
 
   // 레어도 약어 — 한일영 모두 동일 사용 (대소문자 정규화)
   { ko: 'SAR',  en: 'SAR',  ja: 'SAR'  }, // Special Art Rare
