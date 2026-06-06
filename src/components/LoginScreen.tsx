@@ -3,6 +3,7 @@
 import { signIn } from '@/lib/session';
 import { useState } from 'react';
 import { PixelBall } from './PixelBall';
+import { ProviderLogo } from './ProviderLogo';
 
 interface Props {
   /** 로그인 후 돌아갈 경로. 기본값 / */
@@ -82,7 +83,7 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
           onClick={() => go('kakao')}
           disabled={!!pending}
         >
-          <div className="login-btn-icon">{spinning('kakao') ? <Spin /> : '💬'}</div>
+          <div className="login-btn-icon">{spinning('kakao') ? <Spin /> : <ProviderLogo provider="kakao" />}</div>
           <div className="login-btn-txt">
             <div className="login-btn-name">카카오로 시작하기</div>
             <div className="login-btn-desc">카카오 계정으로 간편 로그인</div>
@@ -94,7 +95,7 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
           onClick={() => go('naver')}
           disabled={!!pending}
         >
-          <div className="login-btn-icon">{spinning('naver') ? <Spin /> : 'N'}</div>
+          <div className="login-btn-icon">{spinning('naver') ? <Spin /> : <ProviderLogo provider="naver" />}</div>
           <div className="login-btn-txt">
             <div className="login-btn-name">네이버로 시작하기</div>
             <div className="login-btn-desc">네이버 계정으로 간편 로그인</div>
@@ -106,7 +107,7 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
           onClick={() => go('google')}
           disabled={!!pending}
         >
-          <div className="login-btn-icon">{spinning('google') ? <Spin /> : 'G'}</div>
+          <div className="login-btn-icon">{spinning('google') ? <Spin /> : <ProviderLogo provider="google" />}</div>
           <div className="login-btn-txt">
             <div className="login-btn-name">구글로 시작하기</div>
             <div className="login-btn-desc">Google 계정으로 간편 로그인</div>

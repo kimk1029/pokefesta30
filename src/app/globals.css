@@ -4104,3 +4104,10 @@ a{color:inherit;text-decoration:none;}
 /* 앱바 타이틀/로고 — 타이트 볼드 */
 [data-theme="clean"] .appbar-title,
 [data-theme="clean"] .appbar-logo{letter-spacing:-0.03em;font-weight:800;}
+
+/* ── 로그인 소셜 버튼: clean·dark 디픽셀 블랭킷(background:var(--white))이 브랜드 배경을 덮어
+   clean에서 네이버(흰 글씨×흰 배경), dark에서 카카오·네이버(어두운 글씨×어두운 배경)가
+   안 보이던 버그 → 브랜드 고정색을 테마와 무관하게 재선언 ── */
+:is([data-theme="clean"],[data-theme="dark"]) .login-btn-kakao{background:#FEE500;color:#3A1D00;}
+:is([data-theme="clean"],[data-theme="dark"]) .login-btn-naver{background:#03C75A;color:#FFFFFF;}
+:is([data-theme="clean"],[data-theme="dark"]) .login-btn-google{background:#FFFFFF;color:#1F1F1F;}

@@ -13,6 +13,7 @@ import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
+import { ProviderLogo } from '@/components/ProviderLogo';
 import { colors } from '@/theme/tokens';
 import { startSocialLogin, type AuthProvider } from '@/lib/oauth';
 
@@ -120,26 +121,29 @@ export function InlineLoginGate({ title, feature, description, icon = '🔒' }: 
           <View style={{ flex: 1, height: 2, backgroundColor: colors.pap3 }} />
         </View>
 
-        {/* Compact social buttons — /login 의 큰 버튼보다 한 단계 작게. */}
+        {/* Compact social buttons — /login 의 큰 버튼보다 한 단계 작게.
+            프로바이더 브랜드색은 테마와 무관하게 리터럴 고정 — colors.white 를 넘기면
+            PixelPress 가 테마 white 로 치환해 clean·dark 에서 대비가 깨진다. */}
         <View style={{ gap: 10 }}>
           <CompactLoginBtn
             bg="#FEE500"
             fg="#3A1D00"
-            icon="💬"
+            provider="kakao"
             name="카카오로 로그인"
             onPress={() => startLogin('kakao')}
           />
           <CompactLoginBtn
             bg="#03C75A"
-            fg={colors.white}
-            icon="N"
+            fg="#FFFFFF"
+            provider="naver"
             name="네이버로 로그인"
             onPress={() => startLogin('naver')}
           />
           <CompactLoginBtn
-            bg={colors.white}
-            fg={colors.ink}
-            icon="G"
+            // '#FFF': colors.white('#FFFFFF') 와 다른 문자열이라 PixelPress 테마 치환을 우회.
+            bg="#FFF"
+            fg="#1F1F1F"
+            provider="google"
             name="구글로 로그인"
             onPress={() => startLogin('google')}
           />
@@ -161,12 +165,12 @@ export function InlineLoginGate({ title, feature, description, icon = '🔒' }: 
 interface CompactBtnProps {
   bg: string;
   fg: string;
-  icon: string;
+  provider: AuthProvider;
   name: string;
   onPress: () => void;
 }
 
-function CompactLoginBtn({ bg, fg, icon, name, onPress }: CompactBtnProps) {
+function CompactLoginBtn({ bg, fg, provider, name, onPress }: CompactBtnProps) {
   return (
     <PixelPress
       onPress={onPress}
@@ -197,7 +201,7 @@ function CompactLoginBtn({ bg, fg, icon, name, onPress }: CompactBtnProps) {
             borderWidth: 1,
           }}
         >
-          <Text style={{ fontSize: 17, color: fg, fontWeight: 'bold' }}>{icon}</Text>
+          <ProviderLogo provider={provider} size={19} />
         </View>
         <PixelText variant="pixel" size={11} color={fg} style={{ flex: 1, letterSpacing: 0.5 }}>
           {name}

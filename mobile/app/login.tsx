@@ -6,12 +6,12 @@
  * 루트 레이아웃의 딥링크 핸들러가 토큰을 저장한다.
  */
 import { useState } from 'react';
-import { View, ScrollView, Pressable, Text, StatusBar } from 'react-native';
+import { View, ScrollView, Pressable, StatusBar } from 'react-native';
 import { router } from 'expo-router';
 import { PixelText } from '@/components/PixelText';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { PixelBall } from '@/components/PixelBall';
-import { colors } from '@/theme/tokens';
+import { ProviderLogo } from '@/components/ProviderLogo';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { getApiBaseUrl } from '@/lib/apiClient';
 import { isAuthenticated } from '@/lib/session';
@@ -92,27 +92,31 @@ export default function LoginScreen() {
           <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
         </View>
 
+        {/* 프로바이더 브랜드색은 테마와 무관하게 리터럴 고정 — tc.white/tc.ink 는 clean·dark
+            에서 뒤집혀(overload) 배경↔글자 대비가 깨진다(다크에서 글자가 안 보이던 버그). */}
         <View style={{ gap: 12 }}>
           <LoginBtn
             bg="#FEE500"
             fg="#3A1D00"
-            icon="💬"
+            provider="kakao"
             name="카카오로 시작하기"
             desc="카카오 계정으로 간편 로그인"
             onPress={() => startLogin('kakao')}
           />
           <LoginBtn
             bg="#03C75A"
-            fg={tc.white}
-            icon="N"
+            fg="#FFFFFF"
+            provider="naver"
             name="네이버로 시작하기"
             desc="네이버 계정으로 간편 로그인"
             onPress={() => startLogin('naver')}
           />
           <LoginBtn
-            bg={tc.white}
-            fg={tc.ink}
-            icon="G"
+            // '#FFF': PixelPress 가 colors.white('#FFFFFF') 와 같은 문자열이면 테마 white 로
+            // 치환(다크에선 어두운색)하므로 3자리 hex 로 우회해 항상 흰 배경 유지.
+            bg="#FFF"
+            fg="#1F1F1F"
+            provider="google"
             name="구글로 시작하기"
             desc="Google 계정으로 간편 로그인"
             onPress={() => startLogin('google')}
@@ -157,14 +161,13 @@ export default function LoginScreen() {
 interface BtnProps {
   bg: string;
   fg: string;
-  icon: string;
+  provider: AuthProvider;
   name: string;
   desc: string;
   onPress: () => void;
 }
 
-function LoginBtn({ bg, fg, icon, name, desc, onPress }: BtnProps) {
-  const tc = useThemeColors();
+function LoginBtn({ bg, fg, provider, name, desc, onPress }: BtnProps) {
   const txt = useThemeTextVariant();
   return (
     <PixelPress
@@ -196,7 +199,7 @@ function LoginBtn({ bg, fg, icon, name, desc, onPress }: BtnProps) {
             borderWidth: 1,
           }}
         >
-          <Text style={{ fontSize: 22, color: fg, fontWeight: 'bold' }}>{icon}</Text>
+          <ProviderLogo provider={provider} size={24} />
         </View>
         <View style={{ flex: 1 }}>
           <PixelText variant={txt} size={11} color={fg} style={{ letterSpacing: 1 }}>
