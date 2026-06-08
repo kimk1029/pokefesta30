@@ -279,7 +279,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
                   }}>
                 {isClean ? cleanIcon : icon}
               </div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, lineHeight: 1.1, letterSpacing: 0, whiteSpace: 'nowrap' }}>{lb}</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 12, lineHeight: 1.1, letterSpacing: 0, whiteSpace: 'nowrap' }}>{lb}</div>
             </Link>
           );
         })}
@@ -839,7 +839,7 @@ function PopularCardsSection({
                   ) : null}
                 </div>
                 <div style={{
-                  fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.2, marginBottom: 3,
+                  fontFamily: 'var(--f1)', fontSize: 13, letterSpacing: 0.2, marginBottom: 3,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>{r.shortName}</div>
                 {showJp ? (
