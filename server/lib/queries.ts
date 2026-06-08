@@ -654,6 +654,8 @@ export interface HeroSlideRow {
   visualType: 'emoji' | 'image';
   visualValue: string;
   onClick: 'stamp-rally' | 'oripa' | null;
+  /** 클릭 시 이동할 링크(내부 경로 또는 외부 URL). onClick 이 없을 때만 사용. */
+  linkUrl: string | null;
   ctaHint: string | null;
 }
 
@@ -675,6 +677,7 @@ export async function getActiveHeroBanners(): Promise<HeroSlideRow[]> {
       visualType: (VISUAL_TYPE_SET.has(r.visualType) ? r.visualType : 'emoji') as HeroSlideRow['visualType'],
       visualValue: r.visualValue,
       onClick: (r.onClick && ON_CLICK_SET.has(r.onClick) ? r.onClick : null) as HeroSlideRow['onClick'],
+      linkUrl: r.linkUrl ?? null,
       ctaHint: r.ctaHint,
     }));
   } catch (err) {

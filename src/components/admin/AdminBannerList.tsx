@@ -14,6 +14,7 @@ export interface BannerData {
   visualType: string;
   visualValue: string;
   onClick: string | null;
+  linkUrl: string | null;
   active: boolean;
 }
 
@@ -41,6 +42,7 @@ const EMPTY_DRAFT: Draft = {
   visualType: 'emoji',
   visualValue: '✨',
   onClick: null,
+  linkUrl: null,
   active: true,
 };
 
@@ -93,6 +95,7 @@ export function AdminBannerList({ initialBanners }: Props) {
       visualType: draft.visualType,
       visualValue: draft.visualValue,
       onClick: draft.onClick || null,
+      linkUrl: draft.linkUrl || null,
       active: draft.active,
     };
 
@@ -275,6 +278,7 @@ export function AdminBannerList({ initialBanners }: Props) {
                 visual: {b.visualType} · {b.visualValue}
                 {b.ctaHint && <> · CTA: {b.ctaHint}</>}
                 {b.onClick && <> · onClick: {b.onClick}</>}
+                {b.linkUrl && <> · 🔗 {b.linkUrl}</>}
               </div>
             </div>
 
@@ -299,6 +303,28 @@ export function AdminBannerList({ initialBanners }: Props) {
 }
 
 function BannerForm({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [upErr, setUpErr] = useState<string | null>(null);
+
+  const onPickImage = async (file: File | null) => {
+    if (!file) return;
+    setUpErr(null);
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/admin/banners/upload', { method: 'POST', body: fd });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+      if (!body?.url) throw new Error('업로드 응답에 url 이 없습니다');
+      setDraft({ ...draft, visualType: 'image', visualValue: body.url });
+    } catch (e) {
+      setUpErr(e instanceof Error ? e.message : '업로드 실패');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <Field label="정렬 (작을수록 먼저)">
@@ -374,16 +400,46 @@ function BannerForm({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =>
         </select>
       </Field>
 
-      <Field label={draft.visualType === 'emoji' ? '이모지 (예: 💬)' : '이미지 경로 (예: /promo/foo.png)'}>
+      <Field label={draft.visualType === 'emoji' ? '이모지 (예: 💬)' : '이미지 URL / 경로 (직접 입력 또는 업로드)'}>
         <input
           type="text"
           value={draft.visualValue}
           onChange={(e) => setDraft({ ...draft, visualValue: e.target.value })}
+          placeholder={draft.visualType === 'image' ? 'https://… 또는 /promo/foo.png' : ''}
           style={inputStyle}
         />
       </Field>
 
-      <Field label="클릭 동작">
+      {draft.visualType === 'image' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ ...uploadBtnStyle, opacity: uploading ? 0.6 : 1 }}>
+            {uploading ? '업로드 중…' : '🖼 이미지 업로드 (jpg/png/webp, ≤4MB)'}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={uploading}
+              onChange={(e) => {
+                onPickImage(e.target.files?.[0] ?? null);
+                e.target.value = '';
+              }}
+              style={{ display: 'none' }}
+            />
+          </label>
+          {upErr && (
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--red)' }}>⚠ {upErr}</div>
+          )}
+          {draft.visualValue && /^(https?:\/\/|\/)/.test(draft.visualValue) && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={draft.visualValue}
+              alt="배너 이미지 미리보기"
+              style={{ height: 72, width: 'auto', objectFit: 'contain', border: '1px solid var(--ink)', background: 'var(--pap2)' }}
+            />
+          )}
+        </div>
+      )}
+
+      <Field label="클릭 동작 (특수 액션 — 링크보다 우선)">
         <select
           value={draft.onClick ?? ''}
           onChange={(e) => setDraft({ ...draft, onClick: e.target.value || null })}
@@ -395,6 +451,16 @@ function BannerForm({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =>
             </option>
           ))}
         </select>
+      </Field>
+
+      <Field label="연결 링크 (URL/경로 — 클릭 시 이동, 비우면 비클릭)">
+        <input
+          type="text"
+          value={draft.linkUrl ?? ''}
+          onChange={(e) => setDraft({ ...draft, linkUrl: e.target.value || null })}
+          placeholder="/cards/snkrdunk 또는 https://example.com"
+          style={inputStyle}
+        />
       </Field>
 
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--f1)', fontSize: 11 }}>
@@ -430,6 +496,19 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid var(--ink)',
   outline: 'none',
   boxSizing: 'border-box',
+};
+
+const uploadBtnStyle: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '8px 10px',
+  fontFamily: 'var(--f1)',
+  fontSize: 10,
+  letterSpacing: 0.3,
+  color: 'var(--white)',
+  background: 'var(--ink2)',
+  border: 'none',
+  cursor: 'pointer',
+  textAlign: 'center',
 };
 
 const editorBoxStyle: React.CSSProperties = {

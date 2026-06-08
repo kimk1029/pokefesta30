@@ -19,6 +19,8 @@ export interface HeroSlideData {
   visualType: 'emoji' | 'image';
   visualValue: string;
   onClick: HeroOnClick;
+  /** 클릭 시 이동할 링크(내부 '/...' 또는 외부 'http...'). onClick 특수 액션이 없을 때만 사용. */
+  linkUrl?: string | null;
   ctaHint?: string | null;
 }
 
@@ -29,6 +31,7 @@ interface Slide {
   sub: string;
   visual: ReactNode;
   onClick: HeroOnClick;
+  linkUrl?: string | null;
   ctaHint?: string | null;
 }
 
@@ -103,6 +106,7 @@ export function HeroSlider({ slides, compact = false }: HeroSliderProps = {}) {
     sub: s.sub,
     visual: renderVisual(s),
     onClick: s.onClick,
+    linkUrl: s.linkUrl ?? null,
     ctaHint: s.ctaHint ?? null,
   }));
   const [cur, setCur] = useState(0);
@@ -149,6 +153,16 @@ export function HeroSlider({ slides, compact = false }: HeroSliderProps = {}) {
           router.push('/login?callbackUrl=/my/oripa');
         }
       }
+      return;
+    }
+    // 특수 액션이 없으면 어드민에서 지정한 연결 링크로 이동.
+    if (slide.linkUrl) {
+      if (/^https?:\/\//i.test(slide.linkUrl)) {
+        window.open(slide.linkUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        startRouteTransition();
+        router.push(slide.linkUrl);
+      }
     }
   };
 
@@ -179,10 +193,10 @@ export function HeroSlider({ slides, compact = false }: HeroSliderProps = {}) {
           {SLIDES.map((sl, i) => (
             <div
               key={i}
-              className={`hero-slide ${sl.cls}${sl.onClick ? ' clickable' : ''}`}
+              className={`hero-slide ${sl.cls}${sl.onClick || sl.linkUrl ? ' clickable' : ''}`}
               onClick={() => handleSlideClick(sl)}
-              role={sl.onClick ? 'button' : undefined}
-              tabIndex={sl.onClick ? 0 : undefined}
+              role={sl.onClick || sl.linkUrl ? 'button' : undefined}
+              tabIndex={sl.onClick || sl.linkUrl ? 0 : undefined}
             >
               <span className="hero-badge">{sl.badge}</span>
               {sl.ctaHint && <span className="hero-cta-hint">{sl.ctaHint}</span>}

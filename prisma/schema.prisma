@@ -423,8 +423,11 @@ model HeroBanner {
   visualType  String   @default("emoji")
   /// emoji: '💬' 같은 단일 글자, image: '/promo/foo.png'
   visualValue String   @default("✨")
-  /// null | 'stamp-rally' | 'oripa'
+  /// null | 'stamp-rally' | 'oripa' (특수 액션). linkUrl 보다 우선.
   onClick     String?
+  /// 클릭 시 이동할 링크. 내부 경로('/cards/...') 또는 외부 URL('https://...').
+  /// onClick 특수 액션이 없을 때만 사용. 비우면 비클릭 배너.
+  linkUrl     String?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

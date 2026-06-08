@@ -1,4 +1,6 @@
 import { Router, type Request, type Response } from 'express';
+import multer from 'multer';
+import { put } from '@vercel/blob';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
@@ -19,6 +21,7 @@ interface BannerInput {
   visualType?: string;
   visualValue?: string;
   onClick?: string | null;
+  linkUrl?: string | null;
   active?: boolean;
 }
 
@@ -83,6 +86,20 @@ function validateBanner(
     } else out.onClick = input.onClick;
   }
 
+  if (input.linkUrl !== undefined) {
+    if (input.linkUrl === null || input.linkUrl === '') out.linkUrl = null;
+    else if (typeof input.linkUrl !== 'string') {
+      return { ok: false, error: 'linkUrl must be a string' };
+    } else {
+      const trimmed = input.linkUrl.trim();
+      // 내부 경로('/...') 또는 http(s) URL 만 허용. 그 외(javascript: 등)는 거부.
+      if (!/^\/(?!\/)/.test(trimmed) && !/^https?:\/\//i.test(trimmed)) {
+        return { ok: false, error: "linkUrl must start with '/' or 'http(s)://'" };
+      }
+      out.linkUrl = trimmed;
+    }
+  }
+
   if (input.sortOrder !== undefined) {
     const n = Number(input.sortOrder);
     if (!Number.isFinite(n)) return { ok: false, error: 'sortOrder must be a number' };
@@ -125,6 +142,7 @@ router.post('/banners', async (req: Request, res: Response) => {
         visualType: v.data.visualType ?? 'emoji',
         visualValue: v.data.visualValue ?? '✨',
         onClick: v.data.onClick ?? null,
+        linkUrl: v.data.linkUrl ?? null,
         active: v.data.active ?? true,
       },
     });
@@ -180,6 +198,47 @@ router.delete('/banners/:id', async (req: Request, res: Response) => {
     }
     console.error('[admin.banners.DELETE]', err);
     res.status(500).json({ error: 'internal' });
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* banner image upload — Vercel Blob (admin only)                      */
+/* ------------------------------------------------------------------ */
+const BANNER_IMG_MAX_BYTES = 4 * 1024 * 1024;
+const BANNER_IMG_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const bannerUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: BANNER_IMG_MAX_BYTES },
+});
+
+function bannerExt(mime: string): string {
+  if (mime === 'image/png') return 'png';
+  if (mime === 'image/webp') return 'webp';
+  return 'jpg';
+}
+
+router.post('/banners/upload', bannerUpload.single('file'), async (req: Request, res: Response) => {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return res.status(503).json({
+      error: 'Vercel Blob 이 설정되지 않았습니다. Vercel → Storage → Blob store 생성 후 연결 필요.',
+    });
+  }
+  const file = req.file as Express.Multer.File | undefined;
+  if (!file) return res.status(400).json({ error: 'no file' });
+  if (!BANNER_IMG_TYPES.has(file.mimetype)) {
+    return res.status(400).json({ error: `지원하지 않는 형식: ${file.mimetype}` });
+  }
+  try {
+    const pathname = `banner/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${bannerExt(file.mimetype)}`;
+    const { url } = await put(pathname, file.buffer, {
+      access: 'public',
+      contentType: file.mimetype,
+    });
+    res.json({ url });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[admin.banners.upload]', msg);
+    res.status(500).json({ error: msg });
   }
 });
 

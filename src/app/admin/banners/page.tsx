@@ -16,6 +16,7 @@ interface BannerRow {
   visualType: string;
   visualValue: string;
   onClick: string | null;
+  linkUrl: string | null;
   active: boolean;
 }
 
