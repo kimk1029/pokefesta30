@@ -5,7 +5,7 @@ import type { LevelInfo } from '@/lib/level';
 import type { InventorySnapshot } from '@/components/InventoryProvider';
 
 interface SummaryResp {
-  user: { id: string; name: string | null; email: string | null };
+  user: { id: string; name: string | null; email: string | null; isAdmin?: boolean };
   inventory: InventorySnapshot;
   level: LevelInfo;
   counts: { tradeCount: number; savedCount: number; cardCount: number };
@@ -54,6 +54,7 @@ export default async function Page() {
       cardCount={s.counts.cardCount}
       tradeCount={s.counts.tradeCount}
       savedCount={s.counts.savedCount}
+      isAdmin={s.user.isAdmin}
     />
   );
 }

@@ -12,6 +12,7 @@ import {
 } from '../lib/inventoryOps.js';
 import { findCardEntry } from '@/lib/cardsCatalog';
 import { levelFromPoints } from '@/lib/level';
+import { isAdminEmail } from '../lib/admin.js';
 import {
   countMyCards,
   getMyBookmarks,
@@ -39,11 +40,13 @@ router.get('/summary', async (req: Request, res: Response) => {
       prisma.bookmark.count({ where: { userId } }).catch(() => 0),
       countMyCards(userId),
     ]);
+    const email = profile?.email ?? req.user!.email ?? null;
     res.json({
       user: {
         id: userId,
         name: profile?.name ?? req.user!.name ?? null,
-        email: profile?.email ?? req.user!.email ?? null,
+        email,
+        isAdmin: isAdminEmail(email),
       },
       inventory: inv,
       level: levelFromPoints(inv.points),

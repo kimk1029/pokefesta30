@@ -22,6 +22,8 @@ interface Props {
   /** 미로그인 게스트 모드. PortfolioTotal 안의 자체 오버레이가 보이도록 페이지
    *  구조는 그대로 두고, 의미 없는 UI(LogoutButton)만 숨긴다. */
   isGuest?: boolean;
+  /** 어드민 계정(ADMIN_EMAILS) 이면 관리자 메뉴 노출. */
+  isAdmin?: boolean;
 }
 
 const ACTIVITY: Array<{ em: string; bg: string; lb: string; href: string }> = [
@@ -46,7 +48,7 @@ const SETTINGS: Array<{ em: string; bg: string; lb: string; href?: string }> = [
   { em: '🔔', bg: '#E8DFB8', lb: '알림 설정 (준비중)' },
 ];
 
-export function MyScreen({ user, level, cardCount, tradeCount, savedCount, isGuest }: Props) {
+export function MyScreen({ user, level, cardCount, tradeCount, savedCount, isGuest, isAdmin }: Props) {
   const p = level;
   const xpPct = Math.max(0, Math.min(100, Math.round((p.xp / p.xpNeeded) * 100)));
   const name = user?.name ?? (isGuest ? '게스트' : '트레이너');
@@ -165,6 +167,20 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount, isGue
           </Link>
         ))}
       </div>
+
+      {/* 관리자 — 어드민 계정에만 노출. 히어로 배너/오리파 티켓 등 콘텐츠 관리. */}
+      {isAdmin && (
+        <div className="sect">
+          <SectionTitle title="관리자" />
+          <Link href="/admin" className="my-item">
+            <div className="mi-icon" style={{ background: '#0F172A', color: 'var(--white)' }}>
+              🛠
+            </div>
+            <div className="mi-main">어드민 · 콘텐츠 관리</div>
+            <span className="mi-arr">▶</span>
+          </Link>
+        </div>
+      )}
 
       {/* 상점 바로가기 */}
       <div className="sect">
