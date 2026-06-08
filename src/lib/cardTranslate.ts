@@ -140,8 +140,8 @@ const POKEMON: Term[] = [
   { ko: '메타그로스', en: 'metagross', ja: 'メタグロス' },
   { ko: '한카리아스', en: 'garchomp',  ja: 'ガブリアス' },
   { ko: '루카리오',  en: 'lucario',     ja: 'ルカリオ' },
-  { ko: '게치스',    en: 'greninja',    ja: 'ゲッコウガ' },
-  { ko: '게코우가',  en: 'greninja',    ja: 'ゲッコウガ' },
+  { ko: '게코우가',  en: 'greninja',    ja: 'ゲッコウガ' }, // 로마자 표기 별칭 — 검색용
+  { ko: '개굴닌자',  en: 'greninja',    ja: 'ゲッコウガ' }, // 공식 한국어명. JA→KO 역방향이 이 이름을 이기도록 별칭 뒤에 둠
   { ko: '조로아',    en: 'zorua',       ja: 'ゾロア' },
   { ko: '조로아크',  en: 'zoroark',     ja: 'ゾロアーク' },
   { ko: '에이스번',  en: 'cinderace',   ja: 'エースバーン' },
