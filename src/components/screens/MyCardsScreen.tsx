@@ -14,6 +14,7 @@ import {
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import type { MyCardWithPrice } from '@/lib/queries';
 import { useCurrency } from '@/components/CurrencyProvider';
+import { PortfolioHero } from '@/components/PortfolioHero';
 import { usePriceMode } from '@/components/PriceModeProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { isFlatTheme } from '@/lib/theme';
@@ -35,6 +36,7 @@ const VIEW_TABS: Array<[ViewMode, string]> = [
 
 interface Props {
   cards: MyCardWithPrice[];
+  isLoggedIn?: boolean;
 }
 
 interface DisplayCard {
@@ -67,7 +69,7 @@ const GAME_COLORS: Record<string, string> = {
   기타: '#94A3B8',
 };
 
-export function MyCardsScreen({ cards: initial }: Props) {
+export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
   const { format } = useCurrency();
   const { mode: priceMode, setMode: setPriceMode } = usePriceMode();
   const { theme } = useTheme();
@@ -249,30 +251,10 @@ export function MyCardsScreen({ cards: initial }: Props) {
           </Link>
         }
       />
-      <div style={{ height: 12 }} />
+      {/* 토탈 포트폴리오 — 컬렉션 상단에는 메인 설정과 무관하게 항상 노출. */}
+      <PortfolioHero cards={cards} isLoggedIn={isLoggedIn} />
 
-      {/* 전체 포트폴리오 바로가기 — 다크 인포그래픽 톤 */}
-      <Link
-        href="/my/portfolio"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          margin: '0 var(--gap) 10px',
-          padding: '11px 14px',
-          textDecoration: 'none',
-          background: 'linear-gradient(135deg,#0F172A,#1B2E89)',
-          boxShadow:
-            '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),4px 4px 0 var(--ink)',
-        }}
-      >
-        <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: '#fff', letterSpacing: 0.5 }}>
-          📈 전체 포트폴리오 보기
-        </span>
-        <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--gold)', letterSpacing: 0.5 }}>
-          등락률·차트 ▶
-        </span>
-      </Link>
+      <div style={{ height: 12 }} />
 
       {/* 내 카드 / 관심카드 탭 */}
       <div className="cv-subseg" style={{ marginBottom: 10 }}>

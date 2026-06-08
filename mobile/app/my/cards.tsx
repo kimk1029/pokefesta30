@@ -18,6 +18,7 @@ import {
 import { router } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { AppBar } from '@/components/AppBar';
+import { PortfolioHero } from '@/components/PortfolioHero';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
@@ -226,30 +227,10 @@ export default function MyCardsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar title="내 컬렉션" onBack={() => router.back()} />
-      {/* 전체 포트폴리오 바로가기 — 다크 인포그래픽 톤 */}
-      <Pressable
-        onPress={() => router.push('/my/portfolio' as never)}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginHorizontal: 14,
-          marginTop: 10,
-          paddingVertical: 11,
-          paddingHorizontal: 14,
-          backgroundColor: tc.ink,
-          borderColor: tc.ink,
-          borderWidth: 2,
-        }}
-      >
-        <PixelText variant={txt} size={10} color={tc.white} style={{ letterSpacing: 0.5 }}>
-          📈 전체 포트폴리오 보기
-        </PixelText>
-        <PixelText variant={txt} size={10} color={tc.gold} style={{ letterSpacing: 0.5 }}>
-          등락률·차트 ▶
-        </PixelText>
-      </Pressable>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
+        {/* 토탈 포트폴리오 — 컬렉션 상단에는 메인 설정과 무관하게 항상 노출. */}
+        <View style={{ height: 12 }} />
+        <PortfolioHero />
         {loading && !data ? (
           <View style={{ paddingTop: 30 }}><LoadingState /></View>
         ) : error ? (

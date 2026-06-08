@@ -6,6 +6,7 @@ import { LogoutButton } from '@/components/LogoutButton';
 import { MessagesInboxLink } from '@/components/MessagesInboxLink';
 import { PortfolioTotal } from '@/components/PortfolioTotal';
 import { ProfileAvatarClient } from '@/components/ProfileAvatarClient';
+import { ShowPortfolioSettingsItem } from '@/components/ShowPortfolioSettingsItem';
 import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
@@ -184,6 +185,7 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount, isGue
         <SectionTitle title="설정" />
         <CurrencySettingsItem />
         <ThemeSettingsItem />
+        <ShowPortfolioSettingsItem />
         {SETTINGS.map((it) =>
           it.href ? (
             <Link key={it.lb} href={it.href} className="my-item">

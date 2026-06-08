@@ -15,6 +15,7 @@ import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { CurrencySettingsItem } from '@/components/CurrencySettingsItem';
+import { ShowPortfolioSettingsItem } from '@/components/ShowPortfolioSettingsItem';
 import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { fetchMySummary, type MySummary } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
@@ -186,6 +187,8 @@ export default function MyScreen() {
               <CurrencySettingsItem />
               <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} />
               <ThemeSettingsItem />
+              <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} />
+              <ShowPortfolioSettingsItem />
               <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} />
               {settingsNav.map((item, i) => (
                 <View key={item.label}>

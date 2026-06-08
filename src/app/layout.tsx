@@ -11,6 +11,7 @@ import { PhoneShell } from '@/components/PhoneShell';
 import { Providers } from '@/components/Providers';
 import { RouteProgress } from '@/components/RouteProgress';
 import { CurrencyProvider } from '@/components/CurrencyProvider';
+import { HomePrefsProvider } from '@/components/HomePrefsProvider';
 import { PriceModeProvider } from '@/components/PriceModeProvider';
 import { ToastProvider } from '@/components/ToastProvider';
 import { UnreadProvider } from '@/components/UnreadProvider';
@@ -109,6 +110,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Providers>
           <CurrencyProvider>
             <PriceModeProvider>
+              <HomePrefsProvider>
               <ToastProvider>
                 <InventoryProvider>
                   <UnreadProvider>
@@ -122,6 +124,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   </UnreadProvider>
                 </InventoryProvider>
               </ToastProvider>
+              </HomePrefsProvider>
             </PriceModeProvider>
           </CurrencyProvider>
         </Providers>
