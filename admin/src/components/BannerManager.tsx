@@ -105,6 +105,21 @@ export function BannerManager({ initialBanners }: { initialBanners: BannerData[]
     } finally { setBusy(false); }
   };
 
+  const seedDefaults = async () => {
+    if (!confirm('기본 배너 4개를 채울까요? (이미 배너가 있으면 추가되지 않습니다)')) return;
+    setBusy(true); setMsg(null);
+    try {
+      const res = await fetch('/api/banners/seed', { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+      if (body.created > 0) setMsg({ type: 'ok', text: `기본 배너 ${body.created}개 추가됨` });
+      else setMsg({ type: 'ok', text: `이미 배너가 ${body.existing}개 있어 추가하지 않았습니다` });
+      router.refresh();
+    } catch (e) {
+      setMsg({ type: 'err', text: e instanceof Error ? e.message : '시드 실패' });
+    } finally { setBusy(false); }
+  };
+
   const toggleActive = async (b: BannerData) => {
     setBusy(true); setMsg(null);
     try {
@@ -133,11 +148,16 @@ export function BannerManager({ initialBanners }: { initialBanners: BannerData[]
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 12, color: '#64748B' }}>총 {initialBanners.length}개</span>
-        <button type="button" onClick={startNew} disabled={busy || editingId !== null} style={primaryBtn}>
-          + 배너 추가
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" onClick={seedDefaults} disabled={busy} style={smBtn('#64748B')}>
+            기본 배너 채우기
+          </button>
+          <button type="button" onClick={startNew} disabled={busy || editingId !== null} style={primaryBtn}>
+            + 배너 추가
+          </button>
+        </div>
       </div>
 
       {editingId === 'new' && (

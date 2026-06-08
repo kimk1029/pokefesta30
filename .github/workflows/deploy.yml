@@ -151,6 +151,10 @@ jobs:
     name: Deploy admin to Synology
     runs-on: ubuntu-latest
     needs: migrate
+    # migrate(GH 러너→Supabase) 가 실패해도 admin 은 배포한다.
+    # 스키마 변경은 nullable 추가뿐이고, NAS 에서 도는 admin 은 Supabase 에 닿으므로
+    # "기본 배너 채우기" 버튼이 linkUrl 컬럼을 자체 보정(ADD COLUMN IF NOT EXISTS)한다.
+    if: ${{ !cancelled() }}
     steps:
       - name: SSH & deploy admin
         uses: appleboy/ssh-action@v1.2.0

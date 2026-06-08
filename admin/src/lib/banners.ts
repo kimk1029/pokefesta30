@@ -1,5 +1,36 @@
 /** 히어로 배너 입력 검증 — server/routes/admin.ts 의 validateBanner 와 동일 규칙. */
 export const SLIDE_CLASSES = ['slide-a', 'slide-b', 'slide-c', 'slide-d'] as const;
+
+/**
+ * 기본(폴백) 배너 — 웹 HeroSlider.tsx 의 FALLBACK_SLIDES 와 동일.
+ * 어드민 "기본 배너 채우기" 로 DB 가 비어있을 때 시드한다.
+ */
+export const DEFAULT_BANNERS = [
+  {
+    sortOrder: 10, slideClass: 'slide-a', badge: '★ 팬 프로젝트',
+    title: '잉어킹\n프로모!', sub: '성수 6곳 스탬프 랠리\n탭해서 이벤트 상세 보기',
+    ctaHint: '👉 TAP', visualType: 'image', visualValue: '/promo/magikarp-promo.png',
+    onClick: 'stamp-rally', linkUrl: null, active: true,
+  },
+  {
+    sortOrder: 20, slideClass: 'slide-b', badge: '⚡ 실시간 거래 활성',
+    title: '삽니다\n팝니다', sub: '성수 현장 직거래\n장소 태그로 빠르게 연결',
+    ctaHint: null, visualType: 'emoji', visualValue: '💬',
+    onClick: null, linkUrl: null, active: true,
+  },
+  {
+    sortOrder: 30, slideClass: 'slide-c', badge: '📢 30초 제보',
+    title: '지금\n제보하기', sub: '방금 본 현장 상황을\n다른 트레이너에게 알려주세요',
+    ctaHint: null, visualType: 'emoji', visualValue: '📢',
+    onClick: null, linkUrl: null, active: true,
+  },
+  {
+    sortOrder: 40, slideClass: 'slide-d', badge: '🎴 오리파 뽑기',
+    title: '한정 카드\n뽑기!', sub: 'S급 카드를 뽑을 기회\n탭해서 지금 도전',
+    ctaHint: '👉 TAP', visualType: 'emoji', visualValue: '🎴',
+    onClick: 'oripa', linkUrl: null, active: true,
+  },
+] as const;
 export const VISUAL_TYPES = ['emoji', 'image'] as const;
 export const ON_CLICKS = ['stamp-rally', 'oripa'] as const;
 
