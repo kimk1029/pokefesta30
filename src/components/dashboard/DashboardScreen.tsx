@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AppBarUser } from '@/components/AppBarUser';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useHomePrefs } from '@/components/HomePrefsProvider';
-import type { HeroSlideData } from '@/components/HeroSlider';
+import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
 import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
 import { PortfolioHero } from '@/components/PortfolioHero';
 import { usePriceMode } from '@/components/PriceModeProvider';
@@ -339,6 +339,9 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
     />
   ) : null;
 
+  // 레벨 아래 한 줄짜리 작은 히어로(프로모) 배너.
+  const bannerNode = <HeroSlider slides={heroBanners} compact />;
+
   return (
     <>
       <StatusBar />
@@ -366,7 +369,9 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       {/* ═══ HERO: PORTFOLIO ═══ 메인 표시 ON 일 때만 (기본 off) */}
       {showPortfolioOnMain && <PortfolioHero cards={cards} isLoggedIn={isLoggedIn} />}
 
-      {/* ═══ 상단 그룹 ═══ ON: 검색→바로가기→레벨 / OFF: 레벨→바로가기→검색→인기 */}
+      {/* ═══ 상단 그룹 ═══
+          ON : 검색 → 바로가기 → 레벨
+          OFF: 레벨 → 히어로배너(작게) → 바로가기 → 카드검색 → 인기카드 */}
       {showPortfolioOnMain ? (
         <>
           {searchNode}
@@ -376,6 +381,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       ) : (
         <>
           {levelNode}
+          {bannerNode}
           {shortcutsNode}
           {searchNode}
           {popularNode}
@@ -702,20 +708,27 @@ function PopularCardsSection({
     if (!autoScroll || !carousel) return;
     const el = scrollRef.current;
     if (!el) return;
+    // scrollLeft 의 getter 는 정수로 반올림되므로 0.x 씩 더하면 누적되지 않는다.
+    // float 누적기(acc)를 따로 두고 매 프레임 el.scrollLeft 에 대입해야 움직인다.
     let raf = 0;
     let paused = false;
+    let acc = el.scrollLeft;
     const pause = () => { paused = true; };
-    const resume = () => { paused = false; };
+    const resume = () => { paused = false; acc = el.scrollLeft; };
     el.addEventListener('mouseenter', pause);
     el.addEventListener('mouseleave', resume);
     el.addEventListener('touchstart', pause, { passive: true });
     el.addEventListener('touchend', resume, { passive: true });
-    const step = () => {
-      if (!paused) {
-        el.scrollLeft += 0.4;
-        const half = el.scrollWidth / 2;
-        if (half > 0 && el.scrollLeft >= half) el.scrollLeft -= half;
+    let last = 0;
+    const step = (t: number) => {
+      if (!paused && el.scrollWidth > el.clientWidth) {
+        const dt = last ? t - last : 16;
+        const half = el.scrollWidth / 2; // 카드를 두 벌 이어붙였으므로 절반 지점에서 되돌림
+        acc += (dt / 1000) * 28; // ~28px/s, 천천히
+        if (half > 0 && acc >= half) acc -= half;
+        el.scrollLeft = acc;
       }
+      last = t;
       raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);

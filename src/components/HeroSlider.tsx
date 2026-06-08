@@ -88,9 +88,11 @@ function renderVisual(s: HeroSlideData): ReactNode {
 
 interface HeroSliderProps {
   slides?: HeroSlideData[];
+  /** 작게 한 줄로 — 메인(off) 레이아웃의 레벨 아래 컴팩트 배너. */
+  compact?: boolean;
 }
 
-export function HeroSlider({ slides }: HeroSliderProps = {}) {
+export function HeroSlider({ slides, compact = false }: HeroSliderProps = {}) {
   const router = useRouter();
   const { status } = useSession();
   const source = slides && slides.length > 0 ? slides : FALLBACK_SLIDES;
@@ -153,7 +155,7 @@ export function HeroSlider({ slides }: HeroSliderProps = {}) {
   return (
     <>
       <div
-        className="hero-wrap"
+        className={`hero-wrap${compact ? ' hero-wrap--compact' : ''}`}
         onTouchStart={(e) => {
           startX.current = e.touches[0].clientX;
           dragged.current = false;
