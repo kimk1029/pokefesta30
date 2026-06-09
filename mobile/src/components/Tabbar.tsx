@@ -117,6 +117,7 @@ interface FabProps {
 function FabTab({ on, label, href }: FabProps) {
   const { theme } = useTheme();
   const c = useThemeColors();
+  const flat = isFlatTheme(theme);
   const textVariant = useThemeTextVariant();
   const spin = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
@@ -255,7 +256,26 @@ function FabTab({ on, label, href }: FabProps) {
             ]}
           />
         ) : null}
-        {theme === 'onepiece' ? (
+        {flat ? (
+          // 클린·다크 — 픽셀 포켓볼 대신 에메랄드 라운드 FAB + 추가 아이콘
+          <View
+            style={{
+              width: 58,
+              height: 58,
+              borderRadius: 20,
+              backgroundColor: c.grn,
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: '#0A5C4B',
+              shadowOpacity: 0.35,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 6,
+            }}
+          >
+            <TabIcon name="plus" size={28} color="#FFFFFF" />
+          </View>
+        ) : theme === 'onepiece' ? (
           <StrawHatBall size={62} />
         ) : theme === 'sports' ? (
           <SportsBall size={62} />

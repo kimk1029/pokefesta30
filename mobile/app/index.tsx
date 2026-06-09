@@ -1,9 +1,10 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Image, ScrollView, View, Pressable, Text, TextInput } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
+import { Animated, Easing, Image, ScrollView, View, Pressable, Text, TextInput } from 'react-native';
+import Svg, { Rect, Path, Circle } from 'react-native-svg';
 import { router } from 'expo-router';
 import { AppBar, ABtn } from '@/components/AppBar';
 import { PortfolioHero } from '@/components/PortfolioHero';
+import { HeroBanner, type HeroSlideData } from '@/components/HeroBanner';
 import { useHomePrefs } from '@/components/HomePrefsProvider';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
@@ -14,6 +15,7 @@ import { RarBadge } from '@/components/cv/RarBadge';
 import { GradeBadge } from '@/components/cv/GradeBadge';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useTheme, useThemeTextVariant } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 import { isAuthenticated, subscribeSession } from '@/lib/session';
 
 /** 로그인 상태를 반응형으로 구독. */
@@ -29,6 +31,8 @@ function useAuthed(): boolean {
 }
 import { RARS, gameColors, fmt, priceLabel, displayCardName, inferCardCurrency, cardKrw, cardJpy, cardPrice, type Game, type Rarity } from '@/data/cardvault';
 import { updateCard, useCollection } from '@/lib/collection';
+import { localizeCardName } from '@/lib/cardNameKo';
+import { api } from '@/lib/apiClient';
 import { usePriceMode } from '@/lib/priceMode';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { fetchPortfolio, type PortfolioSummary } from '@/lib/myApi';
@@ -234,7 +238,8 @@ export default function Home() {
                   ? { apparelId: r.apparelId, shortName: curated.shortName, category: curated.category }
                   : {
                       apparelId: r.apparelId,
-                      shortName: shortenSnkrName(r.name),
+                      // 웹과 동일하게 JA→KO 변환 후 단축 (앱에서 일본어로 나오던 문제 수정)
+                      shortName: shortenSnkrName(localizeCardName(r.name)),
                       category: inferSnkrCategory(r.name),
                     };
               })
@@ -253,6 +258,21 @@ export default function Home() {
     return () => {
       alive = false;
     };
+  }, []);
+
+  // 히어로 배너 (웹과 동일하게 /api/banners). 실패/빈 경우 영역 미표시.
+  const [banners, setBanners] = useState<HeroSlideData[]>([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await api<{ data: HeroSlideData[] }>('/api/banners', { auth: false });
+        if (alive) setBanners(Array.isArray(r?.data) ? r.data : []);
+      } catch {
+        if (alive) setBanners([]);
+      }
+    })();
+    return () => { alive = false; };
   }, []);
 
   const submitHomeSearch = () => {
@@ -342,65 +362,30 @@ export default function Home() {
             marginBottom: 6,
           }}
         >
-          <QuickBtn icon="📷" label="스캔" bg={tc.grn} href="/cards/grading" />
-          <QuickBtn icon="¥" label="시세확인" bg={tc.gold} href="/cards/packs" />
-          <QuickBtn icon="🔨" label="MVC경매" bg={tc.blu} href="/cards/mvc-auction" />
-          <QuickBtn icon={<KoreaMarketIcon />} label="국내마켓" bg={tc.red} href="/cards/bunjang" />
-          <QuickBtn icon="🤝" label="거래" bg={tc.grn} href="/trade" />
+          <QuickBtn icon="📷" kind="scan" label="스캔" bg={tc.grn} href="/cards/grading" />
+          <QuickBtn icon="¥" kind="price" label="시세확인" bg={tc.gold} href="/cards/packs" />
+          <QuickBtn icon="🔨" kind="auction" label="MVC경매" bg={tc.blu} href="/cards/mvc-auction" />
+          <QuickBtn icon={<KoreaMarketIcon />} kind="market" label="국내마켓" bg={tc.red} href="/cards/bunjang" />
+          <QuickBtn icon="🤝" kind="trade" label="거래" bg={tc.grn} href="/trade" />
         </View>
     </>
   );
   const levelNode = (
     <>
-        {/* XP / Level — 웹 메인과 동일하게 항상 표시 */}
+        {/* XP / Level — 한 줄짜리 컴팩트 (LV · XP바 · XP · 포인트) */}
         <View style={{ marginHorizontal: 14, marginBottom: 6 }}>
           <PixelFrame bg={tc.white}>
-            <View style={{ padding: 13 }}>
+            <View style={{ paddingVertical: 9, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+              <PixelText variant={txt} size={10} color={tc.ink} numberOfLines={1} style={{ flexShrink: 0 }}>
+                {LEVEL_LABEL}
+              </PixelText>
               <View
                 style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: 9,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      backgroundColor: tc.pur,
-                      borderColor: tc.ink,
-                      borderWidth: 2,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 14 }}>🏆</Text>
-                  </View>
-                  <View>
-                    <PixelText variant={txt} size={11}>{LEVEL_LABEL}</PixelText>
-                    <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 4 }}>
-                      다음 레벨까지 {XP_MAX - XP_CURRENT}P
-                    </PixelText>
-                  </View>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <PixelText variant={txt} size={13} color={tc.goldDk}>
-                    🪙{POINTS.toLocaleString()}
-                  </PixelText>
-                  <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 3 }}>
-                    포인트
-                  </PixelText>
-                </View>
-              </View>
-              <View
-                style={{
-                  height: 12,
+                  flex: 1,
+                  height: 8,
                   backgroundColor: tc.pap3,
                   borderColor: tc.ink,
-                  borderWidth: 2,
-                  position: 'relative',
+                  borderWidth: 1,
                   overflow: 'hidden',
                 }}
               >
@@ -411,26 +396,13 @@ export default function Home() {
                     backgroundColor: tc.pur,
                   }}
                 />
-                <View
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    height: 3,
-                    width: `${Math.round((XP_CURRENT / XP_MAX) * 100)}%`,
-                    backgroundColor: 'rgba(255,255,255,0.4)',
-                  }}
-                />
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
-                <PixelText variant={txt} size={9} color={tc.ink3}>
-                  {XP_CURRENT} / {XP_MAX} XP
-                </PixelText>
-                <PixelText variant={txt} size={9} color={tc.pur}>
-                  +80XP 이번 주
-                </PixelText>
-              </View>
+              <PixelText variant={txt} size={9} color={tc.ink3} style={{ flexShrink: 0 }}>
+                {XP_CURRENT}/{XP_MAX}
+              </PixelText>
+              <PixelText variant={txt} size={10} color={tc.goldDk} style={{ flexShrink: 0 }}>
+                🪙{POINTS.toLocaleString()}
+              </PixelText>
             </View>
           </PixelFrame>
         </View>
@@ -440,6 +412,8 @@ export default function Home() {
     snkrRows.length > 0 ? (
       <PopularCardsSection rows={snkrRows} theme={theme} tc={tc} txt={txt} autoScroll={!showPortfolioOnMain} />
     ) : null;
+  // 레벨 아래 컴팩트 히어로 배너 (웹과 동일 위치). DB 배너 없으면 컴포넌트가 폴백 노출.
+  const bannerNode = <HeroBanner slides={banners} />;
 
   return (
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
@@ -483,10 +457,12 @@ export default function Home() {
             {searchNode}
             {shortcutsNode}
             {levelNode}
+            {bannerNode}
           </>
         ) : (
           <>
             {levelNode}
+            {bannerNode}
             {shortcutsNode}
             {searchNode}
             {popularNode}
@@ -732,27 +708,95 @@ function KoreaMarketIcon() {
   );
 }
 
-function QuickBtn({ icon, label, bg, href }: { icon: ReactNode; label: string; bg: string; href: string }) {
+type QuickKind = 'scan' | 'price' | 'auction' | 'market' | 'trade';
+
+/** 클린·다크 테마용 바로가기 라인 아이콘 (웹 클린 테마와 동일 톤). */
+function QuickCleanIcon({ kind, color }: { kind: QuickKind; color: string }) {
+  const p = { stroke: color, strokeWidth: 1.8, fill: 'none' as const, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24">
+      {kind === 'scan' && (
+        <>
+          <Path d="M4 9V6.5A1.5 1.5 0 0 1 5.5 5H8" {...p} />
+          <Path d="M16 5h2.5A1.5 1.5 0 0 1 20 6.5V9" {...p} />
+          <Path d="M20 15v2.5a1.5 1.5 0 0 1-1.5 1.5H16" {...p} />
+          <Path d="M8 19H5.5A1.5 1.5 0 0 1 4 17.5V15" {...p} />
+          <Circle cx={12} cy={12} r={3} {...p} />
+        </>
+      )}
+      {kind === 'price' && (
+        <>
+          <Path d="M4 13.5 11.5 6H18a1 1 0 0 1 1 1v6.5L11.5 21z" {...p} />
+          <Circle cx={14.5} cy={9.5} r={1.2} fill={color} stroke="none" />
+        </>
+      )}
+      {kind === 'auction' && (
+        <>
+          <Path d="M13.5 3.5 19 9l-2.5 2.5L11 6z" {...p} />
+          <Path d="M11.5 7.5 5 14" {...p} />
+          <Path d="M8 10.5 12 14.5" {...p} />
+          <Path d="M4 20.5h9" {...p} />
+        </>
+      )}
+      {kind === 'market' && (
+        <>
+          <Path d="M4.5 9 6 5h12l1.5 4" {...p} />
+          <Path d="M4.5 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 3 0" {...p} />
+          <Path d="M5.5 11v8h13v-8" {...p} />
+          <Path d="M10 19v-4h4v4" {...p} />
+        </>
+      )}
+      {kind === 'trade' && (
+        <>
+          <Path d="M5 8h12" {...p} />
+          <Path d="M14 5 17 8l-3 3" {...p} />
+          <Path d="M19 16H7" {...p} />
+          <Path d="M10 13 7 16l3 3" {...p} />
+        </>
+      )}
+    </Svg>
+  );
+}
+
+function QuickBtn({ icon, kind, label, bg, href }: { icon: ReactNode; kind: QuickKind; label: string; bg: string; href: string }) {
   const tc = useThemeColors();
+  const { theme } = useTheme();
+  const flat = isFlatTheme(theme);
   const txt = useThemeTextVariant();
   return (
     <View style={{ width: '19%' }}>
       <PixelPress onPress={() => router.push(href as never)} borderWidth={3} shadow={5} inner={3}>
         <View style={{ paddingVertical: 8, paddingHorizontal: 0, alignItems: 'center', gap: 5, minWidth: 0 }}>
-          <View
-            style={{
-              width: 32,
-              height: 32,
-              backgroundColor: bg,
-              borderColor: tc.ink,
-              borderWidth: 2,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {typeof icon === 'string' ? <Text style={{ fontSize: 17 }}>{icon}</Text> : icon}
-          </View>
-          <PixelText variant={txt} size={9} color={tc.ink} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
+          {flat ? (
+            // 클린·다크 — 소프트 틴트 라운드 타일 + 라인 아이콘
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 13,
+                backgroundColor: `${bg}22`,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <QuickCleanIcon kind={kind} color={bg} />
+            </View>
+          ) : (
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                backgroundColor: bg,
+                borderColor: tc.ink,
+                borderWidth: 2,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {typeof icon === 'string' ? <Text style={{ fontSize: 17 }}>{icon}</Text> : icon}
+            </View>
+          )}
+          <PixelText variant={txt} size={11} color={tc.ink} numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
             {label}
           </PixelText>
         </View>
@@ -779,28 +823,58 @@ function PopularCardsSection({
   txt: 'pixel' | 'ko';
   autoScroll: boolean;
 }) {
-  const scrollRef = useRef<ScrollView>(null);
-  const offset = useRef(0);
-  const halfWidth = useRef(0);
   const carousel = theme !== 'dark';
+  const flat = theme === 'clean' || theme === 'dark';
+  // 웹처럼 끊김 없이 흐르는 슬라이드 — 네이티브 드라이버 translateX.
+  // UI 스레드에서만 돌아 JS 부하 0 → 바로가기/카드 탭이 안 막힌다.
+  const tx = useRef(new Animated.Value(0)).current;
+  const txVal = useRef(0);
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const STEP = 118; // 카드 폭(112) + marginRight(6)
+  const setWidth = rows.length * STEP; // 카드 한 벌(원본) 폭
+
+  // tx 현재값 추적 (터치로 멈췄다 이어갈 때 사용).
+  useEffect(() => {
+    const id = tx.addListener(({ value }) => { txVal.current = value; });
+    return () => tx.removeListener(id);
+  }, [tx]);
+
+  // fromTx(현재 tx, 음수) → -setWidth 까지 등속 이동 후 0부터 무한 반복.
+  // 카드를 두 벌 이어붙였으므로 -setWidth 와 0 의 화면이 동일 → 리셋이 안 보임.
+  const runMarquee = (fromTx: number) => {
+    if (!autoScroll || !carousel || setWidth <= 0) return;
+    let v = fromTx % setWidth; // (-setWidth, 0]
+    if (v > 0) v -= setWidth;
+    const dist = setWidth + v; // v∈[-setWidth,0] → dist∈[0,setWidth]
+    if (dist <= 0.5) { tx.setValue(0); runMarquee(0); return; }
+    tx.setValue(v);
+    animRef.current = Animated.timing(tx, {
+      toValue: -setWidth,
+      duration: (dist / 22) * 1000, // ~22px/s (웹과 비슷한 속도)
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+    animRef.current.start(({ finished }) => { if (finished) runMarquee(0); });
+  };
 
   useEffect(() => {
-    if (!autoScroll || !carousel) return;
-    let raf = 0;
-    let last = 0;
-    const tick = (t: number) => {
-      if (last > 0 && halfWidth.current > 0) {
-        const dt = t - last;
-        offset.current += (dt / 1000) * 22; // ~22px/s, 천천히
-        if (offset.current >= halfWidth.current) offset.current -= halfWidth.current;
-        scrollRef.current?.scrollTo({ x: offset.current, animated: false });
-      }
-      last = t;
-      raf = requestAnimationFrame(tick);
+    runMarquee(0);
+    return () => {
+      animRef.current?.stop();
+      if (resumeTimer.current) clearTimeout(resumeTimer.current);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [autoScroll, carousel, rows.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoScroll, carousel, setWidth]);
+
+  const pauseMarquee = () => {
+    animRef.current?.stop();
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+  };
+  const resumeMarqueeSoon = () => {
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    resumeTimer.current = setTimeout(() => { runMarquee(txVal.current); }, 1600);
+  };
 
   if (theme === 'dark') {
     return (
@@ -849,33 +923,31 @@ function PopularCardsSection({
       <View style={{ marginHorizontal: 14 }}>
         <SectHd title="🔥 인기 카드들" more="전체보기 →" onMore={() => router.push('/cards/snkrdunk' as never)} />
       </View>
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        scrollEnabled={!autoScroll}
-        onContentSizeChange={(w) => { halfWidth.current = w / 2; }}
-        contentContainerStyle={{ paddingHorizontal: 14, gap: 6 }}
-        style={{ marginBottom: 6 }}
+      <View
+        style={{ marginBottom: 6, overflow: 'hidden' }}
+        onTouchStart={pauseMarquee}
+        onTouchEnd={resumeMarqueeSoon}
+        onTouchCancel={resumeMarqueeSoon}
       >
+        <Animated.View style={{ flexDirection: 'row', paddingLeft: 14, transform: [{ translateX: tx }] }}>
         {displayRows.map(({ seed, data }, idx) => {
           const bg = seed.category ? SNKR_CAT_BG[seed.category] : tc.ink2;
           const priceText = data && data.minPrice > 0 ? `¥${data.minPrice.toLocaleString('ja-JP')}` : '—';
           return (
-            <View key={`${seed.apparelId}-${idx}`} style={{ width: 128 }}>
+            <View key={`${seed.apparelId}-${idx}`} style={{ width: 112, marginRight: 6 }}>
               <PixelPress
                 onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
-                innerStyle={{ borderTopWidth: 4, borderTopColor: bg, height: 196 }}
+                innerStyle={{ ...(flat ? {} : { borderTopWidth: 4, borderTopColor: bg }), height: 222 }}
               >
                 <View style={{ flex: 1 }}>
-                  <View style={{ height: 92, backgroundColor: tc.pap2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  <View style={{ height: 118, backgroundColor: tc.pap2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {data?.imageUrl ? (
                       <Image source={{ uri: data.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                     ) : (
                       <Text style={{ fontSize: 28 }}>🃏</Text>
                     )}
                   </View>
-                  <View style={{ padding: 8, borderTopColor: tc.ink, borderTopWidth: 3, flex: 1 }}>
+                  <View style={{ padding: 8, flex: 1, ...(flat ? {} : { borderTopColor: tc.ink, borderTopWidth: 3 }) }}>
                     <View style={{ height: 18, marginBottom: 4 }}>
                       {seed.category ? (
                         <View style={{ alignSelf: 'flex-start', backgroundColor: bg, paddingHorizontal: 4, paddingVertical: 2, borderColor: tc.ink, borderWidth: 1 }}>
@@ -883,7 +955,7 @@ function PopularCardsSection({
                         </View>
                       ) : null}
                     </View>
-                    <PixelText variant={txt} size={9} numberOfLines={1} style={{ marginBottom: 4 }}>
+                    <PixelText variant={txt} size={11} weight="bold" color={tc.ink} numberOfLines={1} style={{ marginBottom: 4 }}>
                       {seed.shortName}
                     </PixelText>
                     <PixelText variant={txt} size={10} color={tc.red} numberOfLines={1}>
@@ -898,7 +970,8 @@ function PopularCardsSection({
             </View>
           );
         })}
-      </ScrollView>
+        </Animated.View>
+      </View>
     </>
   );
 }
