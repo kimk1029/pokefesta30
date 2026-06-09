@@ -31,6 +31,20 @@ const ON_CLICKS = [
   { v: 'oripa', l: '오리파 페이지' },
 ] as const;
 
+/** 클릭 시 이동할 앱/웹 화면 — 선택하면 연결 링크에 경로가 채워진다. (웹·앱 공통 경로) */
+const APP_SCREENS = [
+  { v: '', l: '— 직접 입력 / 없음 —' },
+  { v: '/cards/snkrdunk', l: '인기 카드 (스니덩)' },
+  { v: '/cards/packs', l: '시세확인 (팩)' },
+  { v: '/cards/grading', l: '카드 스캔' },
+  { v: '/cards/mvc-auction', l: 'MVC 경매' },
+  { v: '/cards/bunjang', l: '국내마켓 (번개장터)' },
+  { v: '/trade', l: '거래' },
+  { v: '/feed', l: '커뮤니티 (피드)' },
+  { v: '/my/cards', l: '내 컬렉션' },
+  { v: '/my/oripa', l: '오리파' },
+] as const;
+
 const EMPTY_DRAFT: Draft = {
   id: null,
   sortOrder: 50,
@@ -278,7 +292,10 @@ export function AdminBannerList({ initialBanners }: Props) {
                 visual: {b.visualType} · {b.visualValue}
                 {b.ctaHint && <> · CTA: {b.ctaHint}</>}
                 {b.onClick && <> · onClick: {b.onClick}</>}
-                {b.linkUrl && <> · 🔗 {b.linkUrl}</>}
+                {b.linkUrl && (
+                  <> · 🔗 {APP_SCREENS.find((s) => s.v === b.linkUrl)?.l ?? b.linkUrl}</>
+                )}
+                {!b.onClick && !b.linkUrl && <> · (비클릭)</>}
               </div>
             </div>
 
@@ -448,6 +465,20 @@ function BannerForm({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =>
           {ON_CLICKS.map((o) => (
             <option key={o.v} value={o.v}>
               {o.l}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="앱 화면 바로가기 (선택하면 아래 링크에 자동 입력)">
+        <select
+          value={APP_SCREENS.some((s) => s.v === (draft.linkUrl ?? '')) ? (draft.linkUrl ?? '') : ''}
+          onChange={(e) => setDraft({ ...draft, linkUrl: e.target.value || null })}
+          style={inputStyle}
+        >
+          {APP_SCREENS.map((s) => (
+            <option key={s.v} value={s.v}>
+              {s.l}
             </option>
           ))}
         </select>
