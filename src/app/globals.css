@@ -4324,22 +4324,17 @@ a{color:inherit;text-decoration:none;}
   box-shadow:0 1px 2px rgba(17,20,26,.06),0 4px 10px -4px rgba(17,20,26,.10);
 }
 
-/* ── 피드 상세 펼침 애니메이션 ──
-   카드 자체는 살짝 탄성 스케일, 펼침으로 새로 나타나는 블록(사진/메타/댓글,
-   .fi-detail)은 페이드+슬라이드 인으로 자연스럽게 열린다. */
-.feed-item{transition:transform .18s ease,box-shadow .18s ease;}
-.feed-item--expanded{animation:pf-feed-open .26s cubic-bezier(.2,.8,.3,1);}
-@keyframes pf-feed-open{
-  0%{transform:scale(.985);}
-  60%{transform:scale(1.005);}
-  100%{transform:scale(1);}
-}
-.fi-detail{animation:pf-feed-detail-in .3s ease both;}
-@keyframes pf-feed-detail-in{
-  from{opacity:0;transform:translateY(6px);}
-  to{opacity:1;transform:translateY(0);}
-}
+/* ── 피드 상세 펼침/접힘 애니메이션 ──
+   상세 블록을 grid-rows 0fr↔1fr 래퍼로 감싸 세로 길이가 트랜지션으로
+   자연스럽게 늘었다 줄었다 한다 (콘텐츠는 한 번 열리면 유지 — 접힘도 부드럽게).
+   내용물은 살짝 페이드로 따라온다. */
+.fi-detail-wrap{
+  display:grid;grid-template-rows:0fr;
+  transition:grid-template-rows .34s cubic-bezier(.2,.8,.3,1);}
+.fi-detail-wrap[data-open]{grid-template-rows:1fr;}
+.fi-detail-inner{overflow:hidden;min-height:0;opacity:0;transition:opacity .22s ease;}
+.fi-detail-wrap[data-open] .fi-detail-inner{opacity:1;transition:opacity .26s ease .08s;}
 @media (prefers-reduced-motion:reduce){
-  .feed-item--expanded{animation:none;}
-  .fi-detail{animation:none;}
+  .fi-detail-wrap{transition:none;}
+  .fi-detail-inner{transition:none;opacity:1;}
 }

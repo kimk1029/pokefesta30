@@ -20,9 +20,17 @@ function formatAbsolute(iso: string): string {
 export function FeedRow({ post }: { post: FeedPost }) {
   const hasPixelAvatar = isAvatarId(post.user);
   const [expanded, setExpanded] = useState(false);
+  // 한 번이라도 펼쳤으면 상세 콘텐츠를 유지 — 접힘도 높이 트랜지션으로 자연스럽게.
+  const [opened, setOpened] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const images = post.images ?? [];
   const hasImages = images.length > 0;
+
+  const toggle = () =>
+    setExpanded((v) => {
+      if (!v) setOpened(true);
+      return !v;
+    });
 
   return (
     <div
@@ -30,11 +38,11 @@ export function FeedRow({ post }: { post: FeedPost }) {
       role="button"
       tabIndex={0}
       aria-expanded={expanded}
-      onClick={() => setExpanded((v) => !v)}
+      onClick={toggle}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          setExpanded((v) => !v);
+          toggle();
         }
       }}
     >
@@ -89,10 +97,15 @@ export function FeedRow({ post }: { post: FeedPost }) {
           </span>
         </div>
         <div className="fi-text">{post.text}</div>
-        {/* 사진은 상세 펼쳤을 때만 노출. 클릭 시 lightbox 로 전체 보기. */}
-        {expanded && hasImages && (
+        {/* 상세 — 한 번 열리면 콘텐츠 유지, 래퍼의 grid-rows 트랜지션으로
+            펼침/접힘 모두 높이가 자연스럽게 늘었다 줄었다 한다. */}
+        <div className="fi-detail-wrap" data-open={expanded || undefined}>
+          <div className="fi-detail-inner">
+            {opened && (
+              <>
+        {/* 사진 — 클릭 시 lightbox 로 전체 보기. */}
+        {hasImages && (
           <div
-            className="fi-detail"
             onClick={(e) => e.stopPropagation()}
             style={{
               display: 'grid',
@@ -135,6 +148,12 @@ export function FeedRow({ post }: { post: FeedPost }) {
             ))}
           </div>
         )}
+        {/* 댓글 — 헤더 한 줄에 작성일을 합쳐 구분선/메타 행을 줄였다. */}
+        <FeedComments feedId={post.id} dateLabel={formatAbsolute(post.createdAt)} />
+              </>
+            )}
+          </div>
+        </div>
         {lightboxIdx !== null && (
           <Lightbox
             urls={images}
@@ -142,13 +161,6 @@ export function FeedRow({ post }: { post: FeedPost }) {
             onClose={() => setLightboxIdx(null)}
           />
         )}
-        {expanded && (
-          <div className="fi-meta fi-detail">
-            <span className="fi-meta-time">🕒 {formatAbsolute(post.createdAt)}</span>
-          </div>
-        )}
-        {/* 댓글 — 상세 펼침 시에만 로드/노출. */}
-        {expanded && <FeedComments feedId={post.id} />}
       </div>
       <div className="fi-right" onClick={(e) => e.stopPropagation()}>
         <BookmarkButton feedId={post.id} />
@@ -187,10 +199,12 @@ interface FeedComment {
 }
 
 /**
- * 피드 댓글 — 상세 펼침 시 lazy 로드. 목록 + 한 줄 입력의 미니멀 구성.
+ * 피드 댓글 — 상세 펼침 시 lazy 로드되는 미니멀 구성.
+ * 헤더 한 줄("댓글 N · 작성일")로 메타를 합치고, 입력은 보더 없는 필 + 텍스트
+ * 등록 버튼만 — 구분선/박스를 최소화한 감각적인 한 줄 디자인.
  * 부모(feed-item)가 클릭 토글이라 내부 클릭은 전파를 막는다.
  */
-function FeedComments({ feedId }: { feedId: number }) {
+function FeedComments({ feedId, dateLabel }: { feedId: number; dateLabel: string }) {
   const [comments, setComments] = useState<FeedComment[] | null>(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -243,16 +257,21 @@ function FeedComments({ feedId }: { feedId: number }) {
 
   return (
     <div
-      className="fi-detail"
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
-      style={{ marginTop: 10, borderTop: '1px solid var(--pap3)', paddingTop: 8 }}
+      style={{ marginTop: 12 }}
     >
-      <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginBottom: 6 }}>
-        💬 댓글 {comments ? comments.length : '…'}
+      {/* 헤더 한 줄 — 댓글 수 + 작성일 (별도 메타 행/구분선 없음) */}
+      <div
+        style={{
+          fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)',
+          letterSpacing: 0.2, marginBottom: 7,
+        }}
+      >
+        댓글 {comments ? comments.length : '…'} <span style={{ opacity: 0.55 }}>· {dateLabel}</span>
       </div>
       {comments && comments.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 9 }}>
           {comments.map((c) => (
             <div key={c.id} style={{ display: 'flex', gap: 6, alignItems: 'baseline', minWidth: 0 }}>
               <span style={{ fontFamily: 'var(--f1)', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
@@ -265,7 +284,8 @@ function FeedComments({ feedId }: { feedId: number }) {
           ))}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 6 }}>
+      {/* 입력 — 보더 없는 필 인풋 + 텍스트 버튼만 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <input
           type="text"
           value={text}
@@ -277,8 +297,10 @@ function FeedComments({ feedId }: { feedId: number }) {
             if (e.key === 'Enter') submit();
           }}
           style={{
-            flex: 1, minWidth: 0, padding: '7px 10px',
-            fontFamily: 'var(--f1)', fontSize: 11,
+            flex: 1, minWidth: 0, padding: '9px 14px',
+            background: 'var(--pap2)', border: 'none', borderRadius: 999,
+            fontFamily: 'var(--f1)', fontSize: 12, outline: 'none',
+            boxShadow: 'none', color: 'var(--ink)',
           }}
         />
         <button
@@ -286,11 +308,12 @@ function FeedComments({ feedId }: { feedId: number }) {
           onClick={submit}
           disabled={sending || !text.trim()}
           style={{
-            flexShrink: 0, padding: '7px 12px',
-            background: 'var(--ink)', color: 'var(--white)',
-            fontFamily: 'var(--f1)', fontSize: 11,
-            borderRadius: 'var(--r-sm, 0px)',
-            opacity: sending || !text.trim() ? 0.5 : 1,
+            flexShrink: 0, padding: '6px 2px',
+            background: 'none', border: 'none',
+            color: 'var(--blu)', fontFamily: 'var(--f1)',
+            fontSize: 12, fontWeight: 700,
+            opacity: sending || !text.trim() ? 0.4 : 1,
+            cursor: 'pointer',
           }}
         >
           등록
