@@ -4207,3 +4207,31 @@ a{color:inherit;text-decoration:none;}
 [data-theme="yugioh"] .login-btn-kakao{background:#FEE500;color:#3A1D00;}
 [data-theme="yugioh"] .login-btn-naver{background:#03C75A;color:#FFFFFF;}
 [data-theme="yugioh"] .login-btn-google{background:#FFFFFF;color:#1F1F1F;}
+
+/* ════════════════════════════════════════════════════════════════
+   CLEAN — 폴리시 패스 (인라인 픽셀 잔재 제거 + 디테일 정돈)
+   ════════════════════════════════════════════════════════════════ */
+/* 인라인 픽셀 박스섀도우 일괄 디픽셀 — dark 와 같은 속성선택자 블랭킷.
+   (clean 에는 빠져 있어 /cards 의 경고 박스·시세 박스·버튼들이 하드 오프셋
+   그림자를 그대로 들고 있었다) */
+[data-theme="clean"] [style*="0 0 var(--ink)"]{
+  border-radius:var(--r-sm) !important;
+  box-shadow:0 1px 2px rgba(17,20,26,.05),0 0 0 1px var(--pap3) !important;}
+[data-theme="clean"] [style*="solid var(--ink)"]{border-color:var(--pap3) !important;}
+
+/* 앱바 로고 — 픽셀 몬스터볼 숨기고 워드마크만 (모던 클린) */
+[data-theme="clean"] .appbar-logo .ball-themed{display:none !important;}
+
+/* 섹션 헤더 — 살짝 더 숨 쉬는 간격 */
+[data-theme="clean"] .sect-title,
+[data-theme="clean"] .sect-hd{padding:6px 2px 4px;}
+
+/* 가로 스크롤 카드 레일 — 잘린 하드 보더 대신 여백감 (양끝 패딩 보정 없이 그림자만 절제) */
+[data-theme="clean"] .cc-item{box-shadow:0 1px 2px rgba(17,20,26,.04);}
+
+/* 인풋 — 또렷한 포커스 링 (브랜드 다크) */
+[data-theme="clean"] input:focus,
+[data-theme="clean"] textarea:focus,
+[data-theme="clean"] select:focus{
+  border-color:var(--ink2);outline:none;
+  box-shadow:0 0 0 3px rgba(17,20,26,.08);}

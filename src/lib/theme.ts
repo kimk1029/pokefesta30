@@ -8,7 +8,7 @@ export const THEMES: ReadonlyArray<{
   {
     id: 'pokemon',
     label: '포켓몬스터',
-    desc: '몬스터볼 + 빨강·노랑 (기본)',
+    desc: '몬스터볼 + 빨강·노랑 (픽셀)',
   },
   {
     id: 'onepiece',
@@ -28,7 +28,7 @@ export const THEMES: ReadonlyArray<{
   {
     id: 'clean',
     label: '클린',
-    desc: '비트 아닌 깔끔·라운드 (모던)',
+    desc: '깔끔·모던 (기본)',
   },
   {
     id: 'dark',
@@ -37,7 +37,7 @@ export const THEMES: ReadonlyArray<{
   },
 ] as const;
 
-export const DEFAULT_THEME: ThemeId = 'pokemon';
+export const DEFAULT_THEME: ThemeId = 'clean';
 export const THEME_STORAGE_KEY = 'pokefesta-theme';
 
 /**

@@ -79,7 +79,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#E8DFB8',
+  themeColor: '#F7F8FA',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -100,7 +100,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* 테마 부트스트랩 — hydration 전에 동기 실행, FOUC 방지 */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('pokefesta-theme');if(t==='pokemon'||t==='onepiece'||t==='yugioh'||t==='sports'||t==='clean'||t==='dark')document.documentElement.setAttribute('data-theme',t);else document.documentElement.setAttribute('data-theme','pokemon');}catch(e){document.documentElement.setAttribute('data-theme','pokemon');}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('pokefesta-theme');if(t==='pokemon'||t==='onepiece'||t==='yugioh'||t==='sports'||t==='clean'||t==='dark')document.documentElement.setAttribute('data-theme',t);else document.documentElement.setAttribute('data-theme','clean');}catch(e){document.documentElement.setAttribute('data-theme','clean');}})();`,
           }}
         />
       </head>
