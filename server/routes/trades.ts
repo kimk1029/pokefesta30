@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { defaultNameFor } from '../lib/defaultName.js';
-import { getTrades } from '../lib/queries.js';
+import { getTradeById, getTrades } from '../lib/queries.js';
 import { REWARDS } from '@/lib/rewards';
 
 const MAX_LIMIT = 100;
@@ -99,10 +99,9 @@ router.get('/:id', async (req: Request, res: Response) => {
   const id = parseId(req.params.id);
   if (id === null) return res.status(400).json({ error: 'invalid id' });
   try {
-    const row = await prisma.trade.findUnique({
-      where: { id },
-      include: { place: { select: { id: true, name: true } } },
-    });
+    // raw Prisma 행(place 가 객체, time/authorName 없음)을 그대로 주면
+    // 웹 상세 페이지가 place 객체를 렌더하다 크래시 — 목록과 동일하게 가공해 반환
+    const row = await getTradeById(id);
     if (!row) return res.status(404).json({ error: 'not found' });
     res.json({ data: row });
   } catch (err) {
