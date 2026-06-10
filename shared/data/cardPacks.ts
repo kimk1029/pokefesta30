@@ -13,9 +13,14 @@ export interface CardPackHit {
   label?: string;
 }
 
+/** 카드 게임 구분 — 생략 시 'pokemon'. 웹 시세확인의 테마별 탭 필터에 사용. */
+export type CardPackGame = 'pokemon' | 'onepiece' | 'yugioh' | 'sports';
+
 export interface CardPackMeta {
   /** 팩 코드 — 라우팅 슬러그로도 쓰임 (예: 'sv8a'). */
   code: string;
+  /** 카드 게임 — 생략하면 포켓몬. 모바일은 포켓몬 팩만 노출(필터)한다. */
+  game?: CardPackGame;
   /** 풀 한국어 이름. */
   name: string;
   /** 카드 상단에 짧게 표시될 한국어 라벨. */
@@ -30,9 +35,9 @@ export interface CardPackMeta {
   searchQuery: string;
   /**
    * snkrdunk apparel group id — 박스별 전체 수록 싱글카드 목록 조회.
-   * 현재 모든 팩이 값을 가지고 있고, 모바일 `resolvePack` 같은 함수가 이걸
-   * required 로 가정해서 호출하므로 required 로 정의. 새 팩을 추가할 때도
-   * apparelGroupId 가 정해진 다음 등록한다.
+   * 모바일 `resolvePack` 같은 함수가 required 로 가정해서 호출하므로 required.
+   * 그룹 id 를 모르는 팩(비포켓몬 일부)은 0 — 조회 코드가 0 을 "그룹 없음" 으로
+   * 처리하고 `searchQuery` 검색 폴백으로 카드를 채운다.
    */
   apparelGroupId: number;
   /**
@@ -82,6 +87,35 @@ export const CARD_PACKS: CardPackMeta[] = [
   { code: 's8b', name: 'VMAX 클라이맥스', shortName: 'VMAX 클라이맥스', emoji: '🏆', bg: '#BE123C', releasedAt: '2021-12-03', searchQuery: 'VMAXクライマックス', apparelGroupId: 301 },
   { code: 's6a', name: '이브이 히어로즈', shortName: '이브이 히어로즈', emoji: '🦊', bg: '#EA580C', releasedAt: '2021-05-28', searchQuery: 'イーブイヒーローズ', apparelGroupId: 450 },
   { code: 's4a', name: '샤이니 스타 V', shortName: '샤이니 스타 V', emoji: '🌟', bg: '#7C3AED', releasedAt: '2020-11-20', searchQuery: 'シャイニースターV', apparelGroupId: 1565 },
+
+  // ── 원피스 카드게임 (웹 시세확인 테마 탭 전용 — 모바일 미노출) ──
+  // apparelGroupId 는 snkrdunk /v1/apparel-groups/{id} 스캔으로 확인한 값. 0 = 검색 폴백.
+  { code: 'op-kessen', game: 'onepiece', name: '결전의 시각', shortName: '결전의 시각', emoji: '⚔️', bg: '#B22D36', searchQuery: '決戦の刻', apparelGroupId: 0 },
+  { code: 'op-will', game: 'onepiece', name: '계승되는 의지', shortName: '계승되는 의지', emoji: '🔥', bg: '#C2410C', searchQuery: '受け継がれる意志', apparelGroupId: 0 },
+  { code: 'op-island', game: 'onepiece', name: '신의 섬의 모험', shortName: '신의 섬 모험', emoji: '🏝️', bg: '#15803D', searchQuery: '神の島の冒険', apparelGroupId: 0 },
+  { code: 'op-fist', game: 'onepiece', name: '신속의 주먹', shortName: '신속의 주먹', emoji: '👊', bg: '#0E7490', searchQuery: '神速の拳', apparelGroupId: 0 },
+  { code: 'op-royal', game: 'onepiece', name: '왕족의 혈통', shortName: '왕족의 혈통', emoji: '👑', bg: '#7C2D12', releasedAt: '2024-11-29', searchQuery: '王族の血統', apparelGroupId: 2246 },
+  { code: 'op-emperor', game: 'onepiece', name: '새로운 황제', shortName: '새로운 황제', emoji: '🏴‍☠️', bg: '#1D4ED8', releasedAt: '2024-08-30', searchQuery: '新たなる皇帝', apparelGroupId: 1782 },
+  { code: 'op-newera', game: 'onepiece', name: '신시대의 주역', shortName: '신시대의 주역', emoji: '🌅', bg: '#DC2626', searchQuery: '新時代の主役', apparelGroupId: 0 },
+  { code: 'op-best2', game: 'onepiece', name: 'CARD THE BEST vol.2', shortName: 'THE BEST v2', emoji: '🏆', bg: '#B8860B', releasedAt: '2025-07-25', searchQuery: 'ONE PIECE CARD THE BEST', apparelGroupId: 3040 },
+  { code: 'op-romance', game: 'onepiece', name: '로맨스 던', shortName: '로맨스 던', emoji: '⛵', bg: '#0B3F70', releasedAt: '2022-07-21', searchQuery: 'ロマンスドーン', apparelGroupId: 1235 },
+
+  // ── 유희왕 OCG ──
+  { code: 'yg-chaos', game: 'yugioh', name: '카오스 오리진즈', shortName: '카오스 오리진즈', emoji: '🌀', bg: '#4C1D95', releasedAt: '2026-04-24', searchQuery: 'カオス・オリジンズ', apparelGroupId: 3422 },
+  { code: 'yg-rivals', game: 'yugioh', name: '리미트오버 더 라이벌즈', shortName: '더 라이벌즈', emoji: '⚡', bg: '#1F2937', releasedAt: '2026-03-19', searchQuery: 'リミットオーバーコレクション ザ ライバルズ', apparelGroupId: 3352 },
+  { code: 'yg-blazing', game: 'yugioh', name: '블레이징 도미니언', shortName: '블레이징', emoji: '🔥', bg: '#DC2626', releasedAt: '2026-01-23', searchQuery: 'ブレイジング・ドミニオン', apparelGroupId: 3264 },
+  { code: 'yg-premium26', game: 'yugioh', name: '프리미엄 팩 2026', shortName: '프리미엄 2026', emoji: '💎', bg: '#B8860B', releasedAt: '2025-12-19', searchQuery: 'プレミアムパック 2026', apparelGroupId: 3231 },
+  { code: 'yg-terminal3', game: 'yugioh', name: '터미널 월드 3', shortName: '터미널 월드 3', emoji: '🌐', bg: '#0F766E', releasedAt: '2025-11-21', searchQuery: 'ターミナルワールド3', apparelGroupId: 3111 },
+  { code: 'yg-burst', game: 'yugioh', name: '버스트 프로토콜', shortName: '버스트 프로토콜', emoji: '💥', bg: '#2563EB', releasedAt: '2025-10-24', searchQuery: 'バースト・プロトコル', apparelGroupId: 3090 },
+  { code: 'yg-phantom', game: 'yugioh', name: '팬텀 리벤저스', shortName: '팬텀 리벤저스', emoji: '👻', bg: '#581C87', releasedAt: '2025-08-22', searchQuery: 'ファントム・リベンジャーズ', apparelGroupId: 3058 },
+  { code: 'yg-doom', game: 'yugioh', name: '둠 오브 디멘션즈', shortName: '둠 오브 디멘션즈', emoji: '🕳️', bg: '#111827', releasedAt: '2025-07-25', searchQuery: 'ドゥーム・オブ・ディメンションズ', apparelGroupId: 3042 },
+
+  // ── 스포츠 (Topps/MLB — 대부분 그룹 미확인이라 검색 폴백) ──
+  { code: 'sp-topps-s1', game: 'sports', name: 'Topps 시리즈1 베이스볼', shortName: 'Topps 시리즈1', emoji: '⚾', bg: '#1B5E94', searchQuery: 'トップス シリーズ1', apparelGroupId: 0 },
+  { code: 'sp-ohtani', game: 'sports', name: '오타니 쇼헤이 Topps', shortName: '오타니 Topps', emoji: '🌟', bg: '#DC2626', searchQuery: '大谷翔平 トップス', apparelGroupId: 0 },
+  { code: 'sp-tokyo', game: 'sports', name: 'MLB 도쿄 시리즈', shortName: 'MLB 도쿄', emoji: '🗼', bg: '#0F766E', searchQuery: 'MLB ワールドツアー 東京シリーズ', apparelGroupId: 0 },
+  { code: 'sp-chrome', game: 'sports', name: 'Topps Chrome', shortName: 'Topps Chrome', emoji: '✨', bg: '#6D28D9', searchQuery: 'トップスクローム', apparelGroupId: 0 },
+  { code: 'sp-wwe', game: 'sports', name: 'WWE Topps Chrome', shortName: 'WWE Chrome', emoji: '🤼', bg: '#991B1B', releasedAt: '2025-04-16', searchQuery: 'トップスクローム WWE', apparelGroupId: 2718 },
 ];
 
 export function getCardPack(code: string): CardPackMeta | undefined {

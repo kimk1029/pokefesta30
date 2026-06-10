@@ -1,8 +1,6 @@
-import Link from 'next/link';
-import { Price } from '@/components/Price';
-import { ListAdRow } from '@/components/ListAdRow';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { PacksExplorer, type PackListRow } from '@/components/PacksExplorer';
 import { CARD_PACKS } from '@/lib/cardPacks';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { serverFetch } from '@/lib/apiServer';
@@ -11,13 +9,17 @@ interface ApparelGroupResp {
   apparels?: Array<{ localizedName: string; imageUrl: string | null; minPrice: number }>;
 }
 
+interface SearchResp {
+  results?: Array<{ name: string; imageUrl: string | null; priceText: string }>;
+}
+
 export const metadata = {
   title: '시세확인 · CardVault',
-  description: '포켓몬 카드 박스를 선택하고 해당 박스의 싱글카드 시세를 확인하세요.',
+  description: '포켓몬·원피스·유희왕·스포츠 카드 박스를 선택하고 박스별 싱글카드 시세를 확인하세요.',
 };
 
 export default async function PackExplorerPage() {
-  const packs = await Promise.all(
+  const packs: PackListRow[] = await Promise.all(
     CARD_PACKS.map(async (pack) => {
       let box: { localizedName: string; imageUrl: string | null; minPrice: number } | null = null;
       if (pack.apparelGroupId) {
@@ -26,9 +28,28 @@ export default async function PackExplorerPage() {
           { auth: false },
         );
         box = r.data?.data?.apparels?.[0] ?? null;
+      } else {
+        // 그룹 미확인 팩(비포켓몬 일부) — 검색 1페이지의 첫 박스 매물로 대표 이미지/시세.
+        const r = await serverFetch<SearchResp>(
+          `/api/snkrdunk/search?q=${encodeURIComponent(`${pack.searchQuery} ボックス`)}`,
+          { auth: false },
+        );
+        const hit = r.data?.results?.[0];
+        if (hit) {
+          box = {
+            localizedName: hit.name,
+            imageUrl: hit.imageUrl,
+            minPrice: Number((hit.priceText ?? '').replace(/[^\d]/g, '')) || 0,
+          };
+        }
       }
       return {
-        ...pack,
+        code: pack.code,
+        game: pack.game ?? 'pokemon',
+        name: pack.name,
+        emoji: pack.emoji,
+        bg: pack.bg,
+        releasedAt: pack.releasedAt,
         boxName: box?.localizedName ?? pack.searchQuery,
         boxKoName: box?.localizedName ? translateKnownCardNameToKo(box.localizedName) : pack.name,
         boxImageUrl: box?.imageUrl ?? null,
@@ -41,123 +62,7 @@ export default async function PackExplorerPage() {
     <>
       <StatusBar />
       <AppBar title="시세확인" showBack backHref="/" />
-
-      <div className="sect">
-        <div
-          style={{
-            padding: '14px 14px 12px',
-            background: 'var(--white)',
-            boxShadow:
-              '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)',
-          }}
-        >
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 15, letterSpacing: 0.4 }}>
-            포켓몬 카드 박스
-          </div>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', marginTop: 7, lineHeight: 1.6 }}>
-            박스를 선택하면 해당 박스에 포함된 싱글카드 시세가 표시됩니다.
-          </div>
-        </div>
-      </div>
-
-      <div className="sect">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {packs.flatMap((pack, i) => {
-            const row = (
-              <Link
-                key={pack.code}
-                href={`/cards/packs/${pack.code}`}
-                className="pack-list-item"
-              >
-                <div
-                  style={{
-                    width: 84,
-                    height: 84,
-                    display: 'grid',
-                    placeItems: 'center',
-                    flexShrink: 0,
-                    background: pack.bg,
-                    color: 'var(--white)',
-                    fontSize: 23,
-                    boxShadow:
-                      '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.35),3px 3px 0 var(--ink)',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {pack.boxImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={pack.boxImageUrl} alt={pack.boxKoName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    pack.emoji
-                  )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontFamily: 'var(--f1)',
-                      fontSize: 13,
-                      letterSpacing: 0.2,
-                      whiteSpace: 'normal',
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {pack.name}
-                  </div>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 5, lineHeight: 1.45 }}>
-                    {pack.boxKoName}
-                    <br />
-                    {pack.boxName}
-                  </div>
-                  <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    {pack.boxPrice > 0 && (
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          padding: '3px 7px',
-                          background: 'var(--yel)',
-                          color: 'var(--ink)',
-                          fontFamily: 'var(--f1)',
-                          fontSize: 10,
-                          letterSpacing: 0.3,
-                          boxShadow:
-                            '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
-                        }}
-                      >
-                        <span style={{ fontSize: 8, opacity: 0.7 }}>박스</span>
-                        <b><Price jpy={pack.boxPrice} /></b>
-                      </span>
-                    )}
-                    {/* 출시일은 항상 표시 (박스 시세 유무와 무관) */}
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        padding: '2px 6px',
-                        background: 'var(--pap2)',
-                        color: 'var(--ink2)',
-                        fontFamily: 'var(--f1)',
-                        fontSize: 9,
-                        letterSpacing: 0.3,
-                        boxShadow:
-                          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-                      }}
-                    >
-                      {pack.releasedAt ? `${pack.releasedAt} 출시` : '출시일 확인 중'}
-                    </span>
-                  </div>
-                </div>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 15, color: 'var(--ink3)' }}>›</div>
-              </Link>
-            );
-            // 5개마다(마지막 뒤 제외) 광고 행 1개 끼움. slotIndex 는 0,1,2…
-            return (i + 1) % 5 === 0 && i < packs.length - 1
-              ? [row, <ListAdRow key={`ad-${i}`} slotIndex={Math.floor(i / 5)} />]
-              : [row];
-          })}
-        </div>
-      </div>
-
+      <PacksExplorer packs={packs} />
       <div className="bggap" />
     </>
   );

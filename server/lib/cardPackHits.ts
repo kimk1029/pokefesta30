@@ -138,7 +138,8 @@ async function mapWithLimit<T, R>(
 }
 
 async function resolveCurated(pack: CardPackMeta): Promise<PackHitCard[]> {
-  if (pack.hits.length === 0) return [];
+  // hits 는 optional — 큐레이션 없는 팩(검색 폴백 전용, groupId 0)도 안전하게.
+  if (!pack.hits || pack.hits.length === 0) return [];
   const results = await mapWithLimit(pack.hits, CONCURRENCY, async (h) => {
     const a = await fetchSnkrdunkApparel(h.apparelId);
     if (!a) return null;

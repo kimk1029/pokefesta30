@@ -4298,3 +4298,28 @@ a{color:inherit;text-decoration:none;}
 [data-theme="onepiece"] .login-btn-kakao{background:#FEE500;color:#3A1D00;}
 [data-theme="onepiece"] .login-btn-naver{background:#03C75A;color:#FFFFFF;}
 [data-theme="onepiece"] .login-btn-google{background:#FFFFFF;color:#1F1F1F;}
+
+/* ── 클린 — 플로팅 카드 패스: 흰 카드가 배경 위에 떠 있는 입체감 ──
+   (1) 배경을 살짝 더 깊게 내려 흰 면과의 대비 확보
+   (2) 카드에 3단 레이어드 섀도우(근접 키 + 미들 + 앰비언트 롱)
+   (3) 탭 시 카드가 내려앉는 프레스 피드백 */
+[data-theme="clean"]{--pap2:#F1F2F5;}
+[data-theme="clean"] .page-wrap{background:#E2E4E9;}
+[data-theme="clean"] :is(.card,.hero-promo-card,.place-card,.trade-card,.feed-item,
+.my-item,.my-feat,.cc-item,.qi,.dash-quick,.pack-list-item,.pack-grid-card,
+.profile-card,.points-card,.cv-manual-form,.cv-add-intro,.cv-add-card,.cv-port,
+.cv-stat-card,.cv-list-card,.cv-coll-item,.cv-binder-item,.cv-album-tile,
+.theme-pick-tile,.snk-act,.login-btn,.oripa-box,.prize-card,.pull-card,
+.avatar-tile,.shop-card,.shop-item,.level-card,.stat-card,.sum-card,
+.thread-item,.chat-preset,.map-btn,.cv-quick-btn){
+  border:1px solid rgba(17,20,26,.05);
+  box-shadow:
+    0 1px 2px rgba(17,20,26,.05),
+    0 8px 16px -6px rgba(17,20,26,.10),
+    0 22px 40px -16px rgba(17,20,26,.16);
+}
+[data-theme="clean"] :is(.qi,.dash-quick,.pack-list-item,.pack-grid-card,.my-item,
+.snk-act,.cv-quick-btn,.map-btn,.theme-pick-tile,.cv-coll-item,.cv-add-card):active{
+  transform:translateY(1px);
+  box-shadow:0 1px 2px rgba(17,20,26,.06),0 4px 10px -4px rgba(17,20,26,.10);
+}

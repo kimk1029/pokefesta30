@@ -270,7 +270,9 @@ export interface PackWithHits {
 }
 
 export async function fetchAllPacksWithHits(limit = 12): Promise<PackWithHits[]> {
-  return runWithConcurrency(CARD_PACKS, 8, (pack) => resolvePack(pack, limit));
+  // 비포켓몬 팩(웹 시세확인 테마 탭 전용)은 모바일 미노출.
+  const pokemonPacks = CARD_PACKS.filter((p) => !p.game || p.game === 'pokemon');
+  return runWithConcurrency(pokemonPacks, 8, (pack) => resolvePack(pack, limit));
 }
 
 export async function fetchPackHits(code: string, limit = 30): Promise<PackWithHits | null> {
