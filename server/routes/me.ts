@@ -23,6 +23,7 @@ import {
   getMyTrades,
 } from '../lib/queries.js';
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
+import { ensureCatalogCard } from '../lib/snkrdunkCatalog.js';
 import { runDailyCheckIn } from '../lib/checkIn.js';
 
 const router = Router();
@@ -150,6 +151,8 @@ router.post('/cards', async (req: Request, res: Response) => {
       },
     });
     res.status(201).json({ data: created });
+    // 컬렉션에 추가된 카드의 정적 정보를 마스터 카탈로그에 적재 (응답 후, 실패 무시).
+    if (snkrdunkApparelId) void ensureCatalogCard(snkrdunkApparelId);
   } catch (err) {
     // 디버깅용 — Prisma 에러 코드/메시지를 응답에도 실어준다.
     // (운영 중 발견된 500 원인 추적용. 향후 안정화되면 message 노출 빼도 됨.)

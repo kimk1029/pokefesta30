@@ -7,6 +7,11 @@ import {
   fetchSnkrdunkSalesChart,
   fetchSnkrdunkApparelGroup,
 } from '@/lib/snkrdunk';
+import {
+  recordPriceSnapshot,
+  upsertCatalogCard,
+  upsertSearchResults,
+} from '../lib/snkrdunkCatalog.js';
 
 const router = Router();
 
@@ -26,6 +31,8 @@ router.get('/search', async (req: Request, res: Response) => {
   // 스니덩 SSR은 페이지당 결과 수가 일정치 않다(보통 <40). 결과가 하나라도 있으면
   // 다음 페이지를 시도하게 두고, 클라이언트가 "새 항목 0개"면 멈춘다.
   res.json({ page, results, hasMore: results.length > 0 });
+  // 검색에 노출된 카드의 정적 정보를 카탈로그에 적재 (응답 후, 실패 무시).
+  void upsertSearchResults(results);
 });
 
 function parseApparelId(raw: unknown, res: Response): number | null {
@@ -47,6 +54,14 @@ router.get('/apparels/:id', async (req: Request, res: Response) => {
       .json({ data: null, reason: 'SNKRDUNK 상품 정보를 가져오지 못했습니다.' });
   }
   res.json({ data });
+  // 조회된 카드의 정적 정보 + 현재 최저가를 우리 DB 에 적재 (응답 후, 실패 무시).
+  void upsertCatalogCard(data);
+  if (data.minPrice > 0) {
+    void recordPriceSnapshot(apparelId, {
+      minPrice: data.minPrice,
+      listingCount: data.listingCount,
+    });
+  }
 });
 
 router.get('/apparels/:id/sales-history', async (req: Request, res: Response) => {

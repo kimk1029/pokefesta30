@@ -383,6 +383,12 @@ model SnkrdunkCard {
   packCode       String?
   /// snkrdunk apparel group id (박스).
   apparelGroupId Int?
+  /// 카드 이름/품번에서 파싱한 세트 코드 (예: "OP02", "SV1a"). 파싱 실패 시 null.
+  setCode        String?
+  /// 카드 번호 (예: "059", "123/165"). 파싱 실패 시 null.
+  cardNumber     String?
+  /// 레어도 (SAR/SR/UR/CHR 등 — 이름 토큰에서 추출). 없으면 null.
+  rarity         String?
   /// 카드를 처음 수집한 시각.
   firstSeenAt    DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -398,6 +404,12 @@ model SnkrdunkPriceSnapshot {
   /// 최저가 (JPY).
   minPrice     Int
   listingCount Int      @default(0)
+  /// computeApparelPrices 의 raw 싱글가 (JPY). 0 = 미계산(목록 최저가만 수집한 스냅샷).
+  priceSingle  Int      @default(0)
+  /// computeApparelPrices 의 PSA10 가 (JPY). 0 = 미계산.
+  pricePsa10   Int      @default(0)
+  /// sales-chart 일별 시세 시리즈 (number[], 오래된→최신). 컬렉션 스파크라인용.
+  trend        Json?
   fetchedAt    DateTime @default(now())
 
   @@index([apparelId, fetchedAt(sort: Desc)])

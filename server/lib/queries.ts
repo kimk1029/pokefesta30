@@ -23,6 +23,12 @@ import type {
 } from '@/lib/types';
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
 import { computeApparelPrices } from '@/lib/snkrdunkPrice';
+import {
+  isFreshEntry,
+  loadCatalogEntries,
+  recordPriceSnapshot,
+  upsertCatalogCard,
+} from './snkrdunkCatalog.js';
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -367,8 +373,13 @@ export async function getMyCardsWithPrices(
     }
   >();
   if (apparelIds.length > 0) {
+    // 1) 우리 DB(마스터 카탈로그 + 최신 시세 스냅샷) 우선 — 신선하면 스니덩 호출 생략.
+    const catalog = await loadCatalogEntries(apparelIds);
+    const staleIds = apparelIds.filter((id) => !isFreshEntry(catalog.get(id)));
+
+    // 2) 오래됐거나 없는 카드만 라이브 조회 → 결과는 카탈로그/스냅샷에 재적재.
     await Promise.all(
-      apparelIds.map(async (id) => {
+      staleIds.map(async (id) => {
         try {
           const [a, hist, chart] = await Promise.all([
             fetchSnkrdunkApparel(id),
@@ -388,11 +399,34 @@ export async function getMyCardsWithPrices(
             pricePsa10Jpy: psa10,
             trendJpy,
           });
+          // 정적 정보 + 풀 시세 스냅샷 적재 (응답 경로 밖, 실패 무시).
+          void upsertCatalogCard(a);
+          void recordPriceSnapshot(id, {
+            minPrice: a.minPrice ?? 0,
+            listingCount: a.listingCount,
+            priceSingle: single,
+            pricePsa10: psa10,
+            trend: trendJpy,
+          });
         } catch (err) {
           console.warn('[getMyCardsWithPrices] apparel fetch failed', id, err);
         }
       }),
     );
+
+    // 3) 라이브로 안 채운 나머지는 DB 값으로.
+    for (const id of apparelIds) {
+      if (apparelInfo.has(id)) continue;
+      const e = catalog.get(id);
+      if (!e?.snapshot) continue;
+      apparelInfo.set(id, {
+        name: e.name,
+        imageUrl: e.imageUrl,
+        priceSingleJpy: e.snapshot.priceSingle || e.snapshot.minPrice,
+        pricePsa10Jpy: e.snapshot.pricePsa10,
+        trendJpy: e.snapshot.trend,
+      });
+    }
   }
 
   const enrichSnk = (c: MyCardRow) => {
@@ -503,8 +537,21 @@ export async function getMyFavoritesWithPrices(
     number,
     { name: string; imageUrl: string | null; minPriceJpy: number }
   >();
+  // 우리 DB(카탈로그+최신 스냅샷) 우선 — 신선하면 스니덩 호출 생략.
+  const catalog = await loadCatalogEntries(uniqueIds);
+  for (const id of uniqueIds) {
+    const e = catalog.get(id);
+    if (isFreshEntry(e) && e?.snapshot) {
+      info.set(id, {
+        name: e.name,
+        imageUrl: e.imageUrl,
+        minPriceJpy: e.snapshot.minPrice > 0 ? e.snapshot.minPrice : e.snapshot.priceSingle,
+      });
+    }
+  }
+  const staleFavIds = uniqueIds.filter((id) => !info.has(id));
   await Promise.all(
-    uniqueIds.map(async (id) => {
+    staleFavIds.map(async (id) => {
       try {
         const a = await fetchSnkrdunkApparel(id);
         if (a) {
@@ -513,6 +560,10 @@ export async function getMyFavoritesWithPrices(
             imageUrl: a.imageUrl,
             minPriceJpy: typeof a.minPrice === 'number' && a.minPrice > 0 ? a.minPrice : 0,
           });
+          void upsertCatalogCard(a);
+          if (a.minPrice > 0) {
+            void recordPriceSnapshot(id, { minPrice: a.minPrice, listingCount: a.listingCount });
+          }
         }
       } catch (err) {
         console.warn('[getMyFavoritesWithPrices] apparel fetch failed', id, err);
