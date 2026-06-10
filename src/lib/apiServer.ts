@@ -19,6 +19,12 @@ interface ServerFetchOpts {
   /** 인증 쿠키 포워딩 여부 (기본 true). */
   auth?: boolean;
   cache?: RequestCache;
+  /**
+   * Next 데이터 캐시 TTL (초). 지정하면 `cache` 대신 `next.revalidate` 를 사용 —
+   * 같은 URL 요청이 TTL 동안 캐시에서 즉시 반환되고 백그라운드 재검증된다.
+   * 인증 호출(auth)에는 쓰지 말 것 (사용자 간 응답이 섞인다).
+   */
+  revalidate?: number;
 }
 
 export async function serverFetch<T>(
@@ -39,7 +45,9 @@ export async function serverFetch<T>(
       method: opts.method ?? 'GET',
       headers,
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-      cache: opts.cache ?? 'no-store',
+      ...(typeof opts.revalidate === 'number'
+        ? { next: { revalidate: opts.revalidate } }
+        : { cache: opts.cache ?? 'no-store' }),
     });
   } catch (err) {
     console.error('[serverFetch] network', path, err);
