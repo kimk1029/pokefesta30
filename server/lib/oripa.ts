@@ -6,6 +6,7 @@
  *   - pull 은 updateMany({where: {packId, index, drawn:false}}) 원자 업데이트 → 경쟁 시 한 명만 성공.
  *   - 클라이언트는 8초 폴링으로 타 유저 pull 반영.
  */
+import { randomInt } from 'node:crypto';
 import { prisma } from './prisma.js';
 import type { OripaBox, OripaBoxPrize, OripaGrade, OripaTier, OripaTicket } from '@/lib/types';
 
@@ -140,10 +141,25 @@ function pickPrize(prizes: OripaBoxPrize[], seed: number): OripaBoxPrize {
   return pool[pool.length - 1] ?? FALLBACK_PRIZES[0];
 }
 
-function hash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h) || 13579;
+/** pull 실패 사유를 라우터에서 HTTP 응답으로 매핑하기 위한 에러 */
+export class OripaPullError extends Error {
+  constructor(
+    public code: 'pack_not_found' | 'insufficient_points',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'OripaPullError';
+  }
+}
+
+/**
+ * 구매 모달(OripaPurchaseModal PACKS)과 동일한 세트 할인 규칙.
+ * 10장 이상 10%, 5장 이상 5%. 규칙 변경 시 양쪽 동시 수정 필요.
+ */
+function costFor(unitPrice: number, count: number): number {
+  const subtotal = unitPrice * count;
+  const rate = count >= 10 ? 0.1 : count >= 5 ? 0.05 : 0;
+  return subtotal - Math.floor(subtotal * rate);
 }
 
 /**
@@ -208,57 +224,75 @@ export interface PullOutcome {
   results: PullResult[];
   /** 다른 유저가 먼저 뽑아서 실패한 인덱스들 */
   alreadyDrawn: number[];
+  /** 이번 pull 에서 실제 차감된 포인트 (성공한 티켓 수 기준) */
+  charged: number;
 }
 
 /**
- * 여러 인덱스를 서버에서 순차 원자 업데이트.
- * updateMany({where: {drawn:false}}) count>0 인 경우만 성공 처리 → 경쟁 안전.
+ * 여러 인덱스를 서버에서 순차 원자 업데이트 + 포인트 차감을 한 트랜잭션으로.
+ * - 티켓: updateMany({where: {drawn:false}}) count>0 인 경우만 성공 처리 → 경쟁 안전.
+ * - 결제: 성공한 티켓 수만큼 조건부 차감(points >= cost). 부족하면 전체 롤백 →
+ *   클라이언트가 선결제하던 기존 구조는 /pull 직접 호출로 무료 뽑기가 가능했음.
  */
 export async function pullOripaTickets(
   packId: string,
   indices: number[],
   user: { id: string; name: string },
 ): Promise<PullOutcome> {
-  const results: PullResult[] = [];
-  const alreadyDrawn: number[] = [];
-
   const uniq = Array.from(new Set(indices)).filter(
     (n) => Number.isInteger(n) && n >= 0 && n < 100,
   );
   const pack = await prisma.oripaPack.findUnique({
     where: { id: packId },
-    select: { prizes: true },
+    select: { prizes: true, price: true },
   });
-  const prizes = normalizePrizes(pack?.prizes);
+  if (!pack) throw new OripaPullError('pack_not_found', '존재하지 않는 팩입니다');
+  const prizes = normalizePrizes(pack.prizes);
+  const unitPrice = Math.max(0, pack.price);
 
-  for (let i = 0; i < uniq.length; i++) {
-    const idx = uniq[i];
-    const prize = pickPrize(prizes, idx + Date.now() + i + hash(user.id));
-    const res = await prisma.oripaTicket.updateMany({
-      where: { packId, index: idx, drawn: false },
-      data: {
-        drawn: true,
-        grade: prize.grade,
-        prizeName: prize.name,
-        prizeEmoji: prize.emoji,
-        prizeImageUrl: prize.imageUrl ?? null,
-        drawnById: user.id,
-        drawnByName: user.name,
-        drawnAt: new Date(),
-      },
-    });
-    if (res.count === 0) {
-      alreadyDrawn.push(idx);
-    } else {
-      results.push({
-        index: idx,
-        grade: prize.grade,
-        prizeName: prize.name,
-        prizeEmoji: prize.emoji,
-        prizeImageUrl: prize.imageUrl,
+  return prisma.$transaction(async (tx) => {
+    const results: PullResult[] = [];
+    const alreadyDrawn: number[] = [];
+
+    for (const idx of uniq) {
+      const prize = pickPrize(prizes, randomInt(1_000_000));
+      const res = await tx.oripaTicket.updateMany({
+        where: { packId, index: idx, drawn: false },
+        data: {
+          drawn: true,
+          grade: prize.grade,
+          prizeName: prize.name,
+          prizeEmoji: prize.emoji,
+          prizeImageUrl: prize.imageUrl ?? null,
+          drawnById: user.id,
+          drawnByName: user.name,
+          drawnAt: new Date(),
+        },
       });
+      if (res.count === 0) {
+        alreadyDrawn.push(idx);
+      } else {
+        results.push({
+          index: idx,
+          grade: prize.grade,
+          prizeName: prize.name,
+          prizeEmoji: prize.emoji,
+          prizeImageUrl: prize.imageUrl,
+        });
+      }
     }
-  }
 
-  return { results, alreadyDrawn };
+    const cost = costFor(unitPrice, results.length);
+    if (cost > 0) {
+      const charged = await tx.user.updateMany({
+        where: { id: user.id, points: { gte: cost } },
+        data: { points: { decrement: cost } },
+      });
+      if (charged.count === 0) {
+        throw new OripaPullError('insufficient_points', '포인트가 부족합니다');
+      }
+    }
+
+    return { results, alreadyDrawn, charged: cost };
+  });
 }

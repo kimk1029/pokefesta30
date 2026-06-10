@@ -139,6 +139,9 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
     data.place = { connect: { id: input.placeId } };
   }
   try {
+    const trade = await prisma.trade.findUnique({ where: { id }, select: { authorId: true } });
+    if (!trade) return res.status(404).json({ error: 'not found' });
+    if (trade.authorId !== req.user!.userId) return res.status(403).json({ error: 'forbidden' });
     const updated = await prisma.trade.update({ where: { id }, data });
     res.json({ data: updated });
   } catch (err) {
@@ -154,6 +157,9 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
   const id = parseId(req.params.id);
   if (id === null) return res.status(400).json({ error: 'invalid id' });
   try {
+    const trade = await prisma.trade.findUnique({ where: { id }, select: { authorId: true } });
+    if (!trade) return res.status(404).json({ error: 'not found' });
+    if (trade.authorId !== req.user!.userId) return res.status(403).json({ error: 'forbidden' });
     await prisma.trade.delete({ where: { id } });
     res.status(204).end();
   } catch (err) {
@@ -220,6 +226,7 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
   try {
     const before = await prisma.trade.findUnique({ where: { id } });
     if (!before) return res.status(404).json({ error: 'not found' });
+    if (before.authorId !== req.user!.userId) return res.status(403).json({ error: 'forbidden' });
 
     const becameDone = status === 'done' && before.status !== 'done';
     if (becameDone && before.authorId) {

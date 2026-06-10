@@ -24,6 +24,7 @@ import { dominantNeonForUrl } from './lib/imageColor.js';
 import { matchSnkrdunkForCard } from './lib/snkrdunkMatch.js';
 import { fetchApparelSingleJpy } from '@/lib/snkrdunkPrice';
 import { buildCors } from './middleware/cors.js';
+import { requireAdmin } from './middleware/requireAdmin.js';
 import authRouter from './routes/auth.js';
 import cardPacksRouter from './routes/cardPacks.ts';
 import cardsRouter from './routes/cards.ts';
@@ -115,8 +116,9 @@ app.get('/api/navercafe/img', async (req, res) => {
 });
 
 app.use(express.static(join(__dirname, 'public')));
-// Expose /debug/* for inspecting last-scan crops in the browser.
-app.use('/debug', express.static(DEBUG_DIR));
+// /debug/* 는 최근 사용자가 업로드한 스캔 원본 사진(last-orig.jpg)·OCR 결과를
+// 노출하므로 관리자 세션에서만 접근 가능.
+app.use('/debug', requireAdmin, express.static(DEBUG_DIR));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
 
 app.get('/health', async (_req, res) => {
@@ -132,7 +134,7 @@ app.get('/health', async (_req, res) => {
   });
 });
 
-app.get('/last', (_req, res) => {
+app.get('/last', requireAdmin, (_req, res) => {
   // Quick browser view of the most recent scan's crops + OCR text.
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.end(`<!doctype html><html><body style="font-family:system-ui;padding:16px">

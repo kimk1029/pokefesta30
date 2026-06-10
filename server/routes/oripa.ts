@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { defaultNameFor } from '../lib/defaultName.js';
-import { getActiveOripaBoxes, getOripaTickets, pullOripaTickets } from '../lib/oripa.js';
+import { getActiveOripaBoxes, getOripaTickets, pullOripaTickets, OripaPullError } from '../lib/oripa.js';
 
 const router = Router();
 
@@ -52,6 +52,10 @@ router.post('/:packId/pull', requireAuth, async (req: Request, res: Response) =>
     });
     res.json(outcome);
   } catch (err) {
+    if (err instanceof OripaPullError) {
+      const status = err.code === 'pack_not_found' ? 404 : 400;
+      return res.status(status).json({ error: err.message });
+    }
     console.error('[oripa.pull]', err);
     res.status(500).json({ error: 'internal' });
   }

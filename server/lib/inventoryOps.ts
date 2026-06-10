@@ -61,16 +61,31 @@ async function genericBuy(
     await prisma.user.update({ where: { id: userId }, data: { [currentField]: id } });
     return { ok: true, inv: await getMyInventory(userId) };
   }
-  if (u.points < expectedPrice) return { ok: false, error: '포인트 부족' };
 
-  await prisma.user.update({
-    where: { id: userId },
+  // 잔액 확인·미보유 확인·차감을 한 쿼리로 — check-then-write 경쟁으로 인한
+  // 이중 차감/중복 push 방지
+  const charged = await prisma.user.updateMany({
+    where: {
+      id: userId,
+      points: { gte: expectedPrice },
+      NOT: { [ownedField]: { has: id } },
+    },
     data: {
       points: { decrement: expectedPrice },
       [currentField]: id,
       [ownedField]: { push: id },
     },
   });
+  if (charged.count === 0) {
+    // 동시 요청이 먼저 구매를 끝낸 경우 — 보유 중이면 장착으로 처리
+    const fresh = await prisma.user.findUnique({ where: { id: userId } });
+    const freshOwned = ((fresh as Record<string, unknown> | null)?.[ownedField] ?? []) as string[];
+    if (freshOwned.includes(id)) {
+      await prisma.user.update({ where: { id: userId }, data: { [currentField]: id } });
+      return { ok: true, inv: await getMyInventory(userId) };
+    }
+    return { ok: false, error: '포인트 부족' };
+  }
   return { ok: true, inv: await getMyInventory(userId) };
 }
 

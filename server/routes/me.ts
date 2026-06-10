@@ -559,13 +559,16 @@ router.post('/points/spend', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: 'invalid amount' });
   }
   try {
-    const u = await prisma.user.findUnique({ where: { id: userId } });
-    if (!u) return res.status(404).json({ ok: false, error: 'user not found' });
-    if (u.points < amount) return res.status(400).json({ ok: false, error: '포인트 부족' });
-    await prisma.user.update({
-      where: { id: userId },
+    // 조건부 차감 — 잔액 확인과 차감을 한 쿼리로 (check-then-write 경쟁 방지)
+    const charged = await prisma.user.updateMany({
+      where: { id: userId, points: { gte: amount } },
       data: { points: { decrement: amount } },
     });
+    if (charged.count === 0) {
+      const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+      if (!exists) return res.status(404).json({ ok: false, error: 'user not found' });
+      return res.status(400).json({ ok: false, error: '포인트 부족' });
+    }
     const inv = await getMyInventory(userId);
     res.json({ ok: true, inv });
   } catch (err) {

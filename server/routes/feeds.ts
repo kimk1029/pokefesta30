@@ -92,6 +92,9 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
     data.text = trimmed;
   }
   try {
+    const feed = await prisma.feed.findUnique({ where: { id }, select: { authorId: true } });
+    if (!feed) return res.status(404).json({ error: 'not found' });
+    if (feed.authorId !== req.user!.userId) return res.status(403).json({ error: 'forbidden' });
     const updated = await prisma.feed.update({ where: { id }, data });
     res.json({ data: updated });
   } catch (err) {
@@ -107,6 +110,9 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
   const id = parseId(req.params.id);
   if (id === null) return res.status(400).json({ error: 'invalid id' });
   try {
+    const feed = await prisma.feed.findUnique({ where: { id }, select: { authorId: true } });
+    if (!feed) return res.status(404).json({ error: 'not found' });
+    if (feed.authorId !== req.user!.userId) return res.status(403).json({ error: 'forbidden' });
     await prisma.feed.delete({ where: { id } });
     res.status(204).end();
   } catch (err) {

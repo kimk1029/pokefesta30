@@ -52,14 +52,8 @@ export function OripaPurchaseModal({ box, onClose }: Props) {
     buyLockRef.current = true;
     setErr(null);
     setPaying(true);
-    const r = await inv.spend(total);
-    if (!r.ok) {
-      buyLockRef.current = false;
-      setPaying(false);
-      setErr(r.msg ?? '구매 실패');
-      return;
-    }
-    // 포인트 사용 → 일회용 입장 토큰 발급. play 페이지가 이걸 검증해야 진입 가능.
+    // 결제는 서버 /pull 트랜잭션에서 강제 차감된다 (선결제 시 /pull 직접 호출로
+    // 무료 뽑기가 가능했던 취약점 수정). 여기서는 입장 토큰만 발급.
     try {
       localStorage.setItem(
         'oripa_pass',
