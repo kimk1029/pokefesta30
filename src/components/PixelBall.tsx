@@ -61,37 +61,19 @@ export function PixelBall({ size = 22 }: { size?: number }) {
         <rect x="3" y="9" width="4" height="1" fill="#1A1A2E" />
       </svg>
 
-      {/* onepiece variant — 위에서 본 밀짚모자.
-          바깥 = 밀짚 brim, 안쪽 = 빨강 띠, 중앙 = 모자 정수리(어두운 밀짚). */}
+      {/* onepiece variant — 위에서 본 밀짚모자 (클래식 테마라 논픽셀 스무스 렌더).
+          바깥 = 밀짚 brim, 안쪽 = 빨강 띠, 중앙 = 모자 정수리. */}
       <svg
         className="ball-onepiece"
         width={size}
         height={size}
-        viewBox="0 0 10 10"
-        style={{ shapeRendering: 'crispEdges' }}
+        viewBox="0 0 100 100"
       >
-        {/* 외곽 검정 테두리 (둥근 사각) */}
-        <rect x="2" y="0" width="6" height="1" fill="#1A1A2E" />
-        <rect x="1" y="1" width="1" height="1" fill="#1A1A2E" />
-        <rect x="8" y="1" width="1" height="1" fill="#1A1A2E" />
-        <rect x="0" y="2" width="1" height="6" fill="#1A1A2E" />
-        <rect x="9" y="2" width="1" height="6" fill="#1A1A2E" />
-        <rect x="1" y="8" width="1" height="1" fill="#1A1A2E" />
-        <rect x="8" y="8" width="1" height="1" fill="#1A1A2E" />
-        <rect x="2" y="9" width="6" height="1" fill="#1A1A2E" />
-        {/* 밀짚 brim (밝은 밀짚색) */}
-        <rect x="2" y="1" width="6" height="1" fill="#F4D272" />
-        <rect x="1" y="2" width="8" height="2" fill="#F4D272" />
-        <rect x="1" y="6" width="8" height="2" fill="#F4D272" />
-        <rect x="2" y="8" width="6" height="1" fill="#F4D272" />
-        {/* 빨강 띠 (모자와 brim 경계) */}
-        <rect x="2" y="4" width="6" height="1" fill="#E63946" />
-        <rect x="2" y="5" width="6" height="1" fill="#E63946" />
-        {/* 모자 정수리 살짝 어두운 밀짚 */}
-        <rect x="3" y="4" width="4" height="2" fill="#D9A85D" />
-        {/* brim 하이라이트 (왼쪽 위) */}
-        <rect x="2" y="1" width="3" height="1" fill="#FCE6A8" />
-        <rect x="1" y="2" width="1" height="2" fill="#FCE6A8" />
+        <circle cx="50" cy="50" r="47" fill="#F4D272" stroke="#4A2F12" strokeWidth="5" />
+        <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(120,80,20,.35)" strokeWidth="3" />
+        <circle cx="50" cy="50" r="33" fill="#C8404A" />
+        <circle cx="50" cy="50" r="24" fill="#E3B45A" stroke="#B8884B" strokeWidth="3" />
+        <ellipse cx="42" cy="42" rx="8" ry="4.5" fill="#FFF1C9" opacity="0.5" />
       </svg>
 
       {/* yugioh variant — 역피라미드 황금 펜던트 + 눈 (클래식 테마라 논픽셀 스무스 렌더) */}

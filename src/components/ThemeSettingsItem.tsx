@@ -6,7 +6,7 @@ import { THEMES, type ThemeId } from '@/lib/theme';
 
 const SWATCH_BG: Record<ThemeId, string> = {
   pokemon: '#E63946',
-  onepiece: '#F4D272',
+  onepiece: '#14283F',
   yugioh: '#C9971C',
   sports: '#16A34A',
   clean: '#4F6BFF',
@@ -15,7 +15,7 @@ const SWATCH_BG: Record<ThemeId, string> = {
 
 const SWATCH_DOT: Record<ThemeId, string> = {
   pokemon: '#FFFFFF',
-  onepiece: '#E63946',
+  onepiece: '#F0C75E',
   yugioh: '#2A1745',
   sports: '#FFFFFF',
   clean: '#FFFFFF',
