@@ -104,8 +104,52 @@ export function Tabbar(_props: { onFab?: () => void } = {}) {
                   </svg>
                 )}
 
+                {/* 유희왕 테마 — 역피라미드 황금 펜던트 + 호루스의 눈 (자체 드로잉). */}
+                {theme === 'yugioh' && (
+                  <svg
+                    className="fab-pendant"
+                    viewBox="0 0 100 100"
+                    width="62"
+                    height="62"
+                    aria-hidden
+                  >
+                    {/* 본체 — 아래로 뾰족한 역피라미드 */}
+                    <polygon
+                      points="50,97 5,18 95,18"
+                      fill="#E0AC2E"
+                      stroke="#4A3408"
+                      strokeWidth="3"
+                      strokeLinejoin="round"
+                    />
+                    {/* 좌측 절반 음영 — 금속 입체감 */}
+                    <polygon points="50,97 5,18 50,18" fill="#C9941C" />
+                    {/* 상단 베벨(윗변 모서리 빛) */}
+                    <polygon points="5,18 95,18 86,28 14,28" fill="#F2D470" />
+                    {/* 내부 능선 — 베벨에서 꼭짓점으로 모이는 이중 프레임 */}
+                    <polyline
+                      points="14,28 50,89 86,28"
+                      fill="none"
+                      stroke="#8F6A0E"
+                      strokeWidth="2.5"
+                      strokeLinejoin="round"
+                    />
+                    {/* 호루스의 눈 — 눈썹/눈매/동공/꼬리 장식 */}
+                    <g stroke="#3A2606" strokeLinecap="round" fill="none">
+                      <path d="M31 41 Q50 30 69 41" strokeWidth="4" />
+                      <path d="M29 51 Q50 38 71 51 Q50 62 29 51 Z" fill="#FBF4DE" strokeWidth="3" />
+                      <circle cx="50" cy="50" r="5.5" fill="#3A2606" stroke="none" />
+                      {/* 왼쪽 — 나선 꼬리 */}
+                      <path d="M42 60 L40 70 Q39 76 33 74" strokeWidth="3.2" />
+                      {/* 오른쪽 — 사선 눈물 자국 */}
+                      <path d="M58 60 L63 72" strokeWidth="3.2" />
+                    </g>
+                    {/* 우상단 하이라이트 */}
+                    <polygon points="60,18 78,18 70,26 58,26" fill="#FFF0B8" opacity="0.7" />
+                  </svg>
+                )}
+
                 {/* 클린 테마 — 화이트 스캔 프레임 아이콘. */}
-                {isFlatTheme(theme) && (
+                {isFlatTheme(theme) && theme !== 'yugioh' && (
                   <svg
                     className="fab-scan"
                     viewBox="0 0 24 24"

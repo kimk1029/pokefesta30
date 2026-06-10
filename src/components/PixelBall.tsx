@@ -94,29 +94,30 @@ export function PixelBall({ size = 22 }: { size?: number }) {
         <rect x="1" y="2" width="1" height="2" fill="#FCE6A8" />
       </svg>
 
-      {/* yugioh variant — 천년 퍼즐 정사각 + 호루스의 눈 */}
+      {/* yugioh variant — 역피라미드 황금 펜던트 + 눈 (클래식 테마라 논픽셀 스무스 렌더) */}
       <svg
         className="ball-yugioh"
         width={size}
         height={size}
-        viewBox="0 0 10 10"
-        style={{ shapeRendering: 'crispEdges' }}
+        viewBox="0 0 100 100"
       >
-        {/* 외곽 검정 */}
-        <rect x="0" y="0" width="10" height="1" fill="#1A1A2E" />
-        <rect x="0" y="9" width="10" height="1" fill="#1A1A2E" />
-        <rect x="0" y="1" width="1" height="8" fill="#1A1A2E" />
-        <rect x="9" y="1" width="1" height="8" fill="#1A1A2E" />
-        {/* 황금 본체 */}
-        <rect x="1" y="1" width="8" height="8" fill="#FFD23F" />
-        {/* 황금 하이라이트 (상단) */}
-        <rect x="1" y="1" width="8" height="1" fill="#FCE6A8" />
-        {/* 황금 그림자 (하단) */}
-        <rect x="1" y="8" width="8" height="1" fill="#B8860B" />
-        {/* 호루스의 눈 — 가로 줄 + 검정 동공 */}
-        <rect x="3" y="4" width="4" height="1" fill="#1A1A2E" />
-        <rect x="4" y="5" width="2" height="1" fill="#1A1A2E" />
-        <rect x="4" y="4" width="2" height="1" fill="#FFFFFF" />
+        <polygon
+          points="50,96 6,16 94,16"
+          fill="#E0AC2E"
+          stroke="#4A3408"
+          strokeWidth="6"
+          strokeLinejoin="round"
+        />
+        <polygon points="50,96 6,16 50,16" fill="#C9941C" />
+        <polygon points="6,16 94,16 84,27 16,27" fill="#F2D470" />
+        {/* 눈 — 작은 사이즈에서도 읽히게 눈매+동공만 */}
+        <path
+          d="M28 48 Q50 34 72 48 Q50 62 28 48 Z"
+          fill="#FBF4DE"
+          stroke="#3A2606"
+          strokeWidth="5"
+        />
+        <circle cx="50" cy="48" r="8" fill="#3A2606" />
       </svg>
 
       {/* sports variant — 경기장 공 아이콘 */}

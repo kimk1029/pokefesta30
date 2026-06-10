@@ -18,7 +18,7 @@ export const THEMES: ReadonlyArray<{
   {
     id: 'yugioh',
     label: '유희왕',
-    desc: '천년 퍼즐 + 보라·황금 톤',
+    desc: '천년 퍼즐 + 황금 클래식 (세리프)',
   },
   {
     id: 'sports',
@@ -41,11 +41,12 @@ export const DEFAULT_THEME: ThemeId = 'pokemon';
 export const THEME_STORAGE_KEY = 'pokefesta-theme';
 
 /**
- * "플랫(논픽셀)" 테마 여부 — clean·dark 는 픽셀 프레임/아이콘 대신
- * 라운드+소프트(모던) 외형을 쓴다. 인라인 스타일 분기에서 이 헬퍼로 판정.
+ * "플랫(논픽셀)" 테마 여부 — clean·dark 는 라운드+소프트(모던),
+ * yugioh 는 세리프+골드 프레임(클래식)으로, 셋 다 픽셀 프레임/아이콘을 쓰지 않는다.
+ * 인라인 스타일 분기에서 이 헬퍼로 판정.
  */
 export function isFlatTheme(t: ThemeId): boolean {
-  return t === 'clean' || t === 'dark';
+  return t === 'clean' || t === 'dark' || t === 'yugioh';
 }
 
 export function isThemeId(v: unknown): v is ThemeId {
