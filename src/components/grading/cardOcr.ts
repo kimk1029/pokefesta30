@@ -183,6 +183,12 @@ export async function recognizeCard(
     throw new Error('서버 응답 형식이 올바르지 않습니다.');
   }
 
+  if (res.status === 401) {
+    throw new Error('로그인 후 이용 가능합니다');
+  }
+  if (res.status === 429) {
+    throw new Error((data as { error?: string })?.error || '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+  }
   if (!res.ok || !data?.success) {
     throw new Error(data?.message || `서버 오류 (${res.status})`);
   }

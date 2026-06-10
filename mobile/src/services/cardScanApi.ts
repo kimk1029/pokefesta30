@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { getAuthHeader } from '@/lib/session';
 import type { CardScanResponse, ScanUploadInput } from '@/types/cardScan';
 
 /**
@@ -183,8 +184,11 @@ export async function uploadScanImage(input: ScanUploadInput): Promise<CardScanR
     // PaddleOCR runs ~25s per pass × 4 passes ≈ 100s in worst case. Default
     // RN fetch timeout (~60s on Android) was killing scans mid-flight, which
     // is what produced the "Network request failed" error.
+    // 스캔은 서버에서 로그인 필수 — 세션 JWT 첨부
+    const auth = getAuthHeader();
     res = await fetch(url, {
       method: 'POST',
+      headers: auth ? { Authorization: auth } : undefined,
       body: form,
       signal: abortAfter(180_000),
     });
@@ -194,6 +198,12 @@ export async function uploadScanImage(input: ScanUploadInput): Promise<CardScanR
     throw new CardScanError('NETWORK', `네트워크 오류: ${msg.slice(0, 80)} (URL=${url})`);
   }
 
+  if (res.status === 401) {
+    throw new CardScanError('AUTH', '로그인 후 이용 가능합니다');
+  }
+  if (res.status === 429) {
+    throw new CardScanError('RATE_LIMIT', '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+  }
   if (!res.ok) {
     throw new CardScanError('SERVER', `서버 오류 (${res.status})`);
   }

@@ -19,6 +19,8 @@ import { CARDS, GAMES, fmt, priceLabel, displayCardName, inferCardCurrency, card
 import { addCards } from '@/lib/collection';
 import { usePriceMode } from '@/lib/priceMode';
 import { lookupCardInfo } from '@/services/cardScanApi';
+import { InlineLoginGate } from '@/components/InlineLoginGate';
+import { useAuthed } from '@/lib/useAuthed';
 import { searchSnkrdunkByQuery } from '@/services/snkrdunk';
 import { koToJaSearch } from '@/lib/cardSearchJa';
 import { createMyCard } from '@/lib/myApi';
@@ -40,6 +42,23 @@ function currentYm(): string {
 }
 
 export default function ScanScreen() {
+  // 서버 /api/cards/scan 이 로그인 필수가 됨 — 미로그인은 게이트만 렌더.
+  // 본체(Inner)는 로그인 시에만 마운트해 로그인 상태 전환에도 훅 순서가 안전.
+  const authed = useAuthed();
+  if (!authed) {
+    return (
+      <InlineLoginGate
+        title="카드 스캔"
+        feature="카드 스캔"
+        description="AI 카드 인식 · 등록은 로그인 후 이용할 수 있어요"
+        icon="📷"
+      />
+    );
+  }
+  return <ScanScreenInner />;
+}
+
+function ScanScreenInner() {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
   const params = useLocalSearchParams<{

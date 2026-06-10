@@ -25,6 +25,8 @@ import { matchSnkrdunkForCard } from './lib/snkrdunkMatch.js';
 import { fetchApparelSingleJpy } from '@/lib/snkrdunkPrice';
 import { buildCors } from './middleware/cors.js';
 import { requireAdmin } from './middleware/requireAdmin.js';
+import { requireAuth } from './middleware/requireAuth.js';
+import { rateLimit } from './middleware/rateLimit.js';
 import authRouter from './routes/auth.js';
 import cardPacksRouter from './routes/cardPacks.ts';
 import cardsRouter from './routes/cards.ts';
@@ -231,7 +233,10 @@ app.get('/api/cards/dominant-color', async (req, res) => {
   }
 });
 
-app.post('/api/cards/scan', upload.single('image'), async (req, res) => {
+// 스캔은 유료 OpenAI Vision 호출 + sharp CPU 작업 — 로그인 필수 + 유저당 분당 제한
+const scanRateLimit = rateLimit({ windowMs: 10 * 60_000, max: 30, name: 'scan' });
+
+app.post('/api/cards/scan', requireAuth, scanRateLimit, upload.single('image'), async (req, res) => {
   const startedAt = Date.now();
   const file = req.file;
   if (!file) return res.status(400).json({ success: false, candidates: [], needsUserSelection: false, message: 'image 파일이 필요합니다.' });
