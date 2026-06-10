@@ -31,8 +31,9 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
             href={tab === 'feed' ? '/write/feed' : '/write/trade'}
             className="appbar-right"
             aria-label="글쓰기"
+            style={{ width: 'auto', padding: '0 10px', fontSize: 12, whiteSpace: 'nowrap' }}
           >
-            ✏
+            글쓰기
           </Link>
         }
       />

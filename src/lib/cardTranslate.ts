@@ -734,6 +734,72 @@ export function translate(text: string, target: TranslateTarget): string {
   return out;
 }
 
+/* ── 가나 → 한글 음역 폴백 ─────────────────────────────────────────
+   사전(JA_TO_KO)이 못 덮은 잔여 가나를 표시용으로 음역한다.
+   검색(KO→JA)은 여전히 사전 룩업만 사용 — 이 폴백은 *표시 방향 전용*. */
+const KANA_DIGRAPH: Record<string, string> = {
+  キャ: '캬', キュ: '큐', キョ: '쿄', ギャ: '갸', ギュ: '규', ギョ: '교',
+  シャ: '샤', シュ: '슈', ショ: '쇼', ジャ: '자', ジュ: '주', ジョ: '조',
+  チャ: '차', チュ: '추', チョ: '초', ニャ: '냐', ニュ: '뉴', ニョ: '뇨',
+  ヒャ: '햐', ヒュ: '휴', ヒョ: '효', ビャ: '뱌', ビュ: '뷰', ビョ: '뵤',
+  ピャ: '퍄', ピュ: '퓨', ピョ: '표', ミャ: '먀', ミュ: '뮤', ミョ: '묘',
+  リャ: '랴', リュ: '류', リョ: '료',
+  ファ: '파', フィ: '피', フェ: '페', フォ: '포', フュ: '퓨',
+  ウィ: '위', ウェ: '웨', ウォ: '워',
+  ヴァ: '바', ヴィ: '비', ヴェ: '베', ヴォ: '보',
+  ティ: '티', ディ: '디', トゥ: '투', ドゥ: '두', デュ: '듀', テュ: '튜',
+  シェ: '셰', ジェ: '제', チェ: '체', ツァ: '차', ツェ: '체', ツォ: '초',
+  イェ: '예',
+};
+const KANA_SINGLE: Record<string, string> = {
+  ア: '아', イ: '이', ウ: '우', エ: '에', オ: '오',
+  カ: '카', キ: '키', ク: '쿠', ケ: '케', コ: '코',
+  ガ: '가', ギ: '기', グ: '구', ゲ: '게', ゴ: '고',
+  サ: '사', シ: '시', ス: '스', セ: '세', ソ: '소',
+  ザ: '자', ジ: '지', ズ: '즈', ゼ: '제', ゾ: '조',
+  タ: '타', チ: '치', ツ: '츠', テ: '테', ト: '토',
+  ダ: '다', ヂ: '지', ヅ: '즈', デ: '데', ド: '도',
+  ナ: '나', ニ: '니', ヌ: '누', ネ: '네', ノ: '노',
+  ハ: '하', ヒ: '히', フ: '후', ヘ: '헤', ホ: '호',
+  バ: '바', ビ: '비', ブ: '부', ベ: '베', ボ: '보',
+  パ: '파', ピ: '피', プ: '푸', ペ: '페', ポ: '포',
+  マ: '마', ミ: '미', ム: '무', メ: '메', モ: '모',
+  ヤ: '야', ユ: '유', ヨ: '요',
+  ラ: '라', リ: '리', ル: '루', レ: '레', ロ: '로',
+  ワ: '와', ヲ: '오', ヴ: '부',
+  ァ: '아', ィ: '이', ゥ: '우', ェ: '에', ォ: '오', ャ: '야', ュ: '유', ョ: '요',
+};
+
+/** 직전 한글 음절에 받침(jong) 추가. 이미 받침 있거나 한글이 아니면 그대로. */
+function addJong(out: string, jong: number): string {
+  const last = out[out.length - 1];
+  if (!last) return out;
+  const code = last.charCodeAt(0);
+  if (code < 0xac00 || code > 0xd7a3) return out;
+  if ((code - 0xac00) % 28 !== 0) return out;
+  return out.slice(0, -1) + String.fromCharCode(code + jong);
+}
+
+/** 잔여 가나(히라가나/가타카나)를 한글로 음역. 가나 외 문자는 그대로 통과. */
+function kanaToKo(text: string): string {
+  // 히라가나 → 가타카나 정규화
+  const s = text.replace(/[ぁ-ゖ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+  let out = '';
+  let i = 0;
+  while (i < s.length) {
+    const two = s.slice(i, i + 2);
+    const ch = s[i];
+    if (KANA_DIGRAPH[two]) { out += KANA_DIGRAPH[two]; i += 2; continue; }
+    if (ch === 'ー' || ch === '・') { i++; continue; } // 장음·중점은 생략
+    if (ch === 'ッ') { out = addJong(out, 19); i++; continue; } // ㅅ 받침
+    if (ch === 'ン') { out = addJong(out, 4); i++; continue; } // ㄴ 받침
+    if (KANA_SINGLE[ch]) { out += KANA_SINGLE[ch]; i++; continue; }
+    out += ch;
+    i++;
+  }
+  return out;
+}
+
 export function translateKnownCardNameToKo(name: string): string {
   if (!name) return name;
   let out = name;
@@ -743,6 +809,8 @@ export function translateKnownCardNameToKo(name: string): string {
   for (const [from, to] of JA_TO_KO) {
     out = out.split(from).join(to);
   }
+  // 사전이 못 덮은 잔여 가나는 한글 음역으로 — 메인 타이틀이 일본어로 남지 않게.
+  out = kanaToKo(out);
   return out
     .replace(/[（]/g, '(')
     .replace(/[）]/g, ')')

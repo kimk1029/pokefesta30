@@ -23,6 +23,7 @@ import type {
 } from '@/lib/types';
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
 import { computeApparelPrices } from '@/lib/snkrdunkPrice';
+import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import {
   isFreshEntry,
   loadCatalogEntries,
@@ -441,7 +442,8 @@ export async function getMyCardsWithPrices(
     }
     const info = apparelInfo.get(c.snkrdunkApparelId);
     return {
-      snkrdunkName: info?.name ?? null,
+      // 컬렉션/포트폴리오의 메인 타이틀 — 일본어 원문을 한국어(사전+음역)로.
+      snkrdunkName: info?.name ? translateKnownCardNameToKo(info.name) : null,
       snkrdunkImageUrl: info?.imageUrl ?? null,
       snkrdunkMinPriceJpy: info?.priceSingleJpy ?? 0, // 호환용 별칭
       priceSingleJpy: info?.priceSingleJpy ?? 0,
@@ -543,7 +545,7 @@ export async function getMyFavoritesWithPrices(
     const e = catalog.get(id);
     if (isFreshEntry(e) && e?.snapshot) {
       info.set(id, {
-        name: e.name,
+        name: translateKnownCardNameToKo(e.name),
         imageUrl: e.imageUrl,
         minPriceJpy: e.snapshot.minPrice > 0 ? e.snapshot.minPrice : e.snapshot.priceSingle,
       });
@@ -556,7 +558,7 @@ export async function getMyFavoritesWithPrices(
         const a = await fetchSnkrdunkApparel(id);
         if (a) {
           info.set(id, {
-            name: a.localizedName || a.name || '',
+            name: translateKnownCardNameToKo(a.localizedName || a.name || ''),
             imageUrl: a.imageUrl,
             minPriceJpy: typeof a.minPrice === 'number' && a.minPrice > 0 ? a.minPrice : 0,
           });

@@ -4323,3 +4323,23 @@ a{color:inherit;text-decoration:none;}
   transform:translateY(1px);
   box-shadow:0 1px 2px rgba(17,20,26,.06),0 4px 10px -4px rgba(17,20,26,.10);
 }
+
+/* ── 피드 상세 펼침 애니메이션 ──
+   카드 자체는 살짝 탄성 스케일, 펼침으로 새로 나타나는 블록(사진/메타/댓글,
+   .fi-detail)은 페이드+슬라이드 인으로 자연스럽게 열린다. */
+.feed-item{transition:transform .18s ease,box-shadow .18s ease;}
+.feed-item--expanded{animation:pf-feed-open .26s cubic-bezier(.2,.8,.3,1);}
+@keyframes pf-feed-open{
+  0%{transform:scale(.985);}
+  60%{transform:scale(1.005);}
+  100%{transform:scale(1);}
+}
+.fi-detail{animation:pf-feed-detail-in .3s ease both;}
+@keyframes pf-feed-detail-in{
+  from{opacity:0;transform:translateY(6px);}
+  to{opacity:1;transform:translateY(0);}
+}
+@media (prefers-reduced-motion:reduce){
+  .feed-item--expanded{animation:none;}
+  .fi-detail{animation:none;}
+}

@@ -65,8 +65,13 @@ export function FeedScreen({ initialPosts, initialCursor }: Props) {
       <AppBar
         title="피드"
         right={
-          <Link href="/write/feed" className="appbar-right" aria-label="글쓰기">
-            ✏
+          <Link
+            href="/write/feed"
+            className="appbar-right"
+            aria-label="글쓰기"
+            style={{ width: 'auto', padding: '0 10px', fontSize: 12, whiteSpace: 'nowrap' }}
+          >
+            글쓰기
           </Link>
         }
       />

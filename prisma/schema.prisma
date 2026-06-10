@@ -40,6 +40,7 @@ model User {
 
   trades           Trade[]
   feeds            Feed[]
+  feedComments     FeedComment[]
   bookmarks        Bookmark[]
   sentMessages     Message[]      @relation("SentMessages")
   receivedMessages Message[]      @relation("ReceivedMessages")
@@ -112,9 +113,24 @@ model Feed {
   updatedAt     DateTime @updatedAt
 
   bookmarks Bookmark[]
+  comments  FeedComment[]
 
   @@index([createdAt(sort: Desc)])
   @@map("feeds")
+}
+
+/// 피드 댓글 — 상세 펼침 시 노출되는 간단 댓글.
+model FeedComment {
+  id        Int      @id @default(autoincrement())
+  feedId    Int
+  feed      Feed     @relation(fields: [feedId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([feedId, createdAt])
+  @@map("feed_comments")
 }
 
 /// 쪽지 (채팅 아닌 비동기 메시지). 웹소켓 없이 폴링 기반.

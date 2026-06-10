@@ -92,6 +92,7 @@ export function FeedRow({ post }: { post: FeedPost }) {
         {/* 사진은 상세 펼쳤을 때만 노출. 클릭 시 lightbox 로 전체 보기. */}
         {expanded && hasImages && (
           <div
+            className="fi-detail"
             onClick={(e) => e.stopPropagation()}
             style={{
               display: 'grid',
@@ -142,10 +143,12 @@ export function FeedRow({ post }: { post: FeedPost }) {
           />
         )}
         {expanded && (
-          <div className="fi-meta">
+          <div className="fi-meta fi-detail">
             <span className="fi-meta-time">🕒 {formatAbsolute(post.createdAt)}</span>
           </div>
         )}
+        {/* 댓글 — 상세 펼침 시에만 로드/노출. */}
+        {expanded && <FeedComments feedId={post.id} />}
       </div>
       <div className="fi-right" onClick={(e) => e.stopPropagation()}>
         <BookmarkButton feedId={post.id} />
@@ -172,6 +175,132 @@ export function FeedRow({ post }: { post: FeedPost }) {
         )}
         <span className="fi-time">{post.time}</span>
       </div>
+    </div>
+  );
+}
+
+interface FeedComment {
+  id: number;
+  text: string;
+  authorName: string;
+  createdAt: string;
+}
+
+/**
+ * 피드 댓글 — 상세 펼침 시 lazy 로드. 목록 + 한 줄 입력의 미니멀 구성.
+ * 부모(feed-item)가 클릭 토글이라 내부 클릭은 전파를 막는다.
+ */
+function FeedComments({ feedId }: { feedId: number }) {
+  const [comments, setComments] = useState<FeedComment[] | null>(null);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/feeds/${feedId}/comments`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j: { data?: FeedComment[] }) => {
+        if (alive) setComments(j.data ?? []);
+      })
+      .catch(() => {
+        if (alive) setComments([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [feedId]);
+
+  const submit = async () => {
+    const t = text.trim();
+    if (!t || sending) return;
+    setSending(true);
+    setHint(null);
+    try {
+      const r = await fetch(`/api/feeds/${feedId}/comments`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: t }),
+      });
+      if (r.status === 401) {
+        setHint('댓글을 쓰려면 로그인이 필요해요');
+        return;
+      }
+      if (!r.ok) {
+        setHint('등록에 실패했어요. 잠시 후 다시 시도해주세요');
+        return;
+      }
+      const j = (await r.json()) as { data: FeedComment };
+      setComments((prev) => [...(prev ?? []), j.data]);
+      setText('');
+    } catch {
+      setHint('등록에 실패했어요. 잠시 후 다시 시도해주세요');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div
+      className="fi-detail"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      style={{ marginTop: 10, borderTop: '1px solid var(--pap3)', paddingTop: 8 }}
+    >
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginBottom: 6 }}>
+        💬 댓글 {comments ? comments.length : '…'}
+      </div>
+      {comments && comments.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+          {comments.map((c) => (
+            <div key={c.id} style={{ display: 'flex', gap: 6, alignItems: 'baseline', minWidth: 0 }}>
+              <span style={{ fontFamily: 'var(--f1)', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                {c.authorName}
+              </span>
+              <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink2)', lineHeight: 1.6, wordBreak: 'break-word' }}>
+                {c.text}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input
+          type="text"
+          value={text}
+          maxLength={300}
+          placeholder="댓글 달기…"
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') submit();
+          }}
+          style={{
+            flex: 1, minWidth: 0, padding: '7px 10px',
+            fontFamily: 'var(--f1)', fontSize: 11,
+          }}
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={sending || !text.trim()}
+          style={{
+            flexShrink: 0, padding: '7px 12px',
+            background: 'var(--ink)', color: 'var(--white)',
+            fontFamily: 'var(--f1)', fontSize: 11,
+            borderRadius: 'var(--r-sm, 0px)',
+            opacity: sending || !text.trim() ? 0.5 : 1,
+          }}
+        >
+          등록
+        </button>
+      </div>
+      {hint && (
+        <div style={{ marginTop: 6, fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--red)' }}>
+          {hint}
+        </div>
+      )}
     </div>
   );
 }

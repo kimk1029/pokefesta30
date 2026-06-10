@@ -22,6 +22,66 @@ router.get('/', async (req: Request, res: Response) => {
   res.json(page);
 });
 
+/* ── 댓글 (피드 상세 펼침 시 노출) ─────────────────────────────── */
+
+router.get('/:id/comments', async (req: Request, res: Response) => {
+  const feedId = parseId(req.params.id);
+  if (feedId === null) return res.status(400).json({ error: 'invalid id' });
+  try {
+    const rows = await prisma.feedComment.findMany({
+      where: { feedId },
+      orderBy: { createdAt: 'asc' },
+      take: 100,
+      include: { author: { select: { name: true } } },
+    });
+    res.json({
+      data: rows.map((r) => ({
+        id: r.id,
+        text: r.text,
+        authorName: r.author?.name ?? '트레이너',
+        createdAt: r.createdAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    console.error('[feeds.comments.GET]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+router.post('/:id/comments', requireAuth, async (req: Request, res: Response) => {
+  const feedId = parseId(req.params.id);
+  if (feedId === null) return res.status(400).json({ error: 'invalid id' });
+  const text = typeof (req.body as { text?: unknown })?.text === 'string'
+    ? (req.body as { text: string }).text.trim().slice(0, 300)
+    : '';
+  if (!text) return res.status(400).json({ error: 'text required' });
+  const userId = req.user!.userId;
+  try {
+    const feed = await prisma.feed.findUnique({ where: { id: feedId }, select: { id: true } });
+    if (!feed) return res.status(404).json({ error: 'not found' });
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { id: userId, name: defaultNameFor(userId) },
+    });
+    const created = await prisma.feedComment.create({
+      data: { feedId, authorId: userId, text },
+      include: { author: { select: { name: true } } },
+    });
+    res.status(201).json({
+      data: {
+        id: created.id,
+        text: created.text,
+        authorName: created.author?.name ?? '트레이너',
+        createdAt: created.createdAt.toISOString(),
+      },
+    });
+  } catch (err) {
+    console.error('[feeds.comments.POST]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
 router.post('/', requireAuth, async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as {
     text?: string;

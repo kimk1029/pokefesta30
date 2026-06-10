@@ -148,7 +148,8 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount, isGue
 
       {/* Stats row */}
       <div className="cv-stat-row">
-        <Stat n={cardCount} l="내 카드" gold />
+        {/* 셋 다 동일한 플레인 숫자 — '내 카드'만 gold 뱃지(보더)였던 것 제거 */}
+        <Stat n={cardCount} l="내 카드" />
         <Stat n={tradeCount} l="내 거래" />
         <Stat n={savedCount} l="찜한 글" />
       </div>
