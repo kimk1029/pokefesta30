@@ -882,7 +882,8 @@ function PopularCardsSection({
               }}
             >
               <div style={{
-                height: 92, background: 'var(--pap2)',
+                // 플랫 테마: 카드 면(--white)과 동일하게 — 이미지 띠가 회색 컨테이너처럼 떠 보이지 않게.
+                height: 92, background: isClean ? 'var(--white)' : 'var(--pap2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
               }}>
                 {r.imageUrl ? (
