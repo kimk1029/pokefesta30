@@ -464,6 +464,28 @@ model HeroBanner {
   @@map("hero_banners")
 }
 
+/// 이벤트 게시판 글 — 어드민에서 작성/관리, 웹 /events 에 노출.
+/// startsAt/endsAt 은 'YYYY-MM-DD' 문자열. 둘 다 비우면 상시 이벤트.
+model EventPost {
+  id        Int      @id @default(autoincrement())
+  title     String
+  /// 본문 — 줄바꿈 \n 그대로 렌더.
+  body      String   @default("")
+  /// 대표 이미지 URL. 비우면 텍스트 카드.
+  imageUrl  String?
+  startsAt  String?
+  endsAt    String?
+  /// 목록 상단 고정.
+  pinned    Boolean  @default(false)
+  /// false = 비공개(웹 미노출, 어드민에서만 보임).
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published, pinned, createdAt(sort: Desc)])
+  @@map("event_posts")
+}
+
 model Bookmark {
   id        Int      @id @default(autoincrement())
   userId    String

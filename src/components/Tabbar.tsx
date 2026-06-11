@@ -32,6 +32,7 @@ function activeId(pathname: string): TabId | '' {
   if (pathname.startsWith('/cards/grading')) return 'fab';
   if (pathname.startsWith('/feed')) return 'community';
   if (pathname.startsWith('/trade')) return 'community';
+  if (pathname.startsWith('/events')) return 'home';
   if (pathname.startsWith('/cards')) return 'home';
   if (pathname.startsWith('/my')) return 'my';
   if (pathname.startsWith('/write/feed')) return 'community';

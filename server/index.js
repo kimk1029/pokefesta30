@@ -42,6 +42,7 @@ import metricsRouter from './routes/metrics.ts';
 import uploadRouter from './routes/upload.ts';
 import adminRouter from './routes/admin.ts';
 import bannersRouter from './routes/banners.ts';
+import eventsRouter from './routes/events.ts';
 import placesRouter from './routes/places.ts';
 import usersRouter from './routes/users.ts';
 import searchLogRouter from './routes/searchLog.ts';
@@ -72,6 +73,7 @@ app.use('/api/metrics', metricsRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/banners', bannersRouter);
+app.use('/api/events', eventsRouter);
 app.use('/api/places', placesRouter);
 app.use('/api/users', usersRouter);
 
