@@ -1,20 +1,31 @@
 import { Router, type Request, type Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/requireAuth.js';
+import { EVENT_CATEGORIES } from '@/lib/events';
 
 const router = Router();
 
 const AUTHOR_INCLUDE = { author: { select: { name: true } } } as const;
+/** 글 행에 작성자 이름 + 댓글 수까지 포함. */
+const POST_INCLUDE = {
+  ...AUTHOR_INCLUDE,
+  _count: { select: { comments: true } },
+} as const;
 
 type PostRow = {
   author?: { name: string } | null;
   authorId?: string | null;
+  _count?: { comments: number };
 } & Record<string, unknown>;
 
-/** author 관계를 authorName 평면 필드로 변환 (null = 어드민 공지). */
+/** author/_count 관계를 authorName/commentCount 평면 필드로 변환. */
 function toDto(p: PostRow) {
-  const { author, ...rest } = p;
-  return { ...rest, authorName: author?.name ?? null };
+  const { author, _count, ...rest } = p;
+  return {
+    ...rest,
+    authorName: author?.name ?? null,
+    commentCount: _count?.comments ?? 0,
+  };
 }
 
 /** 공개 이벤트 목록 — 고정글 먼저, 최신순. */
@@ -24,7 +35,7 @@ router.get('/', async (_req: Request, res: Response) => {
       where: { published: true },
       orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
       take: 100,
-      include: AUTHOR_INCLUDE,
+      include: POST_INCLUDE,
     });
     res.json({ data: items.map(toDto) });
   } catch (err) {
@@ -43,7 +54,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const post = await prisma.eventPost.findFirst({
       where: { id, published: true },
-      include: AUTHOR_INCLUDE,
+      include: POST_INCLUDE,
     });
     if (!post) {
       res.status(404).json({ error: 'not found' });
@@ -125,13 +136,22 @@ router.post('/:id/comments', requireAuth, async (req: Request, res: Response) =>
   }
 });
 
-/** 회원 글 작성 — 로그인 필수. 제목/본문만 받는 단순 글 (기간/고정은 어드민 전용). */
+/** 회원 글 작성 — 로그인 필수. 말머리+제목/본문 (기간/고정은 어드민 전용). */
 router.post('/', requireAuth, async (req: Request, res: Response) => {
-  const body = req.body as { title?: unknown; body?: unknown };
+  const body = req.body as { title?: unknown; body?: unknown; category?: unknown };
   const title = typeof body?.title === 'string' ? body.title.trim().slice(0, 100) : '';
   const text = typeof body?.body === 'string' ? body.body.trim().slice(0, 3000) : '';
+  const category =
+    typeof body?.category === 'string' &&
+    (EVENT_CATEGORIES as readonly string[]).includes(body.category)
+      ? body.category
+      : null;
   if (!title) {
     res.status(400).json({ error: '제목을 입력해주세요' });
+    return;
+  }
+  if (!category) {
+    res.status(400).json({ error: '말머리를 선택해주세요' });
     return;
   }
   try {
@@ -139,10 +159,11 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       data: {
         title,
         body: text,
+        category,
         authorId: req.user!.userId,
         published: true,
       },
-      include: AUTHOR_INCLUDE,
+      include: POST_INCLUDE,
     });
     res.status(201).json({ data: toDto(post) });
   } catch (err) {

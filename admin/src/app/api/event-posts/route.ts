@@ -33,6 +33,7 @@ export async function POST(req: Request) {
         imageUrl: v.data.imageUrl ?? null,
         startsAt: v.data.startsAt ?? null,
         endsAt: v.data.endsAt ?? null,
+        category: v.data.category ?? null,
         pinned: v.data.pinned ?? false,
         published: v.data.published ?? true,
       },

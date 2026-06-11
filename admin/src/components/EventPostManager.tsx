@@ -10,12 +10,16 @@ export interface EventPostData {
   imageUrl: string | null;
   startsAt: string | null;
   endsAt: string | null;
+  category: string | null;
   pinned: boolean;
   published: boolean;
+  authorName: string | null;
   createdAt: string;
 }
 
-type Draft = Omit<EventPostData, 'id' | 'createdAt'> & { id: number | null };
+type Draft = Omit<EventPostData, 'id' | 'createdAt' | 'authorName'> & { id: number | null };
+
+const CATEGORIES = ['구매', '시세파악', '오리파구매'] as const;
 
 const EMPTY_DRAFT: Draft = {
   id: null,
@@ -24,6 +28,7 @@ const EMPTY_DRAFT: Draft = {
   imageUrl: null,
   startsAt: null,
   endsAt: null,
+  category: null,
   pinned: false,
   published: true,
 };
@@ -53,6 +58,7 @@ export function EventPostManager({ initialPosts }: { initialPosts: EventPostData
       imageUrl: draft.imageUrl || null,
       startsAt: draft.startsAt || null,
       endsAt: draft.endsAt || null,
+      category: draft.category || null,
       pinned: draft.pinned,
       published: draft.published,
     };
@@ -135,13 +141,15 @@ export function EventPostManager({ initialPosts }: { initialPosts: EventPostData
         return (
           <section key={p.id} className="card" style={{ opacity: p.published ? 1 : 0.6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {p.pinned && <span style={{ ...chip, background: '#F59E0B' }}>📌 고정</span>}
                 <span style={{ ...chip, background: p.published ? '#10B981' : '#94A3B8' }}>
                   {p.published ? '공개' : '비공개'}
                 </span>
+                {p.category && <span style={{ ...chip, background: '#3B82F6' }}>{p.category}</span>}
                 <span style={{ fontSize: 11, color: '#94A3B8' }}>
-                  {p.startsAt || p.endsAt ? `${p.startsAt ?? ''} ~ ${p.endsAt ?? ''}` : '상시'}
+                  {p.authorName ? `✍ ${p.authorName}` : '공지'}
+                  {(p.startsAt || p.endsAt) && ` · ${p.startsAt ?? ''} ~ ${p.endsAt ?? ''}`}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -224,9 +232,23 @@ function PostForm({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => v
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <Field label="제목">
-        <input type="text" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} style={inp} />
-      </Field>
+      <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 12 }}>
+        <Field label="말머리">
+          <select
+            value={draft.category ?? ''}
+            onChange={(e) => setDraft({ ...draft, category: e.target.value || null })}
+            style={inp}
+          >
+            <option value="">없음 (공지)</option>
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="제목">
+          <input type="text" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} style={inp} />
+        </Field>
+      </div>
       <Field label="본문 (줄바꿈 ⏎ 그대로 노출)">
         <textarea value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={6} style={{ ...inp, resize: 'vertical' }} />
       </Field>

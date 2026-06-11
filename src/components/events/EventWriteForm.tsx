@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { startRouteTransition } from '@/components/RouteProgress';
+import { EVENT_CATEGORIES, type EventCategory } from '@/lib/events';
 
-/** 이벤트 게시판 회원 글쓰기 폼 — 제목 + 본문. */
+/** 이벤트 게시판 회원 글쓰기 폼 — 말머리 + 제목 + 본문. */
 export function EventWriteForm() {
   const router = useRouter();
+  const [category, setCategory] = useState<EventCategory>('구매');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
@@ -24,7 +26,7 @@ export function EventWriteForm() {
       const r = await fetch('/api/events', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), body: body.trim() }),
+        body: JSON.stringify({ category, title: title.trim(), body: body.trim() }),
       });
       if (r.status === 401) {
         setErr('로그인해주세요');
@@ -46,6 +48,21 @@ export function EventWriteForm() {
 
   return (
     <div className="cv-manual-form" style={{ margin: '0 var(--gap)' }}>
+      <div className="cv-manual-field">
+        <div className="cv-manual-label">말머리</div>
+        <div className="cv-manual-catalog">
+          {EVENT_CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`cv-manual-cat-btn${category === c ? ' on' : ''}`}
+              onClick={() => setCategory(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="cv-manual-field">
         <div className="cv-manual-label">제목</div>
         <input

@@ -4,6 +4,7 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import { EventComments } from '@/components/events/EventComments';
 import { serverFetch } from '@/lib/apiServer';
 import {
+  EVENT_CATEGORY_STYLE as CATEGORY_STYLE,
   EVENT_STATUS_LABEL,
   eventPeriodLabel,
   eventStatus,
@@ -36,19 +37,38 @@ export default async function Page({ params }: Props) {
 
       <div style={{ padding: '16px var(--gap)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              padding: '2px 7px',
-              letterSpacing: '.3px',
-              background: status === 'ongoing' ? 'var(--accent)' : 'var(--pap2)',
-              color: status === 'ongoing' ? '#fff' : status === 'ended' ? 'var(--ink3)' : 'var(--ink)',
-            }}
-          >
-            {EVENT_STATUS_LABEL[status]}
-          </span>
-          <span style={{ fontSize: 11, color: 'var(--ink3)' }}>{eventPeriodLabel(post)}</span>
+          {/* 기간 있는 글만 진행 상태 배지 — 기간 없는 글은 말머리가 그 자리 */}
+          {status !== 'always' && (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '2px 7px',
+                letterSpacing: '.3px',
+                background: status === 'ongoing' ? 'var(--accent)' : 'var(--pap2)',
+                color: status === 'ongoing' ? '#fff' : status === 'ended' ? 'var(--ink3)' : 'var(--ink)',
+              }}
+            >
+              {EVENT_STATUS_LABEL[status]}
+            </span>
+          )}
+          {post.category && (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '2px 7px',
+                letterSpacing: '.3px',
+                background: CATEGORY_STYLE[post.category]?.background ?? 'var(--pap2)',
+                color: CATEGORY_STYLE[post.category]?.color ?? 'var(--ink)',
+              }}
+            >
+              {post.category}
+            </span>
+          )}
+          {eventPeriodLabel(post) && (
+            <span style={{ fontSize: 11, color: 'var(--ink3)' }}>{eventPeriodLabel(post)}</span>
+          )}
           <span style={{ fontSize: 11, color: 'var(--ink3)', marginLeft: 'auto' }}>
             {post.authorName ? `✍ ${post.authorName}` : '공지'}
           </span>

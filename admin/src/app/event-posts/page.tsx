@@ -8,6 +8,7 @@ export default async function Page() {
   try {
     const rows = await prisma.eventPost.findMany({
       orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
+      include: { author: { select: { name: true } } },
     });
     posts = rows.map((p) => ({
       id: p.id,
@@ -16,8 +17,10 @@ export default async function Page() {
       imageUrl: p.imageUrl,
       startsAt: p.startsAt,
       endsAt: p.endsAt,
+      category: p.category,
       pinned: p.pinned,
       published: p.published,
+      authorName: p.author?.name ?? null,
       createdAt: p.createdAt.toISOString(),
     }));
   } catch (e) {

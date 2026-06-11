@@ -476,6 +476,8 @@ model EventPost {
   /// 작성자 — null = 어드민 작성 공지.
   authorId  String?
   author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  /// 말머리 — '구매' | '시세파악' | '오리파구매'. null = 말머리 없음(공지 등).
+  category  String?
   title     String
   /// 본문 — 줄바꿈 \n 그대로 렌더.
   body      String   @default("")

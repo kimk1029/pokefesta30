@@ -1,11 +1,14 @@
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+export const EVENT_CATEGORIES = ['구매', '시세파악', '오리파구매'] as const;
+
 export interface EventPostInput {
   title?: string;
   body?: string;
   imageUrl?: string | null;
   startsAt?: string | null;
   endsAt?: string | null;
+  category?: string | null;
   pinned?: boolean;
   published?: boolean;
 }
@@ -44,6 +47,19 @@ export function parseEventPostInput(raw: Record<string, unknown>, partial: boole
 
   if (data.startsAt && data.endsAt && data.startsAt > data.endsAt) {
     return { ok: false, error: '종료일이 시작일보다 빠릅니다' };
+  }
+
+  if (raw.category !== undefined) {
+    if (raw.category === null || raw.category === '') {
+      data.category = null;
+    } else if (
+      typeof raw.category === 'string' &&
+      (EVENT_CATEGORIES as readonly string[]).includes(raw.category)
+    ) {
+      data.category = raw.category;
+    } else {
+      return { ok: false, error: `category 는 ${EVENT_CATEGORIES.join('/')} 중 하나여야 합니다` };
+    }
   }
 
   for (const key of ['pinned', 'published'] as const) {

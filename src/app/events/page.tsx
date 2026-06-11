@@ -4,6 +4,7 @@ import { Panel } from '@/components/ui/Panel';
 import { WriteEventButton } from '@/components/events/WriteEventButton';
 import { getServerUser, serverFetch } from '@/lib/apiServer';
 import {
+  EVENT_CATEGORY_STYLE as CATEGORY_STYLE,
   EVENT_STATUS_LABEL,
   eventPeriodLabel,
   eventStatus,
@@ -77,17 +78,34 @@ export default async function Page() {
                     {p.pinned && (
                       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>📌 고정</span>
                     )}
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: '2px 7px',
-                        letterSpacing: '.3px',
-                        ...STATUS_STYLE[status],
-                      }}
-                    >
-                      {EVENT_STATUS_LABEL[status]}
-                    </span>
+                    {/* 기간 있는 글만 진행 상태 배지 — 기간 없는 글은 말머리가 그 자리 */}
+                    {status !== 'always' && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: '2px 7px',
+                          letterSpacing: '.3px',
+                          ...STATUS_STYLE[status],
+                        }}
+                      >
+                        {EVENT_STATUS_LABEL[status]}
+                      </span>
+                    )}
+                    {p.category && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: '2px 7px',
+                          letterSpacing: '.3px',
+                          background: CATEGORY_STYLE[p.category]?.background ?? 'var(--pap2)',
+                          color: CATEGORY_STYLE[p.category]?.color ?? 'var(--ink)',
+                        }}
+                      >
+                        {p.category}
+                      </span>
+                    )}
                     {!p.authorName && (
                       <span
                         style={{
@@ -102,9 +120,10 @@ export default async function Page() {
                         공지
                       </span>
                     )}
-                    <span style={{ fontSize: 11, color: 'var(--ink3)', marginLeft: 'auto' }}>
-                      {p.authorName ? `✍ ${p.authorName} · ` : ''}
-                      {eventPeriodLabel(p)}
+                    <span style={{ fontSize: 11, color: 'var(--ink3)', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {p.authorName && <span>✍ {p.authorName}</span>}
+                      {eventPeriodLabel(p) && <span>{eventPeriodLabel(p)}</span>}
+                      <span>💬 {p.commentCount}</span>
                     </span>
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.4 }}>{p.title}</div>
