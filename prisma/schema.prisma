@@ -50,6 +50,7 @@ model User {
   listingFavorites ListingFavorite[]
   portfolioDailySnapshots PortfolioDailySnapshot[]
   searchLogs       SearchLog[]
+  eventPosts       EventPost[]
 
   @@map("users")
 }
@@ -467,10 +468,13 @@ model HeroBanner {
   @@map("hero_banners")
 }
 
-/// 이벤트 게시판 글 — 어드민에서 작성/관리, 웹 /events 에 노출.
+/// 이벤트 게시판 글 — 어드민 공지 + 회원 작성 글, 웹 /events 에 노출.
 /// startsAt/endsAt 은 'YYYY-MM-DD' 문자열. 둘 다 비우면 상시 이벤트.
 model EventPost {
   id        Int      @id @default(autoincrement())
+  /// 작성자 — null = 어드민 작성 공지.
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
   title     String
   /// 본문 — 줄바꿈 \n 그대로 렌더.
   body      String   @default("")

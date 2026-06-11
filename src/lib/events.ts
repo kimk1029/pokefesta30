@@ -9,6 +9,8 @@ export interface EventPost {
   endsAt: string | null;
   pinned: boolean;
   published: boolean;
+  /** 작성자 이름 — null = 어드민 작성 공지. */
+  authorName: string | null;
   createdAt: string;
   updatedAt: string;
 }

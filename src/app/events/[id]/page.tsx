@@ -48,6 +48,9 @@ export default async function Page({ params }: Props) {
             {EVENT_STATUS_LABEL[status]}
           </span>
           <span style={{ fontSize: 11, color: 'var(--ink3)' }}>{eventPeriodLabel(post)}</span>
+          <span style={{ fontSize: 11, color: 'var(--ink3)', marginLeft: 'auto' }}>
+            {post.authorName ? `✍ ${post.authorName}` : '공지'}
+          </span>
         </div>
 
         <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.4 }}>{post.title}</div>

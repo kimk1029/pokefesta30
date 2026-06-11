@@ -1,7 +1,8 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { Panel } from '@/components/ui/Panel';
-import { serverFetch } from '@/lib/apiServer';
+import { WriteEventButton } from '@/components/events/WriteEventButton';
+import { getServerUser, serverFetch } from '@/lib/apiServer';
 import {
   EVENT_STATUS_LABEL,
   eventPeriodLabel,
@@ -22,16 +23,22 @@ const STATUS_STYLE: Record<EventStatus, { background: string; color: string }> =
 };
 
 export default async function Page() {
-  const r = await serverFetch<{ data: EventPost[] }>('/api/events', {
-    auth: false,
-    revalidate: 60,
-  });
+  const [r, user] = await Promise.all([
+    // 회원 글 작성 직후 바로 보이도록 캐시 없이 — 목록은 가볍다.
+    serverFetch<{ data: EventPost[] }>('/api/events', { auth: false }),
+    getServerUser(),
+  ]);
   const posts = r.data?.data ?? [];
 
   return (
     <>
       <StatusBar />
-      <AppBar title="이벤트" showBack backHref="/" />
+      <AppBar
+        title="이벤트"
+        showBack
+        backHref="/"
+        right={<WriteEventButton loggedIn={!!user?.id} />}
+      />
 
       <div style={{ padding: '16px var(--gap)', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {posts.length === 0 ? (
@@ -81,7 +88,22 @@ export default async function Page() {
                     >
                       {EVENT_STATUS_LABEL[status]}
                     </span>
+                    {!p.authorName && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: '2px 7px',
+                          letterSpacing: '.3px',
+                          background: 'var(--ink)',
+                          color: 'var(--white)',
+                        }}
+                      >
+                        공지
+                      </span>
+                    )}
                     <span style={{ fontSize: 11, color: 'var(--ink3)', marginLeft: 'auto' }}>
+                      {p.authorName ? `✍ ${p.authorName} · ` : ''}
                       {eventPeriodLabel(p)}
                     </span>
                   </div>
