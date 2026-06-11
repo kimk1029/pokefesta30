@@ -399,9 +399,12 @@ model SnkrdunkCard {
   packCode       String?
   /// snkrdunk apparel group id (박스).
   apparelGroupId Int?
-  /// 카드 이름/품번에서 파싱한 세트 코드 (예: "OP02", "SV1a"). 파싱 실패 시 null.
+  /// 카드 게임 구분: 'pokemon' | 'onepiece' | 'yugioh' | 'other'. '' = 미분류.
+  game           String   @default("")
+  /// 카드 이름/품번에서 파싱한 세트 코드 (예: "OP02", "SV2A", "QCCP"). 파싱 실패 시 null.
+  /// 카드번호와 항상 분리 저장 — 합쳐 쓰지 말 것.
   setCode        String?
-  /// 카드 번호 (예: "059", "123/165"). 파싱 실패 시 null.
+  /// 카드 번호 (예: "059", "123/165", "JP049"). 파싱 실패 시 null.
   cardNumber     String?
   /// 레어도 (SAR/SR/UR/CHR 등 — 이름 토큰에서 추출). 없으면 null.
   rarity         String?

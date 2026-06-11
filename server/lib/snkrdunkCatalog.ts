@@ -14,49 +14,13 @@ import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { fetchSnkrdunkApparel, type SnkrdunkApparel } from '@/lib/snkrdunk';
+import { parseCardStatics } from '../../shared/cardStatics';
+
+export { parseCardStatics } from '../../shared/cardStatics';
+export type { ParsedCardStatics, CardGame } from '../../shared/cardStatics';
 
 /** 컬렉션/즐겨찾기 시세 신선 기준 — 이 시간 이내 스냅샷이면 라이브 호출 생략. */
 export const CATALOG_PRICE_TTL_MS = 30 * 60 * 1000;
-
-/* ── 정적 정보 파싱 ──────────────────────────────────────────────── */
-
-const RARITY_RE = /\b(SAR|CSR|CHR|HR|UR|SSR|SR|RRR|RR|AR|IR|SEC|PROMO|プロモ)\b/i;
-// "[OP02-059]" / "[123/165]" / "[SV1a 073/073]" 류의 대괄호 식별자
-const BRACKET_RE = /[[［]([A-Za-z0-9\-./ ]{2,20})[\]］]/;
-
-export interface ParsedCardStatics {
-  setCode: string | null;
-  cardNumber: string | null;
-  rarity: string | null;
-}
-
-/** 카드 이름/품번에서 세트코드·카드번호·레어도를 best-effort 로 추출. 실패는 null. */
-export function parseCardStatics(name: string, productNumber?: string): ParsedCardStatics {
-  const src = `${name} ${productNumber ?? ''}`;
-  const rarity = src.match(RARITY_RE)?.[1]?.toUpperCase() ?? null;
-
-  let setCode: string | null = null;
-  let cardNumber: string | null = null;
-  const bracket = name.match(BRACKET_RE)?.[1]?.trim();
-  if (bracket) {
-    // "OP02-059" → set OP02 / no 059, "EB01-006" 등
-    const dash = bracket.match(/^([A-Za-z]{1,4}\d{1,3}[a-z]?)-(\w{1,8})$/);
-    // "073/102" 단독 → 카드번호만
-    const frac = bracket.match(/^(\d{1,4}\/\d{1,4})$/);
-    // "SV1a 073/073" → set + 번호
-    const both = bracket.match(/^([A-Za-z]{1,4}\d{1,3}[a-z]?)\s+(\d{1,4}\/\d{1,4})$/);
-    if (dash) {
-      setCode = dash[1].toUpperCase();
-      cardNumber = dash[2];
-    } else if (both) {
-      setCode = both[1];
-      cardNumber = both[2];
-    } else if (frac) {
-      cardNumber = frac[1];
-    }
-  }
-  return { setCode, cardNumber, rarity };
-}
 
 function shorten(name: string): string {
   const cut = name.split(/[|｜]/)[0].trim();
@@ -73,7 +37,7 @@ export async function upsertCatalogCard(
   try {
     const jp = a.localizedName || a.name || '';
     const statics = parseCardStatics(jp, a.productNumber);
-    const data = {
+    const base = {
       name: a.name ?? '',
       localizedName: jp,
       koName: translateKnownCardNameToKo(jp),
@@ -82,16 +46,27 @@ export async function upsertCatalogCard(
       imageUrl: a.imageUrl,
       productNumber: a.productNumber ?? '',
       releasedAt: a.releasedAt ? a.releasedAt.slice(0, 10) : undefined,
-      setCode: statics.setCode,
-      cardNumber: statics.cardNumber,
-      rarity: statics.rarity,
       ...(extra.packCode ? { packCode: extra.packCode } : {}),
       ...(extra.apparelGroupId ? { apparelGroupId: extra.apparelGroupId } : {}),
     };
     await prisma.snkrdunkCard.upsert({
       where: { apparelId: a.id },
-      create: { apparelId: a.id, ...data },
-      update: data,
+      create: {
+        apparelId: a.id,
+        ...base,
+        game: statics.game,
+        setCode: statics.setCode,
+        cardNumber: statics.cardNumber,
+        rarity: statics.rarity,
+      },
+      // 파싱 성공한 필드만 갱신 — 이전에 채워진 세트코드/카드번호를 null 로 덮지 않게.
+      update: {
+        ...base,
+        ...(statics.game !== 'other' ? { game: statics.game } : {}),
+        ...(statics.setCode ? { setCode: statics.setCode } : {}),
+        ...(statics.cardNumber ? { cardNumber: statics.cardNumber } : {}),
+        ...(statics.rarity ? { rarity: statics.rarity } : {}),
+      },
     });
   } catch (err) {
     console.error('[snkrdunkCatalog.upsert]', a.id, err);
@@ -117,15 +92,20 @@ export async function upsertSearchResults(
           koName: translateKnownCardNameToKo(r.name),
           shortName: shorten(r.name),
           imageUrl: r.imageUrl,
+          game: statics.game,
           setCode: statics.setCode,
           cardNumber: statics.cardNumber,
           rarity: statics.rarity,
         },
-        // 얕은 데이터로 기존 행을 덮지 않게 — 이미지/이름만 보강.
+        // 얕은 데이터로 기존 행을 덮지 않게 — 이미지/이름 + 비어있던 정적정보만 보강.
         update: {
           localizedName: r.name,
           koName: translateKnownCardNameToKo(r.name),
           ...(r.imageUrl ? { imageUrl: r.imageUrl } : {}),
+          ...(statics.game !== 'other' ? { game: statics.game } : {}),
+          ...(statics.setCode ? { setCode: statics.setCode } : {}),
+          ...(statics.cardNumber ? { cardNumber: statics.cardNumber } : {}),
+          ...(statics.rarity ? { rarity: statics.rarity } : {}),
         },
       });
     }
