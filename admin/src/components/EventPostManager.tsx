@@ -168,7 +168,10 @@ export function EventPostManager({ initialPosts }: { initialPosts: EventPostData
                   {p.body}
                 </div>
                 <div style={{ marginTop: 4, fontSize: 11, color: '#94A3B8' }}>
-                  등록 {p.createdAt.slice(0, 10)} · 웹: /events/{p.id}
+                  등록 {p.createdAt.slice(0, 10)} · 웹:{' '}
+                  <a href={`https://www.poke-30.com/events/${p.id}`} target="_blank" rel="noreferrer">
+                    poke-30.com/events/{p.id}
+                  </a>
                 </div>
               </div>
             </div>
