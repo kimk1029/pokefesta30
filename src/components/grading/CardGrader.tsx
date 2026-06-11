@@ -10,6 +10,7 @@ import { REGISTER_CARD_STORAGE_KEY } from '@/components/cards/RegisterFromScan';
 import type { RegisterCardInput } from '@/components/cards/CardRegisterSheet';
 import { startRouteTransition } from '@/components/RouteProgress';
 import { matchCardFromOcr } from '@/lib/grading/matchCard';
+import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 
 /**
  * 카드 그레이딩(센터링 추정) 도구.
@@ -256,8 +257,13 @@ export function CardGrader() {
       // AI 가 quads 를 안정적으로 돌려줬고 사용자가 핸들 만지기 전이면 자동 적용.
       // sanity 는 서버에서 이미 통과 — 여기선 단순 null 체크만.
       if (!userAdjustedRef.current) {
-        if (result.outerQuad) setOuter(result.outerQuad);
-        if (result.innerQuad) setInner(result.innerQuad);
+        if (result.outerQuad) {
+          setOuter(result.outerQuad);
+          // 내곽을 AI 가 못 줬으면 외곽 기준 표준 인쇄여백(4.5%)으로 유도.
+          setInner(result.innerQuad ?? shrinkQuad(result.outerQuad, 0.045));
+        } else if (result.innerQuad) {
+          setInner(result.innerQuad);
+        }
       }
     } catch (e) {
       setOcrErr(
@@ -330,7 +336,12 @@ export function CardGrader() {
       cardId: match?.entry.id ?? null,
       setCode: cand.setCode ?? ocrResult.setCode ?? ocrResult.promoCode ?? null,
       cardNumber: cand.number ?? ocrResult.cardNumber?.raw ?? ocrResult.cardNumber?.left ?? null,
-      name: cand.localName || cand.name || match?.entry.name || ocrResult.name || null,
+      name:
+        cand.localName ||
+        (scanLang === 'ko' && cand.name ? translateKnownCardNameToKo(cand.name) : cand.name) ||
+        match?.entry.name ||
+        ocrResult.name ||
+        null,
       imageUrl: cand.imageLarge || cand.imageSmall || cand.imageUrl || null,
       snkrdunkApparelId: cand.snkrdunk?.apparelId ?? null,
       gradeEstimate: result?.band.label ?? null,
@@ -705,6 +716,7 @@ export function CardGrader() {
                 candidates={ocrResult.candidates}
                 selectedId={selectedCandidate?.id ?? null}
                 onSelect={setSelectedCandidate}
+                koTranslate={scanLang === 'ko'}
               />
               {/* 등록은 별도 페이지(/cards/register)에서 — 여기선 후보 선택까지만 */}
               <button
@@ -724,7 +736,10 @@ export function CardGrader() {
           )}
 
           {/* OCR 결과를 카탈로그에 매칭해 시세/차트 표시 */}
-          <CardMatchPanel ocr={ocrResult} />
+          <CardMatchPanel
+            ocr={ocrResult}
+            hasCandidates={(ocrResult?.candidates.length ?? 0) > 0}
+          />
 
           {/* 결과 */}
           {result && <ResultCard r={result} />}
@@ -1238,10 +1253,13 @@ function ScanCandidatesPanel({
   candidates,
   selectedId,
   onSelect,
+  koTranslate,
 }: {
   candidates: ScanCandidate[];
   selectedId: string | null;
   onSelect: (c: ScanCandidate) => void;
+  /** 한국어 스캔 모드 — 일본어 후보명을 한국어로 번역/음역해 표시. */
+  koTranslate?: boolean;
 }) {
   return (
     <div className="form-sect">
@@ -1253,6 +1271,7 @@ function ScanCandidatesPanel({
             candidate={c}
             selected={selectedId === c.id}
             onClick={() => onSelect(c)}
+            koTranslate={koTranslate}
           />
         ))}
       </div>
@@ -1276,12 +1295,17 @@ function CandidateRow({
   candidate,
   selected,
   onClick,
+  koTranslate,
 }: {
   candidate: ScanCandidate;
   selected: boolean;
   onClick: () => void;
+  koTranslate?: boolean;
 }) {
-  const koName = candidate.localName ?? candidate.name;
+  // 한국어 스캔 모드면 일본어 이름을 한국어로 번역(사전 + 음역 폴백)해 표시.
+  const koName =
+    candidate.localName ??
+    (koTranslate ? translateKnownCardNameToKo(candidate.name) : candidate.name);
   const jaName =
     candidate.nameJa && candidate.nameJa !== koName ? candidate.nameJa : null;
 
@@ -1358,7 +1382,7 @@ function CandidateRow({
             <img
               src={thumb}
               alt={koName}
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               loading="lazy"
             />
           ) : (

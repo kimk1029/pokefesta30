@@ -794,57 +794,120 @@ function ScanScreenInner() {
               </View>
             ) : (
               <View>
-                <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                  💰 구매가 <Text style={{ color: tc.ink3 }}>(장당)</Text>
-                </PixelText>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
+                {/* 타이틀 우측 통화 토글 — 토글하면 인풋 안 단위가 ₩/¥ 로 바뀐다 */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 8,
+                  }}
+                >
+                  <PixelText variant={txt} size={11} style={{ letterSpacing: 1 }}>
+                    💰 구매가 <Text style={{ color: tc.ink3 }}>(장당)</Text>
+                  </PixelText>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      borderColor: tc.ink,
+                      borderWidth: 2,
+                      backgroundColor: tc.white,
+                    }}
+                  >
+                    {(['KRW', 'JPY'] as PriceCurrency[]).map((c, i) => (
+                      <Pressable
+                        key={c}
+                        onPress={() => setBuyCur(c)}
+                        style={{
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          backgroundColor: buyCur === c ? tc.gold : 'transparent',
+                          borderLeftWidth: i === 0 ? 0 : 2,
+                          borderLeftColor: tc.ink,
+                        }}
+                      >
+                        <PixelText variant={txt} size={9} color={buyCur === c ? tc.ink : tc.ink3}>
+                          {c === 'JPY' ? '¥ 엔화' : '₩ 원화'}
+                        </PixelText>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+                {/* 인풋 안 좌측에 통화 단위 */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: tc.white,
+                    borderColor: tc.ink,
+                    borderWidth: 3,
+                    paddingLeft: 14,
+                  }}
+                >
+                  <PixelText variant={txt} size={14} color={tc.ink2}>
+                    {buyCur === 'JPY' ? '¥' : '₩'}
+                  </PixelText>
                   <TextInput
                     value={buyPriceStr}
                     onChangeText={setBuyPriceStr}
-                    placeholder={buyCur === 'JPY' ? '엔' : '원'}
+                    placeholder={buyCur === 'JPY' ? '엔화 금액' : '원화 금액'}
                     placeholderTextColor={tc.ink4}
                     keyboardType="numeric"
-                    style={[inputStyle, { flex: 1 }]}
+                    style={{
+                      flex: 1,
+                      paddingHorizontal: 10,
+                      paddingVertical: 12,
+                      fontSize: 17,
+                      fontFamily: 'Galmuri11',
+                      color: tc.ink,
+                    }}
                   />
-                  {(['KRW', 'JPY'] as PriceCurrency[]).map((c) => (
-                    <Pressable
-                      key={c}
-                      onPress={() => setBuyCur(c)}
-                      style={{
-                        paddingHorizontal: 16,
-                        justifyContent: 'center',
-                        backgroundColor: buyCur === c ? tc.gold : tc.white,
-                        borderColor: tc.ink,
-                        borderWidth: 3,
-                      }}
-                    >
-                      <PixelText variant={txt} size={12} color={buyCur === c ? tc.ink : tc.ink3}>
-                        {c === 'JPY' ? '¥' : '₩'}
-                      </PixelText>
-                    </Pressable>
-                  ))}
                 </View>
               </View>
             )}
 
-            {/* 수량 */}
+            {/* 수량 — 폼 인풋과 같은 보더의 단일 스테퍼 박스 */}
             <View>
               <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
                 🔢 수량
               </PixelText>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'stretch',
+                  borderColor: tc.ink,
+                  borderWidth: 3,
+                  backgroundColor: tc.white,
+                }}
+              >
                 <Pressable
                   onPress={() => setBuyQty((q) => Math.max(1, q - 1))}
-                  style={qtyBtnStyle}
+                  style={{
+                    width: 52,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingVertical: 12,
+                    borderRightWidth: 3,
+                    borderRightColor: tc.ink,
+                    backgroundColor: tc.pap3,
+                  }}
                 >
                   <PixelText variant={txt} size={16}>−</PixelText>
                 </Pressable>
-                <PixelText variant={txt} size={15} style={{ minWidth: 40, textAlign: 'center' }}>
-                  {buyQty}
-                </PixelText>
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <PixelText variant={txt} size={15}>{buyQty}</PixelText>
+                </View>
                 <Pressable
                   onPress={() => setBuyQty((q) => Math.min(999, q + 1))}
-                  style={qtyBtnStyle}
+                  style={{
+                    width: 52,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingVertical: 12,
+                    borderLeftWidth: 3,
+                    borderLeftColor: tc.ink,
+                    backgroundColor: tc.pap3,
+                  }}
                 >
                   <PixelText variant={txt} size={16}>＋</PixelText>
                 </Pressable>
@@ -1126,12 +1189,3 @@ const inputStyle = {
   borderWidth: 3,
 } as const;
 
-const qtyBtnStyle = {
-  width: 48,
-  height: 48,
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: colors.white,
-  borderColor: colors.ink,
-  borderWidth: 3,
-} as const;

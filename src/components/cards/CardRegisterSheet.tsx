@@ -184,9 +184,25 @@ export function CardRegisterSheet({
         <span>직접 뽑은 카드예요 (구입가 대신 현재시세를 기준가로)</span>
       </label>
 
-      {/* 구입가격 */}
+      {/* 구입가격 — 라벨 우측 통화 토글, 인풋 안에 단위 표시 */}
       <div className="cv-reg-field">
-        <div className="cv-reg-label">구입가격</div>
+        <div className="cv-reg-label cv-reg-label-row">
+          <span>구입가격</span>
+          {!selfPulled && (
+            <div className="cv-cur-toggle">
+              {(['KRW', 'JPY'] as const).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={buyCurrency === c ? 'on' : ''}
+                  onClick={() => setBuyCurrency(c)}
+                >
+                  {c === 'JPY' ? '¥ 엔화' : '₩ 원화'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {selfPulled ? (
           <div className="cv-reg-selfprice">
             {effectiveBasis
@@ -194,24 +210,15 @@ export function CardRegisterSheet({
               : '현재시세 정보가 없어 기준가는 비워둡니다'}
           </div>
         ) : (
-          <div className="cv-manual-buyprice">
+          <div className="cv-price-wrap">
+            <span className="cv-price-unit">{buyCurrency === 'JPY' ? '¥' : '₩'}</span>
             <input
-              className="cv-manual-input"
+              className="cv-manual-input cv-price-input"
               inputMode="numeric"
               value={buyPrice}
               onChange={(e) => setBuyPrice(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder={buyCurrency === 'JPY' ? '엔' : '원'}
+              placeholder={buyCurrency === 'JPY' ? '엔화 금액' : '원화 금액'}
             />
-            {(['KRW', 'JPY'] as const).map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`cv-manual-cur${buyCurrency === c ? ' on' : ''}`}
-                onClick={() => setBuyCurrency(c)}
-              >
-                {c === 'JPY' ? '¥' : '₩'}
-              </button>
-            ))}
           </div>
         )}
       </div>
@@ -229,12 +236,12 @@ export function CardRegisterSheet({
         </div>
         <div className="cv-reg-field">
           <div className="cv-reg-label">수량</div>
-          <div className="cv-manual-qty">
-            <button type="button" className="cv-manual-qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))}>
+          <div className="cv-qty">
+            <button type="button" className="cv-qty-btn" onClick={() => setQty((q) => Math.max(1, q - 1))}>
               −
             </button>
-            <span className="cv-manual-qty-val">{qty}</span>
-            <button type="button" className="cv-manual-qty-btn" onClick={() => setQty((q) => Math.min(999, q + 1))}>
+            <span className="cv-qty-val">{qty}</span>
+            <button type="button" className="cv-qty-btn" onClick={() => setQty((q) => Math.min(999, q + 1))}>
               ＋
             </button>
           </div>

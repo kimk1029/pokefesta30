@@ -9,6 +9,8 @@ import { matchCardFromOcr, type CardMatch } from '@/lib/grading/matchCard';
 
 interface Props {
   ocr: CardOcrResult | null;
+  /** AI 매칭 후보가 있으면 "카탈로그 미일치" 안내를 숨긴다 (후보가 곧 결과). */
+  hasCandidates?: boolean;
 }
 
 /**
@@ -16,10 +18,12 @@ interface Props {
  * 등록은 /cards/register 페이지가 전담 — 여기는 시세 표시만.
  * OCR 가 없으면 null 렌더 (조용히).
  */
-export function CardMatchPanel({ ocr }: Props) {
+export function CardMatchPanel({ ocr, hasCandidates }: Props) {
   const match = useMemo(() => (ocr ? matchCardFromOcr(ocr) : null), [ocr]);
 
   if (!ocr) return null;
+  // 로컬 카탈로그 미일치 + AI 후보도 없을 때만 안내 노출.
+  if (!match && hasCandidates) return null;
 
   return (
     <>

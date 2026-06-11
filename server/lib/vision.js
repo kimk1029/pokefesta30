@@ -16,7 +16,9 @@
 import sharp from 'sharp';
 
 const MODEL = process.env.VISION_MODEL ?? 'gpt-4o-mini';
-const FULL_DETAIL = /** @type {'low'|'high'|'auto'} */ (process.env.VISION_FULL_DETAIL ?? 'low');
+// 'low' → 'high': outerQuad/innerQuad 코너 좌표는 512px 썸네일(low)로는 부정확.
+// high 디테일 타일이 있어야 카드 모서리를 픽셀 단위로 짚는다. (gpt-4o-mini 라 저렴)
+const FULL_DETAIL = /** @type {'low'|'high'|'auto'} */ (process.env.VISION_FULL_DETAIL ?? 'high');
 const ZOOM_DETAIL = /** @type {'low'|'high'|'auto'} */ (process.env.VISION_ZOOM_DETAIL ?? 'high');
 const MAX_DIM = Number(process.env.VISION_MAX_DIM ?? 1024);
 // 80 → 220 — outerQuad/innerQuad 각 8 number(=8 토큰×2) + JSON 키 마진.
@@ -75,8 +77,12 @@ const SYSTEM_PROMPT =
   // 외곽/내곽 quad — Image 1 기준. 좌표는 0~1 normalized.
   'outerQuad: 8 numbers = full card OUTER cut boundary 4 corners in this order ' +
   '[TL.x, TL.y, TR.x, TR.y, BR.x, BR.y, BL.x, BL.y], normalized to image 1 ' +
-  '(0=left/top, 1=right/bottom). innerQuad: 8 numbers, same format, for the ' +
-  'INNER printed frame (just inside the colored card border, around artwork+text). ' +
+  '(0=left/top, 1=right/bottom). Look at image 1 carefully and place each corner ' +
+  'EXACTLY on the visible physical card edge (where card meets background), with ' +
+  '3-decimal precision — do NOT default to the image borders unless the card truly ' +
+  'fills the frame. innerQuad: 8 numbers, same format, the INNER printed frame line ' +
+  '(the rectangle just inside the colored card border, around artwork+text) — it is ' +
+  'strictly inside outerQuad on all four sides. ' +
   'Empty array [] if the card boundary is not clearly visible.';
 
 let openaiClient = null;
@@ -215,7 +221,30 @@ function sanitizeQuad(input) {
     pts[3].x * pts[0].y - pts[0].x * pts[3].y,
   ) / 2;
   if (area < 0.05 || area >= 0.99) return null;
-  return pts;
+  return orderQuad(pts);
+}
+
+/**
+ * 코너 순서 정규화 — 모델이 순서를 뒤섞어 줘도 [TL, TR, BR, BL] 로 재배열.
+ * 중심점 기준 각도 정렬(시계방향) 후 x+y 최소인 점을 TL 로 회전.
+ */
+function orderQuad(pts) {
+  const cx = (pts[0].x + pts[1].x + pts[2].x + pts[3].x) / 4;
+  const cy = (pts[0].y + pts[1].y + pts[2].y + pts[3].y) / 4;
+  // 화면 좌표(y 아래로 증가)에서 atan2 오름차순 = 시계방향.
+  const sorted = [...pts].sort(
+    (a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx),
+  );
+  let tlIdx = 0;
+  let best = Infinity;
+  for (let i = 0; i < 4; i++) {
+    const d = sorted[i].x + sorted[i].y;
+    if (d < best) {
+      best = d;
+      tlIdx = i;
+    }
+  }
+  return [0, 1, 2, 3].map((i) => sorted[(tlIdx + i) % 4]);
 }
 
 function clamp01(n) {

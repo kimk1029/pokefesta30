@@ -11,6 +11,7 @@ import { uploadScanImage, CardScanError } from '@/services/cardScanApi';
 import type { CardScanResponse, ScanCandidate, GuideRect, ScanLanguage } from '@/types/cardScan';
 import { CARDS, type CardItem } from '@/data/cardvault';
 import { lookupPokemonSet } from '@/data/pokemonSetMap';
+import { localizeCardName } from '@/lib/cardNameKo';
 
 interface Props {
   uri: string;
@@ -381,6 +382,7 @@ export function ScanPreview({
               candidate={c}
               selected={selectedId === c.id}
               onPress={() => setSelectedId(c.id)}
+              koTranslate={language === 'ko'}
             />
           ))}
         </View>
@@ -419,13 +421,18 @@ function CandidateRow({
   candidate,
   selected,
   onPress,
+  koTranslate,
 }: {
   candidate: ScanCandidate;
   selected: boolean;
   onPress: () => void;
+  /** 한국어 스캔 모드 — 일본어 후보명을 한국어로 번역/음역해 표시. */
+  koTranslate?: boolean;
 }) {
-  // Korean name first (localName), Japanese fallback in parens.
-  const koName = candidate.localName ?? candidate.name;
+  // Korean name first (localName), 한국어 모드면 일본어 이름도 번역해 표시.
+  const koName =
+    candidate.localName ??
+    (koTranslate ? localizeCardName(candidate.name) : candidate.name);
   const jaName =
     candidate.nameJa && candidate.nameJa !== koName ? candidate.nameJa : null;
 
@@ -481,7 +488,8 @@ function CandidateRow({
     >
       <View style={{ padding: 12, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
         <View style={{ width: 88, aspectRatio: 63 / 88, backgroundColor: colors.pap3, borderColor: colors.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-          <CardArt uri={thumb} emojiSize={28} />
+          {/* cover — 카드 이미지가 컨테이너를 꽉 채우게 (contain 은 여백이 커서 너무 작게 보임) */}
+          <CardArt uri={thumb} emojiSize={28} resizeMode="cover" />
         </View>
         <View style={{ flex: 1 }}>
           {/* Snkrdunk source badge — visible when the displayed image/price
