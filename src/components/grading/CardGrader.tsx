@@ -1,10 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CardMatchPanel } from './CardMatchPanel';
 import { recognizeCard, type CardOcrResult, type ScanCandidate } from './cardOcr';
 import { detectCardOuterPureJs } from './pureCardDetect';
 import { lookupPokemonSet } from '../../../shared/data/pokemonSetMap';
+import { REGISTER_CARD_STORAGE_KEY } from '@/components/cards/RegisterFromScan';
+import type { RegisterCardInput } from '@/components/cards/CardRegisterSheet';
+import { startRouteTransition } from '@/components/RouteProgress';
+import { matchCardFromOcr } from '@/lib/grading/matchCard';
 
 /**
  * 카드 그레이딩(센터링 추정) 도구.
@@ -63,9 +68,10 @@ export function CardGrader() {
   const userAdjustedRef = useRef(false);
   // 같은 이미지에 대해 자동 OCR 을 한 번만 트리거하기 위한 신호.
   const autoOcrFiredRef = useRef<HTMLImageElement | null>(null);
-  // 사용자가 후보 리스트에서 고른 카드 — 저장 시 그 candidate 의 snkrdunkApparelId
-  // / 이미지 / 이름까지 같이 POST 한다 (없으면 내 컬렉션에서 이미지/시세 안 따라옴).
+  // 사용자가 후보 리스트에서 고른 카드 — "등록하기" 시 이 candidate 의
+  // snkrdunkApparelId / 이미지 / 이름을 등록 페이지(/cards/register)로 넘긴다.
   const [selectedCandidate, setSelectedCandidate] = useState<ScanCandidate | null>(null);
+  const router = useRouter();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -313,6 +319,33 @@ export function CardGrader() {
   };
 
   const result: CenteringResult | null = outer && inner ? computeCentering(outer, inner) : null;
+
+  /* 선택한 후보 → 카드 등록 페이지로. 등록 폼은 /cards/register 가 전담 —
+     이 페이지는 그레이딩 + 인식/후보 선택까지만. */
+  const goRegister = () => {
+    if (!ocrResult || !selectedCandidate) return;
+    const cand = selectedCandidate;
+    const match = matchCardFromOcr(ocrResult);
+    const payload: RegisterCardInput = {
+      cardId: match?.entry.id ?? null,
+      setCode: cand.setCode ?? ocrResult.setCode ?? ocrResult.promoCode ?? null,
+      cardNumber: cand.number ?? ocrResult.cardNumber?.raw ?? ocrResult.cardNumber?.left ?? null,
+      name: cand.localName || cand.name || match?.entry.name || ocrResult.name || null,
+      imageUrl: cand.imageLarge || cand.imageSmall || cand.imageUrl || null,
+      snkrdunkApparelId: cand.snkrdunk?.apparelId ?? null,
+      gradeEstimate: result?.band.label ?? null,
+      centeringScore: result?.worstCloser ?? null,
+      currentPriceJpy: cand.snkrdunk?.priceJpy ?? cand.priceSummary?.byRegion?.jpy ?? null,
+      currentPriceKrw: cand.priceSummary?.byRegion?.krw ?? null,
+    };
+    try {
+      sessionStorage.setItem(REGISTER_CARD_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // sessionStorage 불가 환경 — 등록 페이지에서 안내 폴백이 뜬다.
+    }
+    startRouteTransition();
+    router.push('/cards/register');
+  };
 
   return (
     <div style={{ padding: '0 var(--gap)' }}>
@@ -667,20 +700,31 @@ export function CardGrader() {
 
           {/* 서버가 돌려준 매칭 후보 (이미지 + 다지역 가격 + Snkrdunk) — 앱과 동일 UI */}
           {ocrResult && ocrResult.candidates.length > 0 && (
-            <ScanCandidatesPanel
-              candidates={ocrResult.candidates}
-              selectedId={selectedCandidate?.id ?? null}
-              onSelect={setSelectedCandidate}
-            />
+            <>
+              <ScanCandidatesPanel
+                candidates={ocrResult.candidates}
+                selectedId={selectedCandidate?.id ?? null}
+                onSelect={setSelectedCandidate}
+              />
+              {/* 등록은 별도 페이지(/cards/register)에서 — 여기선 후보 선택까지만 */}
+              <button
+                type="button"
+                onClick={goRegister}
+                disabled={!selectedCandidate}
+                style={{
+                  ...mainBtn('var(--red)'),
+                  marginBottom: 14,
+                  opacity: selectedCandidate ? 1 : 0.5,
+                  cursor: selectedCandidate ? 'pointer' : 'default',
+                }}
+              >
+                ＋ 선택한 카드로 등록하기 ▶
+              </button>
+            </>
           )}
 
-          {/* OCR 결과를 카탈로그에 매칭해 시세/차트 표시 + 내 카드에 저장 */}
-          <CardMatchPanel
-            ocr={ocrResult}
-            gradeLabel={result?.band.label ?? null}
-            centeringScore={result?.worstCloser ?? null}
-            selectedCandidate={selectedCandidate}
-          />
+          {/* OCR 결과를 카탈로그에 매칭해 시세/차트 표시 */}
+          <CardMatchPanel ocr={ocrResult} />
 
           {/* 결과 */}
           {result && <ResultCard r={result} />}

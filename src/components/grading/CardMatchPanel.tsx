@@ -3,48 +3,21 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { CardPriceChart } from '@/components/CardPriceChart';
-import { CardRegisterSheet, type RegisterCardInput } from '@/components/cards/CardRegisterSheet';
-import type { CardOcrResult, ScanCandidate } from './cardOcr';
+import type { CardOcrResult } from './cardOcr';
 import type { HistoryPoint, PriceCurrent } from '@/lib/cardPrices';
 import { matchCardFromOcr, type CardMatch } from '@/lib/grading/matchCard';
 
 interface Props {
   ocr: CardOcrResult | null;
-  /** 그레이딩 결과 라벨 (예: "PSA 9 (Mint)") — 없으면 미저장. */
-  gradeLabel?: string | null;
-  /** 0..100 중심도 점수. 저장 시 함께 기록. */
-  centeringScore?: number | null;
-  /** 사용자가 후보 리스트에서 고른 카드. 저장 시 snkrdunkApparelId / 이미지 /
-   *  이름까지 같이 박혀, 내 컬렉션에서 시세·이미지·한글이름이 자동으로 따라옴. */
-  selectedCandidate?: ScanCandidate | null;
 }
 
 /**
- * OCR 결과 → 카탈로그 매칭 → 시세 카드 + 미니 차트 패널 + "내 카드에 저장".
+ * OCR 결과 → 카탈로그 매칭 → 시세 카드 + 미니 차트 패널.
+ * 등록은 /cards/register 페이지가 전담 — 여기는 시세 표시만.
  * OCR 가 없으면 null 렌더 (조용히).
  */
-export function CardMatchPanel({ ocr, gradeLabel, centeringScore, selectedCandidate }: Props) {
+export function CardMatchPanel({ ocr }: Props) {
   const match = useMemo(() => (ocr ? matchCardFromOcr(ocr) : null), [ocr]);
-
-  const registerCard = useMemo<RegisterCardInput | null>(() => {
-    if (!ocr) return null;
-    const cand = selectedCandidate;
-    const snkrId = cand?.snkrdunk?.apparelId ?? null;
-    const currentJpy = cand?.snkrdunk?.priceJpy ?? cand?.priceSummary?.byRegion?.jpy ?? null;
-    const currentKrw = cand?.priceSummary?.byRegion?.krw ?? null;
-    return {
-      cardId: match?.entry.id ?? null,
-      setCode: cand?.setCode ?? ocr.setCode ?? ocr.promoCode ?? null,
-      cardNumber: cand?.number ?? ocr.cardNumber?.raw ?? ocr.cardNumber?.left ?? null,
-      name: cand?.localName || cand?.name || match?.entry.name || ocr.name || null,
-      imageUrl: cand?.imageLarge || cand?.imageSmall || cand?.imageUrl || null,
-      snkrdunkApparelId: snkrId,
-      gradeEstimate: gradeLabel ?? null,
-      centeringScore: centeringScore ?? null,
-      currentPriceJpy: currentJpy,
-      currentPriceKrw: currentKrw,
-    };
-  }, [ocr, selectedCandidate, match, gradeLabel, centeringScore]);
 
   if (!ocr) return null;
 
@@ -72,13 +45,6 @@ export function CardMatchPanel({ ocr, gradeLabel, centeringScore, selectedCandid
               (이름/세트코드/번호가 OCR 로 잘 읽혔는지 확인해주세요)
             </span>
           </div>
-        </div>
-      )}
-
-      {registerCard && (
-        <div className="form-sect">
-          <div className="form-label">＋ 카드 등록</div>
-          <CardRegisterSheet card={registerCard} />
         </div>
       )}
     </>
