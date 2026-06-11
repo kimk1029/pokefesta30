@@ -76,20 +76,44 @@ export function CardGrader() {
   // 디스플레이 스케일: 자연 픽셀 → 화면 픽셀
   const scale = imgEl && displayW > 0 ? displayW / imgEl.naturalWidth : 1;
 
+  /* 컨테이너가 차지할 수 있는 실제 가용 폭 — 부모(페이지 컬럼)의 콘텐츠 폭 기준.
+     컨테이너 자신은 maxWidth 에 묶여 있어서 자신을 측정하면 첫 렌더(0px)나
+     리사이즈 후에 틀린 값이 나온다 → 사진이 비율 깨진 채 늘어나던 원인. */
+  const measureAvailWidth = useCallback((): number => {
+    const parent = containerRef.current?.parentElement;
+    if (parent && typeof window !== 'undefined') {
+      const cs = window.getComputedStyle(parent);
+      const inner =
+        parent.clientWidth -
+        (parseFloat(cs.paddingLeft) || 0) -
+        (parseFloat(cs.paddingRight) || 0);
+      if (inner > 50) return inner;
+    }
+    return typeof window !== 'undefined' ? Math.max(280, window.innerWidth - 32) : 360;
+  }, []);
+
+  const recomputeDisplaySize = useCallback(() => {
+    if (!imgEl) return;
+    const w = Math.min(measureAvailWidth(), imgEl.naturalWidth);
+    const h = (w / imgEl.naturalWidth) * imgEl.naturalHeight;
+    setDisplayW(w);
+    setDisplayH(h);
+  }, [imgEl, measureAvailWidth]);
+
+  /* 창 크기/회전 변경 — 표시 크기 재계산 (핸들 좌표·비율 동기화). */
+  useEffect(() => {
+    if (!imgEl) return;
+    window.addEventListener('resize', recomputeDisplaySize);
+    return () => window.removeEventListener('resize', recomputeDisplaySize);
+  }, [imgEl, recomputeDisplaySize]);
+
   /* 이미지 변경 시 canvas 사이즈 + 폴백 사각형 + 즉시 외곽 자동검출 + 자동 OCR */
   useEffect(() => {
     if (!imgEl) return;
     // 새 이미지 — 사용자 조정 플래그 리셋, 자동 OCR 트리거 새로 부여.
     userAdjustedRef.current = false;
 
-    const measured = containerRef.current?.clientWidth ?? 0;
-    const fallback =
-      typeof window !== 'undefined' ? Math.max(280, window.innerWidth - 32) : 360;
-    const containerW = measured > 50 ? measured : fallback;
-    const w = Math.min(containerW, imgEl.naturalWidth);
-    const h = (w / imgEl.naturalWidth) * imgEl.naturalHeight;
-    setDisplayW(w);
-    setDisplayH(h);
+    recomputeDisplaySize();
 
     // 일단 폴백 사각형 — 사용자는 바로 드래그로 조정 가능.
     const fb = fallbackQuads(imgEl.naturalWidth, imgEl.naturalHeight);
@@ -367,8 +391,10 @@ export function CardGrader() {
             style={{
               position: 'relative',
               width: '100%',
-              maxWidth: displayW,
-              height: displayH,
+              maxWidth: displayW > 0 ? displayW : undefined,
+              // 높이를 px 로 고정하면 폭이 줄었을 때 세로로 늘어난다 — 비율로 따라가게.
+              aspectRatio:
+                displayW > 0 && displayH > 0 ? `${displayW} / ${displayH}` : undefined,
               margin: '0 auto 12px',
               touchAction: 'none',
               userSelect: 'none',

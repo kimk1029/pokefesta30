@@ -1,20 +1,23 @@
 /**
  * Snkrdunk match — given OCR'd card fields (setCode + cardNumber/totalNumber
- * + optional nameJa), find the matching snkrdunk apparel and return its
+ * + optional rarity), find the matching snkrdunk apparel and return its
  * image + JPY price.
  *
- * Caches successful matches on disk as `setCode-cardNumber → apparelId` so
- * repeat scans hit instantly. Falls back to a live search by name + code
- * when no cache entry exists, scoring results by code-substring + name-
- * substring presence. Returns null when nothing scores above the threshold.
+ * Lookup order:
+ *   1. disk cache (`setCode-cardNumber → apparelId`)
+ *   2. 자체 카탈로그 DB (snkrdunk_cards — 시세확인 때 적재된 파싱 setCode/cardNumber)
+ *   3. live snkrdunk search (공유 파서 fetchSnkrdunkSearch — /used/ 그리드 타일 포함)
+ * 매칭 성공 시 카탈로그에 upsert 하므로 다음 스캔부터는 DB 에서 바로 잡힌다.
  */
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fetchSnkrdunkSearch, fetchSnkrdunkApparel } from '@/lib/snkrdunk';
+import { prisma } from './prisma.js';
+import { upsertCatalogCard, recordPriceSnapshot } from './snkrdunkCatalog.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CACHE_PATH = join(__dirname, '..', 'data', 'snkrdunk-cache.json');
-const SNKR_ORIGIN = 'https://snkrdunk.com';
 
 let cacheMem = null;
 let cacheLoaded = false;
@@ -52,82 +55,6 @@ function cacheKey({ setCode, cardNumber }) {
   return `${String(setCode).toLowerCase()}-${num}`;
 }
 
-const SEARCH_ITEM_RE =
-  /<a[^>]*href="https:\/\/snkrdunk\.com\/apparels\/(\d+)"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/g;
-
-function decodeHtmlEntities(s) {
-  return String(s)
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>');
-}
-
-async function searchSnkrdunk(query) {
-  const url = `${SNKR_ORIGIN}/search?keywords=${encodeURIComponent(query)}`;
-  try {
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'text/html',
-        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
-      },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) return [];
-    const html = await res.text();
-    const seen = new Set();
-    const out = [];
-    const re = new RegExp(SEARCH_ITEM_RE.source, SEARCH_ITEM_RE.flags);
-    let m;
-    while ((m = re.exec(html)) !== null) {
-      const id = Number(m[1]);
-      if (!Number.isInteger(id) || seen.has(id)) continue;
-      seen.add(id);
-      const ariaLabel = decodeHtmlEntities(m[2]);
-      const sepIdx = ariaLabel.lastIndexOf(' - ¥');
-      const name = sepIdx > 0 ? ariaLabel.slice(0, sepIdx).trim() : ariaLabel.trim();
-      const priceText = sepIdx > 0 ? `¥${ariaLabel.slice(sepIdx + 4).trim()}` : '';
-      out.push({ apparelId: id, name, imageUrl: m[3] || null, priceText });
-      if (out.length >= 20) break;
-    }
-    return out;
-  } catch {
-    return [];
-  }
-}
-
-async function fetchApparel(apparelId) {
-  if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
-  try {
-    const res = await fetch(`${SNKR_ORIGIN}/v1/apparels/${apparelId}`, {
-      headers: {
-        Accept: 'application/json',
-        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
-      },
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!res.ok) return null;
-    const raw = await res.json();
-    const newMin = Number(raw.minPrice ?? 0);
-    const usedMin = Number(raw.usedMinPrice ?? 0);
-    // Singles는 new가 없고 used만 거래되는 경우가 일반적.
-    const useUsed = newMin <= 0 && usedMin > 0;
-    const price = useUsed ? usedMin : newMin;
-    return {
-      id: raw.id,
-      localizedName: raw.localizedName ?? raw.name ?? '',
-      imageUrl: raw.primaryMedia?.imageUrl ?? null,
-      minPrice: price,
-      listingCountText: useUsed
-        ? (raw.usedListingCountText ?? '')
-        : (raw.listingCountText ?? ''),
-    };
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Score search results — code 매칭 +100, setCode 토큰 매치 +30, rarity 토큰
  * 매치 +20. confident hit 기준은 codePatterns +100 필수 (setCode/rarity 만으로는
@@ -152,6 +79,11 @@ function pickBestMatch(results, { cardNumber, totalNumber, setCode, rarity }) {
     const cnEsc = cn.replace(/(\d)/g, '0?$1');
     const tnEsc = tn.replace(/(\d)/g, '0?$1');
     codePatterns.push(new RegExp(`(^|[^\\d])${cnEsc}\\s*/\\s*${tnEsc}([^\\d]|$)`));
+  }
+  if (cn && !tn && !isPromo) {
+    // totalNumber 미인식 — "OP02-059" / "059/" 형태라도 번호 단독 매칭 허용.
+    const cnEsc = cn.replace(/(\d)/g, '0?$1');
+    codePatterns.push(new RegExp(`(^|[^\\d])${cnEsc}([^\\d]|$)`));
   }
   if (isPromo && cn) {
     const promo = setLabel;
@@ -185,13 +117,16 @@ function pickBestMatch(results, { cardNumber, totalNumber, setCode, rarity }) {
     }
   }
   // confident 기준: 코드 매칭(+100) 필수. setCode/rarity 매치만으로는 약함.
-  if (bestScore < 100) return null;
+  // 단, totalNumber 없이 번호 단독 매칭만 된 경우 setCode 토큰도 같이 요구(+130).
+  const tnMissing = cn && !tn && !isPromo;
+  const threshold = tnMissing ? 130 : 100;
+  if (bestScore < threshold) return null;
   return best;
 }
 
 function toResult(apparelId, apparel, searchItem, cacheHit, trace) {
   const imageUrl = apparel?.imageUrl ?? searchItem?.imageUrl ?? null;
-  const priceJpy = apparel?.minPrice ?? null;
+  const priceJpy = apparel?.minPrice || null;
   const priceText = priceJpy
     ? `¥${priceJpy.toLocaleString('ja-JP')}`
     : (searchItem?.priceText ?? '');
@@ -205,6 +140,55 @@ function toResult(apparelId, apparel, searchItem, cacheHit, trace) {
     cacheHit,
     trace,
   };
+}
+
+/** 매칭 성공한 apparel 을 카탈로그/시세 스냅샷에 적재 (fire-and-forget). */
+function recordToCatalog(apparel) {
+  if (!apparel) return;
+  void upsertCatalogCard(apparel).catch(() => {});
+  if (apparel.minPrice > 0) {
+    void recordPriceSnapshot(apparel.id, {
+      minPrice: apparel.minPrice,
+      listingCount: apparel.listingCount ?? 0,
+    }).catch(() => {});
+  }
+}
+
+/**
+ * 자체 카탈로그 DB 에서 setCode + cardNumber 로 카드 검색.
+ * 시세확인/검색 때 본 카드는 여기서 바로 잡혀 라이브 검색 없이 매칭된다.
+ * cardNumber 컬럼은 "059" 또는 "073/073" 형태 — 앞 번호만 비교.
+ *
+ * @returns {{ apparelId: number, imageUrl: string|null, name: string } | null}
+ */
+async function findInCatalog({ setCode, cardNumber, rarity }) {
+  if (!setCode || !cardNumber) return null;
+  const cn = normalizeNum(cardNumber);
+  if (!cn) return null;
+  try {
+    const rows = await prisma.snkrdunkCard.findMany({
+      where: {
+        itemKind: 'single',
+        setCode: { equals: String(setCode), mode: 'insensitive' },
+      },
+      take: 200,
+    });
+    const hits = rows.filter((r) => normalizeNum(String(r.cardNumber ?? '').split('/')[0]) === cn);
+    if (hits.length === 0) return null;
+    const rLabel = String(rarity ?? '').trim().toUpperCase();
+    const byRarity = rLabel
+      ? hits.find((r) => String(r.rarity ?? '').toUpperCase() === rLabel)
+      : null;
+    const hit = byRarity ?? hits[0];
+    return {
+      apparelId: hit.apparelId,
+      imageUrl: hit.imageUrl ?? null,
+      name: hit.koName || hit.localizedName || hit.name || '',
+    };
+  } catch (e) {
+    console.warn('[snkrdunkMatch] catalog lookup failed:', e?.message ?? e);
+    return null;
+  }
 }
 
 /**
@@ -235,12 +219,13 @@ export async function matchSnkrdunkForCard(input) {
   trace.cacheKey = key;
   const cache = await loadCache();
 
-  // Cache hit — refresh price (apparel JSON is light) but skip the search.
+  // 1) Cache hit — refresh price (apparel JSON is light) but skip the search.
   if (key && cache[key]?.apparelId) {
     const apparelId = cache[key].apparelId;
-    const apparel = await fetchApparel(apparelId);
+    const apparel = await fetchSnkrdunkApparel(apparelId);
     if (apparel) {
       trace.pick = { source: 'cache', apparelId, score: null };
+      recordToCatalog(apparel);
       return toResult(apparelId, apparel, null, true, trace);
     }
     // Apparel disappeared from snkrdunk → drop the stale entry, fall through
@@ -248,6 +233,29 @@ export async function matchSnkrdunkForCard(input) {
     delete cache[key];
     saveCache().catch(() => {});
     trace.cacheKey = `${key} (stale)`;
+  }
+
+  // 2) 자체 카탈로그 DB — 시세확인 때 본 카드는 여기서 바로 매칭.
+  const catalogHit = await findInCatalog({ setCode, cardNumber, rarity });
+  if (catalogHit) {
+    const apparel = await fetchSnkrdunkApparel(catalogHit.apparelId);
+    trace.pick = { source: 'catalog', apparelId: catalogHit.apparelId, score: null };
+    if (key) {
+      cache[key] = { apparelId: catalogHit.apparelId, savedAt: new Date().toISOString() };
+      saveCache().catch(() => {});
+    }
+    if (apparel) {
+      recordToCatalog(apparel);
+      return toResult(catalogHit.apparelId, apparel, null, false, trace);
+    }
+    // 라이브 조회 실패 — DB 에 저장된 이미지/이름으로라도 응답.
+    return toResult(
+      catalogHit.apparelId,
+      null,
+      { apparelId: catalogHit.apparelId, name: catalogHit.name, imageUrl: catalogHit.imageUrl, priceText: '' },
+      false,
+      trace,
+    );
   }
 
   const cn = normalizeNum(cardNumber);
@@ -268,8 +276,8 @@ export async function matchSnkrdunkForCard(input) {
     }
   }
 
-  // 쿼리 우선순위 — 사용자 요청 형식 "setCode cn/tn rarity" 가 가장 강함.
-  // 폴백은 점진적으로 약한 조합.
+  // 3) Live search — 공유 파서 (시세확인 검색과 동일 — /used/ 그리드 타일 포함).
+  // 쿼리 우선순위 — "setCode cn/tn rarity" 가 가장 강함. 폴백은 점진적으로 약한 조합.
   //   1. "m1S 005/063 R"     (setCode + numPart + rarity)
   //   2. "m1S 005/063"       (setCode + numPart)
   //   3. "005/063 R"         (numPart + rarity)
@@ -282,7 +290,7 @@ export async function matchSnkrdunkForCard(input) {
   if (numPart) queries.push(numPart);
 
   for (const q of queries) {
-    const results = await searchSnkrdunk(q);
+    const results = await fetchSnkrdunkSearch(q);
     const best = pickBestMatch(results, { cardNumber, totalNumber, setCode, rarity });
     trace.queries.push({
       q,
@@ -294,16 +302,17 @@ export async function matchSnkrdunkForCard(input) {
     });
     if (!best) continue;
 
-    const apparel = await fetchApparel(best.item.apparelId);
+    const apparel = await fetchSnkrdunkApparel(best.item.apparelId);
     if (key) {
       cache[key] = { apparelId: best.item.apparelId, savedAt: new Date().toISOString() };
       saveCache().catch(() => {});
     }
     trace.pick = { source: 'search', q, apparelId: best.item.apparelId, score: best.score };
+    recordToCatalog(apparel);
     return toResult(best.item.apparelId, apparel, best.item, false, trace);
   }
 
   return { miss: true, trace };
 }
 
-export const _internal = { searchSnkrdunk, fetchApparel, pickBestMatch, cacheKey };
+export const _internal = { pickBestMatch, cacheKey, findInCatalog };
