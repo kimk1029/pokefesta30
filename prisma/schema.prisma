@@ -51,6 +51,7 @@ model User {
   portfolioDailySnapshots PortfolioDailySnapshot[]
   searchLogs       SearchLog[]
   eventPosts       EventPost[]
+  eventPostComments EventPostComment[]
 
   @@map("users")
 }
@@ -488,9 +489,24 @@ model EventPost {
   published Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  comments  EventPostComment[]
 
   @@index([published, pinned, createdAt(sort: Desc)])
   @@map("event_posts")
+}
+
+/// 이벤트 글 댓글.
+model EventPostComment {
+  id        Int       @id @default(autoincrement())
+  postId    Int
+  post      EventPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  text      String
+  createdAt DateTime  @default(now())
+
+  @@index([postId, createdAt])
+  @@map("event_post_comments")
 }
 
 model Bookmark {

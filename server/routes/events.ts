@@ -56,6 +56,75 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+/** 댓글 목록 — 공개 글에만. */
+router.get('/:id/comments', async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: 'invalid id' });
+    return;
+  }
+  try {
+    const rows = await prisma.eventPostComment.findMany({
+      where: { postId: id },
+      orderBy: { createdAt: 'asc' },
+      take: 200,
+      include: AUTHOR_INCLUDE,
+    });
+    res.json({
+      data: rows.map((r) => ({
+        id: r.id,
+        text: r.text,
+        authorName: r.author?.name ?? '트레이너',
+        createdAt: r.createdAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    console.error('[events.comments.GET]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+/** 댓글 작성 — 로그인 필수. */
+router.post('/:id/comments', requireAuth, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: 'invalid id' });
+    return;
+  }
+  const text = typeof (req.body as { text?: unknown })?.text === 'string'
+    ? (req.body as { text: string }).text.trim().slice(0, 300)
+    : '';
+  if (!text) {
+    res.status(400).json({ error: 'text required' });
+    return;
+  }
+  try {
+    const post = await prisma.eventPost.findFirst({
+      where: { id, published: true },
+      select: { id: true },
+    });
+    if (!post) {
+      res.status(404).json({ error: 'not found' });
+      return;
+    }
+    const c = await prisma.eventPostComment.create({
+      data: { postId: id, authorId: req.user!.userId, text },
+      include: AUTHOR_INCLUDE,
+    });
+    res.status(201).json({
+      data: {
+        id: c.id,
+        text: c.text,
+        authorName: c.author?.name ?? '트레이너',
+        createdAt: c.createdAt.toISOString(),
+      },
+    });
+  } catch (err) {
+    console.error('[events.comments.POST]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
 /** 회원 글 작성 — 로그인 필수. 제목/본문만 받는 단순 글 (기간/고정은 어드민 전용). */
 router.post('/', requireAuth, async (req: Request, res: Response) => {
   const body = req.body as { title?: unknown; body?: unknown };

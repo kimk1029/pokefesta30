@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { EventComments } from '@/components/events/EventComments';
 import { serverFetch } from '@/lib/apiServer';
 import {
   EVENT_STATUS_LABEL,
@@ -83,6 +84,8 @@ export default async function Page({ params }: Props) {
             {post.body}
           </div>
         )}
+
+        <EventComments postId={post.id} />
       </div>
 
       <div className="bggap" />
