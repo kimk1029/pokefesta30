@@ -163,6 +163,9 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          # NAS 에서 npm ci(~7분) + prisma generate + next build 가 도는데
+          # drone-ssh 기본 command_timeout 은 10분이라 빌드 막바지에 끊긴다. 넉넉히 20분.
+          command_timeout: 20m
           script: |
             set -e
             export NVM_DIR="$HOME/.nvm"
