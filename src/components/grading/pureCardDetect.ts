@@ -34,10 +34,40 @@ export function detectCardOuterPureJs(img: HTMLImageElement): Quad | null {
 
   const pixels = drawAndExtract(img, w, h);
   if (!pixels) return null;
+
+  const quad = detectQuadFromPixels(pixels, w, h);
+  if (!quad) return null;
+
+  // 다운스케일 비율 만큼 원본 좌표로 복원 + 클램프
+  const inv = 1 / scale;
+  return quad.map((p) => ({
+    x: Math.max(0, Math.min(img.naturalWidth, p.x * inv)),
+    y: Math.max(0, Math.min(img.naturalHeight, p.y * inv)),
+  })) as Quad;
+}
+
+/**
+ * RGBA 픽셀 버퍼에서 카드 외곽 quad 추정 (proc 해상도 좌표).
+ * DOM/canvas 비의존 — 합성 픽셀로 단위 테스트 가능하게 분리.
+ */
+export function detectQuadFromPixels(
+  pixels: Uint8ClampedArray,
+  w: number,
+  h: number,
+): Quad | null {
   const gray = grayscale(pixels, w, h);
 
-  // 두 전략 동시 시도 — 더 점수 좋은 쪽 채택
+  // 여러 전략 동시 시도 — 더 점수 좋은 쪽 채택
   const candidates: Array<{ quad: Quad; score: number; tag: string }> = [];
+
+  // 0순위 — 회전 최소면적 사각형: 기울어진 카드도 4변에 딱 맞음.
+  // (나머지 전략은 축 정렬 bbox 라 기울어지면 카드보다 크게 잡힌다)
+  const minRect = detectByMinAreaRect(pixels, w, h);
+  if (minRect) {
+    const sc = scoreQuad(minRect, w, h);
+    // 동점 시 회전 사각형 우선 — 축 정렬 bbox 보다 항상 카드에 더 밀착.
+    if (sc > 0.08) candidates.push({ quad: minRect, score: sc + 0.02, tag: 'minrect' });
+  }
 
   // 1순위 — 종합 합의(consensus): 색 + 엣지 + 채도 신호 voting → 행/열 projection bbox
   const consensus = detectByConsensus(pixels, gray, w, h);
@@ -74,14 +104,7 @@ export function detectCardOuterPureJs(img: HTMLImageElement): Quad | null {
   if (candidates.length === 0) return null;
   // 가장 높은 점수
   candidates.sort((a, b) => b.score - a.score);
-  const winner = candidates[0].quad;
-
-  // 다운스케일 비율 만큼 원본 좌표로 복원 + 클램프
-  const inv = 1 / scale;
-  return winner.map((p) => ({
-    x: Math.max(0, Math.min(img.naturalWidth, p.x * inv)),
-    y: Math.max(0, Math.min(img.naturalHeight, p.y * inv)),
-  })) as Quad;
+  return candidates[0].quad;
 }
 
 /* ====================== 공통 캔버스 / 그레이스케일 ====================== */
@@ -469,6 +492,149 @@ function detectByLargestBlob(pixels: Uint8ClampedArray, w: number, h: number): Q
     { x: x1, y: y1 },
     { x: x0, y: y1 },
   ];
+}
+
+/* ====== A2b. 회전 최소면적 사각형 (rotated min-area rect) ====== */
+
+/**
+ * 배경색 마스크 → 가장 큰 연결 성분 → convex hull → rotating-calipers 최소면적
+ * 사각형. 축 정렬 bbox 와 달리 카드가 기울어져 있어도 4변에 밀착한 quad 를 준다
+ * (핸드폰으로 손에 들고 찍으면 거의 항상 약간 기울어짐 → 이게 핵심).
+ */
+function detectByMinAreaRect(pixels: Uint8ClampedArray, w: number, h: number): Quad | null {
+  const bg = sampleBackground(pixels, w, h);
+  const mask = new Uint8Array(w * h);
+  let fgCount = 0;
+  for (let i = 0; i < w * h; i++) {
+    const dr = pixels[i * 4] - bg.r;
+    const dg = pixels[i * 4 + 1] - bg.g;
+    const db = pixels[i * 4 + 2] - bg.b;
+    if (dr * dr + dg * dg + db * db > 28 * 28) { mask[i] = 1; fgCount++; }
+  }
+  const fgRatio = fgCount / (w * h);
+  if (fgRatio < 0.05 || fgRatio > 0.97) return null;
+
+  const closed = dilate(mask, w, h);
+
+  // 가장 큰 연결 성분의 픽셀 좌표 수집 (잡음/그림자 분리)
+  const visited = new Uint8Array(w * h);
+  const stack: number[] = [];
+  let bestArea = 0;
+  let bestComp: number[] | null = null;
+  for (let s = 0; s < w * h; s++) {
+    if (!closed[s] || visited[s]) continue;
+    const comp: number[] = [];
+    stack.length = 0;
+    stack.push(s);
+    visited[s] = 1;
+    while (stack.length) {
+      const idx = stack.pop()!;
+      comp.push(idx);
+      const x = idx % w;
+      const y = (idx - x) / w;
+      if (x > 0 && closed[idx - 1] && !visited[idx - 1]) { visited[idx - 1] = 1; stack.push(idx - 1); }
+      if (x < w - 1 && closed[idx + 1] && !visited[idx + 1]) { visited[idx + 1] = 1; stack.push(idx + 1); }
+      if (y > 0 && closed[idx - w] && !visited[idx - w]) { visited[idx - w] = 1; stack.push(idx - w); }
+      if (y < h - 1 && closed[idx + w] && !visited[idx + w]) { visited[idx + w] = 1; stack.push(idx + w); }
+    }
+    if (comp.length > bestArea) { bestArea = comp.length; bestComp = comp; }
+  }
+  if (!bestComp || bestArea < w * h * 0.1) return null;
+
+  const pts: Pt[] = new Array(bestComp.length);
+  for (let i = 0; i < bestComp.length; i++) {
+    const idx = bestComp[i];
+    const x = idx % w;
+    pts[i] = { x, y: (idx - x) / w };
+  }
+
+  const hull = convexHull(pts);
+  const rect = minAreaRect(hull);
+  if (!rect) return null;
+  // 거의 전체 이미지면 reject (사진 자체가 단색일 때)
+  const rw = Math.hypot(rect[1].x - rect[0].x, rect[1].y - rect[0].y);
+  const rh = Math.hypot(rect[3].x - rect[0].x, rect[3].y - rect[0].y);
+  if (rw > w * 0.98 && rh > h * 0.98) return null;
+  return rect;
+}
+
+/** Andrew's monotone chain — 시계/반시계 무관한 convex hull. */
+function convexHull(points: Pt[]): Pt[] {
+  if (points.length < 3) return points.slice();
+  const pts = points.slice().sort((a, b) => (a.x - b.x) || (a.y - b.y));
+  const cross = (o: Pt, a: Pt, b: Pt) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower: Pt[] = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper: Pt[] = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
+}
+
+/**
+ * rotating calipers — hull 의 각 변을 한 축으로 삼아 OBB 면적을 재고 최소를 채택.
+ * 결과가 축(수평/수직)에서 ±3° 이내면 깔끔하게 축 정렬 bbox 로 스냅(노이즈 흔들림 방지).
+ */
+function minAreaRect(hull: Pt[]): Quad | null {
+  const n = hull.length;
+  if (n < 3) return null;
+  let bestArea = Infinity;
+  let best: { quad: Quad; ux: number; uy: number } | null = null;
+  for (let i = 0; i < n; i++) {
+    const p1 = hull[i];
+    const p2 = hull[(i + 1) % n];
+    let ex = p2.x - p1.x;
+    let ey = p2.y - p1.y;
+    const len = Math.hypot(ex, ey);
+    if (len < 1e-6) continue;
+    ex /= len; ey /= len;
+    const vx = -ey;
+    const vy = ex;
+    let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+    for (const p of hull) {
+      const du = p.x * ex + p.y * ey;
+      const dv = p.x * vx + p.y * vy;
+      if (du < minU) minU = du;
+      if (du > maxU) maxU = du;
+      if (dv < minV) minV = dv;
+      if (dv > maxV) maxV = dv;
+    }
+    const area = (maxU - minU) * (maxV - minV);
+    if (area < bestArea) {
+      bestArea = area;
+      const toXY = (du: number, dv: number): Pt => ({ x: ex * du + vx * dv, y: ey * du + vy * dv });
+      best = {
+        quad: [toXY(minU, minV), toXY(maxU, minV), toXY(maxU, maxV), toXY(minU, maxV)],
+        ux: ex,
+        uy: ey,
+      };
+    }
+  }
+  if (!best) return null;
+
+  // 거의 수평/수직(±3°)이면 축 정렬 bbox 로 스냅
+  let deg = Math.abs((Math.atan2(best.uy, best.ux) * 180) / Math.PI) % 90;
+  if (deg > 45) deg = 90 - deg;
+  if (deg < 3) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of hull) {
+      if (p.x < x0) x0 = p.x;
+      if (p.x > x1) x1 = p.x;
+      if (p.y < y0) y0 = p.y;
+      if (p.y > y1) y1 = p.y;
+    }
+    return [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+  }
+  return orderCornersTLTRBRBL(best.quad);
 }
 
 /* ================= A3. 엣지 밀도 그리드 ================= */
