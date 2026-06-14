@@ -126,9 +126,28 @@ async function bottomLeftCrop(buf) {
     .toBuffer();
 }
 
+/**
+ * OpenAI Vision 으로 카드 필드를 추출.
+ * 반환 형태는 `{ data, meta }` — 어드민 스캔 로그가 "어떻게 요청했고 얼마나 썼는지"
+ * 를 남길 수 있도록 모델·프롬프트·토큰 사용량·소요시간 등 메타를 항상 함께 반환한다.
+ *   - data: 정상 파싱 시 추출 객체, 실패/미설정 시 null
+ *   - meta: { model, fullDetail, zoomDetail, maxTokens, maxDim, prompt, durationMs,
+ *            usage:{prompt,completion,total}|null, error:string|null }
+ */
 export async function visionExtract(imageBuffer) {
+  const baseMeta = {
+    model: MODEL,
+    fullDetail: FULL_DETAIL,
+    zoomDetail: ZOOM_DETAIL,
+    maxTokens: MAX_OUTPUT_TOKENS,
+    maxDim: MAX_DIM,
+    prompt: SYSTEM_PROMPT,
+    durationMs: 0,
+    usage: null,
+    error: null,
+  };
   const client = await getOpenAI();
-  if (!client) return null;
+  if (!client) return { data: null, meta: { ...baseMeta, error: 'no openai client' } };
 
   const [fullJpg, blJpg] = await Promise.all([
     sharp(imageBuffer)
@@ -141,6 +160,7 @@ export async function visionExtract(imageBuffer) {
   const fullUrl = `data:image/jpeg;base64,${fullJpg.toString('base64')}`;
   const zoomUrl = `data:image/jpeg;base64,${blJpg.toString('base64')}`;
 
+  const startedAt = Date.now();
   try {
     const res = await client.chat.completions.create({
       model: MODEL,
@@ -159,24 +179,41 @@ export async function visionExtract(imageBuffer) {
         },
       ],
     });
+    const meta = {
+      ...baseMeta,
+      durationMs: Date.now() - startedAt,
+      usage: res.usage
+        ? {
+            prompt: res.usage.prompt_tokens ?? null,
+            completion: res.usage.completion_tokens ?? null,
+            total: res.usage.total_tokens ?? null,
+          }
+        : null,
+    };
     const txt = res.choices[0]?.message?.content;
-    if (!txt) return null;
+    if (!txt) return { data: null, meta: { ...meta, error: 'empty response' } };
     const obj = JSON.parse(txt);
     return {
-      name: str(obj.name),
-      nameJa: str(obj.nameJa),
-      setCode: str(obj.setCode).toLowerCase(),
-      setName: str(obj.setName),
-      cardNumber: str(obj.cardNumber),
-      totalNumber: str(obj.totalNumber),
-      rarity: str(obj.rarity).toUpperCase(),
-      language: str(obj.language).toLowerCase(),
-      outerQuad: sanitizeQuad(obj.outerQuad),
-      innerQuad: sanitizeQuad(obj.innerQuad),
+      data: {
+        name: str(obj.name),
+        nameJa: str(obj.nameJa),
+        setCode: str(obj.setCode).toLowerCase(),
+        setName: str(obj.setName),
+        cardNumber: str(obj.cardNumber),
+        totalNumber: str(obj.totalNumber),
+        rarity: str(obj.rarity).toUpperCase(),
+        language: str(obj.language).toLowerCase(),
+        outerQuad: sanitizeQuad(obj.outerQuad),
+        innerQuad: sanitizeQuad(obj.innerQuad),
+      },
+      meta,
     };
   } catch (e) {
     console.warn('[vision] failed:', e?.message ?? e);
-    return null;
+    return {
+      data: null,
+      meta: { ...baseMeta, durationMs: Date.now() - startedAt, error: String(e?.message ?? e) },
+    };
   }
 }
 

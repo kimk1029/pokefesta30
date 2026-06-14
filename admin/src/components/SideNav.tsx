@@ -11,6 +11,7 @@ const NAV = [
   { href: '/ranking', label: '포인트 랭킹', icon: '🏆' },
   { href: '/events', label: '행동 로그', icon: '🖱️' },
   { href: '/searches', label: '검색 로그', icon: '🔍' },
+  { href: '/scans', label: '스캔 로그', icon: '📷' },
   { href: '/cards', label: '카드 카탈로그', icon: '🃏' },
   { href: '/feeds', label: '피드 관리', icon: '📝' },
   { href: '/messages', label: '쪽지 목록', icon: '✉️' },

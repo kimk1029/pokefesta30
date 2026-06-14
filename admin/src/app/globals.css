@@ -69,6 +69,17 @@ table.tbl tr:hover td{background:#F8FAFC;}
 .empty{padding:40px;text-align:center;color:#94A3B8;font-size:13px;background:#fff;
   border:1px dashed #CBD5E1;border-radius:8px;}
 
+/* key-value 정의 목록 (스캔 상세 등) */
+dl.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 16px;margin:0;
+  background:#fff;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;}
+dl.kv dt{align-self:center;}
+dl.kv dd{align-self:center;}
+
+/* JSON / 프롬프트 코드 블록 */
+pre.code{background:#0F172A;color:#E2E8F0;border-radius:8px;padding:14px 16px;margin:0;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;
+  overflow:auto;max-height:480px;white-space:pre-wrap;word-break:break-word;}
+
 form.search{display:flex;gap:8px;margin-bottom:16px;}
 form.search input{flex:1;padding:8px 12px;border:1px solid #CBD5E1;border-radius:5px;font-size:13px;}
 form.search button{padding:8px 16px;background:#3B82F6;color:#fff;border:none;border-radius:5px;cursor:pointer;}

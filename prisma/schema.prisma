@@ -50,6 +50,7 @@ model User {
   listingFavorites ListingFavorite[]
   portfolioDailySnapshots PortfolioDailySnapshot[]
   searchLogs       SearchLog[]
+  scanLogs         ScanLog[]
   eventPosts       EventPost[]
   eventPostComments EventPostComment[]
 
@@ -570,4 +571,54 @@ model ActionLog {
   @@index([userId])
   @@index([anonId])
   @@map("action_logs")
+}
+
+/// 카드 스캔 로그 — 한 번의 카드 스캔(촬영 인식) 요청 1건을 기록.
+/// "어떤 엔진으로(engine: vision=OpenAI/paddle=무료 OCR) 어떤 모델·프롬프트로 요청했고
+/// (model/prompt/request) 무엇을 인식했으며(extracted) 토큰을 얼마나 썼고(*Tokens)
+/// 결과 후보가 몇 건이었는지(candidates)" 를 어드민 "스캔 로그" 화면에서 추적.
+/// SearchLog 패턴대로 userId 는 관계로 연결하되 비회원/탈퇴 대비 nullable.
+model ScanLog {
+  id               Int      @id @default(autoincrement())
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// 'web' | 'app' (모바일)
+  source           String   @default("web")
+  /// 사용한 OCR 엔진: 'vision'(OpenAI) | 'paddle'(무료) | 'none'(둘 다 실패)
+  engine           String   @default("none")
+  /// vision 모델명 (예: gpt-4o-mini). paddle/none 이면 null.
+  model            String?
+  /// 등록 UI 가 보낸 언어 힌트: 'ko' | 'jp' | 'en' | ''
+  langHint         String?
+  /// 스캔 전체 처리 시간(ms).
+  durationMs       Int      @default(0)
+  /// 매칭 후보가 1건 이상이면 true.
+  success          Boolean  @default(false)
+  confidence       Float?
+  candidateCount   Int      @default(0)
+  imageWidth       Int?
+  imageHeight      Int?
+  /// OpenAI 토큰 사용량 (vision 경로에서만).
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  /// 요청 상세: 모델 파라미터(detail 레벨·max_tokens·max_dim), useAi, guideRect 등.
+  request          Json?
+  /// vision 이 사용한 시스템 프롬프트 원문 (요청 방식 감사용).
+  prompt           String?
+  /// 인식 결과 원본 (name, nameJa, setCode, cardNumber, totalNumber, rarity, language, quad...).
+  extracted        Json?
+  /// 매칭된 후보 요약 (id, source, name, number, price). 상위 일부만.
+  candidates       Json?
+  /// snkrdunk 매칭된 apparelId (있으면).
+  snkrdunkId       Int?
+  /// 실패/예외 메시지 (있으면).
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([engine, createdAt(sort: Desc)])
+  @@index([success, createdAt(sort: Desc)])
+  @@index([userId])
+  @@map("scan_logs")
 }

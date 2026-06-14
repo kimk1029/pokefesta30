@@ -22,6 +22,7 @@ import { lookupCard, searchTcgdexByName } from './lib/lookup.js';
 import { lookupIllustrator, searchTcgdexByIllustrator } from './lib/illustrator.js';
 import { dominantNeonForUrl } from './lib/imageColor.js';
 import { matchSnkrdunkForCard } from './lib/snkrdunkMatch.js';
+import { prisma } from './lib/prisma.js';
 import { fetchApparelSingleJpy } from '@/lib/snkrdunkPrice';
 import { buildCors } from './middleware/cors.js';
 import { requireAdmin } from './middleware/requireAdmin.js';
@@ -238,6 +239,81 @@ app.get('/api/cards/dominant-color', async (req, res) => {
 // 스캔은 유료 OpenAI Vision 호출 + sharp CPU 작업 — 로그인 필수 + 유저당 분당 제한
 const scanRateLimit = rateLimit({ windowMs: 10 * 60_000, max: 30, name: 'scan' });
 
+/**
+ * 스캔 1건을 scan_logs 테이블에 기록 (어드민 "스캔 로그" 화면용).
+ * - engine: vision(OpenAI) > paddle(무료) > none
+ * - request: 모델 파라미터 + 클라이언트가 보낸 요청 메타(useAi, guideRect, dims)
+ * - extracted/candidates: 인식 결과 + 후보 요약(상위 12건)
+ * 어떤 실패도 스캔 응답에 영향 주지 않도록 호출부에서 catch.
+ */
+async function recordScanLog({
+  req, startedAt, extracted, usedVision, usedPaddle, visionMeta,
+  langHint, confidence, candidates, success, snkrdunk,
+}) {
+  const platform = String(req.body?.platform ?? 'web');
+  const source = platform === 'web' ? 'web' : 'app';
+  const engine = usedVision ? 'vision' : usedPaddle ? 'paddle' : 'none';
+  const toInt = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.round(n) : null;
+  };
+  const guideRect = (() => {
+    try {
+      return req.body?.guideRect ? JSON.parse(req.body.guideRect) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const candSummary = (candidates ?? []).slice(0, 12).map((c) => ({
+    id: c.id,
+    source: c.source,
+    name: c.localName || c.name,
+    number: c.number,
+    setCode: c.setCode,
+    rarity: c.rarity,
+    price: c.price?.marketPrice ?? c.priceSummary?.value ?? null,
+    currency: c.price?.currency ?? c.priceSummary?.currency ?? null,
+  }));
+  await prisma.scanLog.create({
+    data: {
+      userId: req.user?.userId ?? null,
+      source,
+      engine,
+      model: usedVision ? (visionMeta?.model ?? null) : null,
+      langHint: langHint || null,
+      durationMs: Date.now() - startedAt,
+      success: Boolean(success),
+      confidence: typeof confidence === 'number' ? confidence : null,
+      candidateCount: (candidates ?? []).length,
+      imageWidth: toInt(req.body?.imageWidth),
+      imageHeight: toInt(req.body?.imageHeight),
+      promptTokens: visionMeta?.usage?.prompt ?? null,
+      completionTokens: visionMeta?.usage?.completion ?? null,
+      totalTokens: visionMeta?.usage?.total ?? null,
+      request: {
+        useAi: req.body?.useAi === 'true' || req.body?.useAi === true,
+        guideRect,
+        capturedAt: req.body?.capturedAt ?? null,
+        vision: visionMeta
+          ? {
+              fullDetail: visionMeta.fullDetail,
+              zoomDetail: visionMeta.zoomDetail,
+              maxTokens: visionMeta.maxTokens,
+              maxDim: visionMeta.maxDim,
+              durationMs: visionMeta.durationMs,
+              error: visionMeta.error ?? null,
+            }
+          : null,
+      },
+      prompt: usedVision ? (visionMeta?.prompt ?? null) : null,
+      extracted: extracted ?? null,
+      candidates: candSummary,
+      snkrdunkId: snkrdunk?.apparelId ?? null,
+      errorMessage: !success ? (visionMeta?.error ?? null) : null,
+    },
+  });
+}
+
 app.post('/api/cards/scan', requireAuth, scanRateLimit, upload.single('image'), async (req, res) => {
   const startedAt = Date.now();
   const file = req.file;
@@ -251,6 +327,7 @@ app.post('/api/cards/scan', requireAuth, scanRateLimit, upload.single('image'), 
   let extracted = null;
   let usedVision = false;
   let usedPaddle = false;
+  let visionMeta = null;
   // Tesseract path was removed — AI is the only OCR engine. We keep these
   // names for backward-compatible debug/log shape but they stay empty.
   const blText = '';
@@ -265,8 +342,12 @@ app.post('/api/cards/scan', requireAuth, scanRateLimit, upload.single('image'), 
   // Pokémon cards anyway.
   if (visionAvailable()) {
     try {
-      extracted = await visionExtract(file.buffer);
-      if (extracted) usedVision = true;
+      const v = await visionExtract(file.buffer);
+      visionMeta = v?.meta ?? null;
+      if (v?.data) {
+        extracted = v.data;
+        usedVision = true;
+      }
     } catch (e) {
       console.warn('vision path failed:', e?.message ?? e);
     }
@@ -588,6 +669,22 @@ app.post('/api/cards/scan', requireAuth, scanRateLimit, upload.single('image'), 
   debug.roi = roiResults.map((r) => ({ name: r.name, score: r.score, text: r.text, parsed: r.parsed }));
   debug.bestRoi = bestRoi?.name ?? null;
   await writeFile(join(DEBUG_DIR, 'last.json'), JSON.stringify(debug, null, 2)).catch(() => {});
+
+  // 어드민 "스캔 로그" 화면용 영구 기록 — 응답 지연을 피하려 fire-and-forget.
+  // 로깅 실패가 스캔 UX 를 막으면 안 되므로 catch 로 삼킨다.
+  recordScanLog({
+    req,
+    startedAt,
+    extracted,
+    usedVision,
+    usedPaddle,
+    visionMeta,
+    langHint,
+    confidence,
+    candidates: responseCandidates,
+    success,
+    snkrdunk,
+  }).catch((e) => console.warn('[scan-log] failed:', e?.message ?? e));
 
   res.json({
     success,
