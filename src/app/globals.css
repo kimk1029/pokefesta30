@@ -4359,17 +4359,29 @@ a{color:inherit;text-decoration:none;}
 }
 
 /* ── 분리형(플로팅) 탭바 ── 마이페이지 설정 → '네비게이션 스타일 · 분리형'.
-   통합형(꽉 찬 고정 탭바) 대신 양옆/아래 여백을 두고 둥글게 떠 있는 단일 바.
-   테마별 .tabbar 규칙(`[data-theme] .tabbar`, 명시도 0,2,0)을 이기도록
+   콘텐츠 위에 떠 있는(absolute) 둥근 단일 바. 라벨 숨김·아이콘만·가운데 강조버튼은
+   바 안으로(돌출 X). 테마별 .tabbar(`[data-theme] .tabbar`, 명시도 0,2,0)을 이기도록
    두 클래스 셀렉터(.tabbar.tabbar--floating, 0,2,0) + 파일 끝 배치(소스 순서)로 적용.
-   배경/색은 각 테마의 .tabbar 값을 그대로 쓰고, 모서리·여백·그림자만 덧입힌다. */
+   배경/색은 각 테마의 .tabbar 값을 그대로 쓰고, 모양만 덧입힌다. */
 .tabbar.tabbar--floating{
-  margin:6px 12px calc(12px + env(safe-area-inset-bottom,0px));
-  border-radius:24px;
+  position:absolute;left:0;right:0;bottom:0;z-index:30;
+  height:auto;min-height:0;
+  margin:0 14px calc(12px + env(safe-area-inset-bottom,0px));
+  padding:8px 10px;
   border-top:none;
-  overflow:visible;
-  box-shadow:0 10px 26px rgba(0,0,0,.28),0 2px 0 rgba(0,0,0,.12);
+  border-radius:26px;
+  overflow:hidden;
+  box-shadow:0 12px 28px rgba(0,0,0,.30),0 2px 0 rgba(0,0,0,.10);
+  align-items:center;
 }
-/* 둥근 모서리에 맞춰 첫/마지막 탭의 모서리도 라운드 처리(클릭 하이라이트 등). */
-.tabbar.tabbar--floating .tab:first-child{border-top-left-radius:24px;border-bottom-left-radius:24px;}
-.tabbar.tabbar--floating .tab:last-child{border-top-right-radius:24px;border-bottom-right-radius:24px;}
+.tabbar.tabbar--floating .tab{padding:6px 0;gap:0;min-height:0;}
+.tabbar.tabbar--floating .tab svg{width:24px;height:24px;}
+/* 가운데 강조 버튼 — 바 안에 들어간 작은 원형 강조 버튼(돌출 없음). */
+.tabbar.tabbar--floating .fab-mini{
+  width:42px;height:42px;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--accent,var(--red));color:var(--white);
+  box-shadow:0 3px 8px rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.25);
+}
+/* 플로팅이면 탭바가 absolute 라 콘텐츠가 그 아래로 지나가도록 screen 하단 여백 확보. */
+.screen--floatnav{padding-bottom:84px;}

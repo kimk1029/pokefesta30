@@ -1,14 +1,10 @@
 import Link from 'next/link';
-import { CurrencySettingsItem } from '@/components/CurrencySettingsItem';
 import { EditableName } from '@/components/EditableName';
 import { PointChipLive } from '@/components/LivePointsPill';
 import { LogoutButton } from '@/components/LogoutButton';
 import { MessagesInboxLink } from '@/components/MessagesInboxLink';
 import { PortfolioTotal } from '@/components/PortfolioTotal';
 import { ProfileAvatarClient } from '@/components/ProfileAvatarClient';
-import { ShowPortfolioSettingsItem } from '@/components/ShowPortfolioSettingsItem';
-import { NavStyleSettingsItem } from '@/components/NavStyleSettingsItem';
-import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -198,13 +194,17 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount, isGue
         ))}
       </div>
 
-      {/* 설정 — 상점 바로가기와 동일 컨테이너 (좌우 gap 유지). */}
+      {/* 설정 — 환경설정(통화·테마·포트폴리오·네비게이션)은 별도 페이지로. */}
       <div className="sect">
         <SectionTitle title="설정" />
-        <CurrencySettingsItem />
-        <ThemeSettingsItem />
-        <ShowPortfolioSettingsItem />
-        <NavStyleSettingsItem />
+        <Link href="/my/settings" className="my-item">
+          <div className="mi-icon" style={{ background: 'var(--ink)', color: 'var(--yel)' }}>⚙️</div>
+          <div className="mi-main">
+            환경설정
+            <span style={{ color: 'var(--ink3)', marginLeft: 6, fontSize: 10 }}>· 통화 · 테마 · 네비게이션</span>
+          </div>
+          <span className="mi-arr">▶</span>
+        </Link>
         {SETTINGS.map((it) =>
           it.href ? (
             <Link key={it.lb} href={it.href} className="my-item">

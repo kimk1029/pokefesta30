@@ -49,18 +49,45 @@ export function Tabbar() {
   const { navStyle } = useNavPrefs();
   const floating = navStyle === 'floating';
 
+  const barBg = flat ? c.paper : theme === 'onepiece' ? c.bluDk : c.ink;
+
+  // ── 분리형(플로팅) ── 아이콘만(라벨 숨김) + 가운데 강조 버튼을 바 안으로(돌출 X).
+  if (floating) {
+    const iconOn = flat ? (theme === 'dark' ? c.blu : c.ink) : c.gold;
+    const iconOff = flat ? c.ink3 : c.pap3;
+    return (
+      <View style={[styles.bar, styles.barFloating, { backgroundColor: barBg, shadowColor: c.ink }]}>
+        {TABS.map((t) => {
+          const isOn = active === t.id;
+          return (
+            <Pressable
+              key={t.id}
+              style={styles.tabFloat}
+              onPress={() => router.push(t.href as never)}
+              hitSlop={6}
+            >
+              {t.fab ? (
+                <View style={[styles.fabMini, { backgroundColor: c.red }]}>
+                  <TabIcon name="plus" color={c.white} size={22} />
+                </View>
+              ) : (
+                <TabIcon name={t.icon!} color={isOn ? iconOn : iconOff} size={24} />
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
+
   return (
     <View
       style={[
         styles.bar,
-        { backgroundColor: flat ? c.paper : theme === 'onepiece' ? c.bluDk : c.ink, borderTopColor: c.pap3 },
-        floating && styles.barFloating,
-        floating && { shadowColor: c.ink },
+        { backgroundColor: barBg, borderTopColor: c.pap3 },
       ]}
     >
-      {!floating && (
-        <View pointerEvents="none" style={[styles.topAccent, { backgroundColor: flat ? c.pap3 : c.gold, height: flat ? 1 : undefined }]} />
-      )}
+      <View pointerEvents="none" style={[styles.topAccent, { backgroundColor: flat ? c.pap3 : c.gold, height: flat ? 1 : undefined }]} />
       {TABS.map((t) => {
         const isOn = active === t.id;
         if (t.fab) return <FabTab key={t.id} on={isOn} label={t.label} href={t.href} />;
@@ -328,16 +355,34 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: colors.gold,
   },
-  // 분리형(플로팅) — 양옆/아래 여백 + 둥근 모서리 + 그림자. 배경색은 테마값 유지.
+  // 분리형(플로팅) — 양옆/아래 여백 + 둥근 모서리 + 그림자. 컴팩트(아이콘만).
   barFloating: {
     marginHorizontal: 12,
     marginBottom: 10,
-    borderRadius: 24,
+    borderRadius: 26,
     borderTopWidth: 0,
+    minHeight: 0,
+    paddingTop: 8,
+    paddingBottom: 8,
+    paddingHorizontal: 10,
+    alignItems: 'center',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.24,
     shadowRadius: 14,
     elevation: 12,
+  },
+  tabFloat: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  fabMini: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tab: {
     flex: 1,

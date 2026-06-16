@@ -53,8 +53,35 @@ export function Tabbar(_props: { onFab?: () => void } = {}) {
     requestAnimationFrame(() => setBallAnim(true));
   };
 
+  // ── 분리형(플로팅) ── 아이콘만(라벨 숨김) + 가운데 강조 버튼을 바 안으로(돌출 X).
+  if (navStyle === 'floating') {
+    return (
+      <nav className="tabbar tabbar--floating" aria-label="하단 네비게이션">
+        {TABS.map((t) => {
+          const on = active === t.id;
+          if (t.fab) {
+            return (
+              <Link key={t.id} href={t.href} className={`tab fab-mini-tab${on ? ' on' : ''}`} aria-label={t.label}>
+                <span className="fab-mini">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </span>
+              </Link>
+            );
+          }
+          return (
+            <Link key={t.id} href={t.href} className={`tab${on ? ' on' : ''}`} aria-label={t.label}>
+              {t.icon && <LineIcon name={t.icon} />}
+            </Link>
+          );
+        })}
+      </nav>
+    );
+  }
+
   return (
-    <div className={`tabbar${navStyle === 'floating' ? ' tabbar--floating' : ''}`}>
+    <div className="tabbar">
       {TABS.map((t) => {
         const cls = ['tab', active === t.id ? 'on' : '', t.fab ? 'fab-tab' : '']
           .filter(Boolean)

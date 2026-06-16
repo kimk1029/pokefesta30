@@ -14,10 +14,6 @@ import { PixelPress } from '@/components/cv/PixelPress';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
-import { CurrencySettingsItem } from '@/components/CurrencySettingsItem';
-import { ShowPortfolioSettingsItem } from '@/components/ShowPortfolioSettingsItem';
-import { NavStyleSettingsItem } from '@/components/NavStyleSettingsItem';
-import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { fetchMySummary, type MySummary } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 import { isAuthenticated, setSession, subscribeSession } from '@/lib/session';
@@ -100,6 +96,7 @@ export default function MyScreen() {
 
   // 설정 섹션의 내비게이션 항목 (통화/테마 행 다음에 같은 컨테이너에 이어 렌더).
   const settingsNav: MenuItem[] = [
+    { icon: '⚙️', iconBg: '#1A1A2E', label: '환경설정', desc: '통화·테마·네비게이션', onPress: () => router.push('/settings' as never) },
     { icon: '📢', iconBg: '#FFD23F', label: '공지사항', badge: 'NEW', onPress: () => router.push('/my/notices' as never) },
     { icon: '❓', iconBg: '#3A5BD9', label: 'FAQ · 자주 묻는 질문', onPress: () => router.push('/my/faq' as never) },
     { icon: '📜', iconBg: tc.pap2, label: '이용약관', onPress: () => router.push('/legal?doc=terms' as never) },
@@ -185,14 +182,6 @@ export default function MyScreen() {
           <SectHd title="설정" />
           <PixelFrame>
             <View>
-              <CurrencySettingsItem />
-              <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} />
-              <ThemeSettingsItem />
-              <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} />
-              <ShowPortfolioSettingsItem />
-              <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} />
-              <NavStyleSettingsItem />
-              <View style={{ height: 1, backgroundColor: tc.pap3, marginHorizontal: 14 }} />
               {settingsNav.map((item, i) => (
                 <View key={item.label}>
                   <MenuRow item={item} />
