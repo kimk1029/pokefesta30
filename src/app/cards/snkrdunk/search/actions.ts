@@ -1,7 +1,7 @@
 'use server';
 
 import { serverFetch } from '@/lib/apiServer';
-import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
+import { translate, translateKnownCardNameToKo } from '@/lib/cardTranslate';
 
 interface SearchResult {
   apparelId: number;
@@ -77,4 +77,19 @@ export async function searchSnkrdunkPage(
   const hasMore = r.data?.hasMore ?? raw.length > 0;
   const hits = raw.length > 0 ? await hydrateBatch(raw) : [];
   return { hits, hasMore };
+}
+
+/**
+ * 한국어 키워드로 첫 페이지를 검색 — 일본어 변환(`ja`)까지 서버에서 처리해
+ * 클라이언트가 번역 사전을 번들에 싣지 않고 인플레이스 검색을 할 수 있게 한다.
+ */
+export async function searchByKeyword(
+  q: string,
+): Promise<{ ja: string; hits: HydratedHit[]; hasMore: boolean }> {
+  const ko = (q ?? '').trim();
+  const ja = ko ? translate(ko, 'ja') : '';
+  const { hits, hasMore } = ja
+    ? await searchSnkrdunkPage(ja, 1)
+    : { hits: [], hasMore: false };
+  return { ja, hits, hasMore };
 }
