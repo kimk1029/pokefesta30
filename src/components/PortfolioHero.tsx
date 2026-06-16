@@ -41,7 +41,7 @@ export function PortfolioHero({ cards, isLoggedIn }: Props) {
   const { theme } = useTheme();
   const isClean = isFlatTheme(theme);
   const router = useRouter();
-  const { mode: globalPriceMode, setMode: setPriceMode } = usePriceMode();
+  const { mode: globalPriceMode } = usePriceMode();
   const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
 
   // 실시간 포트폴리오 — 서버 일별 스냅샷 기반 등락 + history (KST 정각 reset).
@@ -76,7 +76,7 @@ export function PortfolioHero({ cards, isLoggedIn }: Props) {
     return () => { alive = false; };
   }, []);
 
-  const { owned, graded, hasAnyPsa10, priceMode, totalVal, change, changePct, chartData } =
+  const { owned, graded, totalVal, change, changePct, chartData } =
     buildHeroData(cards, portfolio, globalPriceMode, chartMode);
 
   // ═══ 클린: 라이트 ═══
@@ -89,28 +89,8 @@ export function PortfolioHero({ cards, isLoggedIn }: Props) {
         style={{ position: 'relative', background: 'var(--paper)', borderBottom: '8px solid var(--pap2)', cursor: 'pointer' }}
       >
         <div style={{ padding: '18px 18px 8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-            <div style={{ fontSize: 12, color: 'var(--ink3)', fontWeight: 600 }}>
-              내 포트폴리오 평가액{hasAnyPsa10 ? ` · ${priceMode === 'psa10' ? 'PSA10' : '싱글'}` : ''}
-            </div>
-            {hasAnyPsa10 && (
-              <div style={{ display: 'flex', gap: 2 }}>
-                {(['single', 'psa10'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPriceMode(m); }}
-                    style={{
-                      padding: '4px 9px', fontSize: 11, fontWeight: 700,
-                      background: priceMode === m ? 'var(--ink)' : 'var(--pap2)',
-                      color: priceMode === m ? '#fff' : 'var(--ink3)',
-                    }}
-                  >
-                    {m === 'single' ? '싱글' : 'PSA10'}
-                  </button>
-                ))}
-              </div>
-            )}
+          <div style={{ fontSize: 12, color: 'var(--ink3)', fontWeight: 600, marginBottom: 8 }}>
+            내 포트폴리오 평가액
           </div>
           <div className="num" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1 }}>{format(totalVal)}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
@@ -173,24 +153,7 @@ export function PortfolioHero({ cards, isLoggedIn }: Props) {
         style={{ position: 'relative', background: 'var(--paper)', borderBottom: '8px solid var(--dark)', cursor: 'pointer' }}
       >
         <div style={{ padding: '16px 16px 8px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink3)', letterSpacing: '0.02em' }}>내 포트폴리오 평가액</div>
-            {hasAnyPsa10 && (
-              <div style={{ display: 'flex', background: 'var(--dark)', padding: 2, border: '1px solid var(--pap3)' }}>
-                {(['single', 'psa10'] as const).map((m) => (
-                  <button key={m} type="button"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPriceMode(m); }}
-                    style={{
-                      padding: '4px 11px', fontSize: 11, fontWeight: 700,
-                      background: priceMode === m ? (m === 'psa10' ? 'var(--gold)' : 'var(--surf2)') : 'transparent',
-                      color: priceMode === m ? (m === 'psa10' ? '#1A1208' : 'var(--ink)') : 'var(--ink3)',
-                    }}>
-                    {m === 'single' ? '싱글' : 'PSA10'}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink3)', letterSpacing: '0.02em' }}>내 포트폴리오 평가액</div>
           <div className="num" style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1, marginTop: 8 }}>{format(totalVal)}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             <span className="num" style={{ fontSize: 14, fontWeight: 800, color: change >= 0 ? 'var(--red)' : 'var(--blu)', textShadow: change >= 0 ? '0 0 12px var(--up-glow)' : '0 0 12px var(--down-glow)' }}>
@@ -264,33 +227,8 @@ export function PortfolioHero({ cards, isLoggedIn }: Props) {
 
       {/* Label + value */}
       <div style={{ position: 'relative', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.35)', letterSpacing: 2 }}>
-            TOTAL PORTFOLIO{hasAnyPsa10 ? ` · ${priceMode === 'psa10' ? 'PSA10' : '싱글'}` : ''}
-          </div>
-          {hasAnyPsa10 && (
-            <div style={{ display: 'flex', gap: 2, position: 'relative', zIndex: 1 }}>
-              {(['single', 'psa10'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPriceMode(m); }}
-                  style={{
-                    padding: '3px 8px',
-                    fontFamily: 'var(--f1)',
-                    fontSize: 9,
-                    letterSpacing: 0.5,
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: priceMode === m ? 'var(--gold)' : 'rgba(255,255,255,.08)',
-                    color: priceMode === m ? 'var(--ink)' : 'rgba(255,210,63,.85)',
-                  }}
-                >
-                  {m === 'single' ? '싱글' : 'PSA10'}
-                </button>
-              ))}
-            </div>
-          )}
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.35)', letterSpacing: 2, marginBottom: 8 }}>
+          TOTAL PORTFOLIO
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
           <div style={{

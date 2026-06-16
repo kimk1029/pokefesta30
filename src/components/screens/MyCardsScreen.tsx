@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
 import {
@@ -71,7 +72,7 @@ const GAME_COLORS: Record<string, string> = {
 
 export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
   const { format } = useCurrency();
-  const { mode: priceMode, setMode: setPriceMode } = usePriceMode();
+  const { mode: priceMode } = usePriceMode();
   const { theme } = useTheme();
   const isClean = isFlatTheme(theme);
   const [cards, setCards] = useState(initial);
@@ -296,88 +297,18 @@ export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
         />
       </div>
 
-      {/* Game filter */}
-      <div className="cv-chip-row">
-        {games.map((g) => (
-          <button
-            key={g}
-            className={`cv-chip${game === g ? ' on' : ''}`}
-            onClick={() => setGame(g)}
-            type="button"
-          >
-            {g === '전체' ? 'ALL' : g}
-          </button>
-        ))}
-      </div>
-
-      {/* Rarity filter — TCG 등급 (C/U/R/RR/AR/SAR/SR/HR/UR/MA/MUR/CHR).
-          컬렉션에 존재하는 등급 + ALL 만 노출 (없는 등급은 chip 숨김). */}
-      <div className="cv-chip-row">
-        {(['all', ...RARITY_ORDER.filter((r) => display.some((c) => c.rar === r))] as RarFilter[]).map((r) => (
-          <button
-            key={r}
-            className={`cv-chip${rar === r ? ' on' : ''}`}
-            onClick={() => setRar(r)}
-            type="button"
-          >
-            {r === 'all' ? 'ALL' : r}
-          </button>
-        ))}
-      </div>
-
-      {/* Sort + 싱글/PSA10 토글 (PSA10 시세 있는 카드가 하나라도 있을 때만) */}
-      <div className="cv-toolbar">
-        <div style={{ flex: 1, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {(
-            [
-              ['recent', '최근'],
-              ['name', '이름'],
-              ['price', '가격'],
-              ['grade', '등급'],
-            ] as Array<[SortBy, string]>
-          ).map(([k, lb]) => (
-            <button
-              key={k}
-              type="button"
-              className={`cv-sort-btn${sort === k ? ' on' : ''}`}
-              onClick={() => setSort(k)}
-            >
-              {lb}
-            </button>
-          ))}
-        </div>
-        {cards.some((c) => (c.pricePsa10Jpy ?? 0) > 0) && (
-          <div style={{
-            display: 'flex',
-            ...(isClean
-              ? { border: '1px solid var(--pap3)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }
-              : { boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)' }),
-          }}>
-            {(['single', 'psa10'] as const).map((m) => {
-              const on = priceMode === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setPriceMode(m)}
-                  style={{
-                    padding: '6px 9px',
-                    border: 0,
-                    cursor: 'pointer',
-                    fontFamily: 'var(--f1)',
-                    fontSize: 9,
-                    letterSpacing: 0.3,
-                    background: on ? (isClean ? 'var(--accent)' : 'var(--gold)') : 'var(--white)',
-                    color: on ? (isClean ? 'var(--white)' : 'var(--ink)') : 'var(--ink3)',
-                  }}
-                >
-                  {m === 'single' ? '싱글' : 'PSA10'}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* 필터 · 정렬 — 게임/등급/정렬을 하나의 드롭다운으로 통합 */}
+      <FilterSortDropdown
+        games={games}
+        presentRarities={RARITY_ORDER.filter((r) => display.some((c) => c.rar === r))}
+        game={game}
+        rar={rar}
+        sort={sort}
+        setGame={setGame}
+        setRar={setRar}
+        setSort={setSort}
+        isClean={isClean}
+      />
 
       {/* View mode tabs (카드검색 결과 헤더 톤 — pixel-press subseg) */}
       <div className="cv-subseg">
@@ -430,6 +361,149 @@ export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
         onClose={() => setSpotlight(null)}
       />
     </>
+  );
+}
+
+/* ---------------- 필터 · 정렬 드롭다운 ---------------- */
+
+const SORT_LABEL: Record<SortBy, string> = { recent: '최근', name: '이름', price: '가격', grade: '등급' };
+
+/**
+ * 게임 필터 + 등급 필터 + 정렬을 하나로 묶은 심플 드롭다운.
+ * 닫혀 있을 땐 현재 선택을 요약해 보여주고, 누르면 패널이 펼쳐져
+ * 게임/등급/정렬을 자유롭게 고를 수 있다. (여러 항목을 연속으로 고를 수 있게
+ * 항목 선택으로는 닫히지 않고, 토글 버튼·바깥 클릭으로만 닫힌다.)
+ */
+function FilterSortDropdown({
+  games,
+  presentRarities,
+  game,
+  rar,
+  sort,
+  setGame,
+  setRar,
+  setSort,
+  isClean,
+}: {
+  games: string[];
+  presentRarities: Rarity[];
+  game: string;
+  rar: RarFilter;
+  sort: SortBy;
+  setGame: (g: string) => void;
+  setRar: (r: RarFilter) => void;
+  setSort: (s: SortBy) => void;
+  isClean: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const summary = `${game === '전체' ? '전체' : game} · ${rar === 'all' ? '전체 등급' : rar} · ${SORT_LABEL[sort]}`;
+
+  return (
+    <div ref={ref} style={{ position: 'relative', margin: '0 var(--gap) 10px' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '9px 12px',
+          cursor: 'pointer',
+          background: 'var(--white)',
+          fontFamily: 'var(--f1)',
+          fontSize: 10,
+          color: 'var(--ink)',
+          letterSpacing: 0.5,
+          ...(isClean
+            ? { border: '1px solid var(--pap3)', borderRadius: 'var(--r-sm)' }
+            : { boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)' }),
+        }}
+      >
+        <span>필터 · 정렬</span>
+        <span
+          style={{
+            flex: 1,
+            textAlign: 'right',
+            color: 'var(--ink3)',
+            fontSize: 9,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {summary}
+        </span>
+        <span style={{ fontSize: 9, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>▾</span>
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: 0,
+            right: 0,
+            zIndex: 40,
+            background: 'var(--white)',
+            padding: '12px 12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            ...(isClean
+              ? { border: '1px solid var(--pap3)', borderRadius: 'var(--r)', boxShadow: '0 6px 20px rgba(24,34,58,.12)' }
+              : { boxShadow: '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)' }),
+          }}
+        >
+          <FilterGroup label="게임">
+            {games.map((g) => (
+              <FilterOpt key={g} on={game === g} onClick={() => setGame(g)} label={g === '전체' ? '전체' : g} />
+            ))}
+          </FilterGroup>
+          <FilterGroup label="등급">
+            <FilterOpt on={rar === 'all'} onClick={() => setRar('all')} label="전체" />
+            {presentRarities.map((r) => (
+              <FilterOpt key={r} on={rar === r} onClick={() => setRar(r)} label={r} />
+            ))}
+          </FilterGroup>
+          <FilterGroup label="정렬">
+            {(['recent', 'name', 'price', 'grade'] as SortBy[]).map((s) => (
+              <FilterOpt key={s} on={sort === s} onClick={() => setSort(s)} label={SORT_LABEL[s]} />
+            ))}
+          </FilterGroup>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: 0.5, marginBottom: 6 }}>
+        {label}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>{children}</div>
+    </div>
+  );
+}
+
+function FilterOpt({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
+  return (
+    <button type="button" className={`cv-chip${on ? ' on' : ''}`} onClick={onClick}>
+      {label}
+    </button>
   );
 }
 
