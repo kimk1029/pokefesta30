@@ -96,6 +96,16 @@ function SearchLineIcon() {
     </svg>
   );
 }
+function EventLineIcon() {
+  return (
+    <svg {...lineIcon}>
+      <rect x="4" y="5.5" width="16" height="14" rx="1.5" />
+      <path d="M4 9.5h16" />
+      <path d="M8 3.5v4" />
+      <path d="M16 3.5v4" />
+    </svg>
+  );
+}
 
 export type SnkrdunkCategory = 'SAR' | '프로모' | 'SR' | '원피스';
 
@@ -242,11 +252,12 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
   const shortcutsNode = (
     <div style={{ margin: '0 var(--gap) var(--cg)' }}>
       <div className="sect-hd" style={{ marginBottom: 8 }}><h2>바로가기</h2></div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: 6 }}>
         {([
           { icon: '🔍' as ReactNode, cleanIcon: <SearchLineIcon />, lb: '카드검색', bg: 'var(--blu)', href: '/cards/snkrdunk/search' },
           { icon: '¥' as ReactNode, cleanIcon: <PriceLineIcon />, lb: '시세확인', bg: 'var(--gold)', href: '/cards/packs' },
           { icon: '🔨' as ReactNode, cleanIcon: <AuctionLineIcon />, lb: 'MVC경매', bg: 'var(--red)', href: '/cards/mvc-auction' },
+          { icon: '📅' as ReactNode, cleanIcon: <EventLineIcon />, lb: '이벤트', bg: 'var(--grn)', href: '/events' },
         ]).map(({ icon, cleanIcon, lb, bg, href }) => {
           const cc = CLEAN_ICON_COLORS[bg] ?? CLEAN_ICON_COLORS['var(--grn)'];
           return (
