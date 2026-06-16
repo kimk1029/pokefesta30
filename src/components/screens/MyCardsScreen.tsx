@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { findCardEntry, type CardCatalogEntry } from '@/lib/cardsCatalog';
 import {
@@ -975,40 +975,19 @@ function ListView({
                 📝 {c.src.memo}
               </div>
             )}
-            {/* 현재가 + 등락률(등록가 대비) + 등록가 */}
-            <div style={{ marginTop: 6 }}>
-              {priceLabel(c, format) ? (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                    <span
-                      style={{
-                        fontFamily: 'var(--f1)',
-                        fontSize: autoPriceSize(priceLabel(c, format), 11, 8),
-                        color: 'var(--grn-dk)',
-                        letterSpacing: 0.3,
-                      }}
-                    >
-                      {priceLabel(c, format)}
-                    </span>
-                    {rc && (
-                      <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: CHANGE_COLOR[rc.dir], letterSpacing: 0.2 }}>
-                        {CHANGE_ARROW[rc.dir]} {Math.abs(rc.pct).toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-                  {c.registerJpy != null && (
-                    <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 2, letterSpacing: 0.2 }}>
-                      등록가 {format(c.registerJpy)}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>시세 없음</span>
-              )}
+            {/* 등록가 / 현재가 / 등락률 — 3줄. 값 없으면 '-'. */}
+            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <PriceRow label="등록가" value={c.registerJpy != null ? format(c.registerJpy) : '-'} />
+              <PriceRow label="현재가" value={c.priceJpy > 0 ? format(c.priceJpy) : '-'} valueColor="var(--grn-dk)" />
+              <PriceRow
+                label="등락률"
+                value={rc ? `${CHANGE_ARROW[rc.dir]} ${Math.abs(rc.pct).toFixed(1)}%` : '-'}
+                valueColor={rc ? CHANGE_COLOR[rc.dir] : 'var(--ink3)'}
+              />
             </div>
           </div>
 
-          {/* 우측: 차트(있으면) + 그 아래 거래 / 삭제(✕) */}
+          {/* 우측: ⋯ 메뉴(거래하기/삭제) 위, 그 아래 최근 추이 차트 */}
           <div
             style={{
               flexShrink: 0,
@@ -1016,39 +995,124 @@ function ListView({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'flex-end',
-              justifyContent: 'space-between',
-              gap: 6,
+              gap: 8,
             }}
           >
-            {trend.length >= 2 ? (
+            <RowMenu tradeHref={`/write/trade?userCardId=${c.src.id}`} onDelete={() => onDelete(c.src.id)} />
+            {trend.length >= 2 && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
                 <MiniSparkline points={trend} />
                 <span style={{ fontFamily: 'var(--f1)', fontSize: 7, color: 'var(--ink3)', letterSpacing: 0.2 }}>
                   최근 추이
                 </span>
               </div>
-            ) : (
-              <div />
             )}
-            <div style={{ display: 'flex', gap: 6 }}>
-              <Link href={`/write/trade?userCardId=${c.src.id}`} className="cv-lc-btn cv-lc-btn-trade">
-                거래
-              </Link>
-              <button
-                type="button"
-                onClick={() => onDelete(c.src.id)}
-                aria-label="삭제"
-                title="삭제"
-                className="cv-lc-btn cv-lc-btn-del"
-                style={{ fontSize: 12, lineHeight: 1 }}
-              >
-                ✕
-              </button>
-            </div>
           </div>
         </div>
         );
       })}
+    </div>
+  );
+}
+
+/** 리스트 가격 행 — "라벨: 값" 한 줄. 값 없으면 호출부에서 '-' 를 넘김. */
+function PriceRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap' }}>
+      <span style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', letterSpacing: 0.2, minWidth: 32 }}>
+        {label}
+      </span>
+      <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: valueColor ?? 'var(--ink)', letterSpacing: 0.3 }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/** 리스트 행 우상단 ⋯ 메뉴 — 거래하기 / 삭제 드롭다운. 바깥 클릭 시 닫힘. */
+function RowMenu({ tradeHref, onDelete }: { tradeHref: string; onDelete: () => void }) {
+  const { theme } = useTheme();
+  const isClean = isFlatTheme(theme);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const itemStyle: CSSProperties = {
+    display: 'block',
+    width: '100%',
+    padding: '8px 12px',
+    fontFamily: 'var(--f1)',
+    fontSize: 10,
+    letterSpacing: 0.3,
+    textAlign: 'left',
+    textDecoration: 'none',
+    whiteSpace: 'nowrap',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+  };
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="더보기"
+        style={{
+          width: 28,
+          height: 22,
+          display: 'grid',
+          placeItems: 'center',
+          cursor: 'pointer',
+          fontSize: 15,
+          lineHeight: 1,
+          color: 'var(--ink)',
+          background: 'var(--white)',
+          ...(isClean
+            ? { border: '1px solid var(--pap3)', borderRadius: 'var(--r-sm)' }
+            : { boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)' }),
+        }}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            right: 0,
+            zIndex: 30,
+            minWidth: 92,
+            background: 'var(--white)',
+            overflow: 'hidden',
+            ...(isClean
+              ? { border: '1px solid var(--pap3)', borderRadius: 'var(--r-sm)', boxShadow: '0 6px 18px rgba(24,34,58,.14)' }
+              : { boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)' }),
+          }}
+        >
+          <Link href={tradeHref} onClick={() => setOpen(false)} style={{ ...itemStyle, color: 'var(--ink)' }}>
+            거래하기
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
+            style={{ ...itemStyle, color: 'var(--red)', borderTop: '1px solid var(--pap3)' }}
+          >
+            삭제
+          </button>
+        </div>
+      )}
     </div>
   );
 }
