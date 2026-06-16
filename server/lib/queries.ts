@@ -24,6 +24,7 @@ import type {
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
 import { computeApparelPrices } from '@/lib/snkrdunkPrice';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
+import { getCachedJpyKrw } from './fxRate.js';
 import {
   isFreshEntry,
   loadCatalogEntries,
@@ -34,6 +35,27 @@ import {
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
 /* ------------------------------------------------------------------ */
+
+/**
+ * 등록가(JPY) 결정 — 컬렉션 리스트 "등록가 → 현재가 등락률" 기준값.
+ *  · buyPrice 가 있으면 그 값을 JPY 로 환산해 사용
+ *    (직접뽑기=등록 시점 현재시세가 buyPrice 로 들어옴 / 구매=사용자 입력가).
+ *  · buyPrice 가 없으면 현재 싱글시세(JPY)로 보조 백필. 둘 다 없으면 null.
+ * jpyKrwRate 는 JPY→KRW 배율(예: 9.5). KRW buyPrice 는 buyPrice/rate 로 환산.
+ */
+export function deriveRegisterPriceJpy(
+  buyPrice: number | null,
+  buyCurrency: string | null,
+  currentSingleJpy: number,
+  jpyKrwRate: number,
+): number | null {
+  if (buyPrice != null && buyPrice > 0) {
+    if (buyCurrency === 'JPY') return Math.round(buyPrice);
+    const rate = jpyKrwRate > 0 ? jpyKrwRate : 9.5;
+    return Math.round(buyPrice / rate);
+  }
+  return currentSingleJpy > 0 ? Math.round(currentSingleJpy) : null;
+}
 
 function relTime(iso: Date | string): string {
   const t = typeof iso === 'string' ? new Date(iso).getTime() : iso.getTime();
@@ -496,14 +518,18 @@ export async function getMyCardsWithPrices(
     return { ...c, latestPrice: latest, trend, ...snk };
   });
 
-  // 등록가(registerPriceJpy) 백필 — 아직 null 인데 현재 싱글 시세(JPY)가 잡히면
-  // 그 값을 등록 기준가로 한 번만 저장. 이후엔 고정 베이스라인으로 등락률 계산.
-  // (응답에도 즉시 반영해 최초 조회부터 등락 0% 로 표시. 쓰기는 fire-and-forget.)
-  const toBackfill = result.filter((r) => r.registerPriceJpy == null && r.priceSingleJpy > 0);
+  // 등록가(registerPriceJpy) 백필 — 등록 단계에서 못 채운 기존/예외 카드 보조.
+  // buyPrice 가 있으면 그 값(JPY 환산)을, 없으면 현재 싱글시세를 한 번만 저장.
+  // 응답에도 즉시 반영하고, 쓰기는 fire-and-forget.
+  const jpyKrw = getCachedJpyKrw();
+  const toBackfill = result
+    .filter((r) => r.registerPriceJpy == null)
+    .map((r) => ({ r, desired: deriveRegisterPriceJpy(r.buyPrice, r.buyCurrency, r.priceSingleJpy, jpyKrw) }))
+    .filter((x): x is { r: (typeof result)[number]; desired: number } => x.desired != null);
   if (toBackfill.length > 0) {
-    for (const r of toBackfill) r.registerPriceJpy = r.priceSingleJpy;
+    for (const { r, desired } of toBackfill) r.registerPriceJpy = desired;
     void Promise.all(
-      toBackfill.map((r) =>
+      toBackfill.map(({ r }) =>
         prisma.userCard
           .updateMany({
             where: { id: r.id, registerPriceJpy: null },

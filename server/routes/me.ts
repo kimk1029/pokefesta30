@@ -15,6 +15,7 @@ import { levelFromPoints } from '@/lib/level';
 import { isAdminEmail } from '../lib/admin.js';
 import {
   countMyCards,
+  deriveRegisterPriceJpy,
   getMyBookmarks,
   getMyCardsWithPrices,
   getMyFavoritesWithPrices,
@@ -24,6 +25,7 @@ import {
 } from '../lib/queries.js';
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
 import { ensureCatalogCard } from '../lib/snkrdunkCatalog.js';
+import { getJpyKrwRate } from '../lib/fxRate.js';
 import { runDailyCheckIn } from '../lib/checkIn.js';
 
 const router = Router();
@@ -122,6 +124,17 @@ router.post('/cards', async (req: Request, res: Response) => {
   const gradeValue =
     graded && typeof body.gradeValue === 'string' ? body.gradeValue.trim().slice(0, 8) || null : null;
 
+  // 등록가(JPY) — 등록 단계에서 확정 저장.
+  //  · 직접뽑기(selfPulled): 클라이언트가 buyPrice 에 등록 시점 현재시세를 담아 보냄.
+  //  · 구매: 사용자가 적은 buyPrice(통화 buyCurrency).
+  // 두 경우 모두 buyPrice 를 JPY 로 환산해 baseline 으로 저장. buyPrice 없으면
+  // null → 최초 조회 시 현재 시세로 보조 백필(getMyCardsWithPrices).
+  let registerPriceJpy: number | null = null;
+  if (buyPrice != null && buyPrice > 0) {
+    const rate = buyCurrency === 'JPY' ? 1 : (await getJpyKrwRate().catch(() => null))?.rate ?? 0;
+    registerPriceJpy = deriveRegisterPriceJpy(buyPrice, buyCurrency, 0, rate);
+  }
+
   try {
     await prisma.user.upsert({
       where: { id: userId },
@@ -144,6 +157,7 @@ router.post('/cards', async (req: Request, res: Response) => {
         buyCurrency,
         qty,
         buyDate,
+        registerPriceJpy,
         selfPulled,
         graded,
         gradeCompany,
