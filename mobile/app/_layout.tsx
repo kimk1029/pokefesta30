@@ -15,6 +15,7 @@ import { ChromeProvider } from '@/components/ChromeContext';
 import { PriceModeProvider } from '@/lib/priceMode';
 import { CurrencyProvider } from '@/components/CurrencyProvider';
 import { HomePrefsProvider } from '@/components/HomePrefsProvider';
+import { NavPrefsProvider } from '@/components/NavPrefsProvider';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ToastProvider } from '@/components/ToastProvider';
 import { extractOAuthToken, persistTokenAndGoHome } from '@/lib/oauth';
@@ -99,6 +100,7 @@ export default function RootLayout() {
           <ToastProvider>
             <ChromeProvider>
               <HomePrefsProvider>
+              <NavPrefsProvider>
               <PriceModeProvider>
                 <PhoneShell>
                 <ActionTracker>
@@ -131,6 +133,7 @@ export default function RootLayout() {
                 </ActionTracker>
                 </PhoneShell>
               </PriceModeProvider>
+              </NavPrefsProvider>
               </HomePrefsProvider>
             </ChromeProvider>
           </ToastProvider>

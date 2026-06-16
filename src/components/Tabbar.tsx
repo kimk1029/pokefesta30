@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { LineIcon, type LineIconName } from './Icons';
 import { useTheme } from './ThemeProvider';
+import { useNavPrefs } from './NavPrefsProvider';
 import { isFlatTheme } from '@/lib/theme';
 
 type TabId = 'home' | 'collection' | 'fab' | 'community' | 'my';
@@ -45,6 +46,7 @@ export function Tabbar(_props: { onFab?: () => void } = {}) {
   const active = activeId(pathname);
   const [ballAnim, setBallAnim] = useState(false);
   const { theme } = useTheme();
+  const { navStyle } = useNavPrefs();
 
   const handleFabClick = () => {
     setBallAnim(false);
@@ -52,7 +54,7 @@ export function Tabbar(_props: { onFab?: () => void } = {}) {
   };
 
   return (
-    <div className="tabbar">
+    <div className={`tabbar${navStyle === 'floating' ? ' tabbar--floating' : ''}`}>
       {TABS.map((t) => {
         const cls = ['tab', active === t.id ? 'on' : '', t.fab ? 'fab-tab' : '']
           .filter(Boolean)

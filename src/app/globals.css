@@ -4357,3 +4357,19 @@ a{color:inherit;text-decoration:none;}
   .fi-detail-wrap{transition:none;}
   .fi-detail-inner{transition:none;opacity:1;}
 }
+
+/* ── 분리형(플로팅) 탭바 ── 마이페이지 설정 → '네비게이션 스타일 · 분리형'.
+   통합형(꽉 찬 고정 탭바) 대신 양옆/아래 여백을 두고 둥글게 떠 있는 단일 바.
+   테마별 .tabbar 규칙(`[data-theme] .tabbar`, 명시도 0,2,0)을 이기도록
+   두 클래스 셀렉터(.tabbar.tabbar--floating, 0,2,0) + 파일 끝 배치(소스 순서)로 적용.
+   배경/색은 각 테마의 .tabbar 값을 그대로 쓰고, 모서리·여백·그림자만 덧입힌다. */
+.tabbar.tabbar--floating{
+  margin:6px 12px calc(12px + env(safe-area-inset-bottom,0px));
+  border-radius:24px;
+  border-top:none;
+  overflow:visible;
+  box-shadow:0 10px 26px rgba(0,0,0,.28),0 2px 0 rgba(0,0,0,.12);
+}
+/* 둥근 모서리에 맞춰 첫/마지막 탭의 모서리도 라운드 처리(클릭 하이라이트 등). */
+.tabbar.tabbar--floating .tab:first-child{border-top-left-radius:24px;border-bottom-left-radius:24px;}
+.tabbar.tabbar--floating .tab:last-child{border-top-right-radius:24px;border-bottom-right-radius:24px;}

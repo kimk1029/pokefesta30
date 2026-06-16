@@ -8,6 +8,7 @@ import { SportsBall } from './SportsBall';
 import { StrawHatBall } from './StrawHatBall';
 import { TabIcon, type TabIconName } from './TabIcon';
 import { useTheme, useThemeColors, useThemeTextVariant } from './ThemeProvider';
+import { useNavPrefs } from './NavPrefsProvider';
 import { isFlatTheme } from '@/lib/theme';
 
 type TabId = 'home' | 'collection' | 'fab' | 'community' | 'my';
@@ -45,10 +46,21 @@ export function Tabbar() {
   const { theme } = useTheme();
   const c = useThemeColors();
   const flat = isFlatTheme(theme);
+  const { navStyle } = useNavPrefs();
+  const floating = navStyle === 'floating';
 
   return (
-    <View style={[styles.bar, { backgroundColor: flat ? c.paper : theme === 'onepiece' ? c.bluDk : c.ink, borderTopColor: c.pap3 }]}>
-      <View pointerEvents="none" style={[styles.topAccent, { backgroundColor: flat ? c.pap3 : c.gold, height: flat ? 1 : undefined }]} />
+    <View
+      style={[
+        styles.bar,
+        { backgroundColor: flat ? c.paper : theme === 'onepiece' ? c.bluDk : c.ink, borderTopColor: c.pap3 },
+        floating && styles.barFloating,
+        floating && { shadowColor: c.ink },
+      ]}
+    >
+      {!floating && (
+        <View pointerEvents="none" style={[styles.topAccent, { backgroundColor: flat ? c.pap3 : c.gold, height: flat ? 1 : undefined }]} />
+      )}
       {TABS.map((t) => {
         const isOn = active === t.id;
         if (t.fab) return <FabTab key={t.id} on={isOn} label={t.label} href={t.href} />;
@@ -315,6 +327,17 @@ const styles = StyleSheet.create({
     right: 0,
     height: 4,
     backgroundColor: colors.gold,
+  },
+  // 분리형(플로팅) — 양옆/아래 여백 + 둥근 모서리 + 그림자. 배경색은 테마값 유지.
+  barFloating: {
+    marginHorizontal: 12,
+    marginBottom: 10,
+    borderRadius: 24,
+    borderTopWidth: 0,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 12,
   },
   tab: {
     flex: 1,

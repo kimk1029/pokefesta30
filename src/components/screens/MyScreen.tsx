@@ -7,6 +7,7 @@ import { MessagesInboxLink } from '@/components/MessagesInboxLink';
 import { PortfolioTotal } from '@/components/PortfolioTotal';
 import { ProfileAvatarClient } from '@/components/ProfileAvatarClient';
 import { ShowPortfolioSettingsItem } from '@/components/ShowPortfolioSettingsItem';
+import { NavStyleSettingsItem } from '@/components/NavStyleSettingsItem';
 import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
@@ -203,6 +204,7 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount, isGue
         <CurrencySettingsItem />
         <ThemeSettingsItem />
         <ShowPortfolioSettingsItem />
+        <NavStyleSettingsItem />
         {SETTINGS.map((it) =>
           it.href ? (
             <Link key={it.lb} href={it.href} className="my-item">
