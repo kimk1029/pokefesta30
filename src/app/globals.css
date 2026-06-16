@@ -226,12 +226,12 @@ a{color:inherit;text-decoration:none;}
   box-shadow:-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink);}
 .hdot.on{background:var(--yel);}
 /* 컴팩트(작게 한 줄) — 메인(off) 레벨 아래 배너. 높이/폰트/이미지 축소. */
-.hero-wrap--compact .hero-slide{padding:10px 14px 20px;}
+.hero-wrap--compact .hero-slide{padding:25px 14px 42px;}
 .hero-wrap--compact .hero-badge{font-size:9px;padding:3px 6px;margin-bottom:5px;}
 .hero-wrap--compact .hero-slide h1{font-size:15px;line-height:1.35;margin:2px 0 2px;}
 .hero-wrap--compact .hero-slide p{font-size:9px;line-height:1.6;}
-.hero-wrap--compact .hero-promo-card{height:62px;}
-.hero-wrap--compact .hero-dots{bottom:6px;}
+.hero-wrap--compact .hero-promo-card{height:130px;}
+.hero-wrap--compact .hero-dots{bottom:11px;}
 .hero-wrap--compact .hero-cta-hint{top:7px;right:9px;font-size:8px;padding:3px 6px;}
 :is([data-theme="clean"],[data-theme="dark"],[data-theme="yugioh"],[data-theme="onepiece"]) .hero-wrap--compact .hero-slide h1{font-size:16px;}
 :is([data-theme="clean"],[data-theme="dark"],[data-theme="yugioh"],[data-theme="onepiece"]) .hero-wrap--compact .hero-slide p{font-size:10px;}

@@ -2,20 +2,17 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppBarUser } from '@/components/AppBarUser';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useHomePrefs } from '@/components/HomePrefsProvider';
 import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
-import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
 import { PortfolioHero } from '@/components/PortfolioHero';
-import { usePriceMode } from '@/components/PriceModeProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { Panel } from '@/components/ui/Panel';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { useTheme } from '@/components/ThemeProvider';
 import { isFlatTheme } from '@/lib/theme';
-import { buildHeroData, type ServerPortfolio } from '@/lib/portfolioHero';
 import type { MyCardWithPrice } from '@/lib/queries';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 
@@ -91,6 +88,14 @@ function TradeLineIcon() {
     </svg>
   );
 }
+function SearchLineIcon() {
+  return (
+    <svg {...lineIcon}>
+      <circle cx="11" cy="11" r="6" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
 
 export type SnkrdunkCategory = 'SAR' | '프로모' | 'SR' | '원피스';
 
@@ -151,13 +156,6 @@ const GAME_COLORS: Record<string, string> = {
   포켓몬: '#E63946', 유희왕: '#7C3AED', 원피스: '#F97316',
   MTG: '#22C55E', 스포츠: '#3A5BD9', 기타: '#94A3B8',
 };
-
-const POINTS = 1280;
-const LEVEL_LABEL = 'LV.12 다이아 컬렉터';
-const XP_CURRENT = 340;
-const XP_MAX = 500;
-const XP_WEEK = 80;
-const TRADES_THIS_WEEK = 3;
 
 function KoreaMarketIcon() {
   return (
@@ -238,76 +236,17 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
   const { format } = useCurrency();
   const { theme } = useTheme();
   const isClean = isFlatTheme(theme);
-  const [activeGame, setActiveGame] = useState<string>('전체');
-  // 메인에 포트폴리오 hero 표시 여부 (기본 off). off 면 순서: 레벨→바로가기→검색→인기.
+  // 메인에 포트폴리오 hero 표시 여부 (기본 off). off 면 순서: 레벨→배너→바로가기→인기.
   const { showPortfolioOnMain } = useHomePrefs();
-
-  // 실시간 포트폴리오 — 서버 일별 스냅샷 기반 등락 + history (KST 정각 reset).
-  const [portfolio, setPortfolio] = useState<ServerPortfolio | null>(null);
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const r = await fetch('/api/me/portfolio', { credentials: 'include', cache: 'no-store' });
-        if (!alive || !r.ok) return;
-        const j = (await r.json()) as {
-          data?: {
-            totalJpy: number;
-            totalPsa10Jpy?: number;
-            changeAbsJpy: number | null;
-            changePct: number | null;
-            history?: Array<{ date: string; totalJpy: number }>;
-          };
-        };
-        if (!alive || !j.data) return;
-        setPortfolio({
-          totalJpy: j.data.totalJpy,
-          totalPsa10Jpy: j.data.totalPsa10Jpy ?? 0,
-          changeAbsJpy: j.data.changeAbsJpy,
-          changePct: j.data.changePct,
-          history: j.data.history ?? [],
-        });
-      } catch {
-        /* 비로그인 등 — 폴백 (computeDailyTotals) 사용 */
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  // 핵심 지표·게임별 현황 표시용 집계 — hero 와 동일 계산식(lib/portfolioHero).
-  const { mode: globalPriceMode } = usePriceMode();
-  const { owned, graded, topCards, totalVal, changePct } = buildHeroData(
-    cards,
-    portfolio,
-    globalPriceMode,
-    'day',
-  );
-
-  const gamesPresent = Array.from(new Set(owned.map((c) => c.game)));
-  const gameDist = gamesPresent.map((g) => ({
-    g,
-    n: owned.filter((c) => c.game === g).length,
-    val: owned.filter((c) => c.game === g).reduce((a, c) => a + c.price, 0),
-  }));
-
-  // 메인 상단 재배치 대상 섹션 — ON: 검색→바로가기→레벨, OFF: 레벨→바로가기→검색(→인기).
-  const searchNode = (
-    <div style={{ margin: '0 var(--gap) var(--cg)' }}>
-      <div className="sect-hd" style={{ marginBottom: 8 }}><h2>카드 검색</h2></div>
-      <HomeKoSearchBar />
-    </div>
-  );
 
   const shortcutsNode = (
     <div style={{ margin: '0 var(--gap) var(--cg)' }}>
       <div className="sect-hd" style={{ marginBottom: 8 }}><h2>바로가기</h2></div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 6 }}>
         {([
-          { icon: '📷' as ReactNode, cleanIcon: <ScanLineIcon />, lb: '스캔', bg: 'var(--grn)', href: '/cards/grading' },
+          { icon: '🔍' as ReactNode, cleanIcon: <SearchLineIcon />, lb: '카드검색', bg: 'var(--blu)', href: '/cards/snkrdunk/search' },
           { icon: '¥' as ReactNode, cleanIcon: <PriceLineIcon />, lb: '시세확인', bg: 'var(--gold)', href: '/cards/packs' },
-          { icon: '🔨' as ReactNode, cleanIcon: <AuctionLineIcon />, lb: 'MVC경매', bg: 'var(--blu)', href: '/cards/mvc-auction' },
-          { icon: <KoreaMarketIcon />, cleanIcon: <MarketLineIcon />, lb: '국내마켓', bg: 'var(--red)', href: '/cards/bunjang' },
-          { icon: '🤝' as ReactNode, cleanIcon: <TradeLineIcon />, lb: '거래', bg: 'var(--grn)', href: '/trade' },
+          { icon: '🔨' as ReactNode, cleanIcon: <AuctionLineIcon />, lb: 'MVC경매', bg: 'var(--red)', href: '/cards/mvc-auction' },
         ]).map(({ icon, cleanIcon, lb, bg, href }) => {
           const cc = CLEAN_ICON_COLORS[bg] ?? CLEAN_ICON_COLORS['var(--grn)'];
           return (
@@ -331,85 +270,7 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
     </div>
   );
 
-  const levelNode = (
-    <Panel style={{ margin: '0 var(--gap) var(--cg)', padding: '10px 14px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div
-          style={{
-            fontFamily: 'var(--f1)',
-            fontSize: 11,
-            color: 'var(--ink)',
-            letterSpacing: 0.5,
-            flexShrink: 0,
-          }}
-        >
-          {LEVEL_LABEL}
-        </div>
-        <div
-          style={{
-            flex: 1,
-            background: 'var(--pap2)',
-            height: 8,
-            position: 'relative',
-            boxShadow: 'inset 1px 1px 0 rgba(0,0,0,.15)',
-          }}
-        >
-          <div
-            style={{
-              width: `${Math.round((XP_CURRENT / XP_MAX) * 100)}%`,
-              height: '100%',
-              background: 'linear-gradient(90deg,var(--pur),var(--gold))',
-            }}
-          />
-        </div>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', flexShrink: 0 }}>
-          {XP_CURRENT}/{XP_MAX}
-        </div>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--gold-dk)', flexShrink: 0 }}>
-          🪙{POINTS.toLocaleString()}
-        </div>
-      </div>
-    </Panel>
-  );
-
-  // 인기 카드 — off 면 자동 무한 좌측 스크롤(로테이션). 다크는 종목 리스트(스크롤 미적용).
-  // 테마가 다른 카드게임(onepiece/yugioh/sports)이면 해당 게임 인기 카드로 교체.
-  const popularKeyword = THEME_POPULAR_KEYWORD[theme];
-  const [themePopular, setThemePopular] = useState<Record<string, SnkrdunkRow[]>>({});
-  useEffect(() => {
-    if (!popularKeyword || themePopular[theme]) return;
-    let alive = true;
-    (async () => {
-      try {
-        const r = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(popularKeyword)}`);
-        if (!alive || !r.ok) return;
-        const j = (await r.json()) as { results?: PopularSearchHit[] };
-        const rows = shuffleRows(j.results ?? []).slice(0, 6).map(searchHitToRow);
-        if (alive && rows.length > 0) setThemePopular((prev) => ({ ...prev, [theme]: rows }));
-      } catch {
-        /* 실패 시 포켓몬 기본 rows 유지 */
-      }
-    })();
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme, popularKeyword]);
-  // 로딩 중에는 기본(포켓몬) rows 를 보여주다가 도착하면 부드럽게 교체.
-  const popularRows = (popularKeyword && themePopular[theme]) || snkrdunkRows;
-
-  const popularNode = popularRows.length > 0 ? (
-    <PopularCardsSection
-      rows={popularRows}
-      theme={theme}
-      isClean={isClean}
-      format={format}
-      autoScroll={!showPortfolioOnMain}
-      moreHref={popularKeyword
-        ? `/cards/snkrdunk/search?q=${encodeURIComponent(popularKeyword)}`
-        : '/cards/snkrdunk'}
-    />
-  ) : null;
-
-  // 레벨 아래 한 줄짜리 작은 히어로(프로모) 배너.
+  // 메인 히어로(프로모) 배너.
   const bannerNode = <HeroSlider slides={heroBanners} compact />;
 
   return (
@@ -439,152 +300,16 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       {/* ═══ HERO: PORTFOLIO ═══ 메인 표시 ON 일 때만 (기본 off) */}
       {showPortfolioOnMain && <PortfolioHero cards={cards} isLoggedIn={isLoggedIn} />}
 
-      {/* ═══ 상단 그룹 ═══
-          ON : 검색 → 바로가기 → 레벨
-          OFF: 레벨 → 히어로배너(작게) → 바로가기 → 카드검색 → 인기카드 */}
+      {/* ═══ 상단 그룹 ═══ 레벨·핵심지표·게임별현황·최근활동·인기(카드검색) 제거 →
+          스크롤 없는 한 화면.  ON: 바로가기 / OFF: 히어로배너 → 바로가기 */}
       {showPortfolioOnMain ? (
-        <>
-          {searchNode}
-          {shortcutsNode}
-          {levelNode}
-        </>
+        shortcutsNode
       ) : (
         <>
-          {levelNode}
           {bannerNode}
           {shortcutsNode}
-          {searchNode}
-          {popularNode}
         </>
       )}
-
-      {/* ═══ 2×2 KEY METRICS ═══ */}
-      <div className="sect">
-        <div className="sect-hd"><h2>핵심 지표</h2></div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <Block label="컬렉션 가치" value={format(totalVal)} sub={`▲ +${changePct}% 지난주`} color="var(--gold-dk)" icon="💰" />
-          <Block label="그레이딩률" value={`${owned.length > 0 ? Math.round((graded.length / owned.length) * 100) : 0}%`} sub={`${graded.length} / ${owned.length}장`} color="var(--pur)" icon="🏆" />
-          <Block label="최고가 카드" value={format(topCards[0]?.price || 0)} sub={topCards[0]?.name} color="var(--grn-dk)" icon="🎯" />
-          <Block label="이번주 거래" value={`${TRADES_THIS_WEEK}건`} sub="+45P 포인트 획득" color="var(--blu)" icon="🤝" href="/feed" />
-        </div>
-      </div>
-
-      {/* ═══ GAME DISTRIBUTION ═══ */}
-      {gameDist.length > 0 && (
-        <div className="sect">
-          <div className="sect-hd"><h2>게임별 현황</h2></div>
-          {/* Game selector */}
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 10, paddingBottom: 2 }}>
-            {['전체', ...gameDist.map((x) => x.g)].map((g) => {
-              const on = activeGame === g;
-              const gameColor = g !== '전체' ? GAME_COLORS[g] || 'var(--white)' : 'var(--white)';
-              return (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => setActiveGame(g)}
-                  style={{
-                    flexShrink: 0, fontFamily: 'var(--f1)', fontSize: 10, padding: '6px 11px', cursor: 'pointer',
-                    letterSpacing: .3,
-                    ...(isClean
-                      ? {
-                          borderRadius: 'var(--r-pill)',
-                          border: `1px solid ${on ? 'transparent' : 'var(--pap3)'}`,
-                          background: on ? (g !== '전체' ? gameColor : 'var(--accent)') : 'var(--white)',
-                          color: on ? 'var(--white)' : 'var(--ink2)',
-                          fontWeight: 700,
-                          boxShadow: 'none',
-                        }
-                      : {
-                          border: 'none',
-                          background: on ? 'var(--ink)' : gameColor,
-                          color: on ? 'var(--gold)' : (g !== '전체' ? 'var(--white)' : 'var(--ink)'),
-                          boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)',
-                        }),
-                  }}
-                >
-                  {g === '전체' ? 'ALL' : g}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {(activeGame === '전체' ? gameDist : gameDist.filter((x) => x.g === activeGame)).map(({ g, n, val }) => {
-              const pct = owned.length > 0 ? Math.round((n / owned.length) * 100) : 0;
-              const gGraded = owned.filter((c) => c.game === g && c.grade !== null).length;
-              return (
-                <Panel key={g} style={{
-                  padding: '12px 12px',
-                  // 클린에선 상단 색 액센트 제거 → 바로가기/핵심지표와 동일한 평평한 박스
-                  ...(isClean ? {} : { borderTop: `4px solid ${GAME_COLORS[g] || 'var(--ink)'}` }),
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                    <div style={{ flex: 1, fontFamily: 'var(--f1)', fontSize: 12, letterSpacing: .3 }}>{g}</div>
-                    <div style={{ fontFamily: 'var(--f1)', fontSize: 12, color: 'var(--ink3)', letterSpacing: .3 }}>{pct}%</div>
-                  </div>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 21, letterSpacing: -1, color: 'var(--ink)', marginBottom: 4 }}>
-                    {n}<span style={{ fontSize: 12, color: 'var(--ink3)', marginLeft: 4 }}>장</span>
-                  </div>
-                  <div style={{ fontFamily: 'var(--f1)', fontSize: 12, color: 'var(--grn-dk)', letterSpacing: .3, marginBottom: 8 }}>{format(val)}</div>
-                  {/* rarity fill bar */}
-                  <div style={{ display: 'flex', gap: 2, height: 8 }}>
-                    {RAR_ORDER.map((r) => {
-                      const rn = owned.filter((c) => c.game === g && c.rar === r).length;
-                      if (!rn) return null;
-                      return (
-                        <div key={r} style={{
-                          flex: rn, height: '100%', background: RAR_COLORS[r],
-                          boxShadow: '-1px 0 0 var(--ink),0 -1px 0 var(--ink)',
-                        }} />
-                      );
-                    })}
-                  </div>
-                  {gGraded > 0 && (
-                    <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--gold-dk)', marginTop: 6, letterSpacing: .3 }}>
-                      🏆 그레이딩 {gGraded}건
-                    </div>
-                  )}
-                </Panel>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ═══ 인기 카드들 ═══ ON: 지표·게임 뒤 / OFF: 검색 다음(자동 좌측 스크롤) */}
-      {showPortfolioOnMain && popularNode}
-
-      {/* ═══ ACTIVITY LOG ═══ */}
-      <div className="sect">
-        <div className="sect-hd"><h2>최근 활동</h2></div>
-        <Panel style={{ padding: '14px 14px 6px' }}>
-          {ACTIVITY.map((a, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0',
-              borderBottom: i < ACTIVITY.length - 1
-                ? (isClean ? '1px solid var(--line2)' : '2px solid var(--bg3)')
-                : 'none',
-            }}>
-              <div style={isClean
-                ? {
-                    width: 34, height: 34, borderRadius: 12, background: a.c, color: 'var(--white)',
-                    display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0,
-                  }
-                : {
-                    width: 32, height: 32, background: a.c, display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0,
-                    boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 0 2px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.3),3px 3px 0 var(--ink)',
-                  }}>
-                {a.icon}
-              </div>
-              <div style={{ flex: 1, fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: .3, lineHeight: 1.5 }}>{a.txt}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--gold-dk)', letterSpacing: .3 }}>{a.pt}</div>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', letterSpacing: .3 }}>{a.time}</div>
-              </div>
-            </div>
-          ))}
-        </Panel>
-      </div>
 
       <div className="bggap" />
     </>
