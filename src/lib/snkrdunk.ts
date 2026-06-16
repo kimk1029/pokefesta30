@@ -159,6 +159,18 @@ function classifySnkrdunkItem(raw: RawApparel): SnkrdunkItemKind {
   return 'box';
 }
 
+/**
+ * 이름만으로 싱글/박스 분류 — 검색 결과(SnkrdunkSearchResult)에는 상세 itemKind 가
+ * 없어 name 으로만 판별해야 할 때 사용. 박스 마커가 보이면 box, 아니면 single.
+ * (DashboardScreen 클라이언트의 BOX_NAME_RE 와 마커를 일치시킬 것 — 변경 시 양쪽 수정)
+ */
+export function classifySnkrdunkName(name: string | null | undefined): SnkrdunkItemKind {
+  const n = name ?? '';
+  if (/シングルカード|trading-card-single/i.test(n)) return 'single';
+  if (/ボックス|box|デッキビルド|スターターセット|ポケモンセンターセット|シュリンク/i.test(n)) return 'box';
+  return 'single';
+}
+
 export async function fetchSnkrdunkApparel(apparelId: number): Promise<SnkrdunkApparel | null> {
   if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
   const raw = await fetchJson<RawApparel>(`/v1/apparels/${apparelId}`);

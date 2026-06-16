@@ -42,6 +42,7 @@ import {
   fetchSnkrdunkSalesHistory,
   recentTransactionMedian,
   recoverSnkrdunkApparelId,
+  searchSnkrdunkByQuery,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
   type SnkrdunkCardSeed,
@@ -79,6 +80,14 @@ function shortenSnkrName(name: string): string {
   const cut = name.split(/[|｜]/)[0].trim();
   return cut.length > 22 ? cut.slice(0, 21) + '…' : cut;
 }
+
+// 이름만으로 박스 판별 (검색 결과엔 itemKind 가 없음). 웹 snkrdunk.ts
+// classifySnkrdunkName / DashboardScreen BOX_NAME_RE 와 마커 일치시킬 것.
+const BOX_NAME_RE = /ボックス|box|デッキビルド|スターターセット|ポケモンセンターセット|シュリンク/i;
+function isBoxName(name: string): boolean {
+  return BOX_NAME_RE.test(name || '');
+}
+const SNKRDUNK_BOX_QUERY = 'ポケモンカード ボックス';
 
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
@@ -227,7 +236,8 @@ export default function Home() {
     let alive = true;
     (async () => {
       // 검색 HTML 풀에서 6장을 매번 다르게 픽. 실패하면 큐레이션된 시드로 폴백.
-      const pool = await fetchSnkrdunkBrowse(1);
+      // 인기 카드 섹션은 싱글만 — 박스류는 제외(별도 인기 박스 섹션에서 노출).
+      const pool = (await fetchSnkrdunkBrowse(1)).filter((r) => !isBoxName(r.name));
       const seeds: SnkrDisplaySeed[] =
         pool.length > 0
           ? shuffle(pool)
@@ -254,6 +264,35 @@ export default function Home() {
         })),
       );
       if (alive) setSnkrRows(rows);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // 인기 박스 — 'ポケモンカード ボックス' 검색 결과 중 박스류만 6개.
+  const [snkrBoxRows, setSnkrBoxRows] = useState<SnkrRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const all = await searchSnkrdunkByQuery(SNKRDUNK_BOX_QUERY, 1);
+      const boxes = all.filter((r) => isBoxName(r.name));
+      const pool = boxes.length > 0 ? boxes : all;
+      if (pool.length === 0) return;
+      const seeds: SnkrDisplaySeed[] = shuffle(pool)
+        .slice(0, 6)
+        .map((r) => ({
+          apparelId: r.apparelId,
+          shortName: shortenSnkrName(localizeCardName(r.name)),
+          category: inferSnkrCategory(r.name),
+        }));
+      const rows = await Promise.all(
+        seeds.map(async (seed) => ({
+          seed,
+          data: await fetchSnkrdunkApparel(seed.apparelId),
+        })),
+      );
+      if (alive) setSnkrBoxRows(rows);
     })();
     return () => {
       alive = false;
@@ -412,6 +451,19 @@ export default function Home() {
     snkrRows.length > 0 ? (
       <PopularCardsSection rows={snkrRows} theme={theme} tc={tc} txt={txt} autoScroll={!showPortfolioOnMain} />
     ) : null;
+  const popularBoxNode =
+    snkrBoxRows.length > 0 ? (
+      <PopularCardsSection
+        rows={snkrBoxRows}
+        theme={theme}
+        tc={tc}
+        txt={txt}
+        autoScroll={!showPortfolioOnMain}
+        title="📦 인기 박스들"
+        darkTitle="박스 시세"
+        moreHref="/cards/packs"
+      />
+    ) : null;
   // 레벨 아래 컴팩트 히어로 배너 (웹과 동일 위치). DB 배너 없으면 컴포넌트가 폴백 노출.
   const bannerNode = <HeroBanner slides={banners} />;
 
@@ -466,6 +518,7 @@ export default function Home() {
             {shortcutsNode}
             {searchNode}
             {popularNode}
+            {popularBoxNode}
           </>
         )}
 
@@ -558,6 +611,7 @@ export default function Home() {
 
         {/* 인기 카드들 — ON: 지표·게임 뒤 / OFF: 검색 다음(자동 좌측 스크롤) */}
         {showPortfolioOnMain ? popularNode : null}
+        {showPortfolioOnMain ? popularBoxNode : null}
 
         {/* Section: 최근 활동 */}
         <View style={{ marginHorizontal: 14 }}>
@@ -816,12 +870,18 @@ function PopularCardsSection({
   tc,
   txt,
   autoScroll,
+  title = '🔥 인기 카드들',
+  darkTitle = '실시간 시세',
+  moreHref = '/cards/snkrdunk',
 }: {
   rows: SnkrRow[];
   theme: string;
   tc: typeof colors;
   txt: 'pixel' | 'ko';
   autoScroll: boolean;
+  title?: string;
+  darkTitle?: string;
+  moreHref?: string;
 }) {
   const carousel = theme !== 'dark';
   const flat = theme === 'clean' || theme === 'dark';
@@ -879,7 +939,7 @@ function PopularCardsSection({
   if (theme === 'dark') {
     return (
       <View style={{ marginHorizontal: 14, marginBottom: 6 }}>
-        <SectHd title="실시간 시세" more="전체보기 →" onMore={() => router.push('/cards/snkrdunk' as never)} />
+        <SectHd title={darkTitle} more="전체보기 →" onMore={() => router.push(moreHref as never)} />
         <View style={{ backgroundColor: tc.white, borderColor: tc.pap3, borderWidth: 1, borderRadius: 14, overflow: 'hidden' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: tc.pap2, borderBottomColor: tc.pap3, borderBottomWidth: 1 }}>
             <PixelText variant={txt} size={9} color={tc.ink4} style={{ width: 18, textAlign: 'center' }}>#</PixelText>
@@ -921,7 +981,7 @@ function PopularCardsSection({
   return (
     <>
       <View style={{ marginHorizontal: 14 }}>
-        <SectHd title="🔥 인기 카드들" more="전체보기 →" onMore={() => router.push('/cards/snkrdunk' as never)} />
+        <SectHd title={title} more="전체보기 →" onMore={() => router.push(moreHref as never)} />
       </View>
       <View
         style={{ marginBottom: 6, overflow: 'hidden' }}

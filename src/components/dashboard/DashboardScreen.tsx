@@ -144,6 +144,8 @@ interface Props {
   heroBanners?: HeroSlideData[];
   isLoggedIn: boolean;
   snkrdunkRows?: SnkrdunkRow[];
+  /** 인기 박스 목록(박스류만). 비어 있으면 박스 섹션 미노출. */
+  snkrdunkBoxRows?: SnkrdunkRow[];
   packs?: PackRow[];
 }
 
@@ -212,6 +214,19 @@ const THEME_POPULAR_KEYWORD: Partial<Record<string, string>> = {
   sports: 'Topps',
 };
 
+/** 테마별 인기 박스 검색 키워드. 카드 키워드에 ' ボックス' 를 붙여 박스류를 끌어온다. */
+const THEME_BOX_KEYWORD: Partial<Record<string, string>> = {
+  onepiece: 'ワンピースカード ボックス',
+  yugioh: '遊戯王 ボックス',
+  sports: 'Topps ボックス',
+};
+
+// snkrdunk.ts classifySnkrdunkName 의 박스 마커와 일치시킬 것 (변경 시 양쪽 수정).
+const BOX_NAME_RE = /ボックス|box|デッキビルド|スターターセット|ポケモンセンターセット|シュリンク/i;
+function isBoxName(name: string): boolean {
+  return BOX_NAME_RE.test(name || '');
+}
+
 interface PopularSearchHit {
   apparelId: number;
   name: string;
@@ -242,7 +257,7 @@ function searchHitToRow(r: PopularSearchHit): SnkrdunkRow {
   };
 }
 
-export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows = [], packs = [] }: Props) {
+export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows = [], snkrdunkBoxRows = [], packs = [] }: Props) {
   const { format } = useCurrency();
   const { theme } = useTheme();
   const isClean = isFlatTheme(theme);
@@ -293,7 +308,9 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
         const r = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(popularKeyword)}`);
         if (!alive || !r.ok) return;
         const j = (await r.json()) as { results?: PopularSearchHit[] };
-        const rows = shuffleRows(j.results ?? []).slice(0, 6).map(searchHitToRow);
+        // 인기 카드 섹션은 싱글만 — 검색에 섞여 들어온 박스류는 제외.
+        const hits = (j.results ?? []).filter((h) => !isBoxName(h.name));
+        const rows = shuffleRows(hits).slice(0, 6).map(searchHitToRow);
         if (alive && rows.length > 0) setThemePopular((prev) => ({ ...prev, [theme]: rows }));
       } catch {
         /* 실패 시 포켓몬 기본 rows 유지 */
@@ -315,6 +332,45 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       moreHref={popularKeyword
         ? `/cards/snkrdunk/search?q=${encodeURIComponent(popularKeyword)}`
         : '/cards/snkrdunk'}
+    />
+  ) : null;
+
+  // 인기 박스 — 카드와 동일한 패턴. 기본(포켓몬)은 서버 rows, 다른 카드게임 테마는
+  // ' ボックス' 키워드로 클라이언트 교체 조회.
+  const boxKeyword = THEME_BOX_KEYWORD[theme];
+  const [themeBox, setThemeBox] = useState<Record<string, SnkrdunkRow[]>>({});
+  useEffect(() => {
+    if (!boxKeyword || themeBox[theme]) return;
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(boxKeyword)}`);
+        if (!alive || !r.ok) return;
+        const j = (await r.json()) as { results?: PopularSearchHit[] };
+        const all = j.results ?? [];
+        const boxes = all.filter((h) => isBoxName(h.name));
+        const pool = boxes.length > 0 ? boxes : all;
+        const rows = shuffleRows(pool).slice(0, 6).map(searchHitToRow);
+        if (alive && rows.length > 0) setThemeBox((prev) => ({ ...prev, [theme]: rows }));
+      } catch {
+        /* 실패 시 포켓몬 기본 rows 유지 */
+      }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme, boxKeyword]);
+  const boxRows = (boxKeyword && themeBox[theme]) || snkrdunkBoxRows;
+
+  const popularBoxNode = boxRows.length > 0 ? (
+    <PopularCardsSection
+      rows={boxRows}
+      theme={theme}
+      isClean={isClean}
+      format={format}
+      autoScroll={!showPortfolioOnMain}
+      title="📦 인기 박스들"
+      darkTitle="박스 시세"
+      moreHref="/cards/packs"
     />
   ) : null;
 
@@ -354,12 +410,14 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
         <>
           {shortcutsNode}
           {popularNode}
+          {popularBoxNode}
         </>
       ) : (
         <>
           {bannerNode}
           {shortcutsNode}
           {popularNode}
+          {popularBoxNode}
         </>
       )}
 
@@ -542,6 +600,8 @@ function PopularCardsSection({
   format,
   autoScroll,
   moreHref = '/cards/snkrdunk',
+  title = '🔥 인기 카드들',
+  darkTitle = '실시간 시세',
 }: {
   rows: SnkrdunkRow[];
   theme: string;
@@ -549,6 +609,8 @@ function PopularCardsSection({
   format: (jpy: number) => string;
   autoScroll: boolean;
   moreHref?: string;
+  title?: string;
+  darkTitle?: string;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const carousel = theme !== 'dark';
@@ -594,7 +656,7 @@ function PopularCardsSection({
     return (
       <div className="sect">
         <div className="sect-hd">
-          <h2>실시간 시세</h2>
+          <h2>{darkTitle}</h2>
           <Link href={moreHref} className="more">전체 ▶</Link>
         </div>
         <div className="card" style={{ overflow: 'hidden' }}>
@@ -637,7 +699,7 @@ function PopularCardsSection({
   return (
     <div className="sect">
       <div className="sect-hd">
-        <h2>🔥 인기 카드들</h2>
+        <h2>{title}</h2>
         <Link href={moreHref} className="more">전체 ▶</Link>
       </div>
       {/* 좌/우 padding 으로 첫·마지막 카드의 box-shadow 가 잘리지 않도록 여백 확보. */}
