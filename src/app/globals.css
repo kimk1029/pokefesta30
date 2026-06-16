@@ -2073,7 +2073,7 @@ a{color:inherit;text-decoration:none;}
   display:flex;gap:12px;align-items:flex-start;cursor:pointer;
   box-shadow:-4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
     inset 0 3px 0 rgba(255,255,255,.85),inset 0 -4px 0 rgba(0,0,0,.18),6px 6px 0 var(--ink);}
-.cv-list-thumb{width:52px;height:72px;flex-shrink:0;
+.cv-list-thumb{width:66px;align-self:stretch;min-height:92px;flex-shrink:0;
   box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink);}
 .cv-lc-body{flex:1;min-width:0;}
 .cv-lc-title{font-family:var(--f1);font-size:11px;letter-spacing:.5px;

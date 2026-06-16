@@ -48,6 +48,8 @@ interface DisplayCard {
   price: number;
   /** JPY 가격 — snkrdunkApparelId 가 있는 경우. */
   priceJpy: number;
+  /** 등록 시점 싱글 시세(JPY) 기준값 — 등락률 계산용. 없으면 null. */
+  registerJpy: number | null;
   /** PSA10 모드인데 PSA10 시세가 없는 경우 — 가격 자리에 '-' 표기. */
   psa10Missing: boolean;
   /** photoUrl > snkrdunkImageUrl. */
@@ -151,6 +153,7 @@ export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
               ? (c.pricePsa10Jpy > 0 ? c.pricePsa10Jpy : 0)
               : c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0,
           psa10Missing: priceMode === 'psa10' && !(c.pricePsa10Jpy > 0),
+          registerJpy: c.registerPriceJpy != null && c.registerPriceJpy > 0 ? c.registerPriceJpy : null,
           imageUrl: c.photoUrl || c.snkrdunkImageUrl || null,
         };
       }),
@@ -184,7 +187,6 @@ export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
   const totalVal = filtered.reduce((s, c) => s + c.price, 0);
   const totalJpy = filtered.reduce((s, c) => s + c.priceJpy, 0);
   const gradedN = filtered.filter((c) => c.gradeNum !== null).length;
-  const memoN = filtered.filter((c) => Boolean(c.src.memo)).length;
 
   // 🔍 클릭 시 호출 — 썸네일 element 의 화면상 사각형을 캡처해 모달에 넘긴다.
   // 모달의 FLIP 애니메이션이 그 사각형 위치에서 풀스크린으로 회전 확대됨.
@@ -218,7 +220,7 @@ export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
 
   const onDelete = (id: number) => {
     if (pending) return;
-    if (!confirm('이 카드를 삭제할까요?')) return;
+    if (!confirm('내 컬렉션에서 삭제하시겠습니까?')) return;
     setErr(null);
     startTransition(async () => {
       try {
@@ -275,9 +277,6 @@ export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
           {totalJpy > 0 ? format(totalJpy) : `$${fmtUsd(totalVal)}`}
         </div>
         <div className="cv-strip-cell cv-strip-c">그레이딩 {gradedN}</div>
-      </div>
-      <div className="cv-archive-line">
-        📚 아카이브 · 메모 {memoN}건 · 미식별 {filtered.filter((c) => !c.catalog).length}장
       </div>
 
       {/* Search */}
@@ -902,42 +901,55 @@ function ListView({
     <div style={{ margin: '0 var(--gap)' }}>
       {cards.map((c) => {
         const trend = trendOf(c);
+        const rc = registerChange(c);
         return (
         <div key={c.src.id} className="cv-list-card" style={{ minWidth: 0 }}>
-          <Link href={detailHref(c)} style={{ display: 'block', flexShrink: 0 }}>
-            <div
-              className="cv-list-thumb cv-spot-origin"
-              data-card-id={c.src.id}
-              style={{
-                background: gameBg(c.game),
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              {c.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={c.imageUrl}
-                  alt={c.name}
-                  loading="lazy"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
-                />
-              ) : (
-                <div
-                  style={{
-                    display: 'grid',
-                    placeItems: 'center',
-                    width: '100%',
-                    height: '100%',
-                    fontSize: 25,
-                  }}
-                >
-                  {c.catalog?.emoji ?? '🃏'}
-                </div>
-              )}
-            </div>
-          </Link>
-          <div className="cv-lc-body">
+          {/* 썸네일 클릭 → 스포트라이트(돋보기) 모달 */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={(e) => onSpotlight(c, e.currentTarget)}
+            className="cv-list-thumb cv-spot-origin"
+            data-card-id={c.src.id}
+            style={{
+              background: gameBg(c.game),
+              position: 'relative',
+              overflow: 'hidden',
+              cursor: 'pointer',
+            }}
+          >
+            {c.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={c.imageUrl}
+                alt={c.name}
+                loading="lazy"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
+              />
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  placeItems: 'center',
+                  width: '100%',
+                  height: '100%',
+                  fontSize: 25,
+                }}
+              >
+                {c.catalog?.emoji ?? '🃏'}
+              </div>
+            )}
+          </div>
+          {/* 본문 클릭 → 스포트라이트(돋보기) 모달 */}
+          <div
+            className="cv-lc-body"
+            onClick={(e) => {
+              const thumb = (e.currentTarget.closest('.cv-list-card') as HTMLElement | null)
+                ?.querySelector('.cv-spot-origin') as HTMLElement | null;
+              onSpotlight(c, thumb);
+            }}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="cv-lc-title">{c.name}</div>
             <div className="cv-lc-sub">
               {c.src.gradeEstimate ?? '미그레이딩'}
@@ -963,29 +975,40 @@ function ListView({
                 📝 {c.src.memo}
               </div>
             )}
-            {/* 금액 + 등락률 — 한 줄, 줄바꿈 없음 */}
-            <div style={{ marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            {/* 현재가 + 등락률(등록가 대비) + 등록가 */}
+            <div style={{ marginTop: 6 }}>
               {priceLabel(c, format) ? (
-                <span style={{ display: 'inline-flex', alignItems: 'baseline', maxWidth: '100%' }}>
-                  <span
-                    style={{
-                      fontFamily: 'var(--f1)',
-                      fontSize: autoPriceSize(priceLabel(c, format), 11, 8),
-                      color: 'var(--grn-dk)',
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    {priceLabel(c, format)}
-                  </span>
-                  <ChangeBadge trend={trend} />
-                </span>
+                <>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                    <span
+                      style={{
+                        fontFamily: 'var(--f1)',
+                        fontSize: autoPriceSize(priceLabel(c, format), 11, 8),
+                        color: 'var(--grn-dk)',
+                        letterSpacing: 0.3,
+                      }}
+                    >
+                      {priceLabel(c, format)}
+                    </span>
+                    {rc && (
+                      <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: CHANGE_COLOR[rc.dir], letterSpacing: 0.2 }}>
+                        {CHANGE_ARROW[rc.dir]} {Math.abs(rc.pct).toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  {c.registerJpy != null && (
+                    <div style={{ fontFamily: 'var(--f1)', fontSize: 8, color: 'var(--ink3)', marginTop: 2, letterSpacing: 0.2 }}>
+                      등록가 {format(c.registerJpy)}
+                    </div>
+                  )}
+                </>
               ) : (
                 <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>시세 없음</span>
               )}
             </div>
           </div>
 
-          {/* 우측: 차트(있으면) + 그 아래 거래/삭제 (입체 버튼) */}
+          {/* 우측: 차트(있으면) + 그 아래 거래 / 삭제(✕) */}
           <div
             style={{
               flexShrink: 0,
@@ -1008,28 +1031,18 @@ function ListView({
               <div />
             )}
             <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  const thumb = (e.currentTarget.closest('.cv-list-card') as HTMLElement | null)
-                    ?.querySelector('.cv-spot-origin') as HTMLElement | null;
-                  onSpotlight(c, thumb);
-                }}
-                aria-label="카드 자세히 보기"
-                className="cv-lc-btn"
-                style={{
-                  background: 'var(--ink)',
-                  color: 'var(--gold)',
-                  cursor: 'pointer',
-                }}
-              >
-                🔍
-              </button>
               <Link href={`/write/trade?userCardId=${c.src.id}`} className="cv-lc-btn cv-lc-btn-trade">
                 거래
               </Link>
-              <button type="button" onClick={() => onDelete(c.src.id)} className="cv-lc-btn cv-lc-btn-del">
-                삭제
+              <button
+                type="button"
+                onClick={() => onDelete(c.src.id)}
+                aria-label="삭제"
+                title="삭제"
+                className="cv-lc-btn cv-lc-btn-del"
+                style={{ fontSize: 12, lineHeight: 1 }}
+              >
+                ✕
               </button>
             </div>
           </div>
@@ -1229,17 +1242,6 @@ function priceLabel(c: DisplayCard, format: (jpy: number) => string): string | n
   return null;
 }
 
-/** 어제(직전 스냅샷) 대비 등락율. trend 가 2개 미만이면 null. */
-function changeFromTrend(trend: number[]): { pct: number; dir: 'up' | 'down' | 'flat' } | null {
-  if (!Array.isArray(trend) || trend.length < 2) return null;
-  const prev = trend[trend.length - 2];
-  const last = trend[trend.length - 1];
-  if (!(prev > 0)) return null;
-  const pct = ((last - prev) / prev) * 100;
-  const dir = pct > 0.05 ? 'up' : pct < -0.05 ? 'down' : 'flat';
-  return { pct, dir };
-}
-
 /** 리스트 행 우측 미니 시세 차트. 색은 전체 추이(첫→끝) 기준. */
 function MiniSparkline({ points }: { points: number[] }) {
   const w = 60;
@@ -1270,23 +1272,14 @@ const CHANGE_COLOR: Record<'up' | 'down' | 'flat', string> = {
 };
 const CHANGE_ARROW: Record<'up' | 'down' | 'flat', string> = { up: '▲', down: '▼', flat: '–' };
 
-/** 가격 옆 등락율 배지. */
-function ChangeBadge({ trend }: { trend: number[] }) {
-  const ch = changeFromTrend(trend);
-  if (!ch) return null;
-  return (
-    <span
-      style={{
-        marginLeft: 6,
-        fontFamily: 'var(--f1)',
-        fontSize: 9,
-        letterSpacing: 0.2,
-        color: CHANGE_COLOR[ch.dir],
-      }}
-    >
-      {CHANGE_ARROW[ch.dir]} {Math.abs(ch.pct).toFixed(1)}%
-    </span>
-  );
+/** 등록가(registerJpy) 대비 현재 싱글 시세(priceJpy) 등락율. 기준/현재가 없으면 null. */
+function registerChange(c: DisplayCard): { pct: number; dir: 'up' | 'down' | 'flat' } | null {
+  const reg = c.registerJpy;
+  const cur = c.priceJpy;
+  if (reg == null || !(reg > 0) || !(cur > 0)) return null;
+  const pct = ((cur - reg) / reg) * 100;
+  const dir = pct > 0.05 ? 'up' : pct < -0.05 ? 'down' : 'flat';
+  return { pct, dir };
 }
 
 function fmtDate(iso: string): string {

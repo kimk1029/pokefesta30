@@ -106,24 +106,13 @@ export function PortfolioHero({ cards, isLoggedIn }: Props) {
             <span style={{ fontSize: 12, color: 'var(--ink3)', fontWeight: 600 }}>전체 수익률</span>
           </div>
         </div>
-        <div style={{ padding: '4px 10px 12px' }}>
+        <div style={{ padding: '4px 10px 12px', position: 'relative' }}>
+          <ChartModeFloat
+            chartMode={chartMode}
+            setChartMode={setChartMode}
+            tone={{ onBg: 'var(--ink)', onFg: '#fff', offBg: 'var(--pap2)', offFg: 'var(--ink3)' }}
+          />
           <PortfolioLineChart data={chartData} clean width={300} height={72} />
-          <div style={{ display: 'flex', gap: 6, marginTop: 12, padding: '0 8px' }}>
-            {(['day', 'week', 'month'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setChartMode(mode); }}
-                style={{
-                  flex: 1, padding: '7px 0', fontSize: 13, fontWeight: 700,
-                  background: chartMode === mode ? 'var(--ink)' : 'var(--pap2)',
-                  color: chartMode === mode ? '#fff' : 'var(--ink3)',
-                }}
-              >
-                {PORTFOLIO_MODE_LABEL[mode]}
-              </button>
-            ))}
-          </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderTop: '1px solid var(--pap3)' }}>
           {([
@@ -165,23 +154,15 @@ export function PortfolioHero({ cards, isLoggedIn }: Props) {
             <span style={{ fontSize: 12, color: 'var(--ink3)', fontWeight: 600 }}>전체 수익률</span>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 0' }}>
+        <div style={{ padding: '8px 16px 0' }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink3)' }}>평가액 추이</span>
-          <div style={{ display: 'flex', background: 'var(--dark)', padding: 2, border: '1px solid var(--pap3)' }}>
-            {(['day', 'week', 'month'] as const).map((mode) => (
-              <button key={mode} type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setChartMode(mode); }}
-                style={{
-                  padding: '4px 12px', fontSize: 11, fontWeight: 700,
-                  background: chartMode === mode ? 'var(--surf2)' : 'transparent',
-                  color: chartMode === mode ? 'var(--ink)' : 'var(--ink3)',
-                }}>
-                {PORTFOLIO_MODE_LABEL[mode]}
-              </button>
-            ))}
-          </div>
         </div>
-        <div style={{ padding: '6px 0 14px' }}>
+        <div style={{ padding: '6px 0 14px', position: 'relative' }}>
+          <ChartModeFloat
+            chartMode={chartMode}
+            setChartMode={setChartMode}
+            tone={{ onBg: 'var(--surf2)', onFg: 'var(--ink)', offBg: 'var(--dark)', offFg: 'var(--ink3)' }}
+          />
           <CyberAreaChart data={chartData} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', borderTop: '1px solid var(--line2)' }}>
@@ -258,35 +239,18 @@ export function PortfolioHero({ cards, isLoggedIn }: Props) {
 
       {/* Chart area — 컬렉션 일별 종합 가격 꺾은선 */}
       <div style={{ position: 'relative', marginBottom: 12 }}>
+        <ChartModeFloat
+          chartMode={chartMode}
+          setChartMode={setChartMode}
+          tone={{ onBg: 'var(--gold)', onFg: 'var(--ink)', offBg: 'rgba(255,255,255,.1)', offFg: 'rgba(255,255,255,.55)', radius: 0 }}
+        />
         <PortfolioLineChart
           data={chartData}
           width={300}
           height={64}
         />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 5, gap: 8 }}>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.25)', letterSpacing: .3 }}>
-            {PORTFOLIO_MODE_HELP[chartMode]}
-          </div>
-          <div style={{ display: 'flex', gap: 5 }}>
-            {(['day', 'week', 'month'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setChartMode(mode); }}
-                style={{
-                  padding: '4px 9px', fontFamily: 'var(--f1)', fontSize: 10, letterSpacing: .5, cursor: 'pointer',
-                  background: chartMode === mode ? 'var(--gold)' : 'rgba(255,255,255,.06)',
-                  color: chartMode === mode ? 'var(--ink)' : 'rgba(255,255,255,.35)',
-                  boxShadow: chartMode === mode
-                    ? '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)'
-                    : '0 0 0 1px rgba(255,255,255,.12)',
-                  border: 'none',
-                }}
-              >
-                {PORTFOLIO_MODE_LABEL[mode]}
-              </button>
-            ))}
-          </div>
+        <div style={{ marginTop: 5, fontFamily: 'var(--f1)', fontSize: 10, color: 'rgba(255,255,255,.25)', letterSpacing: .3 }}>
+          {PORTFOLIO_MODE_HELP[chartMode]}
         </div>
       </div>
 
@@ -309,6 +273,47 @@ export function PortfolioHero({ cards, isLoggedIn }: Props) {
       </div>
       {!isLoggedIn && <PortfolioLoginGate />}
     </Panel>
+  );
+}
+
+/** 차트 우상단에 작게 띄우는 일/주/월 토글(플로팅). */
+function ChartModeFloat({
+  chartMode,
+  setChartMode,
+  tone,
+}: {
+  chartMode: PortfolioChartMode;
+  setChartMode: (m: PortfolioChartMode) => void;
+  tone: { onBg: string; onFg: string; offBg: string; offFg: string; radius?: number };
+}) {
+  return (
+    <div style={{ position: 'absolute', top: 4, right: 6, zIndex: 3, display: 'flex', gap: 3 }}>
+      {(['day', 'week', 'month'] as const).map((mode) => {
+        const on = chartMode === mode;
+        return (
+          <button
+            key={mode}
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setChartMode(mode); }}
+            style={{
+              padding: '2px 7px',
+              fontFamily: 'var(--f1)',
+              fontSize: 9,
+              fontWeight: 700,
+              lineHeight: 1.5,
+              letterSpacing: 0.3,
+              border: 'none',
+              cursor: 'pointer',
+              borderRadius: tone.radius ?? 6,
+              background: on ? tone.onBg : tone.offBg,
+              color: on ? tone.onFg : tone.offFg,
+            }}
+          >
+            {PORTFOLIO_MODE_LABEL[mode]}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

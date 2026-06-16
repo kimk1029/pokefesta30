@@ -11,6 +11,9 @@ ALTER TABLE "user_cards" ADD COLUMN IF NOT EXISTS "snkrdunkApparelId" INTEGER;
 CREATE INDEX IF NOT EXISTS "user_cards_snkrdunkApparelId_idx"
   ON "user_cards" ("snkrdunkApparelId");
 
+-- 1b) UserCard.registerPriceJpy — 컬렉션 리스트 "등록가 → 현재가 등락률" 기준값.
+ALTER TABLE "user_cards" ADD COLUMN IF NOT EXISTS "registerPriceJpy" INTEGER;
+
 -- 2) FavoriteCard table — wishlist, separate from collection.
 CREATE TABLE IF NOT EXISTS "favorite_cards" (
   "id" SERIAL PRIMARY KEY,

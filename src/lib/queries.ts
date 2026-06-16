@@ -11,6 +11,8 @@ export interface MyCardRow {
   gradeEstimate: string | null;
   centeringScore: number | null;
   photoUrl: string | null;
+  /** 등록 시점 싱글 시세(JPY) 기준값 — 리스트 등락률용. 없으면 null. */
+  registerPriceJpy: number | null;
   createdAt: string;
 }
 

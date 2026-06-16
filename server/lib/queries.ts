@@ -281,6 +281,8 @@ export interface MyCardRow {
   buyCurrency: string | null;
   qty: number;
   buyDate: string | null;
+  /** 등록 시점 싱글 시세(JPY) 기준값 — 등락률용. 최초 조회 시 현재가로 백필. */
+  registerPriceJpy: number | null;
   selfPulled: boolean;
   graded: boolean;
   gradeCompany: string | null;
@@ -310,6 +312,7 @@ export async function getMyCards(userId: string, limit = 100): Promise<MyCardRow
       buyCurrency: r.buyCurrency,
       qty: r.qty,
       buyDate: r.buyDate,
+      registerPriceJpy: r.registerPriceJpy,
       selfPulled: r.selfPulled,
       graded: r.graded,
       gradeCompany: r.gradeCompany,
@@ -481,7 +484,7 @@ export async function getMyCardsWithPrices(
     byCard.set(s.cardId, arr);
   }
 
-  return cards.map((c) => {
+  const result = cards.map((c) => {
     const snk = enrichSnk(c);
     // 스니덩 카드: sales-chart 일별 시리즈를 trend 로 노출(리스트 차트·등락 통일).
     if (!c.cardId) return { ...c, latestPrice: 0, trend: snkTrend(c), ...snk };
@@ -492,6 +495,26 @@ export async function getMyCardsWithPrices(
     const trend = list.slice(0, 7).map((s) => s.avg).reverse();
     return { ...c, latestPrice: latest, trend, ...snk };
   });
+
+  // 등록가(registerPriceJpy) 백필 — 아직 null 인데 현재 싱글 시세(JPY)가 잡히면
+  // 그 값을 등록 기준가로 한 번만 저장. 이후엔 고정 베이스라인으로 등락률 계산.
+  // (응답에도 즉시 반영해 최초 조회부터 등락 0% 로 표시. 쓰기는 fire-and-forget.)
+  const toBackfill = result.filter((r) => r.registerPriceJpy == null && r.priceSingleJpy > 0);
+  if (toBackfill.length > 0) {
+    for (const r of toBackfill) r.registerPriceJpy = r.priceSingleJpy;
+    void Promise.all(
+      toBackfill.map((r) =>
+        prisma.userCard
+          .updateMany({
+            where: { id: r.id, registerPriceJpy: null },
+            data: { registerPriceJpy: r.registerPriceJpy },
+          })
+          .catch(() => undefined),
+      ),
+    ).catch(() => undefined);
+  }
+
+  return result;
 }
 
 export async function countMyCards(userId: string): Promise<number> {
