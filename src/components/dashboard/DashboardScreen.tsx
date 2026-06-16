@@ -222,7 +222,7 @@ const THEME_BOX_KEYWORD: Partial<Record<string, string>> = {
 };
 
 // snkrdunk.ts classifySnkrdunkName 의 박스 마커와 일치시킬 것 (변경 시 양쪽 수정).
-const BOX_NAME_RE = /ボックス|box|デッキビルド|スターターセット|ポケモンセンターセット|シュリンク/i;
+const BOX_NAME_RE = /ボックス|box|booster|ブースター|デッキビルド|スターター|拡張パック|ハイクラスパック|ポケモンセンターセット|シュリンク/i;
 function isBoxName(name: string): boolean {
   return BOX_NAME_RE.test(name || '');
 }
@@ -347,10 +347,10 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
         const r = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(boxKeyword)}`);
         if (!alive || !r.ok) return;
         const j = (await r.json()) as { results?: PopularSearchHit[] };
-        const all = j.results ?? [];
-        const boxes = all.filter((h) => isBoxName(h.name));
-        const pool = boxes.length > 0 ? boxes : all;
-        const rows = shuffleRows(pool).slice(0, 6).map(searchHitToRow);
+        // 박스만 — 이름 마커로 거른다. 매치가 없으면 섹션을 비워(폴백=서버 포켓몬 박스)
+        // 싱글카드가 절대 섞이지 않게 한다. (예전: all 폴백이 싱글을 끌어들였음)
+        const boxes = (j.results ?? []).filter((h) => isBoxName(h.name));
+        const rows = shuffleRows(boxes).slice(0, 6).map(searchHitToRow);
         if (alive && rows.length > 0) setThemeBox((prev) => ({ ...prev, [theme]: rows }));
       } catch {
         /* 실패 시 포켓몬 기본 rows 유지 */

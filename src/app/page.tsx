@@ -4,6 +4,7 @@ import type { HeroSlideData } from '@/components/HeroSlider';
 import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCards';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { classifySnkrdunkName } from '@/lib/snkrdunk';
+import { CARD_PACKS } from '@/lib/cardPacks';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,20 +81,47 @@ async function pickRandomCardSeeds(): Promise<SnkrSeed[]> {
   return shuffle(SNKRDUNK_FEATURED_CARDS).slice(0, 6).map(curatedToSeed);
 }
 
-/** 인기 박스 — 'ポケモンカード ボックス' 검색 결과 중 박스류만 추려서 표본. */
-const SNKRDUNK_BOX_QUERY = 'ポケモンカード ボックス';
-async function pickRandomBoxSeeds(): Promise<SnkrSeed[]> {
-  const r = await serverFetch<{ results: SnkrdunkSearchResult[] }>(
-    `/api/snkrdunk/search?q=${encodeURIComponent(SNKRDUNK_BOX_QUERY)}`,
-    { auth: false },
+/**
+ * 인기 박스 — 최근 포켓몬 팩의 대표 '박스'(apparelCategoryId=14)로 구성.
+ * 검색 이름 추측이 아니라 박스 전용 카테고리 그룹 조회라 싱글카드가 섞이지 않는다.
+ * (/cards/packs 가 쓰는 것과 동일한 소스.)
+ */
+interface ApparelGroupBox {
+  id: number;
+  localizedName: string;
+  imageUrl: string | null;
+  minPrice: number;
+  listingCountText?: string;
+}
+async function fetchBoxRows(): Promise<SnkrdunkRow[]> {
+  const pool = CARD_PACKS
+    .filter((p) => (p.game ?? 'pokemon') === 'pokemon' && p.apparelGroupId > 0)
+    .sort((a, b) => (b.releasedAt ?? '').localeCompare(a.releasedAt ?? ''))
+    .slice(0, 12);
+  const picked = shuffle(pool).slice(0, 8);
+  const rows = await Promise.all(
+    picked.map(async (pack): Promise<SnkrdunkRow | null> => {
+      const r = await serverFetch<{ data: { apparels?: ApparelGroupBox[] } | null }>(
+        `/api/snkrdunk/apparel-groups/${pack.apparelGroupId}?apparelCategoryId=14&page=1&perPage=1`,
+        { auth: false },
+      );
+      const box = r.data?.data?.apparels?.[0];
+      if (!box || !box.id) return null;
+      return {
+        apparelId: box.id,
+        shortName: pack.shortName,
+        localizedName: box.localizedName || undefined,
+        category: null,
+        imageUrl: box.imageUrl ?? null,
+        minPrice: box.minPrice ?? 0,
+        listingCountText: box.listingCountText ?? '',
+      };
+    }),
   );
-  const all = r.data?.results ?? [];
-  const boxes = all.filter((x) => classifySnkrdunkName(x.name) === 'box');
-  const pool = boxes.length > 0 ? boxes : all;
-  return shuffle(pool).slice(0, 6).map(searchToSeed);
+  return rows.filter((r): r is SnkrdunkRow => r !== null).slice(0, 6);
 }
 
-/** seed → 상세 조회로 가격·매물·이미지 채운 행. 카드/박스 공용. */
+/** seed → 상세 조회로 가격·매물·이미지 채운 행. (인기 카드용) */
 async function seedToRow(seed: SnkrSeed): Promise<SnkrdunkRow> {
   const ar = await serverFetch<{ data: ApparelDetail }>(
     `/api/snkrdunk/apparels/${seed.apparelId}`,
@@ -120,22 +148,19 @@ export default async function Page() {
   const user = await getServerUser();
   const userId = user?.id ?? null;
 
-  const [cardsResp, bannersResp, cardSeeds, boxSeeds] = await Promise.all([
+  const [cardsResp, bannersResp, cardSeeds, snkrdunkBoxRows] = await Promise.all([
     userId
       ? serverFetch<{ data: unknown[] }>('/api/me/cards/with-prices')
       : Promise.resolve({ data: { data: [] as unknown[] } }),
     serverFetch<{ data: HeroSlideData[] }>('/api/banners', { auth: false }),
     pickRandomCardSeeds(),
-    pickRandomBoxSeeds(),
+    fetchBoxRows(),
   ]);
 
   const cards = (cardsResp.data?.data ?? []) as never;
   const heroBanners = bannersResp.data?.data ?? [];
 
-  const [snkrdunkRows, snkrdunkBoxRows] = await Promise.all([
-    Promise.all(cardSeeds.map(seedToRow)),
-    Promise.all(boxSeeds.map(seedToRow)),
-  ]);
+  const snkrdunkRows = await Promise.all(cardSeeds.map(seedToRow));
 
   return (
     <DashboardScreen

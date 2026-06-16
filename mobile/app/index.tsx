@@ -38,15 +38,16 @@ import { useCurrency } from '@/components/CurrencyProvider';
 import { fetchPortfolio, type PortfolioSummary } from '@/lib/myApi';
 import {
   fetchSnkrdunkApparel,
+  fetchSnkrdunkApparelGroup,
   fetchSnkrdunkBrowse,
   fetchSnkrdunkSalesHistory,
   recentTransactionMedian,
   recoverSnkrdunkApparelId,
-  searchSnkrdunkByQuery,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
   type SnkrdunkCardSeed,
 } from '@/services/snkrdunk';
+import { CARD_PACKS } from '@/data/cardPacks';
 // PackHitsRow 섹션 제거됨 — 웹 메인과 동일 구조로 정렬
 
 const SNKR_CAT_BG: Record<SnkrdunkCardSeed['category'], string> = {
@@ -81,13 +82,12 @@ function shortenSnkrName(name: string): string {
   return cut.length > 22 ? cut.slice(0, 21) + '…' : cut;
 }
 
-// 이름만으로 박스 판별 (검색 결과엔 itemKind 가 없음). 웹 snkrdunk.ts
+// 이름만으로 박스 판별 (인기 카드 섹션에서 박스류 제외용). 웹 snkrdunk.ts
 // classifySnkrdunkName / DashboardScreen BOX_NAME_RE 와 마커 일치시킬 것.
-const BOX_NAME_RE = /ボックス|box|デッキビルド|スターターセット|ポケモンセンターセット|シュリンク/i;
+const BOX_NAME_RE = /ボックス|box|booster|ブースター|デッキビルド|スターター|拡張パック|ハイクラスパック|ポケモンセンターセット|シュリンク/i;
 function isBoxName(name: string): boolean {
   return BOX_NAME_RE.test(name || '');
 }
-const SNKRDUNK_BOX_QUERY = 'ポケモンカード ボックス';
 
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
@@ -270,29 +270,30 @@ export default function Home() {
     };
   }, []);
 
-  // 인기 박스 — 'ポケモンカード ボックス' 검색 결과 중 박스류만 6개.
+  // 인기 박스 — 최근 포켓몬 팩의 대표 '박스'(apparelCategoryId=14)로 구성.
+  // 검색 이름 추측이 아니라 박스 전용 카테고리 조회라 싱글카드가 섞이지 않는다.
   const [snkrBoxRows, setSnkrBoxRows] = useState<SnkrRow[]>([]);
   useEffect(() => {
     let alive = true;
     (async () => {
-      const all = await searchSnkrdunkByQuery(SNKRDUNK_BOX_QUERY, 1);
-      const boxes = all.filter((r) => isBoxName(r.name));
-      const pool = boxes.length > 0 ? boxes : all;
-      if (pool.length === 0) return;
-      const seeds: SnkrDisplaySeed[] = shuffle(pool)
-        .slice(0, 6)
-        .map((r) => ({
-          apparelId: r.apparelId,
-          shortName: shortenSnkrName(localizeCardName(r.name)),
-          category: inferSnkrCategory(r.name),
-        }));
+      const pool = CARD_PACKS
+        .filter((p) => (p.game ?? 'pokemon') === 'pokemon' && p.apparelGroupId > 0)
+        .sort((a, b) => (b.releasedAt ?? '').localeCompare(a.releasedAt ?? ''))
+        .slice(0, 12);
+      const picked = shuffle(pool).slice(0, 8);
       const rows = await Promise.all(
-        seeds.map(async (seed) => ({
-          seed,
-          data: await fetchSnkrdunkApparel(seed.apparelId),
-        })),
+        picked.map(async (pack): Promise<SnkrRow | null> => {
+          const page = await fetchSnkrdunkApparelGroup(pack.apparelGroupId, {
+            apparelCategoryId: 14,
+            page: 1,
+            perPage: 1,
+          });
+          const box = page?.apparels?.[0];
+          if (!box || !box.id) return null;
+          return { seed: { apparelId: box.id, shortName: pack.shortName, category: null }, data: box };
+        }),
       );
-      if (alive) setSnkrBoxRows(rows);
+      if (alive) setSnkrBoxRows(rows.filter((r): r is SnkrRow => r !== null).slice(0, 6));
     })();
     return () => {
       alive = false;

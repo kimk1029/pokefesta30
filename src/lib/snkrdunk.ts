@@ -167,7 +167,7 @@ function classifySnkrdunkItem(raw: RawApparel): SnkrdunkItemKind {
 export function classifySnkrdunkName(name: string | null | undefined): SnkrdunkItemKind {
   const n = name ?? '';
   if (/シングルカード|trading-card-single/i.test(n)) return 'single';
-  if (/ボックス|box|デッキビルド|スターターセット|ポケモンセンターセット|シュリンク/i.test(n)) return 'box';
+  if (/ボックス|box|booster|ブースター|デッキビルド|スターター|拡張パック|ハイクラスパック|ポケモンセンターセット|シュリンク/i.test(n)) return 'box';
   return 'single';
 }
 
