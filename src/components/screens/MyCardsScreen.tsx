@@ -28,13 +28,6 @@ type ViewMode = 'grid' | 'list' | 'album' | 'film';
 type SortBy = 'name' | 'price' | 'grade' | 'recent';
 type RarFilter = 'all' | Rarity;
 
-const VIEW_TABS: Array<[ViewMode, string]> = [
-  ['grid', '바둑판'],
-  ['list', '리스트'],
-  ['album', '앨범'],
-  ['film', '필름'],
-];
-
 interface Props {
   cards: MyCardWithPrice[];
   isLoggedIn?: boolean;
@@ -297,8 +290,8 @@ export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
         />
       </div>
 
-      {/* 필터 · 정렬 — 게임/등급/정렬을 하나의 드롭다운으로 통합 */}
-      <FilterSortDropdown
+      {/* 필터·정렬(드롭다운) + 보기방식(아이콘) — 한 줄 */}
+      <CollectionControls
         games={games}
         presentRarities={RARITY_ORDER.filter((r) => display.some((c) => c.rar === r))}
         game={game}
@@ -307,22 +300,10 @@ export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
         setGame={setGame}
         setRar={setRar}
         setSort={setSort}
+        view={view}
+        setView={setView}
         isClean={isClean}
       />
-
-      {/* View mode tabs (카드검색 결과 헤더 톤 — pixel-press subseg) */}
-      <div className="cv-subseg">
-        {VIEW_TABS.map(([k, lb]) => (
-          <button
-            key={k}
-            type="button"
-            className={view === k ? 'on' : ''}
-            onClick={() => setView(k)}
-          >
-            {lb}
-          </button>
-        ))}
-      </div>
 
       {err && (
         <div style={{ padding: '8px 12px', fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--red)', textAlign: 'center' }}>
@@ -368,13 +349,74 @@ export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
 
 const SORT_LABEL: Record<SortBy, string> = { recent: '최근', name: '이름', price: '가격', grade: '등급' };
 
+const viewIcon = {
+  width: 16,
+  height: 16,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
+function GridIcon() {
+  return (
+    <svg {...viewIcon}>
+      <rect x="4" y="4" width="7" height="7" rx="1" />
+      <rect x="13" y="4" width="7" height="7" rx="1" />
+      <rect x="4" y="13" width="7" height="7" rx="1" />
+      <rect x="13" y="13" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+function ListIcon() {
+  return (
+    <svg {...viewIcon}>
+      <path d="M9 6h11" />
+      <path d="M9 12h11" />
+      <path d="M9 18h11" />
+      <circle cx="4.5" cy="6" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="18" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+function AlbumIcon() {
+  return (
+    <svg {...viewIcon}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <circle cx="8.5" cy="10" r="1.4" />
+      <path d="m4 18 5-4 3 2 3-3 5 5" />
+    </svg>
+  );
+}
+function FilmIcon() {
+  return (
+    <svg {...viewIcon}>
+      <rect x="4" y="4" width="16" height="16" rx="1.5" />
+      <path d="M4 9h2M4 13h2M4 17h2M18 9h2M18 13h2M18 17h2" />
+      <path d="M9 4v16" />
+      <path d="M15 4v16" />
+    </svg>
+  );
+}
+
+const VIEW_MODES: Array<[ViewMode, ReactNode, string]> = [
+  ['grid', <GridIcon key="g" />, '바둑판'],
+  ['list', <ListIcon key="l" />, '리스트'],
+  ['album', <AlbumIcon key="a" />, '앨범'],
+  ['film', <FilmIcon key="f" />, '필름'],
+];
+
 /**
- * 게임 필터 + 등급 필터 + 정렬을 하나로 묶은 심플 드롭다운.
- * 닫혀 있을 땐 현재 선택을 요약해 보여주고, 누르면 패널이 펼쳐져
- * 게임/등급/정렬을 자유롭게 고를 수 있다. (여러 항목을 연속으로 고를 수 있게
- * 항목 선택으로는 닫히지 않고, 토글 버튼·바깥 클릭으로만 닫힌다.)
+ * 필터·정렬(드롭다운) + 보기방식(아이콘)을 한 줄에 배치한 컬렉션 컨트롤 바.
+ * - 왼쪽: 작은 '필터·정렬' 버튼 — 누르면 게임/등급/정렬 패널이 한 줄 전체 폭으로 펼쳐짐.
+ *   (여러 항목 연속 선택 가능 — 항목 선택으론 안 닫히고 토글·바깥 클릭으로만 닫힘.)
+ * - 오른쪽: 바둑판/리스트/앨범/필름 아이콘 세그먼트.
  */
-function FilterSortDropdown({
+function CollectionControls({
   games,
   presentRarities,
   game,
@@ -383,6 +425,8 @@ function FilterSortDropdown({
   setGame,
   setRar,
   setSort,
+  view,
+  setView,
   isClean,
 }: {
   games: string[];
@@ -393,6 +437,8 @@ function FilterSortDropdown({
   setGame: (g: string) => void;
   setRar: (r: RarFilter) => void;
   setSort: (s: SortBy) => void;
+  view: ViewMode;
+  setView: (v: ViewMode) => void;
   isClean: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -407,46 +453,66 @@ function FilterSortDropdown({
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
-  const summary = `${game === '전체' ? '전체' : game} · ${rar === 'all' ? '전체 등급' : rar} · ${SORT_LABEL[sort]}`;
+  const segWrap = isClean
+    ? { border: '1px solid var(--pap3)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }
+    : { boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)' };
 
   return (
     <div ref={ref} style={{ position: 'relative', margin: '0 var(--gap) 10px' }}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '9px 12px',
-          cursor: 'pointer',
-          background: 'var(--white)',
-          fontFamily: 'var(--f1)',
-          fontSize: 10,
-          color: 'var(--ink)',
-          letterSpacing: 0.5,
-          ...(isClean
-            ? { border: '1px solid var(--pap3)', borderRadius: 'var(--r-sm)' }
-            : { boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)' }),
-        }}
-      >
-        <span>필터 · 정렬</span>
-        <span
+      <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: 8 }}>
+        {/* 작은 필터·정렬 버튼 */}
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
           style={{
-            flex: 1,
-            textAlign: 'right',
-            color: 'var(--ink3)',
-            fontSize: 9,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '0 10px',
+            cursor: 'pointer',
+            background: open ? (isClean ? 'var(--accent)' : 'var(--ink)') : 'var(--white)',
+            color: open ? (isClean ? 'var(--white)' : 'var(--gold)') : 'var(--ink)',
+            fontFamily: 'var(--f1)',
+            fontSize: 10,
+            letterSpacing: 0.5,
+            ...(isClean
+              ? { border: '1px solid var(--pap3)', borderRadius: 'var(--r-sm)' }
+              : { boxShadow: '-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)' }),
           }}
         >
-          {summary}
-        </span>
-        <span style={{ fontSize: 9, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>▾</span>
-      </button>
+          <span>필터·정렬</span>
+          <span style={{ fontSize: 8, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>▾</span>
+        </button>
+
+        {/* 보기방식 아이콘 세그먼트 */}
+        <div style={{ display: 'flex', ...segWrap }}>
+          {VIEW_MODES.map(([k, icon, label], i) => {
+            const on = view === k;
+            return (
+              <button
+                key={k}
+                type="button"
+                aria-label={label}
+                title={label}
+                onClick={() => setView(k)}
+                style={{
+                  width: 34,
+                  display: 'grid',
+                  placeItems: 'center',
+                  padding: '6px 0',
+                  border: 0,
+                  cursor: 'pointer',
+                  background: on ? (isClean ? 'var(--accent)' : 'var(--ink)') : 'var(--white)',
+                  color: on ? (isClean ? 'var(--white)' : 'var(--gold)') : 'var(--ink3)',
+                  borderRight: i < VIEW_MODES.length - 1 ? `1px solid ${isClean ? 'var(--pap3)' : 'var(--ink)'}` : 'none',
+                }}
+              >
+                {icon}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {open && (
         <div
