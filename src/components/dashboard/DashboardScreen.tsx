@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppBarUser } from '@/components/AppBarUser';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useHomePrefs } from '@/components/HomePrefsProvider';
@@ -270,6 +270,43 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
     </div>
   );
 
+  // 인기 카드 — off 면 자동 무한 좌측 스크롤(로테이션). 다크는 종목 리스트(스크롤 미적용).
+  // 테마가 다른 카드게임(onepiece/yugioh/sports)이면 해당 게임 인기 카드로 교체.
+  const popularKeyword = THEME_POPULAR_KEYWORD[theme];
+  const [themePopular, setThemePopular] = useState<Record<string, SnkrdunkRow[]>>({});
+  useEffect(() => {
+    if (!popularKeyword || themePopular[theme]) return;
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(popularKeyword)}`);
+        if (!alive || !r.ok) return;
+        const j = (await r.json()) as { results?: PopularSearchHit[] };
+        const rows = shuffleRows(j.results ?? []).slice(0, 6).map(searchHitToRow);
+        if (alive && rows.length > 0) setThemePopular((prev) => ({ ...prev, [theme]: rows }));
+      } catch {
+        /* 실패 시 포켓몬 기본 rows 유지 */
+      }
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme, popularKeyword]);
+  // 로딩 중에는 기본(포켓몬) rows 를 보여주다가 도착하면 부드럽게 교체.
+  const popularRows = (popularKeyword && themePopular[theme]) || snkrdunkRows;
+
+  const popularNode = popularRows.length > 0 ? (
+    <PopularCardsSection
+      rows={popularRows}
+      theme={theme}
+      isClean={isClean}
+      format={format}
+      autoScroll={!showPortfolioOnMain}
+      moreHref={popularKeyword
+        ? `/cards/snkrdunk/search?q=${encodeURIComponent(popularKeyword)}`
+        : '/cards/snkrdunk'}
+    />
+  ) : null;
+
   // 메인 히어로(프로모) 배너.
   const bannerNode = <HeroSlider slides={heroBanners} compact />;
 
@@ -300,14 +337,18 @@ export function DashboardScreen({ cards, heroBanners, isLoggedIn, snkrdunkRows =
       {/* ═══ HERO: PORTFOLIO ═══ 메인 표시 ON 일 때만 (기본 off) */}
       {showPortfolioOnMain && <PortfolioHero cards={cards} isLoggedIn={isLoggedIn} />}
 
-      {/* ═══ 상단 그룹 ═══ 레벨·핵심지표·게임별현황·최근활동·인기(카드검색) 제거 →
-          스크롤 없는 한 화면.  ON: 바로가기 / OFF: 히어로배너 → 바로가기 */}
+      {/* ═══ 상단 그룹 ═══ 레벨·핵심지표·게임별현황·최근활동 제거.
+          ON: 바로가기 → 인기카드 / OFF: 히어로배너 → 바로가기 → 인기카드 */}
       {showPortfolioOnMain ? (
-        shortcutsNode
+        <>
+          {shortcutsNode}
+          {popularNode}
+        </>
       ) : (
         <>
           {bannerNode}
           {shortcutsNode}
+          {popularNode}
         </>
       )}
 
