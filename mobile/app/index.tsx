@@ -114,11 +114,12 @@ const ACTIVITY: { icon: string; c: string; txt: string; time: string; pt: string
 ];
 
 export default function Home() {
-  const { theme } = useTheme();
-  // 클린 테마 = 프로토타입 메인화면(CleanHomeScreen). 그 외 테마는 기존 레이아웃.
-  return theme === 'clean' ? <CleanHomeScreen /> : <LegacyHome />;
+  // 모든 테마가 프로토타입 메인화면(CleanHomeScreen)을 쓴다 — 색/폰트만 테마별로 다름.
+  return <CleanHomeScreen />;
 }
 
+// 이전 픽셀 레이아웃 — 현재 미사용(필요 시 참조용으로 보존).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function LegacyHome() {
   const authed = useAuthed();
   const tc = useThemeColors();

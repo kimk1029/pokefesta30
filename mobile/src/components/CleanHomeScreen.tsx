@@ -1,9 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { View, ScrollView, Pressable, Text, Image } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { View, ScrollView, Pressable, Text, Image, Animated, Easing } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { router } from 'expo-router';
 import { HeroBanner, type HeroSlideData } from '@/components/HeroBanner';
 import { useCurrency } from '@/components/CurrencyProvider';
+import { useTheme, useThemeColors } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
+import { fonts } from '@/theme/tokens';
 import {
   fetchSnkrdunkApparel,
   fetchSnkrdunkApparelGroup,
@@ -17,19 +20,37 @@ import { localizeCardName } from '@/lib/cardNameKo';
 import { api } from '@/lib/apiClient';
 
 /**
- * 클린 스타일 메인화면 — Claude Design 'POKE30 App' 프로토타입 정밀 복제 (네이티브).
- * 웹 src/components/dashboard/CleanHome.tsx 와 1:1 대응. 프로토타입 고유 팔레트
- * (오렌지 #FF7A00)를 그대로 쓰며, 카드 아트는 실제 snkrdunk 이미지로 채운다.
+ * 메인화면 — Claude Design 'POKE30 App' 프로토타입 레이아웃 (네이티브).
+ * 모든 테마가 같은 레이아웃을 쓰고 색/폰트만 테마별로 달라진다 — 클린은 프로토타입
+ * 오렌지 팔레트 그대로, 그 외 테마는 테마 토큰(tc)/폰트. HOT·박스는 자동 슬라이딩하며,
+ * 카드 아트는 컨테이너 없이 이미지만 떠 보인다.
  */
 
-// 프로토타입 팔레트
-const C = {
+const ACCENT30 = '#FF7A00'; // POKE'30' 브랜드 액센트 — 모든 테마 공통
+const RISE = '#F5333F';
+
+interface Palette {
+  bg: string;
+  ink: string;
+  ink2: string;
+  ink3: string;
+  rise: string;
+  priceIcon: string;
+  regIcon: string;
+  searchBg: string;
+  tileBg: string;
+  line: string;
+  chev: string;
+}
+
+const CLEAN_PALETTE: Palette = {
+  bg: '#ffffff',
   ink: '#16161a',
   ink2: '#8E8E93',
   ink3: '#9A9AA0',
-  accent: '#FF7A00',
-  green: '#5FB85A',
-  rise: '#F5333F',
+  rise: RISE,
+  priceIcon: ACCENT30,
+  regIcon: '#5FB85A',
   searchBg: '#F2F2F4',
   tileBg: '#F7F7F9',
   line: '#F0F0F2',
@@ -50,7 +71,6 @@ interface SnkrRow {
 
 const FEATURED_BY_ID = new Map(SNKRDUNK_FEATURED_CARDS.map((s) => [s.apparelId, s]));
 
-// 박스 판별 — 웹 DashboardScreen BOX_NAME_RE 와 마커 일치.
 const BOX_NAME_RE = /ボックス|box|booster|ブースター|デッキビルド|スターター|拡張パック|ハイクラスパック|ポケモンセンターセット|シュリンク/i;
 const isBoxName = (name: string) => BOX_NAME_RE.test(name || '');
 
@@ -72,21 +92,13 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
-
 function rankBadgeColor(rank: number): string {
-  if (rank === 1) return C.rise;
-  if (rank === 3) return C.accent;
+  if (rank === 1) return RISE;
+  if (rank === 3) return ACCENT30;
   return '#2B2B2B';
 }
 
-const cardShadow = {
-  shadowColor: '#000',
-  shadowOpacity: 0.16,
-  shadowRadius: 7,
-  shadowOffset: { width: 0, height: 6 },
-  elevation: 3,
-} as const;
-
+/** 카드 아트 — 컨테이너 없이 이미지만 떠 보이게(은은한 그림자). */
 function CardArt({
   imageUrl,
   fallbackIdx,
@@ -110,10 +122,14 @@ function CardArt({
         height,
         borderRadius: radius,
         overflow: 'hidden',
-        backgroundColor: imageUrl ? '#fff' : FALLBACK_BG[fallbackIdx % FALLBACK_BG.length],
+        backgroundColor: imageUrl ? 'transparent' : FALLBACK_BG[fallbackIdx % FALLBACK_BG.length],
         alignItems: 'center',
         justifyContent: 'center',
-        ...cardShadow,
+        shadowColor: '#000',
+        shadowOpacity: 0.18,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 5 },
+        elevation: 4,
       }}
     >
       {imageUrl ? (
@@ -126,69 +142,125 @@ function CardArt({
   );
 }
 
-function SectionHead({ title, onMore }: { title: ReactNode; onMore: () => void }) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingBottom: 13,
-      }}
-    >
-      {typeof title === 'string' ? (
-        <Text style={{ fontSize: 18, fontWeight: '800', color: C.ink }}>{title}</Text>
-      ) : (
-        title
-      )}
-      <Pressable onPress={onMore} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: C.ink3 }}>더보기</Text>
-        <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={C.ink3} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
-          <Path d="m9 6 6 6-6 6" />
-        </Svg>
-      </Pressable>
-    </View>
-  );
-}
-
-function QuickTile({
-  label,
-  desc,
-  icon,
-  onPress,
+/** 가로 캐러셀 자동 슬라이딩 — 카드를 두 벌 이어붙여 등속 좌측 무한 루프. 손대면 멈췄다 이어감. */
+function AutoCarousel<T>({
+  data,
+  itemWidth,
+  gap,
+  renderItem,
 }: {
-  label: string;
-  desc: string;
-  icon: ReactNode;
-  onPress: () => void;
+  data: T[];
+  itemWidth: number;
+  gap: number;
+  renderItem: (item: T, indexInSet: number) => ReactNode;
 }) {
+  const tx = useRef(new Animated.Value(0)).current;
+  const txVal = useRef(0);
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const STEP = itemWidth + gap;
+  const setWidth = data.length * STEP;
+
+  useEffect(() => {
+    const id = tx.addListener(({ value }) => {
+      txVal.current = value;
+    });
+    return () => tx.removeListener(id);
+  }, [tx]);
+
+  const runMarquee = (fromTx: number) => {
+    if (setWidth <= 0) return;
+    let v = fromTx % setWidth;
+    if (v > 0) v -= setWidth;
+    const dist = setWidth + v;
+    if (dist <= 0.5) {
+      tx.setValue(0);
+      runMarquee(0);
+      return;
+    }
+    tx.setValue(v);
+    animRef.current = Animated.timing(tx, {
+      toValue: -setWidth,
+      duration: (dist / 22) * 1000, // ~22px/s
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+    animRef.current.start(({ finished }) => {
+      if (finished) runMarquee(0);
+    });
+  };
+
+  useEffect(() => {
+    runMarquee(0);
+    return () => {
+      animRef.current?.stop();
+      if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setWidth]);
+
+  const pause = () => {
+    animRef.current?.stop();
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+  };
+  const resumeSoon = () => {
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    resumeTimer.current = setTimeout(() => runMarquee(txVal.current), 1600);
+  };
+
+  const display = [...data, ...data];
   return (
-    <Pressable
-      onPress={onPress}
-      style={{ flex: 1, backgroundColor: C.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14 }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        {icon}
-        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={C.chev} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-          <Path d="m9 6 6 6-6 6" />
-        </Svg>
-      </View>
-      <Text style={{ fontSize: 16, fontWeight: '800', color: C.ink, marginTop: 14 }}>{label}</Text>
-      <Text style={{ fontSize: 12, color: C.ink2, marginTop: 3 }}>{desc}</Text>
-    </Pressable>
+    <View style={{ overflow: 'hidden' }} onTouchStart={pause} onTouchEnd={resumeSoon} onTouchCancel={resumeSoon}>
+      <Animated.View style={{ flexDirection: 'row', paddingLeft: 20, transform: [{ translateX: tx }] }}>
+        {display.map((item, i) => (
+          <View key={i} style={{ width: itemWidth, marginRight: gap }}>
+            {renderItem(item, i % data.length)}
+          </View>
+        ))}
+      </Animated.View>
+    </View>
   );
 }
 
 export function CleanHomeScreen() {
   const { format } = useCurrency();
+  const { theme } = useTheme();
+  const tc = useThemeColors();
+  const flat = isFlatTheme(theme);
+  const isClean = theme === 'clean';
+  const P: Palette = isClean
+    ? CLEAN_PALETTE
+    : {
+        bg: tc.paper,
+        ink: tc.ink,
+        ink2: tc.ink3,
+        ink3: tc.ink3,
+        rise: tc.red,
+        priceIcon: tc.gold,
+        regIcon: tc.grn,
+        searchBg: tc.pap2,
+        tileBg: tc.pap2,
+        line: tc.pap3,
+        chev: tc.ink3,
+      };
+
+  // 테마별 폰트 — 플랫(clean·dark·yugioh·onepiece)=시스템 산세리프, 그 외(픽셀)=갈무리.
+  const fontReg = flat ? undefined : fonts.ko;
+  const fontBold = flat ? undefined : fonts.koBold;
+  const ts = (size: number, weight: '400' | '600' | '700' | '800' | '900', color: string) => ({
+    fontFamily: Number(weight) >= 700 ? fontBold : fontReg,
+    fontSize: size,
+    fontWeight: weight,
+    color,
+    lineHeight: Math.round(size * 1.3),
+  });
+
   const fmtPrice = (jpy: number) => (jpy > 0 ? format(jpy) : '—');
 
   const [snkrRows, setSnkrRows] = useState<SnkrRow[]>([]);
   useEffect(() => {
     let alive = true;
     (async () => {
-      // 인기 카드(싱글만) — 박스류 제외.
       const pool = (await fetchSnkrdunkBrowse(1)).filter((r) => !isBoxName(r.name));
       const seeds: SnkrDisplaySeed[] =
         pool.length > 0
@@ -260,30 +332,30 @@ export function CleanHomeScreen() {
     };
   }, []);
 
+  const Chevron = ({ size, color, w }: { size: number; color: string; w: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="m9 6 6 6-6 6" />
+    </Svg>
+  );
+
+  const MoreLink = ({ onPress }: { onPress: () => void }) => (
+    <Pressable onPress={onPress} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+      <Text style={ts(13, '600', P.ink3)}>더보기</Text>
+      <Chevron size={13} color={P.ink3} w={2.6} />
+    </Pressable>
+  );
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 110 }}
-        showsVerticalScrollIndicator={false}
-      >
+    <View style={{ flex: 1, backgroundColor: P.bg }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
         {/* header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 20,
-            paddingTop: 10,
-            paddingBottom: 8,
-          }}
-        >
-          <Text style={{ fontSize: 24, fontWeight: '900', letterSpacing: -0.5 }}>
-            <Text style={{ color: C.ink }}>POKE</Text>
-            <Text style={{ color: C.accent }}>30</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 8 }}>
+          <Text style={ts(24, '900', P.ink)}>
+            <Text style={ts(24, '900', P.ink)}>POKE</Text>
+            <Text style={ts(24, '900', ACCENT30)}>30</Text>
           </Text>
           <Pressable onPress={() => router.push('/messages' as never)} hitSlop={8}>
-            <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke={C.ink} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke={P.ink} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
               <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <Path d="M13.7 21a2 2 0 0 1-3.4 0" />
             </Svg>
@@ -294,22 +366,14 @@ export function CleanHomeScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 14 }}>
           <Pressable
             onPress={() => router.push('/cards/snkrdunk/search' as never)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 10,
-              backgroundColor: C.searchBg,
-              borderRadius: 14,
-              paddingVertical: 13,
-              paddingHorizontal: 16,
-            }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: P.searchBg, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16 }}
           >
-            <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={C.ink3} strokeWidth={2.2} strokeLinecap="round">
+            <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={2.2} strokeLinecap="round">
               <Circle cx={11} cy={11} r={7} />
               <Path d="m20 20-3.5-3.5" />
             </Svg>
-            <Text style={{ flex: 1, fontSize: 14.5, color: C.ink3 }}>카드명 또는 세트명으로 검색하세요</Text>
-            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={C.ink3} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+            <Text style={[ts(14.5, '400', P.ink3), { flex: 1 }]}>카드명 또는 세트명으로 검색하세요</Text>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
               <Path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
             </Svg>
           </Pressable>
@@ -320,103 +384,92 @@ export function CleanHomeScreen() {
 
         {/* quick scan */}
         <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}>
-          <Text style={{ fontSize: 18, fontWeight: '800', color: C.ink, marginBottom: 12 }}>빠른 스캔</Text>
+          <Text style={[ts(18, '800', P.ink), { marginBottom: 12 }]}>빠른 스캔</Text>
           <View style={{ flexDirection: 'row', gap: 11 }}>
-            <QuickTile
-              label="시세 확인"
-              desc="카드 시세를 바로 확인해요"
+            <Pressable
               onPress={() => router.push('/cards/packs' as never)}
-              icon={
-                <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={C.accent} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+              style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14 }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={P.priceIcon} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
                   <Circle cx={12} cy={12} r={3.2} />
                 </Svg>
-              }
-            />
-            <QuickTile
-              label="내 카드 등록"
-              desc="보유 카드를 등록하고 관리해요"
+                <Chevron size={16} color={P.chev} w={2.4} />
+              </View>
+              <Text style={[ts(16, '800', P.ink), { marginTop: 14 }]}>시세 확인</Text>
+              <Text style={[ts(12, '400', P.ink2), { marginTop: 3 }]}>카드 시세를 바로 확인해요</Text>
+            </Pressable>
+            <Pressable
               onPress={() => router.push('/cards/add' as never)}
-              icon={
-                <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+              style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14 }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={P.regIcon} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M14 3v4a1 1 0 0 0 1 1h4" />
                   <Path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
                   <Path d="M12 11v6M9 14h6" />
                 </Svg>
-              }
-            />
+                <Chevron size={16} color={P.chev} w={2.4} />
+              </View>
+              <Text style={[ts(16, '800', P.ink), { marginTop: 14 }]}>내 카드 등록</Text>
+              <Text style={[ts(12, '400', P.ink2), { marginTop: 3 }]}>보유 카드를 등록하고 관리해요</Text>
+            </Pressable>
           </View>
         </View>
 
-        {/* HOT cards */}
+        {/* HOT cards — 자동 슬라이딩 */}
         {snkrRows.length > 0 ? (
           <View style={{ paddingBottom: 24 }}>
-            <SectionHead title="HOT 카드" onMore={() => router.push('/cards/snkrdunk' as never)} />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
-            >
-              {snkrRows.map(({ seed, data }, i) => (
-                <Pressable
-                  key={seed.apparelId}
-                  onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
-                  style={{ width: 100 }}
-                >
-                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={i} width={100} height={138} radius={11}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 13 }}>
+              <Text style={ts(18, '800', P.ink)}>HOT 카드</Text>
+              <MoreLink onPress={() => router.push('/cards/snkrdunk' as never)} />
+            </View>
+            <AutoCarousel
+              data={snkrRows}
+              itemWidth={100}
+              gap={14}
+              renderItem={({ seed, data }, idx) => (
+                <Pressable onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}>
+                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={idx} width={100} height={138} radius={11}>
                     <View
                       style={{
-                        position: 'absolute',
-                        top: 6,
-                        left: 6,
-                        width: 22,
-                        height: 22,
-                        borderRadius: 11,
-                        backgroundColor: rankBadgeColor(i + 1),
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                        position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: 11,
+                        backgroundColor: rankBadgeColor(idx + 1), alignItems: 'center', justifyContent: 'center',
                       }}
                     >
-                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{i + 1}</Text>
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{idx + 1}</Text>
                     </View>
                   </CardArt>
-                  <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '700', color: C.ink, marginTop: 9 }}>
-                    {seed.shortName}
-                  </Text>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: C.ink, marginTop: 3 }}>
-                    {fmtPrice(data?.minPrice ?? 0)}
-                  </Text>
+                  <Text numberOfLines={1} style={[ts(12.5, '700', P.ink), { marginTop: 9 }]}>{seed.shortName}</Text>
+                  <Text style={[ts(14, '800', P.ink), { marginTop: 3 }]}>{fmtPrice(data?.minPrice ?? 0)}</Text>
                 </Pressable>
-              ))}
-            </ScrollView>
+              )}
+            />
           </View>
         ) : null}
 
-        {/* box hot cards */}
+        {/* box hot cards — 자동 슬라이딩 */}
         {snkrBoxRows.length > 0 ? (
           <View style={{ paddingBottom: 26 }}>
-            <SectionHead title="박스 힛카드" onMore={() => router.push('/cards/packs' as never)} />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20, gap: 14 }}
-            >
-              {snkrBoxRows.map(({ seed, data }, i) => (
-                <Pressable
-                  key={seed.apparelId}
-                  onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
-                  style={{ width: 100 }}
-                >
-                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={i} width={100} height={100} radius={13} />
-                  <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '700', color: C.ink, marginTop: 9 }}>
-                    {seed.shortName}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: C.ink2, marginTop: 3 }}>
-                    평균 시세 <Text style={{ color: C.rise, fontWeight: '800' }}>{fmtPrice(data?.minPrice ?? 0)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 13 }}>
+              <Text style={ts(18, '800', P.ink)}>박스 힛카드</Text>
+              <MoreLink onPress={() => router.push('/cards/packs' as never)} />
+            </View>
+            <AutoCarousel
+              data={snkrBoxRows}
+              itemWidth={100}
+              gap={14}
+              renderItem={({ seed, data }, idx) => (
+                <Pressable onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}>
+                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={idx} width={100} height={100} radius={13} />
+                  <Text numberOfLines={1} style={[ts(12.5, '700', P.ink), { marginTop: 9 }]}>{seed.shortName}</Text>
+                  <Text style={[ts(11, '400', P.ink2), { marginTop: 3 }]}>
+                    평균 시세 <Text style={ts(11, '800', P.rise)}>{fmtPrice(data?.minPrice ?? 0)}</Text>
                   </Text>
                 </Pressable>
-              ))}
-            </ScrollView>
+              )}
+            />
           </View>
         ) : null}
 
@@ -425,43 +478,27 @@ export function CleanHomeScreen() {
           <View style={{ paddingHorizontal: 20, paddingBottom: 30 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={C.rise} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={P.rise} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="m3 17 6-6 4 4 8-8" />
                   <Path d="M17 7h4v4" />
                 </Svg>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: C.ink }}>실시간 급등 카드</Text>
+                <Text style={ts(18, '800', P.ink)}>실시간 급등 카드</Text>
               </View>
-              <Pressable onPress={() => router.push('/cards/snkrdunk' as never)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: C.ink3 }}>더보기</Text>
-                <Svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={C.ink3} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
-                  <Path d="m9 6 6 6-6 6" />
-                </Svg>
-              </Pressable>
+              <MoreLink onPress={() => router.push('/cards/snkrdunk' as never)} />
             </View>
             {snkrRows.map(({ seed, data }, i) => (
               <Pressable
                 key={seed.apparelId}
                 onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  paddingVertical: 13,
-                  borderBottomWidth: 1,
-                  borderBottomColor: C.line,
-                }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: P.line }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '800', color: C.ink, width: 14, textAlign: 'center' }}>{i + 1}</Text>
+                <Text style={[ts(15, '800', P.ink), { width: 14, textAlign: 'center' }]}>{i + 1}</Text>
                 <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={i} width={46} height={46} radius={9} />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', color: C.ink }}>
-                    {seed.shortName}
-                  </Text>
-                  <Text numberOfLines={1} style={{ fontSize: 12, color: C.ink3, marginTop: 2 }}>
-                    {seed.category ?? '카드'}
-                  </Text>
+                  <Text numberOfLines={1} style={ts(14, '700', P.ink)}>{seed.shortName}</Text>
+                  <Text numberOfLines={1} style={[ts(12, '400', P.ink3), { marginTop: 2 }]}>{seed.category ?? '카드'}</Text>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: C.ink }}>{fmtPrice(data?.minPrice ?? 0)}</Text>
+                <Text style={ts(14, '800', P.ink)}>{fmtPrice(data?.minPrice ?? 0)}</Text>
               </Pressable>
             ))}
           </View>
