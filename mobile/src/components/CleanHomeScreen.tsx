@@ -11,6 +11,7 @@ import {
   fetchSnkrdunkApparel,
   fetchSnkrdunkApparelGroup,
   fetchSnkrdunkBrowse,
+  fetchSnkrdunkSalesChart,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
   type SnkrdunkCardSeed,
@@ -28,6 +29,7 @@ import { api } from '@/lib/apiClient';
 
 const ACCENT30 = '#FF7A00'; // POKE'30' 브랜드 액센트 — 모든 테마 공통
 const RISE = '#F5333F';
+const FALL = '#2C8FFF';
 
 interface Palette {
   bg: string;
@@ -35,6 +37,7 @@ interface Palette {
   ink2: string;
   ink3: string;
   rise: string;
+  fall: string;
   priceIcon: string;
   regIcon: string;
   searchBg: string;
@@ -49,6 +52,7 @@ const CLEAN_PALETTE: Palette = {
   ink2: '#8E8E93',
   ink3: '#9A9AA0',
   rise: RISE,
+  fall: FALL,
   priceIcon: ACCENT30,
   regIcon: '#5FB85A',
   searchBg: '#F2F2F4',
@@ -56,6 +60,24 @@ const CLEAN_PALETTE: Palette = {
   line: '#F0F0F2',
   chev: '#C2C2C8',
 };
+
+/** 판매 차트 포인트에서 등락률(%) — 등급 스파이크(중앙값 2.5배 초과) 제외. */
+function trendChangePct(points: Array<[number, number]>): number | undefined {
+  const ys = (points ?? []).map((p) => p[1]).filter((n) => typeof n === 'number' && n > 0);
+  if (ys.length < 2) return undefined;
+  const sorted = [...ys].sort((a, b) => a - b);
+  const med = sorted[Math.floor(sorted.length / 2)];
+  const ceil = med > 0 ? med * 2.5 : Infinity;
+  const clean = ys.filter((n) => n <= ceil);
+  if (clean.length < 2 || clean[0] <= 0) return undefined;
+  return ((clean[clean.length - 1] - clean[0]) / clean[0]) * 100;
+}
+
+function pctInfo(pct: number | undefined, P: Palette): { text: string; color: string } | null {
+  if (pct == null || !Number.isFinite(pct)) return null;
+  const up = pct >= 0;
+  return { text: `${up ? '+' : ''}${pct.toFixed(1)}% ${up ? '▲' : '▼'}`, color: up ? P.rise : P.fall };
+}
 
 const FALLBACK_BG = ['#f9d423', '#ff6a3d', '#f7a6c4', '#9d6bd6', '#3a3a44', '#7ad0c2'];
 
@@ -236,6 +258,7 @@ export function CleanHomeScreen() {
         ink2: tc.ink3,
         ink3: tc.ink3,
         rise: tc.red,
+        fall: tc.blu,
         priceIcon: tc.gold,
         regIcon: tc.grn,
         searchBg: tc.pap2,
@@ -288,6 +311,25 @@ export function CleanHomeScreen() {
       alive = false;
     };
   }, []);
+
+  // 등락률 — 표시된 인기 카드의 판매 차트를 받아 % 계산(렌더 후 점진 채움).
+  const [changeById, setChangeById] = useState<Record<number, number>>({});
+  useEffect(() => {
+    if (snkrRows.length === 0) return;
+    let alive = true;
+    (async () => {
+      await Promise.all(
+        snkrRows.map(async ({ seed }) => {
+          const chart = await fetchSnkrdunkSalesChart(seed.apparelId).catch(() => null);
+          const pct = chart ? trendChangePct(chart.points) : undefined;
+          if (alive && pct != null) setChangeById((prev) => ({ ...prev, [seed.apparelId]: pct }));
+        }),
+      );
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [snkrRows]);
 
   const [snkrBoxRows, setSnkrBoxRows] = useState<SnkrRow[]>([]);
   useEffect(() => {
@@ -442,7 +484,11 @@ export function CleanHomeScreen() {
                     </View>
                   </CardArt>
                   <Text numberOfLines={1} style={[ts(12.5, '700', P.ink), { marginTop: 9 }]}>{seed.shortName}</Text>
-                  <Text style={[ts(14, '800', P.ink), { marginTop: 3 }]}>{fmtPrice(data?.minPrice ?? 0)}</Text>
+                  <Text numberOfLines={1} style={[ts(15, '900', P.ink), { marginTop: 4, letterSpacing: -0.3 }]}>{fmtPrice(data?.minPrice ?? 0)}</Text>
+                  {(() => {
+                    const pc = pctInfo(changeById[seed.apparelId], P);
+                    return pc ? <Text numberOfLines={1} style={[ts(12, '800', pc.color), { marginTop: 2 }]}>{pc.text}</Text> : null;
+                  })()}
                 </Pressable>
               )}
             />
@@ -486,21 +532,29 @@ export function CleanHomeScreen() {
               </View>
               <MoreLink onPress={() => router.push('/cards/snkrdunk' as never)} />
             </View>
-            {snkrRows.map(({ seed, data }, i) => (
-              <Pressable
-                key={seed.apparelId}
-                onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: P.line }}
-              >
-                <Text style={[ts(15, '800', P.ink), { width: 14, textAlign: 'center' }]}>{i + 1}</Text>
-                <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={i} width={46} height={46} radius={9} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={1} style={ts(14, '700', P.ink)}>{seed.shortName}</Text>
-                  <Text numberOfLines={1} style={[ts(12, '400', P.ink3), { marginTop: 2 }]}>{seed.category ?? '카드'}</Text>
-                </View>
-                <Text style={ts(14, '800', P.ink)}>{fmtPrice(data?.minPrice ?? 0)}</Text>
-              </Pressable>
-            ))}
+            {[...snkrRows]
+              .sort((a, b) => (changeById[b.seed.apparelId] ?? -Infinity) - (changeById[a.seed.apparelId] ?? -Infinity))
+              .map(({ seed, data }, i) => {
+                const pc = pctInfo(changeById[seed.apparelId], P);
+                return (
+                  <Pressable
+                    key={seed.apparelId}
+                    onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: P.line }}
+                  >
+                    <Text style={[ts(15, '800', i < 3 ? P.rise : P.ink), { width: 14, textAlign: 'center' }]}>{i + 1}</Text>
+                    <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={i} width={46} height={46} radius={9} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text numberOfLines={1} style={ts(14, '700', P.ink)}>{seed.shortName}</Text>
+                      <Text numberOfLines={1} style={[ts(12, '400', P.ink3), { marginTop: 2 }]}>{seed.category ?? '카드'}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={ts(14.5, '900', P.ink)}>{fmtPrice(data?.minPrice ?? 0)}</Text>
+                      {pc ? <Text style={[ts(12.5, '800', pc.color), { marginTop: 3 }]}>{pc.text}</Text> : null}
+                    </View>
+                  </Pressable>
+                );
+              })}
           </View>
         ) : null}
       </ScrollView>

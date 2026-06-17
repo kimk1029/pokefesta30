@@ -25,12 +25,22 @@ interface Palette {
   ink2: string;
   ink3: string;
   rise: string;
+  fall: string;
   priceIcon: string;
   regIcon: string;
   searchBg: string;
   tileBg: string;
   line: string;
   chev: string;
+}
+
+const FALL = '#2C8FFF';
+
+/** 등락률 표시 정보. 데이터 없으면 null. */
+function pctInfo(pct: number | undefined, P: Palette): { text: string; color: string } | null {
+  if (pct == null || !Number.isFinite(pct)) return null;
+  const up = pct >= 0;
+  return { text: `${up ? '+' : ''}${pct.toFixed(1)}% ${up ? '▲' : '▼'}`, color: up ? P.rise : P.fall };
 }
 
 // 클린 = 프로토타입 오렌지 팔레트(승인된 모습 그대로).
@@ -40,6 +50,7 @@ const CLEAN_PALETTE: Palette = {
   ink2: '#8E8E93',
   ink3: '#9A9AA0',
   rise: RISE,
+  fall: FALL,
   priceIcon: ACCENT30,
   regIcon: '#5FB85A',
   searchBg: '#F2F2F4',
@@ -55,6 +66,7 @@ const VAR_PALETTE: Palette = {
   ink2: 'var(--ink3)',
   ink3: 'var(--ink3)',
   rise: 'var(--red)',
+  fall: 'var(--blu)',
   priceIcon: 'var(--gold)',
   regIcon: 'var(--grn)',
   searchBg: 'var(--pap2)',
@@ -278,6 +290,10 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
 
   const hotRows = (popularKeyword && themePopular[theme]) || snkrdunkRows;
   const boxRows = (boxKeyword && themeBox[theme]) || snkrdunkBoxRows;
+  // 실시간 급등 = 등락률 내림차순(데이터 없는 행은 뒤로). 이름값이 '급등'이도록 정렬.
+  const moverRows = [...hotRows].sort(
+    (a, b) => (b.changePct ?? -Infinity) - (a.changePct ?? -Infinity),
+  );
 
   // HOT / 박스 캐러셀 자동 슬라이딩(카드를 두 벌 이어붙여 끊김 없이 루프).
   const hotRef = useRef<HTMLDivElement>(null);
@@ -385,7 +401,20 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: P.ink, marginTop: 9, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {c.shortName}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: P.ink, marginTop: 3 }}>{fmtPrice(c.minPrice)}</div>
+                  <div
+                    style={{
+                      fontSize: 15, fontWeight: 900, color: P.ink, marginTop: 4, letterSpacing: '-.3px',
+                      fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {fmtPrice(c.minPrice)}
+                  </div>
+                  {(() => {
+                    const pc = pctInfo(c.changePct, P);
+                    return pc ? (
+                      <div style={{ fontSize: 12, fontWeight: 800, color: pc.color, marginTop: 2 }}>{pc.text}</div>
+                    ) : null;
+                  })()}
                 </Link>
               );
             })}
@@ -435,22 +464,24 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
               </svg>
             </Link>
           </div>
-          {hotRows.map((m, i) => {
+          {moverRows.map((m, i) => {
             const sub = m.localizedName && m.localizedName !== m.shortName ? m.localizedName : m.category ?? '카드';
+            const pc = pctInfo(m.changePct, P);
             return (
               <Link
                 key={m.apparelId}
                 href={`/cards/snkrdunk/${m.apparelId}`}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: `1px solid ${P.line}`, textDecoration: 'none', color: 'inherit' }}
               >
-                <div style={{ fontSize: 15, fontWeight: 800, color: P.ink, width: 14, textAlign: 'center' }}>{i + 1}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: i < 3 ? P.rise : P.ink, width: 14, textAlign: 'center' }}>{i + 1}</div>
                 <CardArt imageUrl={m.imageUrl} fallbackIdx={i} width={46} height={46} radius={9} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: P.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.shortName}</div>
                   <div style={{ fontSize: 12, color: P.ink3, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
                 </div>
                 <div style={{ textAlign: 'right', flex: 'none' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: P.ink }}>{fmtPrice(m.minPrice)}</div>
+                  <div style={{ fontSize: 14.5, fontWeight: 900, color: P.ink, letterSpacing: '-.3px', fontVariantNumeric: 'tabular-nums' }}>{fmtPrice(m.minPrice)}</div>
+                  {pc ? <div style={{ fontSize: 12.5, fontWeight: 800, color: pc.color, marginTop: 3 }}>{pc.text}</div> : null}
                 </div>
               </Link>
             );

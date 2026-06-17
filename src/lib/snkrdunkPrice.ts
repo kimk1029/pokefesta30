@@ -68,6 +68,24 @@ export function computeApparelPrices(
   return { single, psa10: median(psa10Prices), trendJpy };
 }
 
+/**
+ * 판매 차트 포인트에서 등락률(%)을 계산. 등급 체결 스파이크는 중앙값 2.5배 초과 컷으로
+ * 제외(used 차트 오염 방지). 유효 포인트가 2개 미만이면 undefined.
+ * 기간 시작(첫 유효 포인트) → 최신 시세 변화율.
+ */
+export function trendChangePct(points: Array<[number, number]>): number | undefined {
+  const ys = (points ?? []).map((p) => p[1]).filter((n) => typeof n === 'number' && n > 0);
+  if (ys.length < 2) return undefined;
+  const med = median(ys);
+  const ceil = med > 0 ? med * 2.5 : Infinity;
+  const clean = ys.filter((n) => n <= ceil);
+  if (clean.length < 2) return undefined;
+  const first = clean[0];
+  const last = clean[clean.length - 1];
+  if (first <= 0) return undefined;
+  return ((last - first) / first) * 100;
+}
+
 /** apparelId 로 apparel/sales 를 받아 시세를 계산. */
 export async function fetchApparelPrices(apparelId: number): Promise<ApparelPrices> {
   const [a, hist, chart] = await Promise.all([

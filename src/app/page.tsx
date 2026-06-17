@@ -5,6 +5,7 @@ import type { HeroSlideData } from '@/components/HeroSlider';
 import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCards';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { classifySnkrdunkName } from '@/lib/snkrdunk';
+import { trendChangePct } from '@/lib/snkrdunkPrice';
 import { CARD_PACKS } from '@/lib/cardPacks';
 
 export const dynamic = 'force-dynamic';
@@ -122,13 +123,18 @@ async function fetchBoxRows(): Promise<SnkrdunkRow[]> {
   return rows.filter((r): r is SnkrdunkRow => r !== null).slice(0, 6);
 }
 
-/** seed → 상세 조회로 가격·매물·이미지 채운 행. (인기 카드용) */
+/** seed → 상세 조회로 가격·매물·이미지·등락률 채운 행. (인기 카드용) */
 async function seedToRow(seed: SnkrSeed): Promise<SnkrdunkRow> {
-  const ar = await serverFetch<{ data: ApparelDetail }>(
-    `/api/snkrdunk/apparels/${seed.apparelId}`,
-    { auth: false },
-  );
+  const [ar, chartResp] = await Promise.all([
+    serverFetch<{ data: ApparelDetail }>(`/api/snkrdunk/apparels/${seed.apparelId}`, { auth: false }),
+    serverFetch<{ data: { points?: Array<[number, number]> } | null }>(
+      `/api/snkrdunk/apparels/${seed.apparelId}/sales-chart`,
+      { auth: false },
+    ).catch(() => null),
+  ]);
   const apparel = ar.data?.data;
+  const chartPoints = chartResp?.data?.data?.points;
+  const changePct = chartPoints ? trendChangePct(chartPoints) : undefined;
   // 큐레이션된 seed.shortName 이 우선, 없으면 일본어 원문을 한국어로 자동 번역.
   const jp = apparel?.localizedName ?? apparel?.name ?? '';
   const ko = FEATURED_BY_ID.has(seed.apparelId)
@@ -142,6 +148,7 @@ async function seedToRow(seed: SnkrSeed): Promise<SnkrdunkRow> {
     imageUrl: apparel?.imageUrl ?? null,
     minPrice: apparel?.minPrice ?? 0,
     listingCountText: apparel?.listingCountText ?? '',
+    changePct,
   };
 }
 

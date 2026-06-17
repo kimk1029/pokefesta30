@@ -118,6 +118,8 @@ export interface SnkrdunkRow {
   imageUrl: string | null;
   minPrice: number;
   listingCountText: string;
+  /** 등락률(%) — 판매 차트 기간 시세 변화. 양수=상승, 음수=하락. 데이터 없으면 미표시. */
+  changePct?: number;
 }
 
 export interface PackHitCardRow {
