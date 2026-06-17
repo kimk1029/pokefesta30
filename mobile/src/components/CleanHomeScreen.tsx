@@ -136,30 +136,40 @@ function CardArt({
   radius: number;
   children?: ReactNode;
 }) {
+  // RN 그림자 주의: 같은 View 에 overflow:'hidden' 와 shadow 를 함께 주면 iOS 가 그림자를
+  // 잘라버린다. 그래서 [바깥=그림자] / [안=둥근 클리핑] 2겹으로 나눠 둥근 이미지 모양 그대로
+  // 따라가는 그림자가 보이게 한다.
   return (
     <View
       style={{
-        position: 'relative',
         width,
         height,
         borderRadius: radius,
-        overflow: 'hidden',
-        backgroundColor: imageUrl ? 'transparent' : FALLBACK_BG[fallbackIdx % FALLBACK_BG.length],
-        alignItems: 'center',
-        justifyContent: 'center',
+        backgroundColor: imageUrl ? '#fff' : FALLBACK_BG[fallbackIdx % FALLBACK_BG.length],
         shadowColor: '#000',
-        shadowOpacity: 0.18,
-        shadowRadius: 6,
+        shadowOpacity: 0.24,
+        shadowRadius: 7,
         shadowOffset: { width: 0, height: 5 },
-        elevation: 4,
+        elevation: 5,
       }}
     >
-      {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-      ) : (
-        <Text style={{ fontSize: 40 }}>🃏</Text>
-      )}
-      {children}
+      <View
+        style={{
+          width,
+          height,
+          borderRadius: radius,
+          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        ) : (
+          <Text style={{ fontSize: 40 }}>🃏</Text>
+        )}
+        {children}
+      </View>
     </View>
   );
 }
@@ -232,7 +242,7 @@ function AutoCarousel<T>({
 
   const display = [...data, ...data];
   return (
-    <View style={{ overflow: 'hidden' }} onTouchStart={pause} onTouchEnd={resumeSoon} onTouchCancel={resumeSoon}>
+    <View style={{ overflow: 'hidden', paddingTop: 8, paddingBottom: 4 }} onTouchStart={pause} onTouchEnd={resumeSoon} onTouchCancel={resumeSoon}>
       <Animated.View style={{ flexDirection: 'row', paddingLeft: 20, transform: [{ translateX: tx }] }}>
         {display.map((item, i) => (
           <View key={i} style={{ width: itemWidth, marginRight: gap }}>

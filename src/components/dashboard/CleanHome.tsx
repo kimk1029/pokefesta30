@@ -185,7 +185,9 @@ const hrowStyle: CSSProperties = {
   gap: 14,
   overflowX: 'auto',
   scrollbarWidth: 'none',
-  padding: '4px 20px 10px',
+  // overflow-x:auto 면 overflow-y 가 auto 로 계산돼 카드 그림자가 잘리므로
+  // 상하 패딩으로 그림자가 들어갈 여백을 확보한다.
+  padding: '10px 20px 26px',
 };
 
 function SectionHead({ title, href, P }: { title: ReactNode; href: string; P: Palette }) {
@@ -227,7 +229,8 @@ function CardArt({
         borderRadius: radius,
         overflow: 'hidden',
         background: imageUrl ? 'transparent' : FALLBACK_GRADS[fallbackIdx % FALLBACK_GRADS.length],
-        filter: 'drop-shadow(0 5px 9px rgba(0,0,0,.18))',
+        // 둥근 이미지 모양 그대로 따라가는 그림자 — 살짝 떠 보이게.
+        boxShadow: '0 8px 16px -3px rgba(0,0,0,.28), 0 3px 6px -2px rgba(0,0,0,.18)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
