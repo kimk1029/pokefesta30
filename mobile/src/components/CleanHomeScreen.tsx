@@ -136,40 +136,26 @@ function CardArt({
   radius: number;
   children?: ReactNode;
 }) {
-  // RN 그림자 주의: 같은 View 에 overflow:'hidden' 와 shadow 를 함께 주면 iOS 가 그림자를
-  // 잘라버린다. 그래서 [바깥=그림자] / [안=둥근 클리핑] 2겹으로 나눠 둥근 이미지 모양 그대로
-  // 따라가는 그림자가 보이게 한다.
+  // 컨테이너(박스) 없이 이미지 '자체'에 그림자를 준다 — iOS 는 이미지 콘텐츠(알파)에서,
+  // Android 는 elevation 으로 그림자를 만든다. overflow:'hidden' 을 주지 않아야 그림자가 안 잘린다
+  // (Image 는 borderRadius 를 자체적으로 클리핑).
+  const shadow = {
+    shadowColor: '#000',
+    shadowOpacity: 0.28,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 6,
+  } as const;
   return (
-    <View
-      style={{
-        width,
-        height,
-        borderRadius: radius,
-        backgroundColor: imageUrl ? '#fff' : FALLBACK_BG[fallbackIdx % FALLBACK_BG.length],
-        shadowColor: '#000',
-        shadowOpacity: 0.24,
-        shadowRadius: 7,
-        shadowOffset: { width: 0, height: 5 },
-        elevation: 5,
-      }}
-    >
-      <View
-        style={{
-          width,
-          height,
-          borderRadius: radius,
-          overflow: 'hidden',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-        ) : (
+    <View style={{ position: 'relative', width, height }}>
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={{ width, height, borderRadius: radius, ...shadow }} resizeMode="cover" />
+      ) : (
+        <View style={{ width, height, borderRadius: radius, backgroundColor: FALLBACK_BG[fallbackIdx % FALLBACK_BG.length], alignItems: 'center', justifyContent: 'center', ...shadow }}>
           <Text style={{ fontSize: 40 }}>🃏</Text>
-        )}
-        {children}
-      </View>
+        </View>
+      )}
+      {children}
     </View>
   );
 }

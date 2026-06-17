@@ -204,7 +204,10 @@ function SectionHead({ title, href, P }: { title: ReactNode; href: string; P: Pa
   );
 }
 
-/** 카드 아트 — 컨테이너 없이 이미지만 떠 보이게(은은한 그림자). */
+// 컨테이너(박스) 없이 이미지 '자체'에 그림자를 준다 — drop-shadow 는 이미지의 알파(모양)를
+// 따라가므로 둥근/투명 영역 그대로 그림자가 생겨 진짜 떠 있는 사진처럼 보인다.
+const ART_SHADOW = 'drop-shadow(0 7px 11px rgba(0,0,0,.30)) drop-shadow(0 2px 4px rgba(0,0,0,.18))';
+
 function CardArt({
   imageUrl,
   fallbackIdx,
@@ -221,26 +224,29 @@ function CardArt({
   children?: ReactNode;
 }) {
   return (
-    <div
-      style={{
-        position: 'relative',
-        width,
-        height,
-        borderRadius: radius,
-        overflow: 'hidden',
-        background: imageUrl ? 'transparent' : FALLBACK_GRADS[fallbackIdx % FALLBACK_GRADS.length],
-        // 둥근 이미지 모양 그대로 따라가는 그림자 — 살짝 떠 보이게.
-        boxShadow: '0 8px 16px -3px rgba(0,0,0,.28), 0 3px 6px -2px rgba(0,0,0,.18)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
+    <div style={{ position: 'relative', width, height }}>
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img
+          src={imageUrl}
+          alt=""
+          style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover', borderRadius: radius, filter: ART_SHADOW }}
+        />
       ) : (
-        <span style={{ fontSize: 40 }}>🃏</span>
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: radius,
+            background: FALLBACK_GRADS[fallbackIdx % FALLBACK_GRADS.length],
+            filter: ART_SHADOW,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <span style={{ fontSize: 40 }}>🃏</span>
+        </div>
       )}
       {children}
     </div>
