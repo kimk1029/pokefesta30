@@ -15,6 +15,7 @@ import { RarBadge } from '@/components/cv/RarBadge';
 import { GradeBadge } from '@/components/cv/GradeBadge';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useTheme, useThemeTextVariant } from '@/components/ThemeProvider';
+import { CleanHomeScreen } from '@/components/CleanHomeScreen';
 import { isFlatTheme } from '@/lib/theme';
 import { isAuthenticated, subscribeSession } from '@/lib/session';
 
@@ -113,6 +114,12 @@ const ACTIVITY: { icon: string; c: string; txt: string; time: string; pt: string
 ];
 
 export default function Home() {
+  const { theme } = useTheme();
+  // 클린 테마 = 프로토타입 메인화면(CleanHomeScreen). 그 외 테마는 기존 레이아웃.
+  return theme === 'clean' ? <CleanHomeScreen /> : <LegacyHome />;
+}
+
+function LegacyHome() {
   const authed = useAuthed();
   const tc = useThemeColors();
   const { theme } = useTheme();

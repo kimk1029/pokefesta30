@@ -1,4 +1,5 @@
-import { DashboardScreen, type SnkrdunkRow, type SnkrdunkCategory } from '@/components/dashboard/DashboardScreen';
+import { type SnkrdunkRow, type SnkrdunkCategory } from '@/components/dashboard/DashboardScreen';
+import { HomeRouter } from '@/components/dashboard/HomeRouter';
 import { getServerUser, serverFetch } from '@/lib/apiServer';
 import type { HeroSlideData } from '@/components/HeroSlider';
 import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCards';
@@ -163,7 +164,7 @@ export default async function Page() {
   const snkrdunkRows = await Promise.all(cardSeeds.map(seedToRow));
 
   return (
-    <DashboardScreen
+    <HomeRouter
       cards={cards}
       heroBanners={heroBanners}
       isLoggedIn={Boolean(userId)}
