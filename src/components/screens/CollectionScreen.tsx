@@ -219,24 +219,36 @@ export function CollectionScreen() {
 
   if (err)
     return (
-      <Msg>
-        ⚠ {err}
-        <br />
-        <button type="button" onClick={() => setReload((n) => n + 1)} style={retryBtn}>
-          다시 시도
-        </button>
-      </Msg>
+      <>
+        <CollectionHeader />
+        <Msg>
+          ⚠ {err}
+          <br />
+          <button type="button" onClick={() => setReload((n) => n + 1)} style={retryBtn}>
+            다시 시도
+          </button>
+        </Msg>
+      </>
     );
-  if (!port || !cards) return <Msg>불러오는 중…</Msg>;
+  if (!port || !cards)
+    return (
+      <>
+        <CollectionHeader />
+        <Msg>불러오는 중…</Msg>
+      </>
+    );
   if (port.totalCount === 0)
     return (
-      <Msg>
-        아직 보유 카드가 없어요.
-        <br />
-        <Link href="/cards/add" style={{ color: 'var(--blu)', textDecoration: 'underline' }}>
-          카드 추가하러 가기 →
-        </Link>
-      </Msg>
+      <>
+        <CollectionHeader />
+        <Msg>
+          아직 보유 카드가 없어요.
+          <br />
+          <Link href="/cards/add" style={{ color: 'var(--blu)', textDecoration: 'underline' }}>
+            카드 추가하러 가기 →
+          </Link>
+        </Msg>
+      </>
     );
 
   const totalJpy = usePsa10 && port.totalPsa10Jpy > 0 ? port.totalPsa10Jpy : port.totalJpy;
@@ -245,6 +257,8 @@ export function CollectionScreen() {
 
   return (
     <div style={{ paddingBottom: 40 }}>
+      <CollectionHeader />
+
       {/* ── 총 자산 가치 카드 (다크 히어로) ── */}
       <div style={{ padding: '4px var(--gap) 16px' }}>
         <div
@@ -558,6 +572,28 @@ function CardListItem({ row, format, last }: { row: Row; format: (j: number) => 
         )}
       </div>
     </Link>
+  );
+}
+
+/** 상단 헤더 — POKE30 내자산 디자인: 제목 + 검색/알림/도움말 아이콘. */
+function CollectionHeader() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px var(--gap) 10px' }}>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 23, fontWeight: 900, color: 'var(--ink)', letterSpacing: '-0.5px' }}>
+        내 자산
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <Link href="/cards/snkrdunk/search" aria-label="검색" style={{ display: 'block', color: 'var(--ink)' }}>
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        </Link>
+        <Link href="/my/messages" aria-label="알림" style={{ display: 'block', color: 'var(--ink)' }}>
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+        </Link>
+        <Link href="/my/faq" aria-label="도움말" style={{ display: 'block', color: 'var(--ink)' }}>
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
+        </Link>
+      </div>
+    </div>
   );
 }
 
