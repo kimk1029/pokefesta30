@@ -24,6 +24,7 @@ import type {
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
 import { computeApparelPrices } from '@/lib/snkrdunkPrice';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
+import { getCardPackMeta } from '@/lib/cardPacks';
 import { getCachedJpyKrw } from './fxRate.js';
 import {
   isFreshEntry,
@@ -303,6 +304,8 @@ export interface MyCardRow {
   buyCurrency: string | null;
   qty: number;
   buyDate: string | null;
+  /** 발매 지역(에디션) — 'jp' | 'kr' | 'en'. 자산 구성 비중용. 미입력이면 null. */
+  region: string | null;
   /** 등록 시점 싱글 시세(JPY) 기준값 — 등락률용. 최초 조회 시 현재가로 백필. */
   registerPriceJpy: number | null;
   selfPulled: boolean;
@@ -334,6 +337,7 @@ export async function getMyCards(userId: string, limit = 100): Promise<MyCardRow
       buyCurrency: r.buyCurrency,
       qty: r.qty,
       buyDate: r.buyDate,
+      region: r.region ?? null,
       registerPriceJpy: r.registerPriceJpy,
       selfPulled: r.selfPulled,
       graded: r.graded,
@@ -368,6 +372,8 @@ export interface MyCardWithPrice extends MyCardRow {
   priceSingleJpy: number;
   /** PSA10 라벨이 붙은 최근 7건 매출 중앙값. 데이터 없으면 0. */
   pricePsa10Jpy: number;
+  /** 소속 시리즈(박스) 한국어명 — 카탈로그 packCode→CARD_PACKS, 폴백 setCode. 없으면 null. */
+  series: string | null;
 }
 
 export async function getMyCardsWithPrices(
@@ -398,9 +404,15 @@ export async function getMyCardsWithPrices(
       trendJpy: number[];
     }
   >();
+  // apparelId → 시리즈(박스) 한국어명. 카탈로그 packCode→CARD_PACKS, 폴백 setCode.
+  const seriesById = new Map<number, string | null>();
   if (apparelIds.length > 0) {
     // 1) 우리 DB(마스터 카탈로그 + 최신 시세 스냅샷) 우선 — 신선하면 스니덩 호출 생략.
     const catalog = await loadCatalogEntries(apparelIds);
+    for (const [id, e] of catalog) {
+      const fromPack = e.packCode ? getCardPackMeta(e.packCode)?.shortName ?? null : null;
+      seriesById.set(id, fromPack ?? e.setCode ?? null);
+    }
     const staleIds = apparelIds.filter((id) => !isFreshEntry(catalog.get(id)));
 
     // 2) 오래됐거나 없는 카드만 라이브 조회 → 결과는 카탈로그/스냅샷에 재적재.
@@ -463,6 +475,7 @@ export async function getMyCardsWithPrices(
         snkrdunkMinPriceJpy: 0,
         priceSingleJpy: 0,
         pricePsa10Jpy: 0,
+        series: null,
       };
     }
     const info = apparelInfo.get(c.snkrdunkApparelId);
@@ -473,6 +486,7 @@ export async function getMyCardsWithPrices(
       snkrdunkMinPriceJpy: info?.priceSingleJpy ?? 0, // 호환용 별칭
       priceSingleJpy: info?.priceSingleJpy ?? 0,
       pricePsa10Jpy: info?.pricePsa10Jpy ?? 0,
+      series: seriesById.get(c.snkrdunkApparelId) ?? null,
     };
   };
 

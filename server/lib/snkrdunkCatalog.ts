@@ -169,6 +169,10 @@ export interface CatalogEntry {
   apparelId: number;
   name: string;
   imageUrl: string | null;
+  /** 소속 박스 코드 (CARD_PACKS.code). 시리즈 비중 산출용. 없으면 null. */
+  packCode: string | null;
+  /** 파싱된 세트 코드 (예: "SV4a"). 시리즈 폴백용. 없으면 null. */
+  setCode: string | null;
   /** 최신 스냅샷 — 없으면 null. */
   snapshot: {
     minPrice: number;
@@ -214,6 +218,8 @@ export async function loadCatalogEntries(ids: number[]): Promise<Map<number, Cat
         apparelId: c.apparelId,
         name: c.localizedName || c.name,
         imageUrl: c.imageUrl,
+        packCode: c.packCode ?? null,
+        setCode: c.setCode ?? null,
         snapshot: s
           ? {
               minPrice: Number(s.minPrice),

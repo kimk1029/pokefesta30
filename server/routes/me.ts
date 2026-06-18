@@ -115,6 +115,9 @@ router.post('/cards', async (req: Request, res: Response) => {
   const qtyNum = Number(body.qty);
   const qty = Number.isFinite(qtyNum) ? Math.max(1, Math.min(999, Math.round(qtyNum))) : 1;
   const buyDate = typeof body.buyDate === 'string' ? body.buyDate.trim().slice(0, 10) || null : null;
+  // 발매 지역(에디션) — 'jp' | 'kr' | 'en' 만 허용.
+  const region =
+    body.region === 'jp' || body.region === 'kr' || body.region === 'en' ? body.region : null;
 
   // 직접뽑기 / 등급(그레이딩) 정보
   const selfPulled = body.selfPulled === true;
@@ -157,6 +160,7 @@ router.post('/cards', async (req: Request, res: Response) => {
         buyCurrency,
         qty,
         buyDate,
+        region,
         registerPriceJpy,
         selfPulled,
         graded,

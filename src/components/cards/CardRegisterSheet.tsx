@@ -69,6 +69,7 @@ export function CardRegisterSheet({
   const [buyCurrency, setBuyCurrency] = useState<'KRW' | 'JPY'>('KRW');
   const [buyDate, setBuyDate] = useState(todayStr());
   const [qty, setQty] = useState(1);
+  const [region, setRegion] = useState<'jp' | 'kr' | 'en'>('jp');
   const [graded, setGraded] = useState(!!card.gradeEstimate);
   const [gradeCompany, setGradeCompany] = useState('PSA');
   const [gradeValue, setGradeValue] = useState('');
@@ -99,6 +100,7 @@ export function CardRegisterSheet({
       centeringScore: card.centeringScore ?? null,
       buyDate: buyDate.trim() || null,
       qty,
+      region,
       selfPulled,
     };
 
@@ -245,6 +247,27 @@ export function CardRegisterSheet({
               ＋
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* 발매 지역(에디션) */}
+      <div className="cv-reg-field">
+        <div className="cv-reg-label">발매 지역</div>
+        <div className="cv-reg-companies">
+          {([
+            { k: 'jp', label: '일본판' },
+            { k: 'kr', label: '한국판' },
+            { k: 'en', label: '영문판' },
+          ] as const).map((r) => (
+            <button
+              key={r.k}
+              type="button"
+              className={`cv-manual-cat-btn${region === r.k ? ' on' : ''}`}
+              onClick={() => setRegion(r.k)}
+            >
+              {r.label}
+            </button>
+          ))}
         </div>
       </div>
 

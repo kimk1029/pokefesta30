@@ -291,6 +291,8 @@ model UserCard {
   qty            Int      @default(1)
   /// 구매 시기 (YYYY-MM 또는 YYYY-MM-DD). 표시용 문자열. 미입력이면 등록일.
   buyDate        String?
+  /// 카드 발매 지역(에디션) — 'jp'(일본판) | 'kr'(한국판) | 'en'(영문판). 자산 구성 비중용. 미입력이면 null.
+  region         String?
   /// 등록 시점의 싱글 시세(JPY) — 컬렉션 리스트의 "등록가 → 현재가 등락률" 기준값.
   /// 최초 조회 시 현재 시세로 자동 백필되고, 이후엔 고정 베이스라인으로 유지.
   registerPriceJpy Int?

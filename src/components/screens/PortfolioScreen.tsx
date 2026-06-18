@@ -38,6 +38,8 @@ interface CardRow {
   qty: number;
   buyDate: string | null;
   createdAt: string;
+  region: string | null;
+  series: string | null;
   selfPulled: boolean;
   graded: boolean;
   gradeCompany: string | null;
@@ -177,6 +179,44 @@ export function PortfolioScreen() {
     return { d7: over(7), d30: over(30) };
   }, [port]);
 
+  // 자산 구성 — 지역(에디션)별 평가액 비중.
+  const composition = useMemo(() => {
+    const REGIONS: Array<{ key: string; label: string; color: string }> = [
+      { key: 'jp', label: '일본판', color: 'var(--pur)' },
+      { key: 'kr', label: '한국판', color: 'var(--blu)' },
+      { key: 'en', label: '영문판', color: 'var(--gold)' },
+      { key: 'etc', label: '미지정', color: 'var(--ink3)' },
+    ];
+    const sums = new Map<string, number>();
+    let total = 0;
+    for (const r of allRows) {
+      if (r.curJpy <= 0) continue;
+      const key = r.c.region === 'jp' || r.c.region === 'kr' || r.c.region === 'en' ? r.c.region : 'etc';
+      sums.set(key, (sums.get(key) ?? 0) + r.value);
+      total += r.value;
+    }
+    if (total <= 0) return [];
+    return REGIONS.map((reg) => ({ ...reg, val: sums.get(reg.key) ?? 0, pct: ((sums.get(reg.key) ?? 0) / total) * 100 }))
+      .filter((x) => x.val > 0)
+      .sort((a, b) => b.val - a.val);
+  }, [allRows]);
+
+  // 시리즈별 비중 TOP 5 — 카탈로그 시리즈명 기준 평가액 비중.
+  const seriesTop = useMemo(() => {
+    const sums = new Map<string, number>();
+    let total = 0;
+    for (const r of allRows) {
+      if (r.curJpy <= 0) continue;
+      const name = r.c.series || '기타';
+      sums.set(name, (sums.get(name) ?? 0) + r.value);
+      total += r.value;
+    }
+    if (total <= 0) return [];
+    const arr = [...sums.entries()].map(([name, val]) => ({ name, val, pct: (val / total) * 100 }));
+    arr.sort((a, b) => b.val - a.val);
+    return arr.slice(0, 5);
+  }, [allRows]);
+
   if (err)
     return (
       <Msg>
@@ -281,30 +321,45 @@ export function PortfolioScreen() {
         </div>
       </Section>
 
-      {/* ── 자산 구성 (지역/시리즈 데이터 미보유 → 준비 중) ── */}
-      <Section title="자산 구성">
-        <Panel style={{ padding: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '6px 0' }}>
-            <svg width="100" height="100" viewBox="0 0 118 118" style={{ flex: 'none', opacity: 0.5 }}>
-              <circle cx="59" cy="59" r="42" fill="none" stroke="var(--pap3)" strokeWidth="15" />
-              {PIE.map((col, i) => (
-                <circle
-                  key={i} cx="59" cy="59" r="42" fill="none" stroke={col} strokeWidth="15"
-                  strokeDasharray={`${[120, 60, 30][i]} ${264 - [120, 60, 30][i]}`}
-                  strokeDashoffset={-[0, 120, 180][i]} transform="rotate(-90 59 59)"
-                />
-              ))}
-            </svg>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 12, fontWeight: 800, color: 'var(--ink)' }}>지역·시리즈 구성</div>
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 6, lineHeight: 1.6 }}>
-                카드별 지역(일본판/한국판/영문판)·시리즈 정보를 모으면 비중을 보여드려요.
-                <br />🚧 준비 중
+      {/* ── 자산 구성 (지역별) + 시리즈 TOP5 ── */}
+      {(composition.length > 0 || seriesTop.length > 0) && (
+        <Section title="자산 구성">
+          <Panel style={{ padding: 16 }}>
+            {composition.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <Donut segments={composition} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 11 }}>
+                  {composition.map((c) => (
+                    <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color, flex: 'none' }} />
+                      <span style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flex: 'none' }}>{c.label}</span>
+                      <span style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>{c.pct.toFixed(1)}%</span>
+                      <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, marginLeft: 'auto' }}>{format(c.val)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
-        </Panel>
-      </Section>
+            )}
+
+            {seriesTop.length > 0 && (
+              <>
+                <div style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink)', margin: composition.length > 0 ? '20px 0 12px' : '0 0 12px' }}>
+                  시리즈별 비중 TOP {seriesTop.length}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {seriesTop.map((s, i) => (
+                    <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                      <span style={{ width: 21, height: 21, borderRadius: '50%', background: PIE[i] ?? 'var(--ink3)', color: '#fff', fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 800, display: 'grid', placeItems: 'center', flex: 'none' }}>{i + 1}</span>
+                      <span style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
+                      <span style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>{s.pct.toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </Panel>
+        </Section>
+      )}
 
       {/* ── 가격 알림 배너 ── */}
       <div style={{ padding: '0 var(--gap) 18px' }}>
@@ -552,6 +607,32 @@ function SummaryCell({
       <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color, marginTop: 7, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{main}</div>
       {subText && <div style={{ fontFamily: 'var(--f1)', fontSize: 10.5, color: 'var(--ink3)', fontWeight: 700, marginTop: 3 }}>{subText}</div>}
     </div>
+  );
+}
+
+/** 자산 구성 도넛 — segments[].pct 합이 100 가정(아니어도 비율대로). */
+function Donut({ segments }: { segments: Array<{ key: string; color: string; pct: number }> }) {
+  const R = 42;
+  const C = 2 * Math.PI * R;
+  let acc = 0;
+  return (
+    <svg width="104" height="104" viewBox="0 0 118 118" style={{ flex: 'none' }}>
+      <circle cx="59" cy="59" r={R} fill="none" stroke="var(--pap3)" strokeWidth="15" />
+      {segments.map((s) => {
+        const len = (s.pct / 100) * C;
+        const off = -(acc / 100) * C;
+        acc += s.pct;
+        return (
+          <circle
+            key={s.key}
+            cx="59" cy="59" r={R} fill="none" stroke={s.color} strokeWidth="15"
+            strokeDasharray={`${len.toFixed(2)} ${(C - len).toFixed(2)}`}
+            strokeDashoffset={off.toFixed(2)}
+            transform="rotate(-90 59 59)"
+          />
+        );
+      })}
+    </svg>
   );
 }
 
