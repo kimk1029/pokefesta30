@@ -1,5 +1,5 @@
 import { LoginRequired } from '@/components/LoginRequired';
-import { PortfolioScreen } from '@/components/screens/PortfolioScreen';
+import { CollectionScreen } from '@/components/screens/CollectionScreen';
 import { getServerUser } from '@/lib/apiServer';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +20,6 @@ export default async function Page() {
       />
     );
   }
-  // POKE30 '내 자산' 디자인 — 데이터는 PortfolioScreen 이 클라이언트에서 직접 조회.
-  return <PortfolioScreen />;
+  // POKE30 '내 자산' 디자인 — 데이터는 CollectionScreen 이 클라이언트에서 직접 조회.
+  return <CollectionScreen />;
 }
