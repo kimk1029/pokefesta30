@@ -7,6 +7,7 @@ import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { classifySnkrdunkName } from '@/lib/snkrdunk';
 import { trendChangePct } from '@/lib/snkrdunkPrice';
 import { CARD_PACKS } from '@/lib/cardPacks';
+import { fetchMvcAuctionPage, type MvcAuctionItem } from '@/lib/navercafe';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,9 +79,10 @@ async function pickRandomCardSeeds(): Promise<SnkrSeed[]> {
     '/api/snkrdunk/browse?page=1',
     { auth: false },
   );
+  // 검색 이름엔 박스 마커가 빠진 박스가 섞일 수 있어 넉넉히 뽑고(상세에서 한 번 더 거름).
   const pool = (r.data?.results ?? []).filter((x) => classifySnkrdunkName(x.name) !== 'box');
-  if (pool.length > 0) return shuffle(pool).slice(0, 6).map(searchToSeed);
-  return shuffle(SNKRDUNK_FEATURED_CARDS).slice(0, 6).map(curatedToSeed);
+  if (pool.length > 0) return shuffle(pool).slice(0, 12).map(searchToSeed);
+  return shuffle(SNKRDUNK_FEATURED_CARDS).slice(0, 12).map(curatedToSeed);
 }
 
 /**
@@ -156,19 +158,27 @@ export default async function Page() {
   const user = await getServerUser();
   const userId = user?.id ?? null;
 
-  const [cardsResp, bannersResp, cardSeeds, snkrdunkBoxRows] = await Promise.all([
+  const [cardsResp, bannersResp, cardSeeds, snkrdunkBoxRows, mvcAuctions] = await Promise.all([
     userId
       ? serverFetch<{ data: unknown[] }>('/api/me/cards/with-prices')
       : Promise.resolve({ data: { data: [] as unknown[] } }),
     serverFetch<{ data: HeroSlideData[] }>('/api/banners', { auth: false }),
     pickRandomCardSeeds(),
     fetchBoxRows(),
+    // 홈 '실시간 MVC 경매' 미리보기 — 오늘 마감 경매 첫 페이지. 실패해도 홈은 떠야 함.
+    fetchMvcAuctionPage(1)
+      .then((r) => r.items)
+      .catch(() => [] as MvcAuctionItem[]),
   ]);
 
   const cards = (cardsResp.data?.data ?? []) as never;
   const heroBanners = bannersResp.data?.data ?? [];
 
-  const snkrdunkRows = await Promise.all(cardSeeds.map(seedToRow));
+  // 상세의 일본어 원문(localizedName)으로 박스를 한 번 더 거른 뒤 6개만. 검색 단계 이름엔
+  // 박스 마커가 없던 상품도 상세 원문엔 ボックス 등이 있어 여기서 확실히 제외된다.
+  const snkrdunkRows = (await Promise.all(cardSeeds.map(seedToRow)))
+    .filter((row) => classifySnkrdunkName(row.localizedName ?? row.shortName) !== 'box')
+    .slice(0, 6);
 
   return (
     <HomeRouter
@@ -177,6 +187,7 @@ export default async function Page() {
       isLoggedIn={Boolean(userId)}
       snkrdunkRows={snkrdunkRows}
       snkrdunkBoxRows={snkrdunkBoxRows}
+      mvcAuctions={mvcAuctions}
     />
   );
 }

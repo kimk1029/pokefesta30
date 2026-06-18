@@ -8,6 +8,8 @@ import { useTheme } from '@/components/ThemeProvider';
 import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import type { SnkrdunkRow } from '@/components/dashboard/DashboardScreen';
+import { HomeMvcAuctions } from '@/components/dashboard/HomeMvcAuctions';
+import type { MvcAuctionItem } from '@/lib/navercafe';
 
 /**
  * 메인화면 — Claude Design 'POKE30 App' 프로토타입 레이아웃.
@@ -19,7 +21,7 @@ import type { SnkrdunkRow } from '@/components/dashboard/DashboardScreen';
 const ACCENT30 = '#FF7A00'; // POKE'30' 브랜드 액센트 — 모든 테마 공통
 const RISE = '#F5333F';
 
-interface Palette {
+export interface Palette {
   bg: string;
   ink: string;
   ink2: string;
@@ -140,6 +142,7 @@ interface Props {
   isLoggedIn: boolean;
   snkrdunkRows?: SnkrdunkRow[];
   snkrdunkBoxRows?: SnkrdunkRow[];
+  mvcAuctions?: MvcAuctionItem[];
 }
 
 /** 캐러셀 자동 좌측 무한 스크롤(로테이션). 손대면 멈췄다 이어감. */
@@ -253,7 +256,7 @@ function CardArt({
   );
 }
 
-export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = [] }: Props) {
+export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = [], mvcAuctions = [] }: Props) {
   const { format } = useCurrency();
   const { count: unread } = useUnread();
   const { theme } = useTheme();
@@ -497,6 +500,9 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
           })}
         </div>
       )}
+
+      {/* 실시간 MVC 경매 — 오늘 마감 경매 미리보기(최종호가 자동 갱신). */}
+      <HomeMvcAuctions initial={mvcAuctions} P={P} />
 
       <div className="bggap" />
     </div>

@@ -5,6 +5,7 @@ import { type SnkrdunkRow } from '@/components/dashboard/DashboardScreen';
 import { CleanHome } from '@/components/dashboard/CleanHome';
 import type { HeroSlideData } from '@/components/HeroSlider';
 import type { MyCardWithPrice } from '@/lib/queries';
+import type { MvcAuctionItem } from '@/lib/navercafe';
 
 interface Props {
   cards: MyCardWithPrice[];
@@ -12,6 +13,7 @@ interface Props {
   isLoggedIn: boolean;
   snkrdunkRows?: SnkrdunkRow[];
   snkrdunkBoxRows?: SnkrdunkRow[];
+  mvcAuctions?: MvcAuctionItem[];
 }
 
 /**
@@ -27,6 +29,7 @@ export function HomeRouter(props: Props) {
         isLoggedIn={props.isLoggedIn}
         snkrdunkRows={props.snkrdunkRows}
         snkrdunkBoxRows={props.snkrdunkBoxRows}
+        mvcAuctions={props.mvcAuctions}
       />
     </>
   );

@@ -280,11 +280,12 @@ export function CleanHomeScreen() {
   useEffect(() => {
     let alive = true;
     (async () => {
+      // 이름엔 박스 마커가 빠진 박스가 섞일 수 있어 넉넉히 뽑고(상세 itemKind로 한 번 더 거름).
       const pool = (await fetchSnkrdunkBrowse(1)).filter((r) => !isBoxName(r.name));
       const seeds: SnkrDisplaySeed[] =
         pool.length > 0
           ? shuffle(pool)
-              .slice(0, 6)
+              .slice(0, 12)
               .map((r) => {
                 const curated = FEATURED_BY_ID.get(r.apparelId);
                 return curated
@@ -296,11 +297,13 @@ export function CleanHomeScreen() {
                     };
               })
           : shuffle(SNKRDUNK_FEATURED_CARDS)
-              .slice(0, 6)
+              .slice(0, 12)
               .map((s) => ({ apparelId: s.apparelId, shortName: s.shortName, category: s.category }));
-      const rows = await Promise.all(
+      const fetched = await Promise.all(
         seeds.map(async (seed) => ({ seed, data: await fetchSnkrdunkApparel(seed.apparelId) })),
       );
+      // 상세 itemKind 가 박스인 행을 확실히 제외한 뒤 6개만.
+      const rows = fetched.filter((row) => row.data?.itemKind !== 'box').slice(0, 6);
       if (alive) setSnkrRows(rows);
     })();
     return () => {
