@@ -6,6 +6,7 @@ import { Price } from '@/components/Price';
 import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
 import { CardActions } from '@/components/CardActions';
 import { PriceAlertSection } from '@/components/cards/PriceAlertSection';
+import { KreamCompare } from '@/components/cards/KreamCompare';
 import { downsamplePricePoints } from '@/lib/snkrdunk';
 
 /**
@@ -121,6 +122,9 @@ export function CardDetailView({
 
   const sel = grades.find((g) => g.key === gradeKey) ?? grades[0];
   const headlinePrice = sel?.recent || sel?.avg || minPrice || 0;
+  // KREAM 비교 기준 = RAW(비등급) 최근 거래가. 없으면 최저매물.
+  const rawGrade = grades.find((g) => g.key === 'RAW');
+  const rawRecent = rawGrade?.recent || rawGrade?.avg || minPrice || 0;
 
   // 전일/주간 변동 — 전체 차트 기준.
   const change = useMemo(() => {
@@ -291,19 +295,8 @@ export function CardDetailView({
         })}
       </div>
 
-      {/* ── 시세 비교 (준비 중) ─────────────────────────────── */}
-      <div className="sect">
-        <div className="sect-hd">
-          <h2>시세 비교</h2>
-          <span className="more">크림 · 이베이 · 메루카리 · 야후</span>
-        </div>
-        <Panel style={{ padding: 14 }}>
-          <ComingSoon />
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', textAlign: 'center', letterSpacing: 0.3, lineHeight: 1.6 }}>
-            플랫폼별(KREAM·eBay·Mercari·Yahoo) 시세 비교를 준비하고 있어요.
-          </div>
-        </Panel>
-      </div>
+      {/* ── 시세 비교 (SNKRDUNK vs 크림) ────────────────────── */}
+      <KreamCompare query={koName} snkrPriceJpy={rawRecent} />
 
       {/* ── 가격 추이 (실데이터 + 기간 탭) ───────────────────── */}
       <div className="sect">

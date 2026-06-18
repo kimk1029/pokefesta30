@@ -113,11 +113,6 @@ export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: 
     }
   };
 
-  const collectDesc = isCollected ? '✓' : '추가';
-
-  const favDesc =
-    favStatus === 'loading' ? '...' : favStatus === 'error' ? '!' : isFav ? '✓' : '추가';
-
   return (
     <>
     {sheetOpen && (
@@ -146,43 +141,81 @@ export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: 
         </div>
       </div>
     )}
-    <div className="snk-act-row">
+    {/* POKE30 카드상세 디자인 — 넓은 컬렉션 버튼 + 정사각형 SNKR·관심 버튼. */}
+    <div style={{ display: 'flex', gap: 8, margin: '0 var(--gap) var(--cg)' }}>
       <button
         type="button"
-        className="snk-act"
         onClick={openSheet}
-        style={{ background: 'var(--blu)', color: 'var(--white)' }}
+        aria-label="내 컬렉션에 추가"
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 7,
+          padding: 13,
+          border: 'none',
+          borderRadius: 'var(--r)',
+          background: isCollected ? 'var(--grn)' : 'var(--ink)',
+          color: 'var(--white)',
+          fontFamily: 'var(--f1)',
+          fontSize: 13,
+          fontWeight: 800,
+          letterSpacing: 0.3,
+          cursor: 'pointer',
+        }}
       >
-        <span className="snk-act-icon" aria-hidden>{isCollected ? '✅' : '📦'}</span>
-        <span className="snk-act-label">내 컬렉션</span>
-        <span className="snk-act-desc">{collectDesc}</span>
-      </button>
-      <button
-        type="button"
-        className="snk-act"
-        onClick={toggleFavorite}
-        disabled={favStatus === 'loading'}
-        style={{ background: 'var(--pur)', color: 'var(--white)' }}
-      >
-        <span className="snk-act-icon" aria-hidden>{isFav ? '★' : '⭐'}</span>
-        <span className="snk-act-label">관심카드</span>
-        <span className="snk-act-desc">{favDesc}</span>
+        {isCollected ? (
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+        ) : (
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+        )}
+        <span style={{ whiteSpace: 'nowrap' }}>{isCollected ? '내 컬렉션에 담김' : '내 컬렉션에 추가'}</span>
       </button>
       <a
-        className="snk-act"
         href={snkrdunkApparelUrl(apparelId)}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="SNKDUNK 에서 보기"
-        style={{ background: 'var(--ink)', color: 'var(--gold)' }}
+        aria-label="SNKRDUNK 에서 보기"
+        title="SNKRDUNK에서 보기"
+        style={{
+          flex: 'none',
+          width: 48,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '1px solid var(--pap3)',
+          borderRadius: 'var(--r)',
+          background: 'var(--white)',
+          cursor: 'pointer',
+        }}
       >
-        <span className="snk-act-icon" aria-hidden>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/snkrdunk-icon.png" alt="" />
-        </span>
-        <span className="snk-act-label">SNKDUNK</span>
-        <span className="snk-act-desc">↗</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/snkrdunk-icon.png" alt="" style={{ width: 20, height: 20, display: 'block' }} />
       </a>
+      <button
+        type="button"
+        onClick={toggleFavorite}
+        disabled={favStatus === 'loading'}
+        aria-label="관심카드"
+        title="관심카드"
+        style={{
+          flex: 'none',
+          width: 48,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: `1px solid ${isFav ? 'var(--orn)' : 'var(--pap3)'}`,
+          borderRadius: 'var(--r)',
+          background: isFav ? 'var(--orn-lt,var(--white))' : 'var(--white)',
+          cursor: 'pointer',
+          opacity: favStatus === 'loading' ? 0.6 : 1,
+        }}
+      >
+        <svg width="19" height="19" viewBox="0 0 24 24" fill={isFav ? 'var(--orn)' : 'none'} stroke="var(--orn)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2 15.1 8.3 22 9.3l-5 4.9 1.2 6.9L12 17.8 5.8 21l1.2-6.9-5-4.9 6.9-1z" />
+        </svg>
+      </button>
     </div>
     </>
   );
