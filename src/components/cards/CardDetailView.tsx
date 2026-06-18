@@ -5,7 +5,6 @@ import { Panel } from '@/components/ui/Panel';
 import { Price } from '@/components/Price';
 import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
 import { CardActions } from '@/components/CardActions';
-import { PriceAlertSection } from '@/components/cards/PriceAlertSection';
 import { KreamCompare } from '@/components/cards/KreamCompare';
 import { downsamplePricePoints } from '@/lib/snkrdunk';
 
@@ -381,8 +380,24 @@ export function CardDetailView({
         </Panel>
       </div>
 
-      {/* ── 가격 알림 (실기능) ───────────────────────────────── */}
-      <PriceAlertSection apparelId={apparelId} cardName={koName} currentPriceJpy={headlinePrice || minPrice || 0} />
+      {/* ── 가격 알림 — 앱 전용. 웹은 간략 안내만. ─────────────── */}
+      <div className="sect">
+        <div className="sect-hd">
+          <h2>가격 알림</h2>
+          <span className="more">앱 전용</span>
+        </div>
+        <Panel style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 24, flex: 'none' }}>🔔</span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink)', letterSpacing: 0.3 }}>
+              가격 알림은 앱에서 이용할 수 있어요
+            </div>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 5, lineHeight: 1.5, letterSpacing: 0.2 }}>
+              POKE30 앱에서 목표가를 설정하면 시세가 도달했을 때 알려드려요.
+            </div>
+          </div>
+        </Panel>
+      </div>
     </>
   );
 }
