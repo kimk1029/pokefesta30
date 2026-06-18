@@ -7,9 +7,12 @@ import { isFlatTheme } from '@/lib/theme';
 interface Props {
   src: string | null;
   alt: string;
+  /** 썸네일 크기. 기본 96x96 (기존 호출부 유지). 상세 히어로는 크게 지정. */
+  width?: number;
+  height?: number;
 }
 
-export function SnkrdunkImageZoom({ src, alt }: Props) {
+export function SnkrdunkImageZoom({ src, alt, width = 96, height = 96 }: Props) {
   const [open, setOpen] = useState(false);
   const { theme } = useTheme();
   const isClean = isFlatTheme(theme);
@@ -37,8 +40,8 @@ export function SnkrdunkImageZoom({ src, alt }: Props) {
         }}
         aria-label={src ? `${alt} 이미지 확대 보기` : alt}
         style={{
-          width: 96,
-          height: 96,
+          width,
+          height,
           flexShrink: 0,
           background: 'var(--pap2)',
           display: 'grid',

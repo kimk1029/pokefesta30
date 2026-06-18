@@ -251,6 +251,80 @@ router.delete('/favorites/:apparelId', async (req: Request, res: Response) => {
   }
 });
 
+// ── 가격 알림 (price alerts) ────────────────────────────────────────────────
+// 카드 시세가 목표가(JPY) 이하로 내려오면 알림. 서버 주기 체커가 트리거 후 Message 발송.
+
+router.get('/price-alerts', async (req: Request, res: Response) => {
+  try {
+    const rows = await prisma.priceAlert.findMany({
+      where: { userId: req.user!.userId },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+    res.json({ data: rows });
+  } catch (err) {
+    console.error('[me.price-alerts.GET]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+router.post('/price-alerts', async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  const body = (req.body ?? {}) as {
+    snkrdunkApparelId?: unknown;
+    targetPriceJpy?: unknown;
+    cardName?: unknown;
+  };
+  const apparelId = Number(body.snkrdunkApparelId);
+  const target = Number(body.targetPriceJpy);
+  if (!Number.isInteger(apparelId) || apparelId <= 0) {
+    return res.status(400).json({ error: 'snkrdunkApparelId 필요' });
+  }
+  if (!Number.isFinite(target) || target <= 0) {
+    return res.status(400).json({ error: 'targetPriceJpy 필요(양수)' });
+  }
+  const cardName =
+    typeof body.cardName === 'string' && body.cardName.trim()
+      ? body.cardName.trim().slice(0, 120)
+      : null;
+  try {
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { id: userId, name: defaultNameFor(userId) },
+    });
+    // 목표가를 바꾸면 다시 활성화(triggeredAt 초기화)되도록 upsert.
+    const row = await prisma.priceAlert.upsert({
+      where: { userId_snkrdunkApparelId: { userId, snkrdunkApparelId: apparelId } },
+      update: { targetPriceJpy: Math.round(target), cardName, triggeredAt: null },
+      create: { userId, snkrdunkApparelId: apparelId, targetPriceJpy: Math.round(target), cardName },
+    });
+    res.status(201).json({ data: row });
+  } catch (err) {
+    const e = err as { code?: string; message?: string; name?: string };
+    console.error('[me.price-alerts.POST]', userId, 'err=', e?.name, e?.code, e?.message);
+    res.status(500).json({
+      error: 'internal',
+      code: e?.code ?? null,
+      name: e?.name ?? null,
+      message: e?.message ?? null,
+    });
+  }
+});
+
+router.delete('/price-alerts/:apparelId', async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  const apparelId = Number(req.params.apparelId);
+  if (!Number.isInteger(apparelId)) return res.status(400).json({ error: 'invalid apparelId' });
+  try {
+    await prisma.priceAlert.deleteMany({ where: { userId, snkrdunkApparelId: apparelId } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[me.price-alerts.DELETE]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
 /**
  * KST 정각 기준 오늘 날짜 (YYYY-MM-DD). 일별 스냅샷 키.
  * 정각이 되는 순간 새 일자로 넘어가, 새 행이 upsert 된다.

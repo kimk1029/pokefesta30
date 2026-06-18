@@ -1,0 +1,476 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { Panel } from '@/components/ui/Panel';
+import { Price } from '@/components/Price';
+import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
+import { CardActions } from '@/components/CardActions';
+import { PriceAlertSection } from '@/components/cards/PriceAlertSection';
+import { downsamplePricePoints } from '@/lib/snkrdunk';
+
+/**
+ * 카드 시세 상세 — POKE30 '카드상세' 디자인 레이아웃.
+ * 모든 테마 공통(색/라운드는 CSS 변수, 박스는 Panel). 데이터가 연결된 섹션은 실데이터,
+ * 미연결 섹션(지역/플랫폼 비교/ROI)은 '준비 중' 으로 레이아웃만 유지.
+ */
+
+export interface GradeAgg {
+  /** 'PSA 10' | 'PSA 9' | 'RAW' */
+  key: string;
+  recent: number;
+  avg: number;
+  low: number;
+  count: number;
+}
+
+export interface TradeRow {
+  price: number;
+  date: string; // 한국어로 현지화된 거래일
+  badge: string; // 등급/상태 라벨 (원문 기준 — 등급 필터에 사용)
+}
+
+interface Props {
+  apparelId: number;
+  koName: string;
+  jpName: string;
+  category: string | null;
+  imageUrl: string | null;
+  minPrice: number;
+  listingCountText: string;
+  productNumber: string;
+  grades: GradeAgg[];
+  chartPoints: Array<[number, number]>;
+  trades: TradeRow[];
+}
+
+const GRADE_COLORS: Record<string, string> = {
+  'PSA 10': 'var(--red)',
+  'PSA 9': 'var(--blu)',
+  RAW: 'var(--grn)',
+};
+
+const PSA_ANY_RE = /PSA\s*\d+/i;
+function gradePredicate(key: string): (badge: string) => boolean {
+  if (key === 'RAW') return (b) => !PSA_ANY_RE.test(b);
+  const n = key.replace(/[^\d]/g, '');
+  const re = new RegExp(`PSA\\s*${n}\\b`, 'i');
+  return (b) => re.test(b);
+}
+
+const RANGES: Array<{ label: string; days: number }> = [
+  { label: '1개월', days: 30 },
+  { label: '3개월', days: 90 },
+  { label: '6개월', days: 180 },
+  { label: '1년', days: 365 },
+  { label: '전체', days: 0 },
+];
+
+function ComingSoon({ height = 88 }: { height?: number }) {
+  return (
+    <div
+      style={{
+        height,
+        display: 'grid',
+        placeItems: 'center',
+        gap: 4,
+        fontFamily: 'var(--f1)',
+        color: 'var(--ink3)',
+        letterSpacing: 0.3,
+      }}
+    >
+      <div style={{ fontSize: 18, opacity: 0.5 }}>🚧</div>
+      <div style={{ fontSize: 11, fontWeight: 700 }}>준비 중</div>
+    </div>
+  );
+}
+
+/** 등락 표시 (전일/주간). */
+function Delta({ diff, pct }: { diff: number; pct: number | null }) {
+  if (pct == null) return <span style={{ color: 'var(--ink3)' }}>—</span>;
+  const up = diff >= 0;
+  const color = up ? 'var(--red)' : 'var(--blu)';
+  return (
+    <span style={{ color }}>
+      {up ? '+' : '−'} <Price jpy={Math.abs(diff)} /> ({up ? '+' : ''}
+      {pct.toFixed(2)}%)
+    </span>
+  );
+}
+
+export function CardDetailView({
+  apparelId,
+  koName,
+  jpName,
+  category,
+  imageUrl,
+  minPrice,
+  listingCountText,
+  productNumber,
+  grades,
+  chartPoints,
+  trades,
+}: Props) {
+  // 데이터가 가장 많은 등급을 기본 선택(없으면 RAW).
+  const defaultGrade =
+    grades.slice().sort((a, b) => b.count - a.count).find((g) => g.count > 0)?.key ??
+    grades[grades.length - 1]?.key ??
+    'RAW';
+  const [gradeKey, setGradeKey] = useState<string>(defaultGrade);
+  const [region, setRegion] = useState<string>('일본판');
+  const [rangeIdx, setRangeIdx] = useState<number>(4); // 전체
+
+  const sel = grades.find((g) => g.key === gradeKey) ?? grades[0];
+  const headlinePrice = sel?.recent || sel?.avg || minPrice || 0;
+
+  // 전일/주간 변동 — 전체 차트 기준.
+  const change = useMemo(() => {
+    const pts = [...chartPoints].sort((a, b) => a[0] - b[0]);
+    if (pts.length < 2) return { prevDiff: 0, prevPct: null as number | null, wkDiff: 0, wkPct: null as number | null };
+    const last = pts[pts.length - 1];
+    const prev = pts[pts.length - 2];
+    const prevDiff = last[1] - prev[1];
+    const prevPct = prev[1] > 0 ? (prevDiff / prev[1]) * 100 : null;
+    const weekAgoTs = last[0] - 7 * 86_400_000;
+    let base = pts[0];
+    for (const p of pts) {
+      if (p[0] <= weekAgoTs) base = p;
+      else break;
+    }
+    const wkDiff = last[1] - base[1];
+    const wkPct = base[1] > 0 ? (wkDiff / base[1]) * 100 : null;
+    return { prevDiff, prevPct, wkDiff, wkPct };
+  }, [chartPoints]);
+
+  // 차트 — 기간 필터 후 다운샘플.
+  const chartData = useMemo(() => {
+    const pts = [...chartPoints].sort((a, b) => a[0] - b[0]);
+    const days = RANGES[rangeIdx].days;
+    const filtered =
+      days > 0 && pts.length > 0
+        ? pts.filter((p) => p[0] >= pts[pts.length - 1][0] - days * 86_400_000)
+        : pts;
+    return downsamplePricePoints(filtered.length >= 2 ? filtered : pts);
+  }, [chartPoints, rangeIdx]);
+
+  // 최근 거래내역 — 선택 등급으로 필터(빈 등급이면 전체 표시).
+  const filteredTrades = useMemo(() => {
+    const pred = gradePredicate(gradeKey);
+    const m = trades.filter((t) => pred(t.badge));
+    return (m.length > 0 ? m : trades).slice(0, 20);
+  }, [trades, gradeKey]);
+
+  return (
+    <>
+      {/* ── HERO ───────────────────────────────────────────── */}
+      <div style={{ padding: '4px var(--gap) 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <SnkrdunkImageZoom src={imageUrl} alt={koName} width={188} height={262} />
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 18, fontWeight: 900, color: 'var(--ink)', letterSpacing: 0.3, lineHeight: 1.3, wordBreak: 'keep-all' }}>
+            {koName}
+          </div>
+          {jpName && jpName !== koName && (
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', marginTop: 5, letterSpacing: 0.2 }}>
+              {jpName}
+            </div>
+          )}
+        </div>
+
+        {/* 태그 칩 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 12, flexWrap: 'wrap' }}>
+          <Chip>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--red)', flex: 'none' }} />
+            일본판
+          </Chip>
+          {category && (
+            <span
+              style={{
+                fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 800, color: 'var(--white)',
+                background: 'var(--pur)', padding: '6px 12px', borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
+              }}
+            >
+              {category}
+            </span>
+          )}
+          {productNumber && <Chip muted>{productNumber}</Chip>}
+        </div>
+
+        {/* 가격 박스 */}
+        <Panel style={{ marginTop: 16, padding: 18 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 12, fontWeight: 700, color: 'var(--ink3)' }}>
+            최근 거래가 ({gradeKey})
+          </div>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 28, fontWeight: 900, color: 'var(--ink)', letterSpacing: 0.2, marginTop: 4 }}>
+            <Price jpy={headlinePrice} empty="—" />
+          </div>
+          <div style={{ display: 'flex', gap: 20, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--pap3)' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)' }}>전일 대비</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, marginTop: 5 }}>
+                <Delta diff={change.prevDiff} pct={change.prevPct} />
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)' }}>7일 변동률</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, marginTop: 5 }}>
+                <Delta diff={change.wkDiff} pct={change.wkPct} />
+              </div>
+            </div>
+          </div>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 12, letterSpacing: 0.2 }}>
+            최저매물 <Price jpy={minPrice} empty="—" />
+            {listingCountText ? ` · 매물 ${listingCountText}건` : ''}
+          </div>
+        </Panel>
+      </div>
+
+      {/* ── 액션 ───────────────────────────────────────────── */}
+      <div style={{ height: 12 }} />
+      <CardActions apparelId={apparelId} cardName={koName} imageUrl={imageUrl} currentPriceJpy={minPrice || null} />
+
+      {/* ── 지역 탭 (일본판 실데이터 / 그 외 준비 중) ───────────── */}
+      <div style={{ display: 'flex', gap: 8, padding: '6px var(--gap) 0', borderBottom: '1px solid var(--pap3)' }}>
+        {['일본판', '한국판', '북미판'].map((r) => {
+          const ready = r === '일본판';
+          const active = region === r;
+          return (
+            <button
+              key={r}
+              type="button"
+              onClick={() => ready && setRegion(r)}
+              disabled={!ready}
+              style={{
+                background: 'none', border: 'none', cursor: ready ? 'pointer' : 'default',
+                padding: '9px 8px 12px', marginBottom: -1,
+                fontFamily: 'var(--f1)', fontSize: 13, fontWeight: active ? 800 : 600,
+                color: active ? 'var(--ink)' : 'var(--ink3)', opacity: ready ? 1 : 0.5,
+                borderBottom: `2.5px solid ${active ? 'var(--ink)' : 'transparent'}`, whiteSpace: 'nowrap',
+              }}
+            >
+              {r}
+              {!ready && <span style={{ fontSize: 8, marginLeft: 3 }}>준비중</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── 등급 카드 (가로 스크롤) ─────────────────────────── */}
+      <div className="hrow" style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '14px var(--gap) 6px' }}>
+        {grades.map((g) => {
+          const isSel = g.key === gradeKey;
+          const c = GRADE_COLORS[g.key] ?? 'var(--ink)';
+          return (
+            <button
+              key={g.key}
+              type="button"
+              onClick={() => setGradeKey(g.key)}
+              style={{
+                flex: 'none', width: 168, textAlign: 'left', cursor: 'pointer',
+                background: 'var(--white)', padding: 15,
+                border: `2px solid ${isSel ? c : 'var(--pap3)'}`, borderRadius: 'var(--r)',
+              }}
+            >
+              <span style={{ display: 'inline-block', fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 800, color: 'var(--white)', background: c, padding: '4px 10px', borderRadius: 'var(--r-sm)' }}>
+                {g.key}
+              </span>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 19, fontWeight: 900, color: 'var(--ink)', marginTop: 11 }}>
+                <Price jpy={g.recent} empty="—" />
+              </div>
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <GradeRow label="평균가" value={<Price jpy={g.avg} empty="—" />} />
+                <GradeRow label="최근 최저" value={<Price jpy={g.low} empty="—" />} />
+                <GradeRow label="거래 건수" value={g.count > 0 ? `${g.count}건` : '—'} />
+                <GradeRow
+                  label="최저매물"
+                  value={g.key === 'RAW' ? <Price jpy={minPrice} empty="—" /> : '—'}
+                />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── 시세 비교 (준비 중) ─────────────────────────────── */}
+      <div className="sect">
+        <div className="sect-hd">
+          <h2>시세 비교</h2>
+          <span className="more">크림 · 이베이 · 메루카리 · 야후</span>
+        </div>
+        <Panel style={{ padding: 14 }}>
+          <ComingSoon />
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', textAlign: 'center', letterSpacing: 0.3, lineHeight: 1.6 }}>
+            플랫폼별(KREAM·eBay·Mercari·Yahoo) 시세 비교를 준비하고 있어요.
+          </div>
+        </Panel>
+      </div>
+
+      {/* ── 가격 추이 (실데이터 + 기간 탭) ───────────────────── */}
+      <div className="sect">
+        <div className="sect-hd">
+          <h2>가격 추이</h2>
+          <span className="more">{RANGES[rangeIdx].label}</span>
+        </div>
+        <div className="hrow" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 10 }}>
+          {RANGES.map((r, i) => {
+            const active = i === rangeIdx;
+            return (
+              <button
+                key={r.label}
+                type="button"
+                onClick={() => setRangeIdx(i)}
+                style={{
+                  flex: 'none', whiteSpace: 'nowrap', fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 700,
+                  padding: '7px 14px', borderRadius: 'var(--r-pill)', cursor: 'pointer', border: 'none',
+                  background: active ? 'var(--ink)' : 'var(--pap2)', color: active ? 'var(--white)' : 'var(--ink3)',
+                }}
+              >
+                {r.label}
+              </button>
+            );
+          })}
+        </div>
+        <Panel style={{ padding: 14 }}>
+          <MiniChart points={chartData} />
+        </Panel>
+      </div>
+
+      {/* ── 최근 거래 내역 (실데이터, 등급 필터) ─────────────── */}
+      <div className="sect">
+        <div className="sect-hd">
+          <h2>최근 거래 내역 ({gradeKey})</h2>
+          <span className="more">{filteredTrades.length}건</span>
+        </div>
+        <Panel style={{ padding: '6px 14px' }}>
+          {filteredTrades.length > 0 ? (
+            filteredTrades.map((t, i, arr) => {
+              const isPsa = PSA_ANY_RE.test(t.badge);
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0',
+                    borderBottom: i < arr.length - 1 ? '1px solid var(--pap3)' : 'none',
+                  }}
+                >
+                  <span
+                    style={{
+                      flex: 'none', minWidth: 52, textAlign: 'center', fontFamily: 'var(--f1)', fontSize: 9, fontWeight: 700,
+                      padding: '3px 6px', borderRadius: 'var(--r-sm)',
+                      background: isPsa ? 'var(--gold-soft,var(--pap2))' : 'var(--pap2)',
+                      color: isPsa ? 'var(--gold-dk)' : 'var(--ink3)',
+                    }}
+                  >
+                    {t.badge || '일반'}
+                  </span>
+                  <span style={{ flex: 1, fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 800, color: i === 0 ? 'var(--red)' : 'var(--ink)' }}>
+                    <Price jpy={t.price} empty="—" />
+                  </span>
+                  <span style={{ flex: 'none', fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)' }}>{t.date}</span>
+                </div>
+              );
+            })
+          ) : (
+            <div style={{ padding: '24px 0', textAlign: 'center', fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)' }}>
+              거래내역이 없습니다
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      {/* ── 등급별 투자 수익률 (준비 중) ─────────────────────── */}
+      <div className="sect">
+        <div className="sect-hd">
+          <h2>등급별 투자 수익률</h2>
+        </div>
+        <Panel style={{ padding: 14 }}>
+          <ComingSoon height={72} />
+        </Panel>
+      </div>
+
+      {/* ── 가격 알림 (실기능) ───────────────────────────────── */}
+      <PriceAlertSection apparelId={apparelId} cardName={koName} currentPriceJpy={headlinePrice || minPrice || 0} />
+    </>
+  );
+}
+
+function Chip({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
+        fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 700,
+        color: muted ? 'var(--ink3)' : 'var(--ink)', background: 'var(--pap2)',
+        padding: '6px 12px', borderRadius: 'var(--r-pill)',
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function GradeRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+      <span style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{value}</span>
+    </div>
+  );
+}
+
+/** 간단한 SVG 라인 차트 — 테마 색(var) 사용. */
+function MiniChart({ points }: { points: Array<[number, number]> }) {
+  if (points.length < 2) {
+    return (
+      <div style={{ height: 184, display: 'grid', placeItems: 'center', fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)' }}>
+        시세 이력이 부족합니다
+      </div>
+    );
+  }
+  const W = 800;
+  const H = 184;
+  const PAD_T = 14;
+  const PAD_B = 24;
+  const innerH = H - PAD_T - PAD_B;
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const rangeY = maxY - minY || 1;
+  const minX = xs[0];
+  const maxX = xs[xs.length - 1];
+  const rangeX = maxX - minX || 1;
+  const xOf = (v: number) => (rangeX === 0 ? 0 : ((v - minX) / rangeX) * W);
+  const yOf = (v: number) => PAD_T + (1 - (v - minY) / rangeY) * innerH;
+  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(p[0]).toFixed(1)},${yOf(p[1]).toFixed(1)}`).join(' ');
+  const area = `${line} L${xOf(maxX).toFixed(1)},${PAD_T + innerH} L${xOf(minX).toFixed(1)},${PAD_T + innerH} Z`;
+  const up = ys[ys.length - 1] >= ys[0];
+  const color = up ? 'var(--red)' : 'var(--blu)';
+  const fmtDate = (ms: number) => {
+    const d = new Date(ms);
+    return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: 'block' }} aria-label="가격 추이 차트">
+        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+          <line key={t} x1={0} y1={PAD_T + t * innerH} x2={W} y2={PAD_T + t * innerH} stroke="var(--pap3)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        ))}
+        <defs>
+          <linearGradient id="cdArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#cdArea)" />
+        <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <circle cx={xOf(maxX)} cy={yOf(ys[ys.length - 1])} r="4" fill={color} stroke="var(--white)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: 0.3 }}>
+        <span>{fmtDate(minX)} ~ {fmtDate(maxX)}</span>
+        <span>최저 <Price jpy={minY} /> · 최고 <Price jpy={maxY} /></span>
+      </div>
+    </div>
+  );
+}

@@ -1,254 +1,41 @@
 import Link from 'next/link';
-import { Price } from '@/components/Price';
 import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
-import { Panel } from '@/components/ui/Panel';
 import { StatusBar } from '@/components/ui/StatusBar';
-import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
-import { CardActions } from '@/components/CardActions';
+import { CardDetailView, type GradeAgg, type TradeRow } from '@/components/cards/CardDetailView';
 import {
-  downsamplePricePoints,
   localizeSnkrdunkText,
-  priceDownsampleUnit,
-  priceUnitLabelKo,
   type SnkrdunkApparel,
   type SnkrdunkSalesChart,
   type SnkrdunkSalesHistory,
 } from '@/lib/snkrdunk';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { SNKRDUNK_FEATURED_CARDS } from '@/lib/snkrdunkCards';
-import { autoPriceSize } from '../../../../../shared/util/autoPriceSize';
 import { serverFetch } from '@/lib/apiServer';
 
 interface PageProps {
   params: { id: string };
 }
 
-function fmtYen(n: number): string {
-  if (!n) return '—';
-  return `¥${n.toLocaleString('ja-JP')}`;
-}
-
-/**
- * 거래내역에서 PSA10 / 무등급(non-PSA) 의 최근 5건 평균을 계산.
- * 입력은 API 응답 그대로 (보통 최신순). PSA10 판정은 condition 우선, 없으면 label.
- */
-function pickRecentAverage(
-  history: ReadonlyArray<{ price: number; condition?: string; label?: string }>,
-  predicate: (badge: string) => boolean,
-  limit = 5,
-): { avg: number; count: number } {
-  const picked: number[] = [];
-  for (const h of history) {
-    const badge = (h.condition || h.label || '').trim();
-    if (!predicate(badge)) continue;
-    if (typeof h.price !== 'number' || h.price <= 0) continue;
-    picked.push(h.price);
-    if (picked.length >= limit) break;
-  }
-  if (picked.length === 0) return { avg: 0, count: 0 };
-  const sum = picked.reduce((a, b) => a + b, 0);
-  return { avg: Math.round(sum / picked.length), count: picked.length };
-}
-
 const PSA_GRADE_RE = /PSA\s*\d+/i;
 const PSA10_RE = /PSA\s*10\b/i;
+const PSA9_RE = /PSA\s*9\b/i;
 
-function fmtDateShort(ms: number): string {
-  const d = new Date(ms);
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const yy = String(d.getFullYear()).slice(-2);
-  return `${yy}.${m}.${day}`;
-}
-
-function fmtYenCompact(n: number): string {
-  if (n >= 1_000_000) return `¥${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `¥${Math.round(n / 1000)}K`;
-  return `¥${n.toLocaleString('en-US')}`;
-}
-
-/** 보기 좋게 반올림된 y 축 눈금 후보. */
-function niceTicks(min: number, max: number, n = 4): number[] {
-  if (!(max > min)) return [min];
-  const range = max - min;
-  const rough = range / (n - 1);
-  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
-  const norm = rough / mag;
-  const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
-  const lo = Math.floor(min / step) * step;
-  const hi = Math.ceil(max / step) * step;
-  const out: number[] = [];
-  for (let v = lo; v <= hi + step / 2; v += step) out.push(v);
-  return out;
-}
-
-function PriceChart({
-  points,
-  unitLabel,
-  rawCount,
-  width = 320,
-  height = 180,
-}: {
-  points: Array<[number, number]>;
-  unitLabel: string;
-  rawCount: number;
-  width?: number;
-  height?: number;
-}) {
-  if (points.length < 2) {
-    return (
-      <div
-        style={{
-          width: '100%',
-          height,
-          display: 'grid',
-          placeItems: 'center',
-          fontFamily: 'var(--f1)',
-          fontSize: 10,
-          color: 'var(--ink3)',
-          background: 'var(--pap2)',
-          letterSpacing: 0.3,
-        }}
-      >
-        시세 이력이 부족합니다
-      </div>
-    );
-  }
-
-  const PAD_L = 50;
-  const PAD_R = 10;
-  const PAD_T = 14;
-  const PAD_B = 28;
-  const innerW = width - PAD_L - PAD_R;
-  const innerH = height - PAD_T - PAD_B;
-
-  const xs = points.map((p) => p[0]);
-  const ys = points.map((p) => p[1]);
-  const dataMinY = Math.min(...ys);
-  const dataMaxY = Math.max(...ys);
-  const yTicks = niceTicks(dataMinY, dataMaxY, 4);
-  const minY = yTicks[0];
-  const maxY = yTicks[yTicks.length - 1];
-  const rangeY = maxY - minY || 1;
-  const minX = xs[0];
-  const maxX = xs[xs.length - 1];
-  const rangeX = maxX - minX || 1;
-
-  const xOf = (v: number) => PAD_L + ((v - minX) / rangeX) * innerW;
-  const yOf = (v: number) => PAD_T + (1 - (v - minY) / rangeY) * innerH;
-
-  const linePath = points
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(p[0]).toFixed(1)},${yOf(p[1]).toFixed(1)}`)
-    .join(' ');
-  const areaPath =
-    linePath +
-    ` L${xOf(maxX).toFixed(1)},${(PAD_T + innerH).toFixed(1)} L${xOf(minX).toFixed(1)},${(
-      PAD_T + innerH
-    ).toFixed(1)} Z`;
-  const trendUp = ys[ys.length - 1] >= ys[0];
-  const color = trendUp ? 'var(--red)' : 'var(--blu)';
-  const areaFill = trendUp ? 'rgba(230,57,70,.18)' : 'rgba(58,91,217,.18)';
-
-  // x 축은 4등분 (시작, 1/3, 2/3, 끝).
-  const xTickValues = [0, 1 / 3, 2 / 3, 1].map((t) => minX + t * rangeX);
-
-  return (
-    <div>
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        width="100%"
-        height={height}
-        preserveAspectRatio="none"
-        style={{ display: 'block', background: 'var(--pap2)' }}
-        aria-label="시세 차트"
-      >
-        {/* Y 축 그리드 + 라벨 */}
-        {yTicks.map((v) => {
-          const y = yOf(v);
-          return (
-            <g key={`y-${v}`}>
-              <line x1={PAD_L} y1={y} x2={width - PAD_R} y2={y} stroke="rgba(0,0,0,.08)" strokeWidth={1} />
-              <text
-                x={PAD_L - 6}
-                y={y + 3}
-                textAnchor="end"
-                style={{ fontFamily: 'var(--f1)', fontSize: 8, fill: 'var(--ink3)' }}
-              >
-                {fmtYenCompact(v)}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* X 축 라벨 */}
-        {xTickValues.map((tv, i) => {
-          const x = xOf(tv);
-          return (
-            <g key={`x-${i}`}>
-              <line
-                x1={x}
-                y1={PAD_T + innerH}
-                x2={x}
-                y2={PAD_T + innerH + 3}
-                stroke="rgba(0,0,0,.3)"
-                strokeWidth={1}
-              />
-              <text
-                x={x}
-                y={PAD_T + innerH + 12}
-                textAnchor={i === 0 ? 'start' : i === xTickValues.length - 1 ? 'end' : 'middle'}
-                style={{ fontFamily: 'var(--f1)', fontSize: 8, fill: 'var(--ink3)' }}
-              >
-                {fmtDateShort(tv)}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* 데이터 line + area */}
-        <path d={areaPath} fill={areaFill} />
-        <path d={linePath} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx={xOf(maxX)} cy={yOf(ys[ys.length - 1])} r="3" fill={color} />
-
-        {/* 축 캡션 */}
-        <text
-          x={PAD_L}
-          y={PAD_T - 4}
-          textAnchor="start"
-          style={{ fontFamily: 'var(--f1)', fontSize: 8, fill: 'var(--ink3)', letterSpacing: 0.3 }}
-        >
-          가격 (JPY)
-        </text>
-        <text
-          x={width - PAD_R}
-          y={height - 4}
-          textAnchor="end"
-          style={{ fontFamily: 'var(--f1)', fontSize: 8, fill: 'var(--ink3)', letterSpacing: 0.3 }}
-        >
-          거래일
-        </text>
-      </svg>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          marginTop: 8,
-          fontFamily: 'var(--f1)',
-          fontSize: 9,
-          color: 'var(--ink3)',
-          letterSpacing: 0.3,
-        }}
-      >
-        <span>
-          기간: {fmtDateShort(minX)} ~ {fmtDateShort(maxX)} · {unitLabel} · 거래 {rawCount}건
-        </span>
-        <span>
-          최저 <Price jpy={dataMinY} /> · 최고 <Price jpy={dataMaxY} />
-        </span>
-      </div>
-    </div>
-  );
+/** 거래내역에서 한 등급의 최근가/평균/최저/건수 집계. (history 는 최신순 전제) */
+function gradeAgg(
+  history: ReadonlyArray<{ price: number; condition?: string; label?: string }>,
+  predicate: (badge: string) => boolean,
+  key: string,
+): GradeAgg {
+  const matches = history
+    .filter((h) => typeof h.price === 'number' && h.price > 0)
+    .filter((h) => predicate((h.condition || h.label || '').trim()))
+    .map((h) => h.price);
+  if (matches.length === 0) return { key, recent: 0, avg: 0, low: 0, count: 0 };
+  const top5 = matches.slice(0, 5);
+  const avg = Math.round(top5.reduce((a, b) => a + b, 0) / top5.length);
+  const low = Math.min(...matches.slice(0, 10));
+  return { key, recent: matches[0], avg, low, count: matches.length };
 }
 
 export default async function Page({ params }: PageProps) {
@@ -267,265 +54,45 @@ export default async function Page({ params }: PageProps) {
   const salesChart = chartResp.data?.data ?? null;
   if (!apparel) notFound();
 
-  const displayName = seed?.shortName ?? apparel.localizedName;
-  const koDisplayName = translateKnownCardNameToKo(apparel.localizedName);
-  const allPoints = salesChart?.points ?? [];
-  // 더 긴 기간을 한 화면에 보여주기 위해 기간 길이에 따라 주/월 평균으로 다운샘플링.
-  // 짧은 데이터(≤60일)는 원본 그대로.
-  const unit = priceDownsampleUnit(allPoints);
-  const points = downsamplePricePoints(allPoints);
-  const unitLabel =
-    unit === 'monthly' ? '월 평균' : unit === 'weekly' ? '주 평균' : '거래 단위';
-  const sectionMore =
-    unit === 'raw'
-      ? `최근 ${points.length}건`
-      : `${points.length}${priceUnitLabelKo(unit)} 평균`;
-
+  const jpName = apparel.localizedName ?? '';
+  const koName = seed?.shortName ?? translateKnownCardNameToKo(jpName) ?? jpName;
   const history = salesHistory?.history ?? [];
-  const rawAvg = pickRecentAverage(history, (b) => !PSA_GRADE_RE.test(b));
-  const psa10Avg = pickRecentAverage(history, (b) => PSA10_RE.test(b));
+
+  const grades: GradeAgg[] = [
+    gradeAgg(history, (b) => PSA10_RE.test(b), 'PSA 10'),
+    gradeAgg(history, (b) => PSA9_RE.test(b), 'PSA 9'),
+    gradeAgg(history, (b) => !PSA_GRADE_RE.test(b), 'RAW'),
+  ];
+
+  const trades: TradeRow[] = history.slice(0, 40).map((h) => ({
+    price: h.price,
+    date: localizeSnkrdunkText(h.date),
+    badge: (h.condition || localizeSnkrdunkText(h.label) || '').trim(),
+  }));
 
   return (
     <>
       <StatusBar />
-      {/* 진입 경로(추천 6종/팩 상세/검색) 가 다양해서 backHref 를 고정하지 않고 브라우저 history 로 돌아감. */}
+      {/* 진입 경로가 다양해 backHref 고정 없이 브라우저 history 로 돌아감. */}
       <AppBar title="시세 상세" showBack />
 
       <div style={{ height: 14 }} />
 
-      {/* HERO: image + name + price */}
-      <Panel
-        style={{
-          margin: '0 var(--gap) var(--cg)',
-          padding: 16,
-          display: 'flex',
-          gap: 14,
-        }}
-        pixelShadow="-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)"
-      >
-        <SnkrdunkImageZoom src={apparel.imageUrl ?? null} alt={displayName} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {seed && (
-            <span
-              style={{
-                display: 'inline-block',
-                fontFamily: 'var(--f1)',
-                fontSize: 9,
-                padding: '2px 5px',
-                background: 'var(--orn)',
-                color: 'var(--white)',
-                letterSpacing: 0.5,
-                marginBottom: 6,
-                boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-              }}
-            >
-              {seed.category}
-            </span>
-          )}
-          <div
-            style={{
-              fontFamily: 'var(--f1)',
-              fontSize: 13,
-              letterSpacing: 0.3,
-              marginBottom: 4,
-              lineHeight: 1.4,
-              wordBreak: 'keep-all',
-            }}
-          >
-            {koDisplayName}
-          </div>
-          {apparel.localizedName && apparel.localizedName !== koDisplayName ? (
-            <div
-              style={{
-                fontFamily: 'var(--f1)',
-                fontSize: 9,
-                color: 'var(--ink3)',
-                letterSpacing: 0.2,
-                marginBottom: 8,
-                lineHeight: 1.5,
-              }}
-            >
-              {apparel.localizedName}
-            </div>
-          ) : null}
-          {/* 싱글카드 / PSA10 — 라벨을 위, 금액을 아래로 분리한 2-컬럼. */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 8,
-              marginTop: 4,
-              fontFamily: 'var(--f1)',
-              letterSpacing: 0.3,
-            }}
-          >
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 8, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>싱글카드</div>
-              <div
-                style={{
-                  // JPY 기준 라벨 길이로 추정 → 자릿수에 따라 자동 축소. 큰 금액도 잘리지 않게.
-                  fontSize: autoPriceSize(
-                    rawAvg.avg > 0 ? `¥${rawAvg.avg.toLocaleString('ja-JP')}` : '—',
-                    11,
-                    7,
-                  ),
-                  color: 'var(--red)',
-                  lineHeight: 1.1,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <Price jpy={rawAvg.avg} empty="—" />
-              </div>
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 8, color: 'var(--ink3)', marginBottom: 3, lineHeight: 1 }}>PSA10</div>
-              <div
-                style={{
-                  fontSize: autoPriceSize(
-                    psa10Avg.avg > 0 ? `¥${psa10Avg.avg.toLocaleString('ja-JP')}` : '—',
-                    11,
-                    7,
-                  ),
-                  color: psa10Avg.avg > 0 ? 'var(--gold-dk)' : 'var(--ink3)',
-                  lineHeight: 1.1,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <Price jpy={psa10Avg.avg} empty="—" />
-              </div>
-            </div>
-          </div>
-          <div
-            style={{
-              fontFamily: 'var(--f1)',
-              fontSize: 8,
-              color: 'var(--ink3)',
-              marginTop: 6,
-              letterSpacing: 0.2,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            최저매물 <Price jpy={apparel.minPrice} empty="—" />
-            {apparel.listingCountText ? ` · 매물 ${apparel.listingCountText}건` : ''}
-            {apparel.productNumber ? ` · ${apparel.productNumber}` : ''}
-          </div>
-        </div>
-      </Panel>
-
-      {/* 액션 — 컬렉션 추가 / 관심 / 스니덩크 외부링크 (한 줄, 컴팩트) */}
-      <CardActions
+      <CardDetailView
         apparelId={apparelId}
-        cardName={koDisplayName}
+        koName={koName}
+        jpName={jpName}
+        category={seed?.category ?? null}
         imageUrl={apparel.imageUrl ?? null}
-        currentPriceJpy={apparel.minPrice ?? null}
+        minPrice={apparel.minPrice ?? 0}
+        listingCountText={apparel.listingCountText ?? ''}
+        productNumber={apparel.productNumber ?? ''}
+        grades={grades}
+        chartPoints={salesChart?.points ?? []}
+        trades={trades}
       />
 
-      {/* Sales chart */}
-      <div className="sect">
-        <div className="sect-hd">
-          <h2>시세 차트</h2>
-          <span className="more">{sectionMore}</span>
-        </div>
-        <Panel
-          style={{ padding: 14 }}
-          pixelShadow="-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),inset 0 3px 0 rgba(255,255,255,.9),5px 5px 0 var(--ink)"
-        >
-          <PriceChart points={points} unitLabel={unitLabel} rawCount={allPoints.length} />
-        </Panel>
-      </div>
-
-      {/* Recent transactions — log style, one row per entry */}
-      <div className="sect">
-        <div className="sect-hd">
-          <h2>최근 거래내역</h2>
-          <span className="more">{salesHistory?.history.length ?? 0}건</span>
-        </div>
-        <Panel
-          style={{ background: 'var(--ink2)', padding: '6px 10px' }}
-          pixelShadow="-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),5px 5px 0 var(--ink)"
-        >
-          {salesHistory && salesHistory.history.length > 0 ? (
-            salesHistory.history.slice(0, 20).map((h, i, arr) => {
-              const date = localizeSnkrdunkText(h.date);
-              const label = localizeSnkrdunkText(h.label);
-              const condition = h.condition;
-              const badge = condition || label || '일반';
-              const isPsa = /PSA\s*\d+/i.test(badge);
-              return (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 0',
-                    borderBottom:
-                      i < arr.length - 1 ? '1px solid rgba(255,255,255,.08)' : 'none',
-                  }}
-                >
-                  <span
-                    style={{
-                      flexShrink: 0,
-                      minWidth: 56,
-                      textAlign: 'center',
-                      fontFamily: 'var(--f1)',
-                      fontSize: 9,
-                      padding: '2px 5px',
-                      background: isPsa ? 'var(--gold)' : 'rgba(255,255,255,.12)',
-                      color: isPsa ? 'var(--ink)' : 'var(--white)',
-                      letterSpacing: 0.3,
-                      border: isPsa ? '1px solid var(--ink)' : '1px solid rgba(255,255,255,.18)',
-                    }}
-                  >
-                    {badge}
-                  </span>
-                  <span
-                    style={{
-                      flex: 1,
-                      fontFamily: 'var(--f1)',
-                      fontSize: 11,
-                      color: 'var(--gold)',
-                      letterSpacing: 0.3,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    <Price jpy={h.price} empty="—" />
-                  </span>
-                  <span
-                    style={{
-                      flexShrink: 0,
-                      fontFamily: 'var(--f1)',
-                      fontSize: 9,
-                      color: 'rgba(255,255,255,.55)',
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    {date}
-                  </span>
-                </div>
-              );
-            })
-          ) : (
-            <div
-              style={{
-                padding: '20px 0',
-                fontFamily: 'var(--f1)',
-                fontSize: 10,
-                color: 'rgba(255,255,255,.55)',
-                textAlign: 'center',
-                letterSpacing: 0.3,
-              }}
-            >
-              거래내역이 없습니다
-            </div>
-          )}
-        </Panel>
-      </div>
-
-      <div style={{ height: 60 }} />
-
+      <div style={{ height: 40 }} />
       <div
         style={{
           margin: '0 var(--gap)',
@@ -538,13 +105,12 @@ export default async function Page({ params }: PageProps) {
           lineHeight: 1.6,
         }}
       >
-        데이터 출처: snkrdunk.com · 10분 캐시
+        시세 정보는 snkrdunk.com 데이터 기반(10분 캐시)이며 실시간으로 변동될 수 있습니다.
         <br />
         <Link href="/cards/snkrdunk" style={{ color: 'var(--blu)' }}>
           ← 전체 시세 목록
         </Link>
       </div>
-
       <div style={{ height: 60 }} />
     </>
   );

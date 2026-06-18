@@ -47,6 +47,7 @@ model User {
   oripaTickets     OripaTicket[]
   userCards        UserCard[]
   favoriteCards    FavoriteCard[]
+  priceAlerts      PriceAlert[]
   listingFavorites ListingFavorite[]
   portfolioDailySnapshots PortfolioDailySnapshot[]
   searchLogs       SearchLog[]
@@ -342,6 +343,27 @@ model FavoriteCard {
   @@unique([userId, snkrdunkApparelId])
   @@index([userId, createdAt(sort: Desc)])
   @@map("favorite_cards")
+}
+
+/// 가격 알림 — 카드(snkrdunkApparelId)가 targetPriceJpy 이하로 내려오면 알림.
+/// 서버의 주기적 체커가 시세를 확인해 조건 충족 시 Message 를 발송하고 triggeredAt 을 채운다.
+model PriceAlert {
+  id                Int       @id @default(autoincrement())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snkrdunkApparelId Int
+  /// 목표가 (JPY 기준). 시세가 이 값 이하가 되면 트리거.
+  targetPriceJpy    Int
+  /// 표시용 카드명(알림 메시지 본문에 사용). 비어 있으면 id 로 대체.
+  cardName          String?
+  /// 트리거되어 알림을 보낸 시각. null 이면 아직 활성(대기) 상태.
+  triggeredAt       DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@unique([userId, snkrdunkApparelId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([triggeredAt])
+  @@map("price_alerts")
 }
 
 /// 외부 매물(네이버 카페 MVC 경매 / 번개장터) 관심목록 — 사용자별.

@@ -48,6 +48,7 @@ import eventsRouter from './routes/events.ts';
 import placesRouter from './routes/places.ts';
 import usersRouter from './routes/users.ts';
 import searchLogRouter from './routes/searchLog.ts';
+import { startPriceAlertScheduler } from './lib/priceAlerts.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEBUG_DIR = join(__dirname, 'debug');
@@ -726,6 +727,8 @@ app.use((err, _req, res, _next) => {
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`OCR server listening http://localhost:${PORT}  vision=${visionAvailable() ? 'on' : 'off'}`);
+  // 가격 알림 주기 점검 시작(단일 서버 인스턴스 내 setInterval).
+  startPriceAlertScheduler();
 });
 
 const exit = async () => {
