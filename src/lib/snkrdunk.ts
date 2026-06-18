@@ -91,6 +91,17 @@ export function localizeSnkrdunkText(value: string | null | undefined): string {
   return v;
 }
 
+/**
+ * 거래 라벨(condition/label)이 '감정(그레이드)된 카드' 인지 판정.
+ * snkrdunk condition 은 비등급이면 상태등급(S/A/B/C/D)·中古 처럼 숫자/등급사명이 없고,
+ * 감정품이면 PSA10·PSA9·BGS9以下·PSA8以下 처럼 등급사명/숫자/"○以下" 가 들어간다.
+ * RAW(비등급) 시세 집계에서 PSA 외 타 등급사(BGS·CGC 등) 오염을 막기 위해 사용.
+ */
+const GRADED_BADGE_RE = /PSA|BGS|CGC|SGC|ARS|ACE|BVG|HGA|以下|\d/i;
+export function isGradedSnkrdunkBadge(badge: string | null | undefined): boolean {
+  return GRADED_BADGE_RE.test((badge ?? '').trim());
+}
+
 async function fetchJson<T>(path: string): Promise<T | null> {
   const url = `${SNKRDUNK_ORIGIN}${path}`;
   try {

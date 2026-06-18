@@ -6,7 +6,7 @@ import { Price } from '@/components/Price';
 import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
 import { CardActions } from '@/components/CardActions';
 import { KreamCompare } from '@/components/cards/KreamCompare';
-import { downsamplePricePoints } from '@/lib/snkrdunk';
+import { downsamplePricePoints, isGradedSnkrdunkBadge } from '@/lib/snkrdunk';
 
 /**
  * 카드 시세 상세 — POKE30 '카드상세' 디자인 레이아웃.
@@ -51,7 +51,8 @@ const GRADE_COLORS: Record<string, string> = {
 
 const PSA_ANY_RE = /PSA\s*\d+/i;
 function gradePredicate(key: string): (badge: string) => boolean {
-  if (key === 'RAW') return (b) => !PSA_ANY_RE.test(b);
+  // RAW = 비등급만. PSA 외 타 등급사·"○以下" 버킷 제외(서버 집계와 동일 기준).
+  if (key === 'RAW') return (b) => !isGradedSnkrdunkBadge(b);
   const n = key.replace(/[^\d]/g, '');
   const re = new RegExp(`PSA\\s*${n}\\b`, 'i');
   return (b) => re.test(b);

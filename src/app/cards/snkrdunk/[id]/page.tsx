@@ -4,6 +4,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { CardDetailView, type GradeAgg, type TradeRow } from '@/components/cards/CardDetailView';
 import {
+  isGradedSnkrdunkBadge,
   localizeSnkrdunkText,
   type SnkrdunkApparel,
   type SnkrdunkSalesChart,
@@ -17,7 +18,6 @@ interface PageProps {
   params: { id: string };
 }
 
-const PSA_GRADE_RE = /PSA\s*\d+/i;
 const PSA10_RE = /PSA\s*10\b/i;
 const PSA9_RE = /PSA\s*9\b/i;
 
@@ -61,7 +61,8 @@ export default async function Page({ params }: PageProps) {
   const grades: GradeAgg[] = [
     gradeAgg(history, (b) => PSA10_RE.test(b), 'PSA 10'),
     gradeAgg(history, (b) => PSA9_RE.test(b), 'PSA 9'),
-    gradeAgg(history, (b) => !PSA_GRADE_RE.test(b), 'RAW'),
+    // RAW = 비등급만. PSA 외 타 등급사(BGS·CGC 등)·"○以下" 버킷은 제외해 오염 방지.
+    gradeAgg(history, (b) => !isGradedSnkrdunkBadge(b), 'RAW'),
   ];
 
   const trades: TradeRow[] = history.slice(0, 40).map((h) => ({
