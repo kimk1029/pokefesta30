@@ -1,8 +1,9 @@
-import { View, StyleSheet, type ViewProps } from 'react-native';
+import { View, Pressable, StyleSheet, type ViewProps } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { PixelText } from './PixelText';
 import { PixelPress } from './cv/PixelPress';
-import { useThemeColors, useThemeTextVariant } from './ThemeProvider';
+import { useThemeColors, useTheme, useThemeTextVariant } from './ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 
 interface Props extends ViewProps {
   title?: string;
@@ -16,28 +17,56 @@ const SLOT = 38; // square hit-area for left/right buttons — keeps title cente
 
 export function AppBar({ title, right, left, onBack, style, ...rest }: Props) {
   const c = useThemeColors();
+  const { theme } = useTheme();
+  const flat = isFlatTheme(theme);
   const textVariant = useThemeTextVariant();
-  const leftSlot = onBack ? <ABtn onPress={onBack}>◀</ABtn> : left;
+  // 플랫(클린·다크): 웹 .appbar 와 동일 — 흰 배경 + 1px 라인, 픽셀 베벨/하드 보더 없음.
+  const leftSlot = onBack ? (flat ? <FlatBack onPress={onBack} ink={c.ink} /> : <ABtn onPress={onBack}>◀</ABtn>) : left;
   const rightSlot = right;
   return (
-    <View style={[styles.bar, { backgroundColor: c.paper, borderBottomColor: c.ink }, style]} {...rest}>
+    <View
+      style={[
+        styles.bar,
+        flat
+          ? { backgroundColor: c.paper, borderBottomWidth: 1, borderBottomColor: c.pap3 }
+          : { backgroundColor: c.paper, borderBottomWidth: 4, borderBottomColor: c.ink },
+        style,
+      ]}
+      {...rest}
+    >
       <View style={styles.slot}>{leftSlot}</View>
       <View style={styles.center}>
         {title ? (
-          <PixelText variant={textVariant} size={13} weight="bold" color={c.ink} style={styles.title} numberOfLines={1}>
+          <PixelText
+            variant={textVariant}
+            size={flat ? 17 : 13}
+            weight="bold"
+            color={c.ink}
+            style={[styles.title, flat ? { letterSpacing: -0.3 } : null]}
+            numberOfLines={1}
+          >
             {title}
           </PixelText>
         ) : (
           <View style={styles.logoWrap}>
-            <PixelText variant={textVariant} size={13} color={c.ink} style={{ letterSpacing: 1 }}>
+            <PixelText variant={textVariant} size={flat ? 17 : 13} weight={flat ? 'bold' : 'normal'} color={c.ink} style={{ letterSpacing: flat ? -0.3 : 1 }}>
               🃏 CardVault
             </PixelText>
           </View>
         )}
       </View>
       <View style={styles.slot}>{rightSlot}</View>
-      <View pointerEvents="none" style={[styles.bevel, { backgroundColor: c.pap3 }]} />
+      {flat ? null : <View pointerEvents="none" style={[styles.bevel, { backgroundColor: c.pap3 }]} />}
     </View>
+  );
+}
+
+/** 클린·다크용 뒤로가기 — 픽셀 박스 없이 깔끔한 셰브론. */
+function FlatBack({ onPress, ink }: { onPress: () => void; ink: string }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={8} style={{ width: SLOT, height: SLOT, alignItems: 'center', justifyContent: 'center' }}>
+      <PixelText variant="ko" size={24} weight="bold" color={ink}>‹</PixelText>
+    </Pressable>
   );
 }
 

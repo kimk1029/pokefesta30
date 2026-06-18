@@ -1,24 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Alert, Image, Linking, Modal, Pressable, ScrollView, ToastAndroid, View, Platform, Text, type ImageSourcePropType } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Image, Modal, Pressable, ScrollView, View, Text } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
-import { isAuthenticated } from '@/lib/session';
 import { CardActions } from '@/components/CardActions';
-
-function toast(msg: string) {
-  if (Platform.OS === 'android') {
-    ToastAndroid.show(msg, ToastAndroid.SHORT);
-  } else {
-    Alert.alert('알림', msg);
-  }
-}
+import { KreamCompare } from '@/components/cards/KreamCompare';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
-import { PixelPress } from '@/components/cv/PixelPress';
 import { SectHd } from '@/components/cv/SectHd';
 import { SnkrdunkPriceChart } from '@/components/cv/SnkrdunkPriceChart';
-import { colors } from '@/theme/tokens';
-import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
+import { useThemeColors, useTheme, useThemeTextVariant } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 import {
   downsamplePricePoints,
   fetchSnkrdunkApparel,
@@ -27,7 +18,6 @@ import {
   localizeSnkrdunkText,
   priceDownsampleUnit,
   priceUnitLabelKo,
-  snkrdunkApparelUrl,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
   type SnkrdunkSalesChart,
@@ -40,34 +30,64 @@ function fmtYen(n: number): string {
   return `¥${n.toLocaleString('ja-JP')}`;
 }
 
-/**
- * PSA10 / 무등급(non-PSA) 의 최근 5건 평균을 계산.
- * 입력은 API 응답 순서(보통 최신순) 그대로 — condition 우선, 없으면 label 로 판정.
- */
-function pickRecentAverage(
-  history: ReadonlyArray<{ price: number; condition?: string; label?: string }>,
-  predicate: (badge: string) => boolean,
-  limit = 5,
-): { avg: number; count: number } {
-  const picked: number[] = [];
-  for (const h of history) {
-    const badge = (h.condition || h.label || '').trim();
-    if (!predicate(badge)) continue;
-    if (typeof h.price !== 'number' || h.price <= 0) continue;
-    picked.push(h.price);
-    if (picked.length >= limit) break;
-  }
-  if (picked.length === 0) return { avg: 0, count: 0 };
-  const sum = picked.reduce((a, b) => a + b, 0);
-  return { avg: Math.round(sum / picked.length), count: picked.length };
+/* ── 등급 집계 — 웹 page.tsx gradeAgg 와 동일 ── */
+interface GradeAgg {
+  key: string; // 'PSA 10' | 'PSA 9' | 'RAW'
+  recent: number;
+  avg: number;
+  low: number;
+  count: number;
 }
 
-const PSA_GRADE_RE = /PSA\s*\d+/i;
 const PSA10_RE = /PSA\s*10\b/i;
+const PSA9_RE = /PSA\s*9\b/i;
+const PSA_ANY_RE = /PSA\s*\d+/i;
+// 웹 isGradedSnkrdunkBadge 와 동일 — PSA 외 등급사·"○以下" 버킷·숫자 포함이면 등급으로 간주.
+const GRADED_BADGE_RE = /PSA|BGS|CGC|SGC|ARS|ACE|BVG|HGA|以下|\d/i;
+const isGradedBadge = (b: string) => GRADED_BADGE_RE.test((b ?? '').trim());
+
+function gradeAgg(
+  history: ReadonlyArray<{ price: number; condition?: string; label?: string }>,
+  predicate: (badge: string) => boolean,
+  key: string,
+): GradeAgg {
+  const matches = history
+    .filter((h) => typeof h.price === 'number' && h.price > 0)
+    .filter((h) => predicate((h.condition || h.label || '').trim()))
+    .map((h) => h.price);
+  if (matches.length === 0) return { key, recent: 0, avg: 0, low: 0, count: 0 };
+  const top5 = matches.slice(0, 5);
+  const avg = Math.round(top5.reduce((a, b) => a + b, 0) / top5.length);
+  const low = Math.min(...matches.slice(0, 10));
+  return { key, recent: matches[0], avg, low, count: matches.length };
+}
+
+function gradePredicate(key: string): (badge: string) => boolean {
+  if (key === 'RAW') return (b) => !isGradedBadge(b);
+  const n = key.replace(/[^\d]/g, '');
+  const re = new RegExp(`PSA\\s*${n}\\b`, 'i');
+  return (b) => re.test(b);
+}
+
+const GRADE_COLOR: Record<string, (tc: ReturnType<typeof useThemeColors>) => string> = {
+  'PSA 10': (tc) => tc.red,
+  'PSA 9': (tc) => tc.blu,
+  RAW: (tc) => tc.grn,
+};
+
+const RANGES: Array<{ label: string; days: number }> = [
+  { label: '1개월', days: 30 },
+  { label: '3개월', days: 90 },
+  { label: '6개월', days: 180 },
+  { label: '1년', days: 365 },
+  { label: '전체', days: 0 },
+];
 
 export default function SnkrdunkDetail() {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
+  const { theme } = useTheme();
+  const flat = isFlatTheme(theme);
   const { id } = useLocalSearchParams<{ id: string }>();
   const apparelId = Number(id);
   const seed = SNKRDUNK_FEATURED_CARDS.find((c) => c.apparelId === apparelId);
@@ -77,6 +97,9 @@ export default function SnkrdunkDetail() {
   const [chart, setChart] = useState<SnkrdunkSalesChart | null>(null);
   const [loading, setLoading] = useState(true);
   const [zoomOpen, setZoomOpen] = useState(false);
+  const [gradeKey, setGradeKey] = useState<string | null>(null);
+  const [region, setRegion] = useState('일본판');
+  const [rangeIdx, setRangeIdx] = useState(4); // 전체
 
   useEffect(() => {
     if (!Number.isInteger(apparelId) || apparelId <= 0) {
@@ -101,257 +124,286 @@ export default function SnkrdunkDetail() {
     };
   }, [apparelId]);
 
-  const displayName = seed?.shortName ?? localizeCardName(apparel?.localizedName) ?? '카드 정보';
-  const displayNameKo = localizeCardName(displayName);
+  const displayNameKo = localizeCardName(seed?.shortName ?? apparel?.localizedName) ?? '카드 정보';
   const originalJp = apparel?.localizedName ?? '';
   const allPoints = chart?.points ?? [];
-  const downsampleUnit = priceDownsampleUnit(allPoints);
-  const points = downsamplePricePoints(allPoints);
-  const unitLabel =
-    downsampleUnit === 'monthly' ? '월 평균' : downsampleUnit === 'weekly' ? '주 평균' : '거래 단위';
-  const sectionMore =
-    downsampleUnit === 'raw'
-      ? `최근 ${points.length}건`
-      : `${points.length}${priceUnitLabelKo(downsampleUnit)} 평균`;
 
   const historyList = history?.history ?? [];
-  const rawAvg = pickRecentAverage(historyList, (b) => !PSA_GRADE_RE.test(b));
-  const psa10Avg = pickRecentAverage(historyList, (b) => PSA10_RE.test(b));
+  const grades = useMemo<GradeAgg[]>(
+    () => [
+      gradeAgg(historyList, (b) => PSA10_RE.test(b), 'PSA 10'),
+      gradeAgg(historyList, (b) => PSA9_RE.test(b), 'PSA 9'),
+      gradeAgg(historyList, (b) => !isGradedBadge(b), 'RAW'),
+    ],
+    [historyList],
+  );
+  const defaultGrade =
+    grades.slice().sort((a, b) => b.count - a.count).find((g) => g.count > 0)?.key ?? 'RAW';
+  const effectiveGrade = gradeKey ?? defaultGrade;
+  const sel = grades.find((g) => g.key === effectiveGrade) ?? grades[grades.length - 1];
+  const headlinePrice = sel?.recent || sel?.avg || apparel?.minPrice || 0;
+  const rawGrade = grades.find((g) => g.key === 'RAW');
+  const rawRecent = rawGrade?.recent || rawGrade?.avg || apparel?.minPrice || 0;
+
+  // 전일/주간 변동 — 전체 차트 기준 (웹과 동일).
+  const change = useMemo(() => {
+    const pts = [...allPoints].sort((a, b) => a[0] - b[0]);
+    if (pts.length < 2) return { prevDiff: 0, prevPct: null as number | null, wkDiff: 0, wkPct: null as number | null };
+    const last = pts[pts.length - 1];
+    const prev = pts[pts.length - 2];
+    const prevDiff = last[1] - prev[1];
+    const prevPct = prev[1] > 0 ? (prevDiff / prev[1]) * 100 : null;
+    const weekAgoTs = last[0] - 7 * 86_400_000;
+    let base = pts[0];
+    for (const p of pts) {
+      if (p[0] <= weekAgoTs) base = p;
+      else break;
+    }
+    const wkDiff = last[1] - base[1];
+    const wkPct = base[1] > 0 ? (wkDiff / base[1]) * 100 : null;
+    return { prevDiff, prevPct, wkDiff, wkPct };
+  }, [allPoints]);
+
+  // 차트 — 기간 필터 후 다운샘플.
+  const chartData = useMemo(() => {
+    const pts = [...allPoints].sort((a, b) => a[0] - b[0]);
+    const days = RANGES[rangeIdx].days;
+    const filtered =
+      days > 0 && pts.length > 0 ? pts.filter((p) => p[0] >= pts[pts.length - 1][0] - days * 86_400_000) : pts;
+    return downsamplePricePoints(filtered.length >= 2 ? filtered : pts);
+  }, [allPoints, rangeIdx]);
+  const chartUnit = priceDownsampleUnit(chartData);
+  const chartUnitLabel = chartUnit === 'monthly' ? '월 평균' : chartUnit === 'weekly' ? '주 평균' : '거래 단위';
+  const chartMore =
+    chartUnit === 'raw' ? `최근 ${chartData.length}건` : `${chartData.length}${priceUnitLabelKo(chartUnit)} 평균`;
+
+  // 최근 거래내역 — 선택 등급으로 필터(빈 등급이면 전체).
+  const filteredTrades = useMemo(() => {
+    const pred = gradePredicate(effectiveGrade);
+    const matched = historyList.filter((h) => pred((h.condition || h.label || '').trim()));
+    return (matched.length > 0 ? matched : historyList).slice(0, 20);
+  }, [historyList, effectiveGrade]);
 
   return (
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="시세 상세" />
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: 12, paddingBottom: 80 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 12, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         {loading ? (
           <View style={{ padding: 40, alignItems: 'center' }}>
-            <PixelText variant={txt} size={10} color={tc.ink3}>
-              불러오는 중...
-            </PixelText>
+            <PixelText variant={txt} size={10} color={tc.ink3}>불러오는 중...</PixelText>
           </View>
         ) : !apparel ? (
           <View style={{ padding: 40, alignItems: 'center' }}>
-            <PixelText variant={txt} size={10} color={tc.ink3}>
-              상품 정보를 가져오지 못했습니다.
-            </PixelText>
+            <PixelText variant={txt} size={10} color={tc.ink3}>상품 정보를 가져오지 못했습니다.</PixelText>
           </View>
         ) : (
           <>
-            {/* Hero card — 아래 액션버튼과의 간격은 CardActions marginTop 로만(70% 축소). */}
-            <View style={{ marginHorizontal: 14, marginBottom: 0 }}>
-              <PixelFrame bg={tc.white}>
-                <View style={{ padding: 14, flexDirection: 'row', gap: 14 }}>
-                  <Pressable
-                    onPress={() => {
-                      if (apparel.imageUrl) setZoomOpen(true);
-                    }}
-                    style={{
-                      width: 88,
-                      height: 88,
-                      backgroundColor: tc.pap2,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                      borderColor: tc.ink,
-                      borderWidth: 2,
-                    }}
-                  >
-                    {apparel.imageUrl ? (
-                      <Image
-                        source={{ uri: apparel.imageUrl }}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <Text style={{ fontSize: 28 }}>🃏</Text>
-                    )}
-                  </Pressable>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    {seed ? (
-                      <View
-                        style={{
-                          alignSelf: 'flex-start',
-                          backgroundColor: tc.orn,
-                          paddingHorizontal: 5,
-                          paddingVertical: 2,
-                          borderColor: tc.ink,
-                          borderWidth: 1,
-                          marginBottom: 6,
-                        }}
-                      >
-                        <PixelText variant={txt} size={8} color={tc.white}>
-                          {seed.category}
-                        </PixelText>
-                      </View>
-                    ) : null}
-                    <PixelText variant="ko" size={11} weight="bold" numberOfLines={2} style={{ lineHeight: 15, marginBottom: 3 }}>
-                      {displayNameKo}
+            {/* ── HERO ── */}
+            <View style={{ paddingHorizontal: 14 }}>
+              <Pressable
+                onPress={() => apparel.imageUrl && setZoomOpen(true)}
+                style={{ alignItems: 'center', marginBottom: 14 }}
+              >
+                <View style={{ width: 150, height: 210, backgroundColor: tc.pap2, borderColor: tc.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  {apparel.imageUrl ? (
+                    <Image source={{ uri: apparel.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  ) : (
+                    <Text style={{ fontSize: 44 }}>🃏</Text>
+                  )}
+                </View>
+              </Pressable>
+              <PixelText variant="ko" size={15} weight="bold" color={tc.ink} numberOfLines={2} style={{ textAlign: 'center', lineHeight: 20 }}>
+                {displayNameKo}
+              </PixelText>
+              {originalJp && originalJp !== displayNameKo ? (
+                <PixelText variant={txt} size={9} color={tc.ink3} numberOfLines={1} style={{ textAlign: 'center', marginTop: 5 }}>
+                  {originalJp}
+                </PixelText>
+              ) : null}
+
+              {/* 태그 칩 */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 12, flexWrap: 'wrap' }}>
+                <Chip tc={tc} txt={txt}>
+                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: tc.red }} />
+                  <PixelText variant={txt} size={10} weight="bold" color={tc.ink}>일본판</PixelText>
+                </Chip>
+                {seed?.category ? (
+                  <View style={{ backgroundColor: tc.pur, paddingHorizontal: 10, paddingVertical: 5 }}>
+                    <PixelText variant={txt} size={10} weight="bold" color={tc.white}>{seed.category}</PixelText>
+                  </View>
+                ) : null}
+                {apparel.productNumber ? (
+                  <Chip tc={tc} txt={txt} muted>
+                    <PixelText variant={txt} size={10} color={tc.ink3}>{apparel.productNumber}</PixelText>
+                  </Chip>
+                ) : null}
+              </View>
+
+              {/* 가격 박스 */}
+              <View style={{ marginTop: 14 }}>
+                <PixelFrame bg={tc.white}>
+                  <View style={{ padding: 16 }}>
+                    <PixelText variant={txt} size={11} weight="bold" color={tc.ink3}>최근 거래가 ({effectiveGrade})</PixelText>
+                    <PixelText variant={txt} size={26} weight="bold" color={tc.ink} style={{ marginTop: 5 }}>
+                      {fmtYen(headlinePrice)}
                     </PixelText>
-                    {originalJp && originalJp !== displayNameKo ? (
-                      <PixelText variant={txt} size={7} color={tc.ink3} numberOfLines={1} style={{ marginBottom: 6 }}>
-                        {originalJp}
-                      </PixelText>
-                    ) : null}
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <PixelText variant={txt} size={7} color={tc.ink3} style={{ marginBottom: 2 }} numberOfLines={1}>
-                          {rawAvg.count > 0 ? `싱글 평균 (최근 ${rawAvg.count}건)` : '싱글 평균'}
-                        </PixelText>
-                        {/* numberOfLines=1 + adjustsFontSizeToFit → 줄바꿈은 절대 발생하지 않고,
-                            컬럼 폭이 부족하면 폰트 크기만 축소된다. */}
-                        <PixelText
-                          variant={txt}
-                          size={13}
-                          color={tc.red}
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
-                          minimumFontScale={0.5}
-                        >
-                          {fmtYen(rawAvg.avg)}
-                        </PixelText>
+                    <View style={{ flexDirection: 'row', gap: 20, marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: tc.pap3 }}>
+                      <View style={{ flex: 1 }}>
+                        <PixelText variant={txt} size={10} color={tc.ink3}>전일 대비</PixelText>
+                        <View style={{ marginTop: 5 }}><Delta tc={tc} txt={txt} diff={change.prevDiff} pct={change.prevPct} /></View>
                       </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <PixelText variant={txt} size={7} color={tc.ink3} style={{ marginBottom: 2 }} numberOfLines={1}>
-                          {psa10Avg.count > 0 ? `PSA10 평균 (최근 ${psa10Avg.count}건)` : 'PSA10 평균'}
-                        </PixelText>
-                        <PixelText
-                          variant={txt}
-                          size={13}
-                          color={psa10Avg.avg > 0 ? tc.orn : tc.ink3}
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
-                          minimumFontScale={0.5}
-                        >
-                          {fmtYen(psa10Avg.avg)}
-                        </PixelText>
+                      <View style={{ flex: 1 }}>
+                        <PixelText variant={txt} size={10} color={tc.ink3}>7일 변동률</PixelText>
+                        <View style={{ marginTop: 5 }}><Delta tc={tc} txt={txt} diff={change.wkDiff} pct={change.wkPct} /></View>
                       </View>
                     </View>
-                    <PixelText variant={txt} size={8} color={tc.ink3} style={{ marginTop: 6 }}>
-                      {`최저매물 ${fmtYen(apparel.minPrice)}`}
-                      {apparel.listingCountText ? ` · 매물 ${apparel.listingCountText}건` : ''}
+                    <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 12 }}>
+                      {`최저매물 ${fmtYen(apparel.minPrice)}`}{apparel.listingCountText ? ` · 매물 ${apparel.listingCountText}건` : ''}
                     </PixelText>
                   </View>
-                </View>
-              </PixelFrame>
+                </PixelFrame>
+              </View>
             </View>
 
-            {/* 액션 버튼 3개 — 서버 동기 (웹과 동일). 토스트/이미 추가됨 상태/관심카드 토글 처리. */}
+            {/* ── 액션 ── */}
             <CardActions
               apparelId={apparelId}
-              cardName={displayNameKo || displayName || undefined}
+              cardName={displayNameKo || undefined}
               imageUrl={apparel.imageUrl ?? null}
               currentPriceJpy={apparel.minPrice ?? null}
             />
 
-            {/* Chart */}
-            <View style={{ marginHorizontal: 14 }}>
-              <SectHd title="시세 차트" more={sectionMore} />
+            {/* ── 지역 탭 (일본판 실데이터 / 그 외 준비중) ── */}
+            <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 14, marginTop: 6, borderBottomWidth: 1, borderBottomColor: tc.pap3 }}>
+              {['일본판', '한국판', '북미판'].map((r) => {
+                const ready = r === '일본판';
+                const active = region === r;
+                return (
+                  <Pressable
+                    key={r}
+                    onPress={() => ready && setRegion(r)}
+                    disabled={!ready}
+                    style={{ paddingVertical: 9, paddingHorizontal: 8, marginBottom: -1, borderBottomWidth: 2.5, borderBottomColor: active ? tc.ink : 'transparent', opacity: ready ? 1 : 0.5, flexDirection: 'row', alignItems: 'center', gap: 3 }}
+                  >
+                    <PixelText variant={txt} size={13} weight={active ? 'bold' : 'normal'} color={active ? tc.ink : tc.ink3}>{r}</PixelText>
+                    {!ready ? <PixelText variant={txt} size={8} color={tc.ink3}>준비중</PixelText> : null}
+                  </Pressable>
+                );
+              })}
             </View>
+
+            {/* ── 등급 카드 (가로 스크롤) ── */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 14, gap: 12 }}>
+              {grades.map((g) => {
+                const isSel = g.key === effectiveGrade;
+                const gc = (GRADE_COLOR[g.key] ?? (() => tc.ink))(tc);
+                return (
+                  <Pressable key={g.key} onPress={() => setGradeKey(g.key)} style={{ width: 158 }}>
+                    <PixelFrame bg={tc.white} border={isSel ? gc : tc.pap3} borderWidth={isSel ? 3 : 2}>
+                      <View style={{ padding: 14 }}>
+                        <View style={{ alignSelf: 'flex-start', backgroundColor: gc, paddingHorizontal: 9, paddingVertical: 4 }}>
+                          <PixelText variant={txt} size={10} weight="bold" color={tc.white}>{g.key}</PixelText>
+                        </View>
+                        <PixelText variant={txt} size={18} weight="bold" color={tc.ink} style={{ marginTop: 10 }}>{fmtYen(g.recent)}</PixelText>
+                        <View style={{ marginTop: 11, gap: 8 }}>
+                          <GradeRow tc={tc} txt={txt} label="평균가" value={fmtYen(g.avg)} />
+                          <GradeRow tc={tc} txt={txt} label="최근 최저" value={fmtYen(g.low)} />
+                          <GradeRow tc={tc} txt={txt} label="거래 건수" value={g.count > 0 ? `${g.count}건` : '—'} />
+                          <GradeRow tc={tc} txt={txt} label="최저매물" value={g.key === 'RAW' ? fmtYen(apparel.minPrice) : '—'} />
+                        </View>
+                      </View>
+                    </PixelFrame>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* ── 시세 비교 (SNKRDUNK vs 크림) ── */}
+            <KreamCompare query={displayNameKo} snkrPriceJpy={rawRecent} />
+
+            {/* ── 가격 추이 (기간 탭) ── */}
+            <View style={{ marginHorizontal: 14 }}>
+              <SectHd title="가격 추이" more={chartMore} />
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, gap: 6, marginBottom: 10 }}>
+              {RANGES.map((r, i) => {
+                const active = i === rangeIdx;
+                return (
+                  <Pressable key={r.label} onPress={() => setRangeIdx(i)} style={{ paddingVertical: 7, paddingHorizontal: 14, backgroundColor: active ? tc.ink : tc.pap2 }}>
+                    <PixelText variant={txt} size={11} weight="bold" color={active ? tc.white : tc.ink3}>{r.label}</PixelText>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
             <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
               <PixelFrame bg={tc.white}>
                 <View style={{ padding: 14 }}>
-                  <SnkrdunkPriceChart points={points} unitLabel={unitLabel} rawCount={allPoints.length} />
+                  <SnkrdunkPriceChart points={chartData} unitLabel={chartUnitLabel} rawCount={allPoints.length} />
                 </View>
               </PixelFrame>
             </View>
 
-            {/* Recent transactions — log style */}
+            {/* ── 최근 거래 내역 (등급 필터) ── */}
             <View style={{ marginHorizontal: 14 }}>
-              <SectHd
-                title="최근 거래내역"
-                more={`${history?.history.length ?? 0}건`}
-              />
+              <SectHd title={`최근 거래 내역 (${effectiveGrade})`} more={`${filteredTrades.length}건`} />
             </View>
             <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
-              <PixelFrame bg={tc.ink2}>
-                <View style={{ paddingHorizontal: 10, paddingTop: 8, paddingBottom: 10, overflow: 'hidden' }}>
-                  {history && history.history.length > 0 ? (
-                    history.history.slice(0, 20).map((h, i, arr) => {
+              <PixelFrame bg={flat ? tc.white : tc.ink2}>
+                <View style={{ paddingHorizontal: flat ? 14 : 10, paddingTop: 8, paddingBottom: 10, overflow: 'hidden' }}>
+                  {filteredTrades.length > 0 ? (
+                    filteredTrades.map((h, i, arr) => {
                       const date = localizeSnkrdunkText(h.date);
-                      const label = localizeSnkrdunkText(h.label);
-                      const condition = h.condition;
-                      const badge = condition || label || '일반';
-                      const isPsa = /PSA\s*\d+/i.test(badge);
+                      const badge = h.condition || localizeSnkrdunkText(h.label) || '일반';
+                      const isPsa = PSA_ANY_RE.test(badge);
+                      const divider = flat ? tc.pap3 : 'rgba(255,255,255,0.08)';
+                      // 플랫(클린·다크): 흰 패널 + 웹 행 스타일 / 픽셀: 다크 로그 스타일.
+                      const badgeBg = flat ? tc.pap2 : isPsa ? tc.gold : 'rgba(255,255,255,0.12)';
+                      const badgeFg = flat ? (isPsa ? tc.goldDk : tc.ink3) : isPsa ? tc.ink : tc.white;
+                      const priceColor = flat ? (i === 0 ? tc.red : tc.ink) : i === 0 ? tc.goldLt : tc.gold;
+                      const dateColor = flat ? tc.ink3 : 'rgba(255,255,255,0.55)';
                       return (
-                        <View
-                          key={i}
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            paddingVertical: 6,
-                            borderBottomWidth: i < arr.length - 1 ? 1 : 0,
-                            borderBottomColor: 'rgba(255,255,255,0.08)',
-                          }}
-                        >
-                          <View
-                            style={{
-                              minWidth: 56,
-                              paddingHorizontal: 5,
-                              paddingVertical: 2,
-                              backgroundColor: isPsa ? tc.gold : 'rgba(255,255,255,0.12)',
-                              borderColor: isPsa ? tc.ink : 'rgba(255,255,255,0.18)',
-                              borderWidth: 1,
-                              marginRight: 8,
-                              alignItems: 'center',
-                            }}
-                          >
-                            <PixelText variant={txt} size={8} color={isPsa ? tc.ink : tc.white}>
-                              {badge}
-                            </PixelText>
+                        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: flat ? 9 : 6, borderBottomWidth: i < arr.length - 1 ? 1 : 0, borderBottomColor: divider }}>
+                          <View style={{ minWidth: 56, paddingHorizontal: 5, paddingVertical: 2, backgroundColor: badgeBg, borderColor: flat ? 'transparent' : isPsa ? tc.ink : 'rgba(255,255,255,0.18)', borderWidth: flat ? 0 : 1, marginRight: 8, alignItems: 'center' }}>
+                            <PixelText variant={txt} size={8} weight={flat ? 'bold' : 'normal'} color={badgeFg}>{badge}</PixelText>
                           </View>
-                          <PixelText
-                            variant={txt}
-                            size={10}
-                            color={tc.gold}
-                            numberOfLines={1}
-                            style={{ flex: 1 }}
-                          >
-                            {fmtYen(h.price)}
-                          </PixelText>
-                          <PixelText variant={txt} size={8} color="rgba(255,255,255,0.55)">
-                            {date}
-                          </PixelText>
+                          <PixelText variant={txt} size={flat ? 13 : 10} weight={flat ? 'bold' : 'normal'} color={priceColor} numberOfLines={1} style={{ flex: 1 }}>{fmtYen(h.price)}</PixelText>
+                          <PixelText variant={txt} size={flat ? 10 : 8} color={dateColor}>{date}</PixelText>
                         </View>
                       );
                     })
                   ) : (
                     <View style={{ padding: 20, alignItems: 'center' }}>
-                      <PixelText variant={txt} size={9} color="rgba(255,255,255,0.55)">
-                        거래내역이 없습니다
-                      </PixelText>
+                      <PixelText variant={txt} size={9} color={flat ? tc.ink3 : 'rgba(255,255,255,0.55)'}>거래내역이 없습니다</PixelText>
                     </View>
                   )}
                 </View>
               </PixelFrame>
             </View>
 
+            {/* ── 등급별 투자 수익률 (준비 중) ── */}
+            <View style={{ marginHorizontal: 14 }}>
+              <SectHd title="등급별 투자 수익률" />
+            </View>
+            <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
+              <PixelFrame bg={tc.white}>
+                <View style={{ height: 72, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 18, opacity: 0.5 }}>🚧</Text>
+                  <PixelText variant={txt} size={11} weight="bold" color={tc.ink3}>준비 중</PixelText>
+                </View>
+              </PixelFrame>
+            </View>
+
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-              <PixelText variant={txt} size={8} color={tc.ink3}>
-                데이터 출처: snkrdunk.com
-              </PixelText>
+              <PixelText variant={txt} size={8} color={tc.ink3}>데이터 출처: snkrdunk.com (10분 캐시)</PixelText>
             </View>
           </>
         )}
       </ScrollView>
-      <Modal
-        visible={zoomOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setZoomOpen(false)}
-      >
-        <Pressable
-          onPress={() => setZoomOpen(false)}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 }}
-        >
+
+      <Modal visible={zoomOpen} transparent animationType="fade" onRequestClose={() => setZoomOpen(false)}>
+        <Pressable onPress={() => setZoomOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           {apparel?.imageUrl ? (
-            <Image
-              source={{ uri: apparel.imageUrl }}
-              style={{ width: '100%', height: '80%' }}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: apparel.imageUrl }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
           ) : null}
           <View style={{ position: 'absolute', top: 40, right: 20, backgroundColor: tc.ink, paddingHorizontal: 10, paddingVertical: 6, borderColor: tc.gold, borderWidth: 2 }}>
             <PixelText variant={txt} size={11} color={tc.gold}>✕ 닫기</PixelText>
@@ -362,75 +414,29 @@ export default function SnkrdunkDetail() {
   );
 }
 
-interface ActionBtnProps {
-  bg: string;
-  fg: string;
-  /** 이모지 아이콘. iconImage 가 주어지면 그쪽이 우선. */
-  icon?: string;
-  /** PNG/WebP 이미지 아이콘 (require 결과). */
-  iconImage?: ImageSourcePropType;
-  label: string;
-  desc: string;
-  onPress: () => void;
+function Chip({ tc, txt, children, muted }: { tc: ReturnType<typeof useThemeColors>; txt: 'pixel' | 'ko'; children: React.ReactNode; muted?: boolean }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: tc.pap2, paddingHorizontal: 11, paddingVertical: 6 }}>
+      {children}
+    </View>
+  );
 }
 
-/**
- * 시세 상세 하단 3-버튼.
- * 디자인 변경: 세로 적층(아이콘/라벨/desc) → 가로 한 줄 압축 레이아웃.
- * 이전 paddingVertical=10 + 3줄 텍스트 → paddingVertical=5 + 단일 행
- * 으로 버튼 높이가 약 절반으로 줄어듦.
- */
-function ActionBtn({ bg, fg, icon, iconImage, label, desc, onPress }: ActionBtnProps) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
+function GradeRow({ tc, txt, label, value }: { tc: ReturnType<typeof useThemeColors>; txt: 'pixel' | 'ko'; label: string; value: string }) {
   return (
-    <View style={{ flex: 1 }}>
-      <PixelPress onPress={onPress} bg={bg} borderWidth={3} shadow={5} hi="rgba(255,255,255,0.35)" lo="rgba(0,0,0,0.25)" inner={0}>
-        <View
-          style={{
-            paddingVertical: 5,
-            paddingHorizontal: 6,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 5,
-          }}
-        >
-          {iconImage ? (
-            <Image
-              source={iconImage}
-              style={{ width: 18, height: 18 }}
-              resizeMode="contain"
-            />
-          ) : icon ? (
-            <Text style={{ fontSize: 14 }}>{icon}</Text>
-          ) : null}
-          <View style={{ flexShrink: 1, minWidth: 0 }}>
-            <PixelText
-              variant="ko"
-              size={9}
-              weight="bold"
-              color={fg}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-            >
-              {label}
-            </PixelText>
-          </View>
-          {desc ? (
-            <PixelText
-              variant={txt}
-              size={8}
-              color={fg}
-              style={{ opacity: 0.7, letterSpacing: 0.2 }}
-              numberOfLines={1}
-            >
-              {desc}
-            </PixelText>
-          ) : null}
-        </View>
-      </PixelPress>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+      <PixelText variant={txt} size={10} color={tc.ink3}>{label}</PixelText>
+      <PixelText variant={txt} size={11} weight="bold" color={tc.ink}>{value}</PixelText>
     </View>
+  );
+}
+
+function Delta({ tc, txt, diff, pct }: { tc: ReturnType<typeof useThemeColors>; txt: 'pixel' | 'ko'; diff: number; pct: number | null }) {
+  if (pct == null) return <PixelText variant={txt} size={13} weight="bold" color={tc.ink3}>—</PixelText>;
+  const up = diff >= 0;
+  return (
+    <PixelText variant={txt} size={13} weight="bold" color={up ? tc.red : tc.blu}>
+      {up ? '+' : '−'} {fmtYen(Math.abs(diff))} ({up ? '+' : ''}{pct.toFixed(2)}%)
+    </PixelText>
   );
 }

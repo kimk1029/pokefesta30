@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { PixelText } from '@/components/PixelText';
 import { colors } from '@/theme/tokens';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 
 export interface ChartSeries {
   label: string;
@@ -79,18 +80,20 @@ export function SnkrdunkPriceChart({
   width = 320,
   height = 180,
 }: Props) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   // Normalize to a series list. Single-series API maps to one red trend.
   const allSeries: ChartSeries[] = series && series.length > 0
     ? series.filter((s) => s.points.length >= 1)
     : points && points.length >= 1
-    ? [{ label: '시세', color: colors.red, points }]
+    ? [{ label: '시세', color: tc.red, points }]
     : [];
   const renderable = allSeries.filter((s) => s.points.length >= 2);
 
   if (renderable.length === 0) {
     return (
-      <View style={{ height, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.pap2 }}>
-        <PixelText variant="pixel" size={9} color={colors.ink3}>
+      <View style={{ height, alignItems: 'center', justifyContent: 'center', backgroundColor: tc.pap2 }}>
+        <PixelText variant={txt} size={9} color={tc.ink3}>
           시세 이력이 부족합니다
         </PixelText>
       </View>
@@ -136,14 +139,14 @@ export function SnkrdunkPriceChart({
 
   return (
     <View>
-      <View style={{ width: '100%', backgroundColor: colors.pap2 }}>
+      <View style={{ width: '100%', backgroundColor: tc.pap2 }}>
         <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
           {yTicks.map((v) => {
             const y = yOf(v);
             return (
               <React.Fragment key={`y-${v}`}>
                 <Line x1={PAD_L} y1={y} x2={width - PAD_R} y2={y} stroke="rgba(0,0,0,0.08)" strokeWidth={1} />
-                <SvgText x={PAD_L - 6} y={y + 3} textAnchor="end" fontSize={7} fill={colors.ink3}>
+                <SvgText x={PAD_L - 6} y={y + 3} textAnchor="end" fontSize={7} fill={tc.ink3}>
                   {fmtYenAxis(v, maxY)}
                 </SvgText>
               </React.Fragment>
@@ -166,7 +169,7 @@ export function SnkrdunkPriceChart({
                   y={PAD_T + innerH + 12}
                   textAnchor={i === 0 ? 'start' : i === xTickValues.length - 1 ? 'end' : 'middle'}
                   fontSize={7}
-                  fill={colors.ink3}
+                  fill={tc.ink3}
                 >
                   {fmtDateAxis(tv, rangeX)}
                 </SvgText>
@@ -183,10 +186,10 @@ export function SnkrdunkPriceChart({
             </React.Fragment>
           ))}
 
-          <SvgText x={PAD_L} y={PAD_T - 4} textAnchor="start" fontSize={7} fill={colors.ink3}>
+          <SvgText x={PAD_L} y={PAD_T - 4} textAnchor="start" fontSize={7} fill={tc.ink3}>
             가격 (JPY)
           </SvgText>
-          <SvgText x={width - PAD_R} y={height - 4} textAnchor="end" fontSize={7} fill={colors.ink3}>
+          <SvgText x={width - PAD_R} y={height - 4} textAnchor="end" fontSize={7} fill={tc.ink3}>
             거래일
           </SvgText>
 
@@ -198,7 +201,7 @@ export function SnkrdunkPriceChart({
                 return (
                   <React.Fragment key={`legend-${i}`}>
                     <Line x1={x} y1={y - 3} x2={x + 12} y2={y - 3} stroke={s.color} strokeWidth={2} />
-                    <SvgText x={x + 16} y={y} fontSize={7} fill={colors.ink3}>
+                    <SvgText x={x + 16} y={y} fontSize={7} fill={tc.ink3}>
                       {s.label}
                     </SvgText>
                   </React.Fragment>
@@ -208,10 +211,10 @@ export function SnkrdunkPriceChart({
         </Svg>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-        <PixelText variant="pixel" size={8} color={colors.ink3}>
+        <PixelText variant={txt} size={8} color={tc.ink3}>
           기간: {fmtDateAxis(minX, rangeX)} ~ {fmtDateAxis(maxX, rangeX)} · {unitLabel} · 거래 {rawCount}건
         </PixelText>
-        <PixelText variant="pixel" size={8} color={colors.ink3}>
+        <PixelText variant={txt} size={8} color={tc.ink3}>
           최저 ¥{dataMinY.toLocaleString('ja-JP')} · 최고 ¥{dataMaxY.toLocaleString('ja-JP')}
         </PixelText>
       </View>

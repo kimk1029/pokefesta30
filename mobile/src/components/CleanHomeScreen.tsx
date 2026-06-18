@@ -6,6 +6,8 @@ import { HeroBanner, type HeroSlideData } from '@/components/HeroBanner';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useTheme, useThemeColors } from '@/components/ThemeProvider';
 import { isFlatTheme } from '@/lib/theme';
+import { PixelFrame } from '@/components/cv/PixelFrame';
+import { PixelPress } from '@/components/cv/PixelPress';
 import { fonts } from '@/theme/tokens';
 import {
   fetchSnkrdunkApparel,
@@ -120,13 +122,18 @@ function rankBadgeColor(rank: number): string {
   return '#2B2B2B';
 }
 
-/** 카드 아트 — 컨테이너 없이 이미지만 떠 보이게(은은한 그림자). */
+/**
+ * 카드 아트 — 클린/플랫: 컨테이너 없이 이미지만 떠 보이게(은은한 그림자).
+ * 픽셀: 직각 모서리 + ink 테두리 + 단일 하드 드롭섀도(블러 0)로 픽셀 박스 느낌.
+ */
 function CardArt({
   imageUrl,
   fallbackIdx,
   width,
   height,
   radius,
+  pixel,
+  ink,
   children,
 }: {
   imageUrl: string | null;
@@ -134,24 +141,23 @@ function CardArt({
   width: number;
   height: number;
   radius: number;
+  pixel?: boolean;
+  ink?: string;
   children?: ReactNode;
 }) {
-  // 컨테이너(박스) 없이 이미지 '자체'에 그림자를 준다 — iOS 는 이미지 콘텐츠(알파)에서,
-  // Android 는 elevation 으로 그림자를 만든다. overflow:'hidden' 을 주지 않아야 그림자가 안 잘린다
-  // (Image 는 borderRadius 를 자체적으로 클리핑).
-  const shadow = {
-    shadowColor: '#000',
-    shadowOpacity: 0.28,
-    shadowRadius: 7,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 6,
-  } as const;
+  // 픽셀: 모서리 0 + ink 보더 2 + 하드 드롭섀도(offset 만, 블러 0). 플랫: 둥근 모서리 + 은은한 소프트 섀도.
+  // Android elevation 은 둥근 이미지 뒤에 '사각' 그림자 박스를 그려 컨테이너처럼 보이므로 플랫에선 끈다.
+  const r = pixel ? 0 : radius;
+  const shadow = pixel
+    ? ({ shadowColor: ink ?? '#16161a', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 3, height: 3 }, elevation: 0 } as const)
+    : ({ shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 0 } as const);
+  const pixelBorder = pixel ? { borderWidth: 2, borderColor: ink ?? '#16161a' } : null;
   return (
     <View style={{ position: 'relative', width, height }}>
       {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={{ width, height, borderRadius: radius, ...shadow }} resizeMode="cover" />
+        <Image source={{ uri: imageUrl }} style={{ width, height, borderRadius: r, ...pixelBorder, ...shadow }} resizeMode="cover" />
       ) : (
-        <View style={{ width, height, borderRadius: radius, backgroundColor: FALLBACK_BG[fallbackIdx % FALLBACK_BG.length], alignItems: 'center', justifyContent: 'center', ...shadow }}>
+        <View style={{ width, height, borderRadius: r, ...pixelBorder, backgroundColor: FALLBACK_BG[fallbackIdx % FALLBACK_BG.length], alignItems: 'center', justifyContent: 'center', ...shadow }}>
           <Text style={{ fontSize: 40 }}>🃏</Text>
         </View>
       )}
@@ -245,6 +251,7 @@ export function CleanHomeScreen() {
   const { theme } = useTheme();
   const tc = useThemeColors();
   const flat = isFlatTheme(theme);
+  const pixel = !flat; // 픽셀 테마(pokemon·onepiece·yugioh·sports) — 직각/하드섀도 크롬.
   const isClean = theme === 'clean';
   const P: Palette = isClean
     ? CLEAN_PALETTE
@@ -386,6 +393,23 @@ export function CleanHomeScreen() {
     </Pressable>
   );
 
+  // 빠른 스캔 타일 컨테이너 — 픽셀: 직각 PixelPress(white) / 플랫: 둥근 소프트 타일.
+  const ScanTile = ({ onPress, children }: { onPress: () => void; children: ReactNode }) =>
+    pixel ? (
+      <View style={{ flex: 1 }}>
+        <PixelPress onPress={onPress} borderWidth={3} shadow={5} inner={3} bg={tc.white}>
+          <View style={{ paddingVertical: 14, paddingHorizontal: 13 }}>{children}</View>
+        </PixelPress>
+      </View>
+    ) : (
+      <Pressable
+        onPress={onPress}
+        style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14 }}
+      >
+        {children}
+      </Pressable>
+    );
+
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
@@ -403,21 +427,38 @@ export function CleanHomeScreen() {
           </Pressable>
         </View>
 
-        {/* search */}
+        {/* search — 픽셀: 직각 PixelFrame 박스 / 플랫: 둥근 소프트 타일 */}
         <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 14 }}>
-          <Pressable
-            onPress={() => router.push('/cards/snkrdunk/search' as never)}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: P.searchBg, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16 }}
-          >
-            <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={2.2} strokeLinecap="round">
-              <Circle cx={11} cy={11} r={7} />
-              <Path d="m20 20-3.5-3.5" />
-            </Svg>
-            <Text style={[ts(14.5, '400', P.ink3), { flex: 1 }]}>카드명 또는 세트명으로 검색하세요</Text>
-            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-              <Path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
-            </Svg>
-          </Pressable>
+          {pixel ? (
+            <Pressable onPress={() => router.push('/cards/snkrdunk/search' as never)}>
+              <PixelFrame borderWidth={3} shadow={5} inner={3}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: tc.white, paddingVertical: 12, paddingHorizontal: 14 }}>
+                  <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={2.4} strokeLinecap="round">
+                    <Circle cx={11} cy={11} r={7} />
+                    <Path d="m20 20-3.5-3.5" />
+                  </Svg>
+                  <Text style={[ts(13, '700', P.ink3), { flex: 1 }]}>카드명·세트명 검색</Text>
+                  <View style={{ width: 30, height: 30, backgroundColor: tc.ink, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={ts(13, '800', tc.gold)}>▶</Text>
+                  </View>
+                </View>
+              </PixelFrame>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => router.push('/cards/snkrdunk/search' as never)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: P.searchBg, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16 }}
+            >
+              <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={2.2} strokeLinecap="round">
+                <Circle cx={11} cy={11} r={7} />
+                <Path d="m20 20-3.5-3.5" />
+              </Svg>
+              <Text style={[ts(14.5, '400', P.ink3), { flex: 1 }]}>카드명 또는 세트명으로 검색하세요</Text>
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+                <Path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
+              </Svg>
+            </Pressable>
+          )}
         </View>
 
         {/* promo banner — 비면 컴포넌트 내장 폴백 슬라이드 */}
@@ -427,10 +468,7 @@ export function CleanHomeScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}>
           <Text style={[ts(18, '800', P.ink), { marginBottom: 12 }]}>빠른 스캔</Text>
           <View style={{ flexDirection: 'row', gap: 11 }}>
-            <Pressable
-              onPress={() => router.push('/cards/packs' as never)}
-              style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14 }}
-            >
+            <ScanTile onPress={() => router.push('/cards/packs' as never)}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={P.priceIcon} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
@@ -440,11 +478,8 @@ export function CleanHomeScreen() {
               </View>
               <Text style={[ts(16, '800', P.ink), { marginTop: 14 }]}>시세 확인</Text>
               <Text style={[ts(12, '400', P.ink2), { marginTop: 3 }]}>카드 시세를 바로 확인해요</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => router.push('/cards/add' as never)}
-              style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14 }}
-            >
+            </ScanTile>
+            <ScanTile onPress={() => router.push('/cards/add' as never)}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={P.regIcon} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M14 3v4a1 1 0 0 0 1 1h4" />
@@ -455,7 +490,7 @@ export function CleanHomeScreen() {
               </View>
               <Text style={[ts(16, '800', P.ink), { marginTop: 14 }]}>내 카드 등록</Text>
               <Text style={[ts(12, '400', P.ink2), { marginTop: 3 }]}>보유 카드를 등록하고 관리해요</Text>
-            </Pressable>
+            </ScanTile>
           </View>
         </View>
 
@@ -472,11 +507,12 @@ export function CleanHomeScreen() {
               gap={14}
               renderItem={({ seed, data }, idx) => (
                 <Pressable onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}>
-                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={idx} width={100} height={138} radius={11}>
+                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={idx} width={100} height={138} radius={11} pixel={pixel} ink={tc.ink}>
                     <View
                       style={{
-                        position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: 11,
+                        position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: pixel ? 0 : 11,
                         backgroundColor: rankBadgeColor(idx + 1), alignItems: 'center', justifyContent: 'center',
+                        ...(pixel ? { borderWidth: 2, borderColor: tc.ink } : null),
                       }}
                     >
                       <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{idx + 1}</Text>
@@ -507,7 +543,7 @@ export function CleanHomeScreen() {
               gap={14}
               renderItem={({ seed, data }, idx) => (
                 <Pressable onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}>
-                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={idx} width={100} height={100} radius={13} />
+                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={idx} width={100} height={100} radius={13} pixel={pixel} ink={tc.ink} />
                   <Text numberOfLines={1} style={[ts(12.5, '700', P.ink), { marginTop: 9 }]}>{seed.shortName}</Text>
                   <Text style={[ts(11, '400', P.ink2), { marginTop: 3 }]}>
                     평균 시세 <Text style={ts(11, '800', P.rise)}>{fmtPrice(data?.minPrice ?? 0)}</Text>
@@ -542,7 +578,7 @@ export function CleanHomeScreen() {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: P.line }}
                   >
                     <Text style={[ts(15, '800', i < 3 ? P.rise : P.ink), { width: 14, textAlign: 'center' }]}>{i + 1}</Text>
-                    <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={i} width={46} height={46} radius={9} />
+                    <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={i} width={46} height={46} radius={9} pixel={pixel} ink={tc.ink} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text numberOfLines={1} style={ts(14, '700', P.ink)}>{seed.shortName}</Text>
                       <Text numberOfLines={1} style={[ts(12, '400', P.ink3), { marginTop: 2 }]}>{seed.category ?? '카드'}</Text>

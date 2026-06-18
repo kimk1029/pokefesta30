@@ -17,8 +17,9 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { AppBar } from '@/components/AppBar';
 import { PortfolioHero } from '@/components/PortfolioHero';
+import { CollectionComposition } from '@/components/CollectionComposition';
+import { CollectionSummary } from '@/components/CollectionSummary';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
@@ -31,8 +32,11 @@ import { colors, fonts, space } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import {
   fetchMyCards,
+  fetchPortfolio,
+  fetchPriceAlerts,
   deleteMyCard,
   type MyCardRow,
+  type PortfolioSummary,
 } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 import { isAuthenticated, subscribeSession } from '@/lib/session';
@@ -128,7 +132,7 @@ export default function MyCardsScreen() {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
   const authed = useAuthed();
-  const { format } = useCurrency();
+  const { format, rate } = useCurrency();
   const { mode: priceMode } = usePriceMode();
   const toast = useToast();
 
@@ -138,6 +142,17 @@ export default function MyCardsScreen() {
   const [sort, setSort] = useState<SortBy>('recent');
 
   const { data, loading, error, refresh } = useAsync<MyCardRow[]>(fetchMyCards, [authed]);
+
+  // 자산 요약(7일/30일 history) · 가격 알림 개수 — 실데이터.
+  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
+  const [alertCount, setAlertCount] = useState(0);
+  useEffect(() => {
+    if (!authed) return;
+    let alive = true;
+    fetchPortfolio().then((p) => { if (alive && p && p.totalCount > 0) setPortfolio(p); }).catch(() => {});
+    fetchPriceAlerts().then((a) => { if (alive) setAlertCount(a.filter((x) => !x.triggeredAt).length); }).catch(() => {});
+    return () => { alive = false; };
+  }, [authed]);
 
   if (!authed) {
     return (
@@ -226,10 +241,9 @@ export default function MyCardsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
-      <AppBar title="내 컬렉션" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
-        {/* 토탈 포트폴리오 — 컬렉션 상단에는 메인 설정과 무관하게 항상 노출. */}
-        <View style={{ height: 12 }} />
+        {/* 웹 CollectionScreen 과 동일 — "내 자산" 헤더(검색/알림/도움말) */}
+        <CollectionHeader tc={tc} txt={txt} />
         <PortfolioHero />
         {loading && !data ? (
           <View style={{ paddingTop: 30 }}><LoadingState /></View>
@@ -249,12 +263,18 @@ export default function MyCardsScreen() {
           </View>
         ) : (
           <>
-            {/* 요약 스트립 */}
-            <View style={styles.strip}>
-              <StripCell text={`총 ${filtered.length}장`} bg={tc.ink} fg={tc.gold} />
-              <StripCell text={format(totalJpy)} bg={tc.gold} fg={tc.ink} />
-              <StripCell text={`그레이딩 ${gradedN}`} bg={tc.pur} fg={tc.white} />
-            </View>
+            {/* 자산 요약(7일/30일/누적) + 가격 알림 배너 — 실데이터 */}
+            <CollectionSummary
+              port={portfolio}
+              cards={data ?? []}
+              priceMode={priceMode}
+              alertCount={alertCount}
+              format={format}
+              rate={rate}
+            />
+
+            {/* 자산 구성(지역별 도넛) + 시리즈 TOP5 — 웹 CollectionScreen 포팅 */}
+            <CollectionComposition cards={data ?? []} priceMode={priceMode} format={format} />
 
             {/* 검색 */}
             <View style={{ paddingHorizontal: space.gap, marginBottom: 2 }}>
@@ -820,6 +840,38 @@ function StripCell({ text, bg, fg }: { text: string; bg: string; fg: string }) {
   return (
     <View style={[styles.stripCell, { backgroundColor: bg }]}>
       <PixelText variant={txt} size={9} color={fg}>{text}</PixelText>
+    </View>
+  );
+}
+
+/** 웹 CollectionScreen 헤더 — "내 자산" + 검색/알림/도움말 아이콘. */
+function CollectionHeader({ tc, txt }: { tc: ReturnType<typeof useThemeColors>; txt: 'pixel' | 'ko' }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
+      <PixelText variant="ko" size={22} weight="bold" color={tc.ink} style={{ letterSpacing: -0.5 }}>
+        내 자산
+      </PixelText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <Pressable onPress={() => router.push('/cards/snkrdunk/search' as never)} hitSlop={6}>
+          <Svg width={23} height={23} viewBox="0 0 24 24" fill="none" stroke={tc.ink} strokeWidth={2} strokeLinecap="round">
+            <Circle cx={11} cy={11} r={7} />
+            <Path d="m20 20-3.5-3.5" />
+          </Svg>
+        </Pressable>
+        <Pressable onPress={() => router.push('/my/messages' as never)} hitSlop={6}>
+          <Svg width={23} height={23} viewBox="0 0 24 24" fill="none" stroke={tc.ink} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+            <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <Path d="M13.7 21a2 2 0 0 1-3.4 0" />
+          </Svg>
+        </Pressable>
+        <Pressable onPress={() => router.push('/my/faq' as never)} hitSlop={6}>
+          <Svg width={23} height={23} viewBox="0 0 24 24" fill="none" stroke={tc.ink} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+            <Circle cx={12} cy={12} r={10} />
+            <Path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
+            <Path d="M12 17h.01" />
+          </Svg>
+        </Pressable>
+      </View>
     </View>
   );
 }

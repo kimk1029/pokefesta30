@@ -75,6 +75,10 @@ export interface MyCardRow {
   graded?: boolean;
   gradeCompany?: string | null;
   gradeValue?: string | null;
+  /** 에디션(지역) — 'jp' | 'kr' | 'en' | null. 자산 구성 비중에 사용. */
+  region?: string | null;
+  /** 카탈로그 시리즈명 — 시리즈별 비중 TOP5 에 사용. */
+  series?: string | null;
 }
 
 export interface MyFavoriteRow {
@@ -199,6 +203,21 @@ export function createMyCard(input: CreateMyCardInput): Promise<{ data: MyCardRo
 
 export function fetchPortfolio(): Promise<PortfolioSummary> {
   return api<{ data: PortfolioSummary }>('/api/me/portfolio').then((r) => r.data);
+}
+
+export interface PriceAlertRow {
+  apparelId: number;
+  cardName: string | null;
+  targetPriceJpy: number;
+  /** 도달해 발송된 시각. null 이면 활성(설정 중). */
+  triggeredAt: string | null;
+}
+
+/** 내 가격 알림 목록. 미설정/실패 시 빈 배열. */
+export function fetchPriceAlerts(): Promise<PriceAlertRow[]> {
+  return api<{ data: PriceAlertRow[] }>('/api/me/price-alerts')
+    .then((r) => r.data ?? [])
+    .catch(() => []);
 }
 
 export function removeFavorite(apparelId: number): Promise<{ ok: boolean }> {

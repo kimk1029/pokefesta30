@@ -17,11 +17,8 @@ import { isAuthenticated, subscribeSession } from '@/lib/session';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/lib/priceMode';
 import { useCollection } from '@/lib/collection';
-import { cardKrw } from '@/data/cardvault';
+import { cardKrw, cardProfit } from '@/data/cardvault';
 import { fetchPortfolio, type PortfolioSummary } from '@/lib/myApi';
-
-const POINTS = 1280;
-const TRADES = 3;
 
 type PortfolioChartMode = 'day' | 'week' | 'month';
 
@@ -121,6 +118,10 @@ interface HeroData {
   chartData: number[];
   chartMode: PortfolioChartMode;
   setChartMode: (m: PortfolioChartMode) => void;
+  /** 보유 카드 매입가 합계(KRW). 구매가 미입력분은 0. */
+  investedKrw: number;
+  /** 평가 손익(KRW) = 현재가 합 − 매입가 합 (매입가 입력 카드 한정). */
+  profitKrw: number;
 }
 
 /** hero 표시에 필요한 데이터 — useCollection + 서버 포트폴리오 스냅샷. */
@@ -148,6 +149,17 @@ function usePortfolioHeroData(): HeroData {
   const changePct = prevVal > 0 ? Math.round(((totalVal - prevVal) / prevVal) * 100) : 0;
   const graded = owned.filter((c) => c.grade != null);
 
+  // 매입가/평가손익 집계 — 구매가 입력 카드만 (cardProfit.hasBuy). 더미 없이 실데이터.
+  const profitAgg = owned.reduce(
+    (a, c) => {
+      const p = cardProfit(c, priceMode);
+      a.invested += p.investedKrw;
+      a.profit += p.profitKrw;
+      return a;
+    },
+    { invested: 0, profit: 0 },
+  );
+
   const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
   const ownedForChart = owned.map((c) => ({
     latestPrice: cardKrw(c, priceMode),
@@ -164,6 +176,7 @@ function usePortfolioHeroData(): HeroData {
     authed, serverPortfolio, totalVal, changePct,
     ownedLen: owned.length, gradedLen: graded.length,
     hasAnyPsa10, priceMode, togglePriceMode, chartData, chartMode, setChartMode,
+    investedKrw: profitAgg.invested, profitKrw: profitAgg.profit,
   };
 }
 
@@ -172,11 +185,17 @@ export function PortfolioHero() {
   const txt = useThemeTextVariant();
   const { theme } = useTheme();
   const flat = isFlatTheme(theme);
-  const { format: formatCurrency } = useCurrency();
+  const { format: formatCurrency, rate } = useCurrency();
   const {
     authed, serverPortfolio, totalVal, changePct, ownedLen, gradedLen,
     hasAnyPsa10, priceMode, togglePriceMode, chartData, chartMode, setChartMode,
+    investedKrw, profitKrw,
   } = usePortfolioHeroData();
+
+  // 칩 표시용 — KRW 집계를 JPY 로 환산해 통화 토글(format)과 일관되게 표시.
+  const investedJpy = rate > 0 ? investedKrw / rate : 0;
+  const profitJpy = rate > 0 ? profitKrw / rate : 0;
+  const hasInvested = investedKrw > 0;
 
   const valueText = serverPortfolio ? formatCurrency(serverPortfolio.totalJpy) : `₩${totalVal.toLocaleString()}`;
   const realPct = serverPortfolio?.changePct ?? null;
@@ -200,8 +219,9 @@ export function PortfolioHero() {
             setChartMode={setChartMode}
             ownedLen={ownedLen}
             gradedLen={gradedLen}
-            points={POINTS}
-            trades={TRADES}
+            investedText={hasInvested ? formatCurrency(investedJpy) : '—'}
+            profitText={hasInvested ? `${profitJpy >= 0 ? '+' : '-'}${formatCurrency(Math.abs(profitJpy))}` : '—'}
+            profitColor={!hasInvested ? tc.ink3 : profitJpy >= 0 ? tc.red : tc.blu}
           />
         ) : (
           <PixelFrame
@@ -320,13 +340,13 @@ export function PortfolioHero() {
                 </View>
               </View>
 
-              {/* 4 stat chips */}
+              {/* 4 stat chips — 실데이터 (보유/그레이딩/구매금액/평가손익) */}
               <View style={{ flexDirection: 'row', gap: 4 }}>
                 {[
                   { l: '보유', v: `${ownedLen}장`, c: 'rgba(255,255,255,0.7)' },
                   { l: '그레이딩', v: `${gradedLen}건`, c: '#A78BFA' },
-                  { l: '포인트', v: `${POINTS.toLocaleString()}P`, c: tc.gold },
-                  { l: '거래', v: `${TRADES}건`, c: '#22C55E' },
+                  { l: '구매금액', v: hasInvested ? formatCurrency(investedJpy) : '—', c: tc.gold },
+                  { l: '평가손익', v: hasInvested ? `${profitJpy >= 0 ? '+' : '-'}${formatCurrency(Math.abs(profitJpy))}` : '—', c: hasInvested ? (profitJpy >= 0 ? '#FF6B5E' : '#6FA8FF') : 'rgba(255,255,255,0.5)' },
                 ].map((s) => (
                   <View
                     key={s.l}
@@ -398,7 +418,7 @@ export function PortfolioHero() {
  */
 function CleanDarkPortfolioHero({
   dark, tc, txt, value, changePct, hasAnyPsa10, priceMode, togglePriceMode,
-  chartData, chartMode, setChartMode, ownedLen, gradedLen, points, trades,
+  chartData, chartMode, setChartMode, ownedLen, gradedLen, investedText, profitText, profitColor,
 }: {
   dark: boolean;
   tc: typeof colors;
@@ -413,8 +433,9 @@ function CleanDarkPortfolioHero({
   setChartMode: (m: PortfolioChartMode) => void;
   ownedLen: number;
   gradedLen: number;
-  points: number;
-  trades: number;
+  investedText: string;
+  profitText: string;
+  profitColor: string;
 }) {
   const up = changePct >= 0;
   const upColor = up ? tc.red : tc.blu;
@@ -461,13 +482,13 @@ function CleanDarkPortfolioHero({
       </View>
       <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: tc.pap3 }}>
         {([
-          ['보유', `${ownedLen}장`],
-          ['그레이딩', `${gradedLen}건`],
-          ['포인트', `${points.toLocaleString()}P`],
-          ['거래', `${trades}건`],
-        ] as Array<[string, string]>).map(([l, v], i) => (
+          ['보유', `${ownedLen}장`, tc.ink],
+          ['그레이딩', `${gradedLen}건`, tc.ink],
+          ['구매금액', investedText, tc.ink],
+          ['평가손익', profitText, profitColor],
+        ] as Array<[string, string, string]>).map(([l, v, col], i) => (
           <View key={l} style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center', borderRightWidth: i < 3 ? 1 : 0, borderRightColor: tc.pap3 }}>
-            <PixelText variant={txt} size={15} weight="bold" color={tc.ink} numberOfLines={1} adjustsFontSizeToFit>{v}</PixelText>
+            <PixelText variant={txt} size={15} weight="bold" color={col} numberOfLines={1} adjustsFontSizeToFit>{v}</PixelText>
             <PixelText variant={txt} size={11} color={tc.ink3} style={{ marginTop: 4 }}>{l}</PixelText>
           </View>
         ))}
