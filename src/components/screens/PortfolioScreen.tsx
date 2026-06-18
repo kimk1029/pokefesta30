@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/components/PriceModeProvider';
+import { Panel } from '@/components/ui/Panel';
 
 interface HistPoint {
   date: string;
@@ -24,6 +25,7 @@ interface PortfolioData {
 interface CardRow {
   id: number;
   cardId: string | null;
+  snkrdunkApparelId: number | null;
   nickname: string | null;
   photoUrl: string | null;
   snkrdunkName: string | null;
@@ -35,6 +37,7 @@ interface CardRow {
   buyCurrency: string | null;
   qty: number;
   buyDate: string | null;
+  createdAt: string;
   selfPulled: boolean;
   graded: boolean;
   gradeCompany: string | null;
@@ -43,28 +46,38 @@ interface CardRow {
   ocrCardNumber: string | null;
 }
 
-const UP = '#22C55E';
-const DOWN = '#FF5B6E';
-const GOLD = '#FFD23F';
+// KR 관례: 상승=빨강, 하락=파랑.
+const UP = 'var(--red)';
+const DOWN = 'var(--blu)';
+// 도넛/순위 색 (구성·시리즈 준비 중 placeholder 용).
+const PIE = ['var(--pur)', 'var(--blu)', 'var(--gold)'];
 
-type Filter = 'all' | 'up' | 'down' | 'graded' | 'pull';
-type Range = 7 | 30 | 90 | 0; // 0 = 전체
+type SortKey = 'value' | 'recent' | 'name' | 'change';
+type View = 'grid' | 'list';
+
+function cardName(c: CardRow): string {
+  return c.snkrdunkName || c.nickname || '이름 미상';
+}
+function cardSub(c: CardRow): string {
+  if (c.graded) return `${c.gradeCompany ?? 'PSA'} ${c.gradeValue ?? ''}`.trim();
+  if (c.ocrSetCode) return [c.ocrSetCode.toUpperCase(), c.ocrCardNumber].filter(Boolean).join(' · ');
+  return c.selfPulled ? '직접뽑기' : '싱글카드';
+}
 
 export function PortfolioScreen() {
-  const { format, rate } = useCurrency();
+  const { format, rate, mode, setMode } = useCurrency();
   const { mode: priceMode } = usePriceMode();
   const [port, setPort] = useState<PortfolioData | null>(null);
   const [cards, setCards] = useState<CardRow[] | null>(null);
+  const [alertCount, setAlertCount] = useState<number>(0);
   const [err, setErr] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
-  const [sort, setSort] = useState<'value' | 'change'>('value');
-  const [filter, setFilter] = useState<Filter>('all');
-  const [range, setRange] = useState<Range>(30);
+  const [sort, setSort] = useState<SortKey>('value');
+  const [view, setView] = useState<View>('grid');
 
   useEffect(() => {
     let alive = true;
-    // 스니덩크 라이브 스크래핑이 느리거나 멈추면 응답이 안 와 스피너가 영원히 남는다.
-    // 20초 타임아웃 + 에러 응답(비-2xx) 처리로 무한 로딩을 방지한다.
+    // 스니덩크 라이브 스크래핑이 느리면 응답이 안 와 스피너가 영원히 남는다. 20초 타임아웃.
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 20000);
     setErr(null);
@@ -72,16 +85,16 @@ export function PortfolioScreen() {
     setCards(null);
     (async () => {
       try {
-        const [pr, cr] = await Promise.all([
+        const [pr, cr, ar] = await Promise.all([
           fetch('/api/me/portfolio', { credentials: 'include', cache: 'no-store', signal: ctrl.signal }),
           fetch('/api/me/cards/with-prices', { credentials: 'include', cache: 'no-store', signal: ctrl.signal }),
+          fetch('/api/me/price-alerts', { credentials: 'include', cache: 'no-store', signal: ctrl.signal }).catch(() => null),
         ]);
         if (!alive) return;
         if (!pr.ok) {
           setErr(pr.status === 401 ? '로그인이 필요해요' : '포트폴리오를 불러오지 못했어요');
           return;
         }
-        // 에러 응답도 JSON 파싱은 성공하므로(throw 안 됨), data 유무로 판정해야 한다.
         const pj = (await pr.json().catch(() => null)) as { data?: PortfolioData } | null;
         const cj = (await cr.json().catch(() => null)) as { data?: CardRow[] } | null;
         if (!alive) return;
@@ -91,8 +104,11 @@ export function PortfolioScreen() {
         }
         setPort(pj.data);
         setCards(cj?.data ?? []);
+        if (ar && ar.ok) {
+          const aj = (await ar.json().catch(() => null)) as { data?: Array<{ triggeredAt: string | null }> } | null;
+          setAlertCount((aj?.data ?? []).filter((a) => !a.triggeredAt).length);
+        }
       } catch {
-        // AbortController(타임아웃/언마운트) 포함 — 살아있을 때만 에러 표시.
         if (alive) setErr('시세 조회가 지연되고 있어요. 잠시 후 다시 시도해주세요');
       } finally {
         clearTimeout(timer);
@@ -109,7 +125,7 @@ export function PortfolioScreen() {
 
   const allRows = useMemo(() => {
     if (!cards) return [];
-    const mapped = cards.map((c) => {
+    return cards.map((c) => {
       const curJpy = usePsa10 && c.pricePsa10Jpy > 0 ? c.pricePsa10Jpy : c.priceSingleJpy;
       const qty = Math.max(1, c.qty || 1);
       const basisJpy =
@@ -122,21 +138,18 @@ export function PortfolioScreen() {
       const t = c.trend ?? [];
       const dayPct =
         t.length >= 2 && t[t.length - 2] > 0 ? ((t[t.length - 1] - t[t.length - 2]) / t[t.length - 2]) * 100 : null;
-      return { c, curJpy, qty, basisJpy, profitPct, dayPct, changePct: profitPct ?? dayPct, value: curJpy * qty };
+      return { c, curJpy, qty, basisJpy, changePct: profitPct ?? dayPct, value: curJpy * qty };
     });
-    return mapped;
   }, [cards, usePsa10, rate]);
 
   const rows = useMemo(() => {
-    let r = allRows;
-    if (filter === 'up') r = r.filter((x) => (x.changePct ?? 0) > 0);
-    else if (filter === 'down') r = r.filter((x) => (x.changePct ?? 0) < 0);
-    else if (filter === 'graded') r = r.filter((x) => x.c.graded);
-    else if (filter === 'pull') r = r.filter((x) => x.c.selfPulled);
-    return [...r].sort((a, b) =>
-      sort === 'value' ? b.value - a.value : (b.changePct ?? -999) - (a.changePct ?? -999),
-    );
-  }, [allRows, filter, sort]);
+    const arr = [...allRows];
+    if (sort === 'value') arr.sort((a, b) => b.value - a.value);
+    else if (sort === 'change') arr.sort((a, b) => (b.changePct ?? -Infinity) - (a.changePct ?? -Infinity));
+    else if (sort === 'name') arr.sort((a, b) => cardName(a.c).localeCompare(cardName(b.c), 'ko'));
+    else if (sort === 'recent') arr.sort((a, b) => (b.c.createdAt || '').localeCompare(a.c.createdAt || ''));
+    return arr;
+  }, [allRows, sort]);
 
   const totals = useMemo(() => {
     let invested = 0;
@@ -152,322 +165,437 @@ export function PortfolioScreen() {
     return { invested, current, profit, pct };
   }, [allRows]);
 
-  const movers = useMemo(() => {
-    const withChg = allRows.filter((r) => r.changePct != null);
-    if (withChg.length === 0) return { up: null, down: null, nUp: 0, nDown: 0 };
-    const sorted = [...withChg].sort((a, b) => (b.changePct ?? 0) - (a.changePct ?? 0));
-    return {
-      up: sorted[0].changePct! > 0 ? sorted[0] : null,
-      down: sorted[sorted.length - 1].changePct! < 0 ? sorted[sorted.length - 1] : null,
-      nUp: withChg.filter((r) => (r.changePct ?? 0) > 0).length,
-      nDown: withChg.filter((r) => (r.changePct ?? 0) < 0).length,
+  const summary = useMemo(() => {
+    const h = port?.history ?? [];
+    const over = (days: number): { abs: number; pct: number } | null => {
+      if (h.length < 2) return null;
+      const last = h[h.length - 1].totalJpy;
+      const base = h[Math.max(0, h.length - 1 - days)].totalJpy;
+      if (!base) return null;
+      return { abs: last - base, pct: ((last - base) / base) * 100 };
     };
-  }, [allRows]);
+    return { d7: over(7), d30: over(30) };
+  }, [port]);
 
   if (err)
     return (
-      <div className="cv-pf-board cv-pf-msg">
+      <Msg>
         ⚠ {err}
         <br />
-        <button
-          type="button"
-          onClick={() => setReload((n) => n + 1)}
-          style={{
-            marginTop: 12,
-            padding: '8px 18px',
-            background: 'transparent',
-            color: '#7FB0FF',
-            border: '1px solid #7FB0FF',
-            borderRadius: 6,
-            cursor: 'pointer',
-            font: 'inherit',
-          }}
-        >
+        <button type="button" onClick={() => setReload((n) => n + 1)} style={retryBtn}>
           다시 시도
         </button>
-      </div>
+      </Msg>
     );
-  if (!port || !cards) return <div className="cv-pf-board cv-pf-msg">불러오는 중…</div>;
+  if (!port || !cards) return <Msg>불러오는 중…</Msg>;
   if (port.totalCount === 0)
     return (
-      <div className="cv-pf-board cv-pf-msg">
+      <Msg>
         아직 보유 카드가 없어요.
         <br />
-        <Link href="/cards/add" style={{ color: '#7FB0FF', textDecoration: 'underline' }}>
+        <Link href="/cards/add" style={{ color: 'var(--blu)', textDecoration: 'underline' }}>
           카드 추가하러 가기 →
         </Link>
-      </div>
+      </Msg>
     );
 
   const totalJpy = usePsa10 && port.totalPsa10Jpy > 0 ? port.totalPsa10Jpy : port.totalJpy;
   const up = (port.changePct ?? 0) >= 0;
-  const gradedCount = cards.filter((c) => c.graded).length;
-  const pullCount = cards.filter((c) => c.selfPulled).length;
-  const hist = range === 0 ? port.history : port.history.slice(-range);
-
-  const FILTERS: Array<{ k: Filter; label: string; n: number }> = [
-    { k: 'all', label: '전체', n: allRows.length },
-    { k: 'up', label: '🔺상승', n: movers.nUp },
-    { k: 'down', label: '🔻하락', n: movers.nDown },
-    { k: 'graded', label: '🏅등급', n: gradedCount },
-    { k: 'pull', label: '🎁직뽑', n: pullCount },
-  ];
+  const spark = port.history.slice(-40).map((h) => h.totalJpy);
 
   return (
-    <div className="cv-pf-board">
-      <div className="cv-pf-grid" />
+    <div style={{ paddingBottom: 40 }}>
+      {/* ── 총 자산 가치 카드 (다크 히어로) ── */}
+      <div style={{ padding: '4px var(--gap) 16px' }}>
+        <div
+          style={{
+            position: 'relative',
+            overflow: 'hidden',
+            borderRadius: 'var(--r-xl,16px)',
+            padding: 20,
+            background: 'linear-gradient(160deg,#22222a,#0e0e12)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
+            <span style={{ fontFamily: 'var(--f1)', fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.65)' }}>
+              총 자산 가치{usePsa10 ? ' · PSA10' : ''}
+            </span>
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,.1)', borderRadius: 9, padding: 3 }}>
+              {(['krw', 'jpy'] as const).map((m) => {
+                const on = mode === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    style={{
+                      fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 800, padding: '5px 12px', borderRadius: 7,
+                      border: 'none', cursor: 'pointer',
+                      background: on ? '#fff' : 'transparent', color: on ? '#16161a' : 'rgba(255,255,255,.6)',
+                    }}
+                  >
+                    {m === 'krw' ? '원화' : '엔화'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-      {/* ── 전광판 헤더 ── */}
-      <div className="cv-pf-top">
-        <span className="cv-pf-id"><span className="cv-pf-dot" /> MY PORTFOLIO{usePsa10 ? ' · PSA10' : ''}</span>
-        <span className="cv-pf-asof">{port.asOfDate ?? '실시간'} · KST</span>
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 30, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', marginTop: 12 }}>
+              {format(totalJpy)}
+            </div>
+            {port.changePct != null && (
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 800, color: up ? '#FF6B5E' : '#6FA8FF', marginTop: 6 }}>
+                {up ? '+' : '-'}{format(Math.abs(port.changeAbsJpy ?? 0))} ({up ? '+' : ''}{port.changePct.toFixed(2)}%) {up ? '▲' : '▼'}
+              </div>
+            )}
+          </div>
+
+          {/* 스파크라인 */}
+          <Sparkline values={spark} up={up} />
+
+          <div style={{ display: 'flex', marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.12)', position: 'relative', zIndex: 2 }}>
+            <HeroStat label="보유 카드" value={`${port.totalCount}장`} />
+            <HeroStat label="구매 금액" value={totals.invested > 0 ? format(totals.invested) : '—'} flex={1.3} />
+            <HeroStat
+              label="평가 손익"
+              value={totals.pct != null ? `${totals.profit >= 0 ? '+' : '-'}${format(Math.abs(totals.profit))}` : '—'}
+              color={totals.pct == null ? '#fff' : totals.profit >= 0 ? '#FF6B5E' : '#6FA8FF'}
+              flex={1.2}
+            />
+          </div>
+        </div>
       </div>
-      <div className="cv-pf-valrow">
-        <span className="cv-pf-val">{format(totalJpy)}</span>
-        {port.changePct != null && (
-          <span className="cv-pf-chg" style={{ color: up ? UP : DOWN }}>
-            <span className="cv-pf-tri" style={{ borderBottomColor: up ? UP : 'transparent', borderTopColor: up ? 'transparent' : DOWN }} />
-            {up ? '+' : ''}{port.changePct.toFixed(2)}%
-            {port.changeAbsJpy != null && <em> {up ? '+' : '-'}{format(Math.abs(port.changeAbsJpy))}</em>}
-          </span>
+
+      {/* ── 자산 요약 ── */}
+      <Section title="자산 요약">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 9 }}>
+          <SummaryCell label="7일 변화" delta={summary.d7} format={format} />
+          <SummaryCell label="30일 변화" delta={summary.d30} format={format} />
+          <SummaryCell
+            label="누적 수익률"
+            pctOnly={totals.pct}
+            sub={totals.pct != null ? `${totals.profit >= 0 ? '+' : '-'}${format(Math.abs(totals.profit))}` : undefined}
+          />
+        </div>
+      </Section>
+
+      {/* ── 자산 구성 (지역/시리즈 데이터 미보유 → 준비 중) ── */}
+      <Section title="자산 구성">
+        <Panel style={{ padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '6px 0' }}>
+            <svg width="100" height="100" viewBox="0 0 118 118" style={{ flex: 'none', opacity: 0.5 }}>
+              <circle cx="59" cy="59" r="42" fill="none" stroke="var(--pap3)" strokeWidth="15" />
+              {PIE.map((col, i) => (
+                <circle
+                  key={i} cx="59" cy="59" r="42" fill="none" stroke={col} strokeWidth="15"
+                  strokeDasharray={`${[120, 60, 30][i]} ${264 - [120, 60, 30][i]}`}
+                  strokeDashoffset={-[0, 120, 180][i]} transform="rotate(-90 59 59)"
+                />
+              ))}
+            </svg>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 12, fontWeight: 800, color: 'var(--ink)' }}>지역·시리즈 구성</div>
+              <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 6, lineHeight: 1.6 }}>
+                카드별 지역(일본판/한국판/영문판)·시리즈 정보를 모으면 비중을 보여드려요.
+                <br />🚧 준비 중
+              </div>
+            </div>
+          </div>
+        </Panel>
+      </Section>
+
+      {/* ── 가격 알림 배너 ── */}
+      <div style={{ padding: '0 var(--gap) 18px' }}>
+        <Panel style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 13 }}>
+          <span style={{ fontSize: 24, flex: 'none' }}>🎯</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>가격 알림</div>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 10.5, color: 'var(--ink3)', marginTop: 3 }}>
+              원하는 카드의 가격 변동을 앱에서 알림으로 받아보세요.
+            </div>
+          </div>
+          {alertCount > 0 && (
+            <span style={{ flex: 'none', fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 800, color: 'var(--orn)', whiteSpace: 'nowrap' }}>
+              {alertCount}개 설정 중
+            </span>
+          )}
+        </Panel>
+      </div>
+
+      {/* ── 내 카드 목록 ── */}
+      <div style={{ padding: '0 var(--gap)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 17, fontWeight: 800, color: 'var(--ink)' }}>
+            내 카드 목록 <span style={{ color: 'var(--ink3)' }}>({rows.length})</span>
+          </div>
+          <div style={{ display: 'flex', gap: 4, background: 'var(--pap2)', borderRadius: 'var(--r-sm)', padding: 3 }}>
+            {(['grid', 'list'] as View[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                aria-label={v === 'grid' ? '그리드 보기' : '리스트 보기'}
+                style={{
+                  width: 30, height: 26, borderRadius: 'var(--r-sm)', border: 'none', cursor: 'pointer',
+                  display: 'grid', placeItems: 'center', background: view === v ? 'var(--white)' : 'transparent',
+                }}
+              >
+                {v === 'grid' ? (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={view === v ? 'var(--ink)' : 'var(--ink3)'} strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+                ) : (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={view === v ? 'var(--ink)' : 'var(--ink3)'} strokeWidth="2" strokeLinecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 정렬 칩 */}
+        <div className="hrow" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 14 }}>
+          {([
+            { k: 'value', label: '가격 높은 순' },
+            { k: 'change', label: '등락순' },
+            { k: 'recent', label: '등록일 순' },
+            { k: 'name', label: '이름 순' },
+          ] as Array<{ k: SortKey; label: string }>).map((s) => {
+            const on = sort === s.k;
+            return (
+              <button
+                key={s.k}
+                type="button"
+                onClick={() => setSort(s.k)}
+                style={{
+                  flex: 'none', whiteSpace: 'nowrap', fontFamily: 'var(--f1)', fontSize: 12.5, fontWeight: 700,
+                  padding: '8px 14px', borderRadius: 'var(--r-sm)', cursor: 'pointer',
+                  background: 'var(--white)', color: on ? 'var(--ink)' : 'var(--ink3)',
+                  border: `1.5px solid ${on ? 'var(--ink)' : 'var(--pap3)'}`,
+                }}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {rows.length === 0 ? (
+          <div style={{ padding: '30px 0', textAlign: 'center', fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)' }}>
+            해당 조건의 카드가 없어요
+          </div>
+        ) : view === 'grid' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingBottom: 24 }}>
+            {rows.map((r, i) => (
+              <CardGridItem key={r.c.id} row={r} rank={i + 1} format={format} />
+            ))}
+          </div>
+        ) : (
+          <div style={{ paddingBottom: 24 }}>
+            {rows.map((r, i, arr) => (
+              <CardListItem key={r.c.id} row={r} format={format} last={i === arr.length - 1} />
+            ))}
+          </div>
         )}
       </div>
 
-      {/* ── KPI 인포그래픽 그리드 ── */}
-      <div className="cv-pf-kpis">
-        <Kpi label="매입 합계" value={totals.invested > 0 ? format(totals.invested) : '—'} />
-        <Kpi label="현재 평가" value={totals.current > 0 ? format(totals.current) : format(totalJpy)} color={GOLD} />
-        <Kpi
-          label="평가손익"
-          value={totals.pct != null ? `${totals.profit >= 0 ? '+' : '-'}${format(Math.abs(totals.profit))}` : '—'}
-          sub={totals.pct != null ? `${totals.pct >= 0 ? '+' : ''}${totals.pct.toFixed(1)}%` : undefined}
-          color={totals.pct == null ? undefined : totals.profit >= 0 ? UP : DOWN}
-        />
-        <Kpi label="보유" value={`${cards.length}장`} />
-        <Kpi label="시세반영" value={`${port.pricedCount}/${port.totalCount}`} color="#7FB0FF" />
-        <Kpi label="그레이딩" value={`${gradedCount}건`} color="#A78BFA" />
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', textAlign: 'center', letterSpacing: 0.3, lineHeight: 1.6, padding: '0 var(--gap)' }}>
+        스니덩크 최근 체결 중앙값 기준 · 관심카드 제외 · 어제(KST 정각) 대비
       </div>
-
-      {/* ── 차트 (기간 탭 + 호버/탭 툴팁) ── */}
-      <div className="cv-pf-rangebar">
-        {([7, 30, 90, 0] as Range[]).map((r) => (
-          <button key={r} type="button" className={range === r ? 'on' : ''} onClick={() => setRange(r)}>
-            {r === 0 ? '전체' : `${r}일`}
-          </button>
-        ))}
-      </div>
-      <PortfolioChart history={hist} format={format} />
-
-      {/* ── 오늘의 등락 (movers) ── */}
-      {(movers.up || movers.down) && (
-        <div className="cv-pf-movers">
-          <Mover row={movers.up} dir="up" format={format} />
-          <Mover row={movers.down} dir="down" format={format} />
-        </div>
-      )}
-
-      {/* ── 필터 + 정렬 ── */}
-      <div className="cv-pf-filters">
-        {FILTERS.map((f) => (
-          <button key={f.k} type="button" className={filter === f.k ? 'on' : ''} onClick={() => setFilter(f.k)}>
-            {f.label} <em>{f.n}</em>
-          </button>
-        ))}
-      </div>
-      <div className="cv-pf-listhead">
-        <span>보유 종목 {rows.length}</span>
-        <div className="cv-pf-sort">
-          {(['value', 'change'] as const).map((s) => (
-            <button key={s} type="button" className={sort === s ? 'on' : ''} onClick={() => setSort(s)}>
-              {s === 'value' ? '평가액순' : '등락순'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 종목 리스트 ── */}
-      <div className="cv-pf-list">
-        {rows.length === 0 && <div className="cv-pf-none">해당 조건의 종목이 없어요</div>}
-        {rows.map(({ c, curJpy, qty, changePct, basisJpy }) => {
-          const img = c.snkrdunkImageUrl || c.photoUrl || null;
-          const name = c.snkrdunkName || c.nickname || '이름 미상';
-          const cu = (changePct ?? 0) >= 0;
-          return (
-            <div key={c.id} className="cv-pf-row">
-              <div className="cv-pf-thumb">
-                {img ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={img} alt={name} />
-                ) : (
-                  <span>🃏</span>
-                )}
-              </div>
-              <div className="cv-pf-rowmid">
-                <div className="cv-pf-rowname">
-                  {name}
-                  {c.graded && <span className="cv-pf-badge">{c.gradeCompany ?? 'PSA'} {c.gradeValue ?? ''}</span>}
-                </div>
-                <div className="cv-pf-rowsub">
-                  {[c.ocrSetCode?.toUpperCase(), c.ocrCardNumber].filter(Boolean).join(' · ')}
-                  {qty > 1 ? ` · ×${qty}` : ''}
-                  {c.selfPulled ? ' · 직접뽑기' : ''}
-                </div>
-              </div>
-              <Spark trend={c.trend ?? []} up={cu} />
-              <div className="cv-pf-rowprice">
-                <div className="cv-pf-rowcur">{curJpy > 0 ? format(curJpy) : '—'}</div>
-                {changePct != null ? (
-                  <div className="cv-pf-rowchg" style={{ color: cu ? UP : DOWN }}>
-                    {cu ? '▲' : '▼'} {cu ? '+' : ''}{changePct.toFixed(1)}%
-                    <span className="cv-pf-rowbasis">{basisJpy != null ? '매입' : '전일'}</span>
-                  </div>
-                ) : (
-                  <div className="cv-pf-rowchg" style={{ color: 'rgba(255,255,255,.3)' }}>—</div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="cv-pf-foot">스니덩크 최근 체결 중앙값 기준 · 관심카드 제외 · 어제(KST 정각) 대비</div>
     </div>
   );
 }
 
-function Kpi({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+type Row = {
+  c: CardRow;
+  curJpy: number;
+  qty: number;
+  basisJpy: number | null;
+  changePct: number | null;
+  value: number;
+};
+
+function rankBadgeColor(rank: number): string {
+  if (rank === 1) return 'var(--gold)';
+  if (rank === 2) return '#9AA0A6';
+  if (rank === 3) return '#C8732B';
+  return 'var(--ink)';
+}
+
+const FALLBACK_GRADS = [
+  'linear-gradient(150deg,#ff6a3d,#c81d25)',
+  'linear-gradient(150deg,#f9d423,#ff8a3c)',
+  'linear-gradient(150deg,#f7a6c4,#b78cf0)',
+  'linear-gradient(150deg,#9d6bd6,#4568dc)',
+  'linear-gradient(150deg,#3a3a44,#16161a)',
+  'linear-gradient(150deg,#11998e,#38ef7d)',
+];
+
+function CardGridItem({ row, rank, format }: { row: Row; rank: number; format: (j: number) => string }) {
+  const { c, curJpy, qty, changePct } = row;
+  const img = c.snkrdunkImageUrl || c.photoUrl || null;
+  const cu = (changePct ?? 0) >= 0;
+  const href = c.snkrdunkApparelId ? `/cards/snkrdunk/${c.snkrdunkApparelId}` : undefined;
+  const body = (
+    <>
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', background: img ? 'var(--pap2)' : FALLBACK_GRADS[rank % FALLBACK_GRADS.length], display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+        {img ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={img} alt={cardName(c)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <span style={{ fontSize: 42, filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.3))' }}>🃏</span>
+        )}
+        <div style={{ position: 'absolute', top: 8, left: 8, width: 22, height: 22, borderRadius: '50%', background: rankBadgeColor(rank), color: '#fff', fontSize: 12, fontWeight: 800, display: 'grid', placeItems: 'center', boxShadow: '0 2px 5px rgba(0,0,0,.25)' }}>
+          {rank}
+        </div>
+      </div>
+      <div style={{ padding: '10px 11px 12px' }}>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {cardName(c)}
+        </div>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {cardSub(c)}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color: 'var(--ink)' }}>{curJpy > 0 ? format(curJpy) : '—'}</span>
+          {changePct != null && (
+            <span style={{ fontFamily: 'var(--f1)', fontSize: 11.5, fontWeight: 800, color: cu ? UP : DOWN }}>
+              {cu ? '+' : ''}{changePct.toFixed(1)}%
+            </span>
+          )}
+        </div>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, marginTop: 4 }}>{qty}장 보유</div>
+      </div>
+    </>
+  );
+  const boxStyle = { display: 'block', overflow: 'hidden', textDecoration: 'none', color: 'inherit' } as const;
+  return href ? (
+    <Panel href={href} style={boxStyle}>{body}</Panel>
+  ) : (
+    <Panel style={boxStyle}>{body}</Panel>
+  );
+}
+
+function CardListItem({ row, format, last }: { row: Row; format: (j: number) => string; last: boolean }) {
+  const { c, curJpy, qty, changePct } = row;
+  const img = c.snkrdunkImageUrl || c.photoUrl || null;
+  const cu = (changePct ?? 0) >= 0;
+  const href = c.snkrdunkApparelId ? `/cards/snkrdunk/${c.snkrdunkApparelId}` : '#';
   return (
-    <div className="cv-pf-kpi">
-      <div className="cv-pf-kpi-l">{label}</div>
-      <div className="cv-pf-kpi-v" style={color ? { color } : undefined}>{value}</div>
-      {sub && <div className="cv-pf-kpi-s" style={color ? { color } : undefined}>{sub}</div>}
+    <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 2px', borderBottom: last ? 'none' : '1px solid var(--pap3)', textDecoration: 'none', color: 'inherit' }}>
+      <div style={{ width: 48, height: 48, flex: 'none', borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--pap2)', display: 'grid', placeItems: 'center' }}>
+        {img ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={img} alt={cardName(c)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <span style={{ fontSize: 22 }}>🃏</span>
+        )}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cardName(c)}</div>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', marginTop: 2 }}>{cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}</div>
+      </div>
+      <div style={{ textAlign: 'right', flex: 'none' }}>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color: 'var(--ink)' }}>{curJpy > 0 ? format(curJpy) : '—'}</div>
+        {changePct != null && (
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 12, fontWeight: 800, color: cu ? UP : DOWN, marginTop: 3 }}>
+            {cu ? '▲' : '▼'} {cu ? '+' : ''}{changePct.toFixed(1)}%
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div style={{ padding: '0 var(--gap) 18px' }}>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 17, fontWeight: 800, color: 'var(--ink)', marginBottom: 12 }}>{title}</div>
+      {children}
     </div>
   );
 }
 
-function Mover({
-  row,
-  dir,
+function HeroStat({ label, value, color = '#fff', flex = 1 }: { label: string; value: string; color?: string; flex?: number }) {
+  return (
+    <div style={{ flex }}>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 11.5, color: 'rgba(255,255,255,.55)', fontWeight: 600 }}>{label}</div>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 15, fontWeight: 800, color, marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+    </div>
+  );
+}
+
+function SummaryCell({
+  label,
+  delta,
+  pctOnly,
+  sub,
   format,
 }: {
-  row: { c: CardRow; changePct: number | null } | null;
-  dir: 'up' | 'down';
-  format: (j: number) => string;
+  label: string;
+  delta?: { abs: number; pct: number } | null;
+  pctOnly?: number | null;
+  sub?: string;
+  format?: (j: number) => string;
 }) {
-  const color = dir === 'up' ? UP : DOWN;
-  if (!row) return <div className="cv-pf-mover"><span className="cv-pf-mover-h" style={{ color }}>{dir === 'up' ? '▲ TOP' : '▼ TOP'}</span><span className="cv-pf-mover-n">—</span></div>;
-  const name = row.c.snkrdunkName || row.c.nickname || '이름 미상';
+  const pct = delta ? delta.pct : pctOnly ?? null;
+  const color = pct == null ? 'var(--ink3)' : pct >= 0 ? UP : DOWN;
+  const main =
+    delta && format
+      ? `${delta.abs >= 0 ? '+' : '-'}${format(Math.abs(delta.abs))}`
+      : pct != null
+        ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`
+        : '—';
+  const subText = delta ? `(${pct! >= 0 ? '+' : ''}${pct!.toFixed(2)}%)` : sub;
   return (
-    <div className="cv-pf-mover">
-      <span className="cv-pf-mover-h" style={{ color }}>{dir === 'up' ? '▲ 상승 TOP' : '▼ 하락 TOP'}</span>
-      <span className="cv-pf-mover-n">{name}</span>
-      <span className="cv-pf-mover-p" style={{ color }}>
-        {(row.changePct ?? 0) >= 0 ? '+' : ''}{(row.changePct ?? 0).toFixed(1)}%
-      </span>
+    <div style={{ border: '1px solid var(--pap3)', borderRadius: 'var(--r)', padding: '13px 12px', background: 'var(--white)', minHeight: 92 }}>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600 }}>{label}</div>
+      <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color, marginTop: 7, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{main}</div>
+      {subText && <div style={{ fontFamily: 'var(--f1)', fontSize: 10.5, color: 'var(--ink3)', fontWeight: 700, marginTop: 3 }}>{subText}</div>}
     </div>
   );
 }
 
-/** 카드별 미니 스파크라인. */
-function Spark({ trend, up }: { trend: number[]; up: boolean }) {
-  const pts = (trend ?? []).filter((n) => typeof n === 'number' && n > 0);
-  if (pts.length < 2) return <div className="cv-pf-spark" />;
-  const W = 44;
-  const H = 22;
+/** 다크 히어로용 스파크라인(우하단 배경). */
+function Sparkline({ values, up }: { values: number[]; up: boolean }) {
+  const pts = values.filter((n) => typeof n === 'number' && n > 0);
+  if (pts.length < 2) return null;
+  const W = 240;
+  const H = 80;
   const min = Math.min(...pts);
   const max = Math.max(...pts);
   const span = Math.max(1, max - min);
   const step = W / (pts.length - 1);
-  const d = pts.map((v, i) => `${i === 0 ? 'M' : 'L'} ${(i * step).toFixed(1)} ${(H - 2 - ((v - min) / span) * (H - 4)).toFixed(1)}`).join(' ');
+  const line = pts.map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)},${(H - ((v - min) / span) * (H - 8) - 4).toFixed(1)}`).join(' ');
+  const col = up ? '#FF5247' : '#5A9BFF';
   return (
-    <svg className="cv-pf-spark" width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-      <path d={d} fill="none" stroke={up ? UP : DOWN} strokeWidth={1.5} strokeLinejoin="round" />
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ position: 'absolute', right: 0, top: 64, width: 200, height: 80, zIndex: 1 }}>
+      <defs>
+        <linearGradient id="pfTotArea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={col} stopOpacity="0.45" />
+          <stop offset="100%" stopColor={col} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${line} L${W},${H} L0,${H} Z`} fill="url(#pfTotArea)" />
+      <path d={line} fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
 
-/* ───────── 인터랙티브 차트 (호버 툴팁 + 클릭 핀) ───────── */
-
-function PortfolioChart({ history, format }: { history: HistPoint[]; format: (jpy: number) => string }) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<number | null>(null);
-  const [pinned, setPinned] = useState<number | null>(null);
-
-  if (history.length < 2) {
-    return <div className="cv-pf-chart-empty">일별 데이터가 2일 이상 쌓이면 차트가 표시돼요</div>;
-  }
-
-  const W = 320;
-  const H = 150;
-  const PAD = 6;
-  const n = history.length;
-  const vals = history.map((h) => h.totalJpy);
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const span = Math.max(1, max - min);
-  const step = (W - PAD * 2) / (n - 1);
-  const xOf = (i: number) => PAD + i * step;
-  const yOf = (i: number) => H - PAD - ((history[i].totalJpy - min) / span) * (H - PAD * 2);
-  const line = history.map((_, i) => `${i === 0 ? 'M' : 'L'} ${xOf(i).toFixed(1)} ${yOf(i).toFixed(1)}`).join(' ');
-  const area = `${line} L ${xOf(n - 1).toFixed(1)} ${H} L ${xOf(0).toFixed(1)} ${H} Z`;
-  const overallUp = vals[n - 1] >= vals[0];
-  const stroke = overallUp ? UP : DOWN;
-
-  const active = hover ?? pinned;
-  const aPrev = active != null && active > 0 ? history[active - 1].totalJpy : null;
-  const aPct = active != null && aPrev && aPrev > 0 ? ((history[active].totalJpy - aPrev) / aPrev) * 100 : null;
-
-  const idxFromClientX = (clientX: number): number => {
-    const el = wrapRef.current;
-    if (!el) return 0;
-    const r = el.getBoundingClientRect();
-    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
-    return Math.round(frac * (n - 1));
-  };
-
+function Msg({ children }: { children: ReactNode }) {
   return (
-    <div
-      ref={wrapRef}
-      className="cv-pf-chart"
-      onMouseMove={(e) => setHover(idxFromClientX(e.clientX))}
-      onMouseLeave={() => setHover(null)}
-      onClick={(e) => setPinned(idxFromClientX(e.clientX))}
-      onTouchStart={(e) => { if (e.touches[0]) setPinned(idxFromClientX(e.touches[0].clientX)); }}
-      onTouchMove={(e) => { if (e.touches[0]) setHover(idxFromClientX(e.touches[0].clientX)); }}
-      onTouchEnd={() => setHover(null)}
-    >
-      {active != null && (
-        <div className="cv-pf-tip" style={{ left: `${(active / (n - 1)) * 100}%` }}>
-          <div className="cv-pf-tip-date">{history[active].date}</div>
-          <div className="cv-pf-tip-amt">{format(history[active].totalJpy)}</div>
-          {aPct != null && (
-            <div className="cv-pf-tip-pct" style={{ color: aPct >= 0 ? UP : DOWN }}>
-              {aPct >= 0 ? '▲ +' : '▼ '}{aPct.toFixed(2)}%
-            </div>
-          )}
-        </div>
-      )}
-      <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', touchAction: 'none' }}>
-        <defs>
-          <linearGradient id="pfFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={stroke} stopOpacity={0.32} />
-            <stop offset="100%" stopColor={stroke} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#pfFill)" stroke="none" />
-        <path d={line} fill="none" stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
-        {active != null && (
-          <>
-            <line x1={xOf(active)} y1={0} x2={xOf(active)} y2={H} stroke="rgba(255,255,255,.4)" strokeWidth={1} strokeDasharray="3 3" />
-            <circle cx={xOf(active)} cy={yOf(active)} r={4} fill="#fff" stroke={stroke} strokeWidth={2} />
-          </>
-        )}
-      </svg>
-      <div className="cv-pf-axis">
-        <span>{history[0].date}</span>
-        <span>{n}일 · 탭/호버 상세</span>
-        <span>{history[n - 1].date}</span>
-      </div>
+    <div style={{ padding: '60px 24px', textAlign: 'center', fontFamily: 'var(--f1)', fontSize: 13, color: 'var(--ink3)', lineHeight: 1.8 }}>
+      {children}
     </div>
   );
 }
+
+const retryBtn: React.CSSProperties = {
+  marginTop: 12,
+  padding: '8px 18px',
+  background: 'transparent',
+  color: 'var(--blu)',
+  border: '1px solid var(--blu)',
+  borderRadius: 'var(--r-sm)',
+  cursor: 'pointer',
+  font: 'inherit',
+};
