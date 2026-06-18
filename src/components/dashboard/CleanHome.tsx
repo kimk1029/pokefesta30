@@ -261,6 +261,9 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
   const { count: unread } = useUnread();
   const { theme } = useTheme();
   const P = theme === 'clean' ? CLEAN_PALETTE : VAR_PALETTE;
+  // 빠른 스캔 타일을 픽셀 입체 박스로 — 웹 .card 가 픽셀로 남는 테마(pokemon·sports)에만.
+  // (yugioh·onepiece·clean·dark 는 globals.css 에서 .card 를 플랫 처리하므로 제외.)
+  const pixelTiles = theme === 'pokemon' || theme === 'sports';
 
   const fmtPrice = (jpy: number) => (jpy > 0 ? format(jpy) : '—');
 
@@ -360,6 +363,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 11 }}>
           <QuickTile
             P={P}
+            pixel={pixelTiles}
             href="/cards/packs"
             label="시세 확인"
             desc="카드 시세를 바로 확인해요"
@@ -372,6 +376,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
           />
           <QuickTile
             P={P}
+            pixel={pixelTiles}
             href="/cards/add"
             label="내 카드 등록"
             desc="보유 카드를 등록하고 관리해요"
@@ -515,15 +520,22 @@ function QuickTile({
   label,
   desc,
   icon,
+  pixel,
 }: {
   P: Palette;
   href: string;
   label: string;
   desc: string;
   icon: ReactNode;
+  pixel?: boolean;
 }) {
+  // 픽셀 테마: .card 픽셀 박스 레시피(4면 ink 보더 + 하드 드롭섀도 + 노치 코너) + 클릭 시 눌림.
+  // 플랫(클린·다크): 기존 라운드 소프트 타일.
+  const baseStyle: CSSProperties = pixel
+    ? { background: 'var(--white)', borderRadius: 0, padding: '16px 14px', textDecoration: 'none', color: 'inherit', display: 'block' }
+    : { background: P.tileBg, borderRadius: 16, padding: '16px 14px', textDecoration: 'none', color: 'inherit', display: 'block' };
   return (
-    <Link href={href} style={{ background: P.tileBg, borderRadius: 16, padding: '16px 14px', textDecoration: 'none', color: 'inherit', display: 'block' }}>
+    <Link href={href} className={pixel ? 'qtile-pixel' : undefined} style={baseStyle}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         {icon}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={P.chev} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">

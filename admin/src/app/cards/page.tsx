@@ -1,3 +1,4 @@
+import { Fragment, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
@@ -15,7 +16,14 @@ interface SearchParams {
   page?: string;
   kind?: string;
   game?: string;
+  /** 정확 일치 세트코드 필터 — 세트코드 클릭 시. */
+  set?: string;
+  /** 'set' 이면 세트코드별로 모아서(정렬+그룹 헤더) 표시. */
+  group?: string;
 }
+
+// 코드/식별자 컬럼은 줄바꿈 금지(좁아도 한 줄 유지).
+const NOWRAP: CSSProperties = { whiteSpace: 'nowrap' };
 
 interface LatestSnap {
   apparelId: number;
@@ -43,6 +51,8 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   const q = (searchParams.q ?? '').trim();
   const kind = searchParams.kind === 'single' || searchParams.kind === 'box' ? searchParams.kind : '';
   const game = GAMES.includes((searchParams.game ?? '') as CardGame) ? (searchParams.game as CardGame) : '';
+  const set = (searchParams.set ?? '').trim();
+  const groupBySet = searchParams.group === 'set';
   const page = parseIntParam(searchParams.page, 1);
   const skip = (page - 1) * PAGE_SIZE;
 
@@ -61,14 +71,20 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     filters.push({ OR: or });
   }
   if (kind) filters.push({ itemKind: kind });
+  if (set) filters.push({ setCode: set });
   const gw = game ? gameWhere(game) : null;
   if (gw) filters.push(gw);
   const where: Prisma.SnkrdunkCardWhereInput = filters.length ? { AND: filters } : {};
 
+  // 세트코드별 보기: 세트코드→카드번호 순으로 정렬해 같은 세트가 인접하게.
+  const orderBy: Prisma.SnkrdunkCardOrderByWithRelationInput[] = groupBySet
+    ? [{ setCode: 'asc' }, { cardNumber: 'asc' }, { apparelId: 'asc' }]
+    : [{ firstSeenAt: 'desc' }];
+
   const [cards, total, totalAll, gameCounts, missingCount] = await Promise.all([
     prisma.snkrdunkCard.findMany({
       where,
-      orderBy: { firstSeenAt: 'desc' },
+      orderBy,
       skip,
       take: PAGE_SIZE,
     }),
@@ -99,13 +115,17 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const qs = (over: { kind?: string; game?: string }) => {
+  const qs = (over: { kind?: string; game?: string; set?: string; group?: string }) => {
     const k = over.kind ?? kind;
     const g = over.game ?? game;
+    const s = over.set ?? set;
+    const gr = over.group ?? (groupBySet ? 'set' : '');
     const parts = [
       q ? `q=${encodeURIComponent(q)}` : '',
       k ? `kind=${k}` : '',
       g ? `game=${g}` : '',
+      s ? `set=${encodeURIComponent(s)}` : '',
+      gr ? `group=${gr}` : '',
     ].filter(Boolean);
     return parts.length ? `?${parts.join('&')}` : '';
   };
@@ -123,6 +143,8 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
       <form className="search" method="get">
         {kind && <input type="hidden" name="kind" value={kind} />}
         {game && <input type="hidden" name="game" value={game} />}
+        {set && <input type="hidden" name="set" value={set} />}
+        {groupBySet && <input type="hidden" name="group" value="set" />}
         <input name="q" placeholder="카드명 / 세트코드 / 카드번호 / 품번 / apparelId 로 검색" defaultValue={q} />
         <button type="submit">검색</button>
       </form>
@@ -154,6 +176,25 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
               {t.label}
             </Link>
           ))}
+          <span style={{ width: 10 }} />
+          {/* 세트코드별 모아보기 토글 */}
+          <Link
+            href={`/cards${qs({ group: groupBySet ? '' : 'set' })}`}
+            className="btn"
+            style={groupBySet ? { background: '#7C3AED', color: '#fff', borderColor: '#7C3AED' } : undefined}
+          >
+            세트코드별
+          </Link>
+          {/* 활성 세트코드 필터 칩 (해제 가능) */}
+          {set && (
+            <Link
+              href={`/cards${qs({ set: '' })}`}
+              className="btn"
+              style={{ background: '#1D4ED8', color: '#fff', borderColor: '#1D4ED8', ...NOWRAP }}
+            >
+              세트 {set} ✕
+            </Link>
+          )}
         </div>
         <CatalogReparseButton />
       </div>
@@ -165,95 +206,114 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
           <thead>
             <tr>
               <th>이미지</th>
-              <th>ID</th>
-              <th>게임</th>
+              <th style={NOWRAP}>ID</th>
+              <th style={NOWRAP}>게임</th>
               <th>카드명</th>
-              <th>세트코드</th>
-              <th>카드번호</th>
-              <th>레어도</th>
-              <th>분류</th>
-              <th>품번</th>
-              <th style={{ textAlign: 'right' }}>최신가 (JPY)</th>
-              <th>수집일</th>
+              <th style={NOWRAP}>세트코드</th>
+              <th style={NOWRAP}>카드번호</th>
+              <th style={NOWRAP}>레어도</th>
+              <th style={NOWRAP}>분류</th>
+              <th style={NOWRAP}>품번</th>
+              <th style={{ textAlign: 'right', ...NOWRAP }}>최신가 (JPY)</th>
+              <th style={NOWRAP}>수집일</th>
             </tr>
           </thead>
           <tbody>
-            {cards.map((c) => {
+            {cards.map((c, i) => {
               const snap = snapMap.get(c.apparelId);
               const price = snap ? snap.priceSingle || snap.minPrice : 0;
               const gKey = c.game === '' ? 'other' : c.game;
               const gStyle = GAME_TAG_STYLE[gKey] ?? GAME_TAG_STYLE.other;
+              // 세트코드별 보기: 세트코드가 바뀌는 첫 행 위에 그룹 헤더를 끼운다.
+              const prevSet = i > 0 ? cards[i - 1].setCode ?? '' : null;
+              const showGroupHeader = groupBySet && prevSet !== (c.setCode ?? '');
               return (
-                <tr key={c.apparelId}>
-                  <td>
-                    {c.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={c.imageUrl}
-                        alt=""
-                        style={{ width: 34, height: 46, objectFit: 'contain', display: 'block' }}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <span className="muted">-</span>
-                    )}
-                  </td>
-                  <td className="mono">
-                    <a href={`https://snkrdunk.com/apparels/${c.apparelId}`} target="_blank" rel="noreferrer">
-                      {c.apparelId}
-                    </a>
-                  </td>
-                  <td>
-                    <span className="tag" style={gStyle}>
-                      {CARD_GAME_LABEL[gKey as CardGame] ?? '기타'}
-                    </span>
-                  </td>
-                  <td>
-                    {c.koName || c.localizedName || c.name || <span className="muted">-</span>}
-                    {c.koName && (c.localizedName || c.name) && (
-                      <div className="muted">{c.localizedName || c.name}</div>
-                    )}
-                  </td>
-                  <td className="mono">
-                    {c.setCode || <span className="tag tag-report">미파싱</span>}
-                  </td>
-                  <td className="mono">
-                    {c.cardNumber || <span className="tag tag-report">미파싱</span>}
-                  </td>
-                  <td>{c.rarity ? <span className="tag tag-general">{c.rarity}</span> : <span className="muted">-</span>}</td>
-                  <td>
-                    <span className={`tag ${c.itemKind === 'box' ? 'tag-open' : ''}`}>{c.itemKind}</span>
-                  </td>
-                  <td className="mono">{c.productNumber || <span className="muted">-</span>}</td>
-                  <td className="mono" style={{ textAlign: 'right' }}>
-                    {price > 0 ? (
-                      <>
-                        ¥{price.toLocaleString()}
-                        <div className="muted">{fmtDate(snap!.fetchedAt)}</div>
-                      </>
-                    ) : (
-                      <span className="muted">-</span>
-                    )}
-                  </td>
-                  <td className="muted">{fmtDate(c.firstSeenAt)}</td>
-                </tr>
+                <Fragment key={c.apparelId}>
+                  {showGroupHeader && (
+                    <tr>
+                      <td colSpan={11} style={{ background: '#EEF2FF', fontWeight: 700, color: '#3730A3', ...NOWRAP }}>
+                        📦 세트코드: {c.setCode || '미파싱'}
+                      </td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td>
+                      {c.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={c.imageUrl}
+                          alt=""
+                          style={{ width: 34, height: 46, objectFit: 'contain', display: 'block' }}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="muted">-</span>
+                      )}
+                    </td>
+                    <td className="mono" style={NOWRAP}>
+                      <a href={`https://snkrdunk.com/apparels/${c.apparelId}`} target="_blank" rel="noreferrer">
+                        {c.apparelId}
+                      </a>
+                    </td>
+                    <td style={NOWRAP}>
+                      <span className="tag" style={gStyle}>
+                        {CARD_GAME_LABEL[gKey as CardGame] ?? '기타'}
+                      </span>
+                    </td>
+                    <td>
+                      {c.koName || c.localizedName || c.name || <span className="muted">-</span>}
+                      {c.koName && (c.localizedName || c.name) && (
+                        <div className="muted">{c.localizedName || c.name}</div>
+                      )}
+                    </td>
+                    <td className="mono" style={NOWRAP}>
+                      {c.setCode ? (
+                        // 세트코드 클릭 → 해당 세트만 모아보기.
+                        <Link href={`/cards${qs({ set: c.setCode })}`}>{c.setCode}</Link>
+                      ) : (
+                        <span className="tag tag-report">미파싱</span>
+                      )}
+                    </td>
+                    <td className="mono" style={NOWRAP}>
+                      {c.cardNumber || <span className="tag tag-report">미파싱</span>}
+                    </td>
+                    <td style={NOWRAP}>{c.rarity ? <span className="tag tag-general">{c.rarity}</span> : <span className="muted">-</span>}</td>
+                    <td style={NOWRAP}>
+                      <span className={`tag ${c.itemKind === 'box' ? 'tag-open' : ''}`}>{c.itemKind}</span>
+                    </td>
+                    <td className="mono" style={NOWRAP}>{c.productNumber || <span className="muted">-</span>}</td>
+                    <td className="mono" style={{ textAlign: 'right', ...NOWRAP }}>
+                      {price > 0 ? (
+                        <>
+                          ¥{price.toLocaleString()}
+                          <div className="muted">{fmtDate(snap!.fetchedAt)}</div>
+                        </>
+                      ) : (
+                        <span className="muted">-</span>
+                      )}
+                    </td>
+                    <td className="muted" style={NOWRAP}>{fmtDate(c.firstSeenAt)}</td>
+                  </tr>
+                </Fragment>
               );
             })}
           </tbody>
         </table>
       )}
 
-      <Pager q={q} kind={kind} game={game} page={page} totalPages={totalPages} />
+      <Pager q={q} kind={kind} game={game} set={set} group={groupBySet ? 'set' : ''} page={page} totalPages={totalPages} />
     </>
   );
 }
 
-function Pager({ q, kind, game, page, totalPages }: { q: string; kind: string; game: string; page: number; totalPages: number }) {
+function Pager({ q, kind, game, set, group, page, totalPages }: { q: string; kind: string; game: string; set: string; group: string; page: number; totalPages: number }) {
   if (totalPages <= 1) return null;
   const extra = [
     q ? `&q=${encodeURIComponent(q)}` : '',
     kind ? `&kind=${kind}` : '',
     game ? `&game=${game}` : '',
+    set ? `&set=${encodeURIComponent(set)}` : '',
+    group ? `&group=${group}` : '',
   ].join('');
   return (
     <div className="pager">

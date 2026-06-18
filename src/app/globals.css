@@ -168,6 +168,19 @@ a{color:inherit;text-decoration:none;}
     inset 0 3px 0 rgba(255,255,255,.85),inset 0 -4px 0 rgba(0,0,0,.18),
     6px 6px 0 var(--ink);}
 
+/* 빠른 스캔 타일 — 픽셀 테마용 입체 박스(4면 ink 보더 + 하드 드롭섀도 + 노치 코너) + 눌림. */
+.qtile-pixel{
+  box-shadow:
+    -4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.85),inset 0 -4px 0 rgba(0,0,0,.18),
+    5px 5px 0 var(--ink);
+  transition:transform .05s steps(1),box-shadow .05s steps(1);}
+.qtile-pixel:active{transform:translate(3px,3px);
+  box-shadow:
+    -4px 0 0 var(--ink),4px 0 0 var(--ink),0 -4px 0 var(--ink),0 4px 0 var(--ink),
+    inset 0 3px 0 rgba(255,255,255,.85),inset 0 -4px 0 rgba(0,0,0,.18),
+    2px 2px 0 var(--ink);}
+
 /* ── HERO SLIDER ── */
 .hero-wrap{margin:var(--gap) var(--gap) var(--cg);position:relative;overflow:hidden;
   box-shadow:
