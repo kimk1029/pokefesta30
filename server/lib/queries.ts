@@ -410,8 +410,10 @@ export async function getMyCardsWithPrices(
     // 1) 우리 DB(마스터 카탈로그 + 최신 시세 스냅샷) 우선 — 신선하면 스니덩 호출 생략.
     const catalog = await loadCatalogEntries(apparelIds);
     for (const [id, e] of catalog) {
+      // 박스 코드 → 친화명, 폴백: 세트코드를 팩코드로 매칭(소문자) → 그래도 없으면 세트코드 원문.
       const fromPack = e.packCode ? getCardPackMeta(e.packCode)?.shortName ?? null : null;
-      seriesById.set(id, fromPack ?? e.setCode ?? null);
+      const fromSet = e.setCode ? getCardPackMeta(e.setCode.toLowerCase())?.shortName ?? e.setCode : null;
+      seriesById.set(id, fromPack ?? fromSet ?? null);
     }
     const staleIds = apparelIds.filter((id) => !isFreshEntry(catalog.get(id)));
 

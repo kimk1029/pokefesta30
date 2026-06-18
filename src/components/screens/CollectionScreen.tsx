@@ -191,7 +191,13 @@ export function CollectionScreen() {
     let total = 0;
     for (const r of allRows) {
       if (r.curJpy <= 0) continue;
-      const key = r.c.region === 'jp' || r.c.region === 'kr' || r.c.region === 'en' ? r.c.region : 'etc';
+      // 명시 지역 우선. 미지정이라도 스니덩크(일본 마켓) 출처면 일본판으로 간주.
+      const key =
+        r.c.region === 'jp' || r.c.region === 'kr' || r.c.region === 'en'
+          ? r.c.region
+          : r.c.snkrdunkApparelId
+            ? 'jp'
+            : 'etc';
       sums.set(key, (sums.get(key) ?? 0) + r.value);
       total += r.value;
     }
