@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/components/PriceModeProvider';
 import { Panel } from '@/components/ui/Panel';
@@ -221,6 +222,20 @@ export function CollectionScreen() {
     const restVal = rest.reduce((s, r) => s + r.value, 0);
     return { items, restVal, restCount: rest.length, restPct: (restVal / total) * 100 };
   }, [allRows]);
+
+  // 컬렉션에서 카드 제거 — 낙관적으로 목록에서 빼고 DELETE. 실패 시 전체 재조회.
+  const handleRemove = useCallback(async (id: number) => {
+    if (typeof window !== 'undefined' && !window.confirm('이 카드를 컬렉션에서 제거할까요?')) return;
+    setCards((prev) => (prev ? prev.filter((c) => c.id !== id) : prev));
+    try {
+      const res = await fetch(`/api/me/cards/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      // 총 자산(히어로)도 갱신되도록 포트폴리오 재조회.
+      setReload((n) => n + 1);
+    } catch {
+      setReload((n) => n + 1);
+    }
+  }, []);
 
   if (err)
     return (
@@ -460,13 +475,13 @@ export function CollectionScreen() {
           </div>
         </div>
 
-        {/* 정렬 칩 */}
-        <div className="hrow" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 14 }}>
+        {/* 정렬 — 미니멀 세그먼트 (작게) */}
+        <div style={{ display: 'inline-flex', gap: 2, background: 'var(--pap2)', borderRadius: 'var(--r-sm)', padding: 2, marginBottom: 14 }}>
           {([
-            { k: 'value', label: '가격 높은 순' },
+            { k: 'value', label: '가격순' },
             { k: 'change', label: '등락순' },
-            { k: 'recent', label: '등록일 순' },
-            { k: 'name', label: '이름 순' },
+            { k: 'recent', label: '등록일' },
+            { k: 'name', label: '이름순' },
           ] as Array<{ k: SortKey; label: string }>).map((s) => {
             const on = sort === s.k;
             return (
@@ -475,10 +490,10 @@ export function CollectionScreen() {
                 type="button"
                 onClick={() => setSort(s.k)}
                 style={{
-                  flex: 'none', whiteSpace: 'nowrap', fontFamily: 'var(--f1)', fontSize: 12.5, fontWeight: 700,
-                  padding: '8px 14px', borderRadius: 'var(--r-sm)', cursor: 'pointer',
-                  background: 'var(--white)', color: on ? 'var(--ink)' : 'var(--ink3)',
-                  border: `1.5px solid ${on ? 'var(--ink)' : 'var(--pap3)'}`,
+                  flex: 'none', whiteSpace: 'nowrap', fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 700,
+                  padding: '5px 10px', borderRadius: 'calc(var(--r-sm) - 2px)', cursor: 'pointer', border: 'none',
+                  background: on ? 'var(--white)' : 'transparent', color: on ? 'var(--ink)' : 'var(--ink3)',
+                  boxShadow: on ? '0 1px 2px rgba(0,0,0,.08)' : 'none',
                 }}
               >
                 {s.label}
@@ -494,13 +509,13 @@ export function CollectionScreen() {
         ) : view === 'grid' ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingBottom: 24 }}>
             {rows.map((r, i) => (
-              <CardGridItem key={r.c.id} row={r} rank={i + 1} format={format} />
+              <CardGridItem key={r.c.id} row={r} rank={i + 1} format={format} onRemove={handleRemove} />
             ))}
           </div>
         ) : (
           <div style={{ paddingBottom: 24 }}>
             {rows.map((r, i, arr) => (
-              <CardListItem key={r.c.id} row={r} format={format} last={i === arr.length - 1} />
+              <CardListItem key={r.c.id} row={r} format={format} last={i === arr.length - 1} onRemove={handleRemove} />
             ))}
           </div>
         )}
@@ -542,19 +557,95 @@ const FALLBACK_GRADS = [
   'linear-gradient(150deg,#11998e,#38ef7d)',
 ];
 
-/** 등락률 칩 — 라벨 + 부호색(상승 빨강/하락 파랑). */
+/** 등락률 칩 — 라벨 + 방향 화살표 + 부호색(상승 빨강/하락 파랑). 주식 호가 느낌. */
 function DeltaChip({ label, pct, size = 11.5 }: { label: string; pct: number | null; size?: number }) {
   if (pct == null) return null;
   const up = pct >= 0;
   return (
     <span style={{ fontFamily: 'var(--f1)', fontSize: size, fontWeight: 800, color: up ? UP : DOWN, whiteSpace: 'nowrap' }}>
       <span style={{ color: 'var(--ink3)', fontWeight: 700 }}>{label} </span>
-      {up ? '+' : ''}{pct.toFixed(1)}%
+      {up ? '▲' : '▼'}{Math.abs(pct).toFixed(1)}%
     </span>
   );
 }
 
-function CardGridItem({ row, rank, format }: { row: Row; rank: number; format: (j: number) => string }) {
+/** 카드 더보기(⋯) 메뉴 — 시세 보기 / 컬렉션에서 제거. Link/Panel 바깥에 형제로 배치. */
+function CardMenu({ apparelId, onRemove }: { apparelId: number | null; onRemove: () => void }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [open]);
+  const stop = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button"
+        aria-label="카드 메뉴"
+        onClick={(e) => {
+          stop(e);
+          setOpen((o) => !o);
+        }}
+        style={{
+          width: 26, height: 26, borderRadius: '50%', border: 'none', cursor: 'pointer',
+          background: 'rgba(0,0,0,.45)', color: '#fff', fontSize: 15, fontWeight: 900, lineHeight: 1,
+          display: 'grid', placeItems: 'center', backdropFilter: 'blur(2px)',
+        }}
+      >
+        ⋯
+      </button>
+      {open && (
+        <div
+          onClick={stop}
+          style={{
+            position: 'absolute', top: 30, right: 0, zIndex: 20, minWidth: 138,
+            background: 'var(--white)', borderRadius: 'var(--r-sm)', overflow: 'hidden',
+            boxShadow: '0 6px 20px rgba(0,0,0,.18)', border: '1px solid var(--pap3)',
+          }}
+        >
+          {apparelId && (
+            <button
+              type="button"
+              onClick={(e) => {
+                stop(e);
+                setOpen(false);
+                router.push(`/cards/snkrdunk/${apparelId}`);
+              }}
+              style={menuItemStyle}
+            >
+              📈 시세 보기
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              stop(e);
+              setOpen(false);
+              onRemove();
+            }}
+            style={{ ...menuItemStyle, color: 'var(--red)', borderTop: apparelId ? '1px solid var(--pap3)' : 'none' }}
+          >
+            🗑 컬렉션에서 제거
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const menuItemStyle: React.CSSProperties = {
+  display: 'block', width: '100%', textAlign: 'left', padding: '11px 14px',
+  fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 700, color: 'var(--ink)',
+  background: 'transparent', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+};
+
+function CardGridItem({ row, rank, format, onRemove }: { row: Row; rank: number; format: (j: number) => string; onRemove: (id: number) => void }) {
   const { c, curJpy, qty, basisJpy, profitPct, dayPct } = row;
   const img = c.snkrdunkImageUrl || c.photoUrl || null;
   const href = c.snkrdunkApparelId ? `/cards/snkrdunk/${c.snkrdunkApparelId}` : undefined;
@@ -588,50 +679,64 @@ function CardGridItem({ row, rank, format }: { row: Row; rank: number; format: (
           <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             등록 {basisJpy ? format(basisJpy) : '—'}
           </span>
-          <DeltaChip label="대비" pct={profitPct} size={11} />
+          <DeltaChip label="수익" pct={profitPct} size={11} />
         </div>
         <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, marginTop: 5 }}>{qty}장 보유</div>
       </div>
     </>
   );
   const boxStyle = { display: 'block', overflow: 'hidden', textDecoration: 'none', color: 'inherit' } as const;
-  return href ? (
-    <Panel href={href} style={boxStyle}>{body}</Panel>
-  ) : (
-    <Panel style={boxStyle}>{body}</Panel>
+  return (
+    <div style={{ position: 'relative' }}>
+      {href ? (
+        <Panel href={href} style={boxStyle}>{body}</Panel>
+      ) : (
+        <Panel style={boxStyle}>{body}</Panel>
+      )}
+      {/* ⋯ 메뉴 — Link/Panel 바깥 형제(이미지 우상단 오버레이). */}
+      <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 6 }}>
+        <CardMenu apparelId={c.snkrdunkApparelId} onRemove={() => onRemove(c.id)} />
+      </div>
+    </div>
   );
 }
 
-function CardListItem({ row, format, last }: { row: Row; format: (j: number) => string; last: boolean }) {
+function CardListItem({ row, format, last, onRemove }: { row: Row; format: (j: number) => string; last: boolean; onRemove: (id: number) => void }) {
   const { c, curJpy, qty, basisJpy, profitPct, dayPct } = row;
   const img = c.snkrdunkImageUrl || c.photoUrl || null;
   const href = c.snkrdunkApparelId ? `/cards/snkrdunk/${c.snkrdunkApparelId}` : '#';
   return (
-    <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 2px', borderBottom: last ? 'none' : '1px solid var(--pap3)', textDecoration: 'none', color: 'inherit' }}>
-      <div style={{ width: 48, height: 48, flex: 'none', borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--pap2)', display: 'grid', placeItems: 'center' }}>
-        {img ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={img} alt={cardName(c)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <span style={{ fontSize: 22 }}>🃏</span>
-        )}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cardName(c)}</div>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', marginTop: 2 }}>{cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}</div>
-        {/* 등록(매입)가 + 등록 대비 손익 */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
-          <span style={{ fontFamily: 'var(--f1)', fontSize: 10.5, color: 'var(--ink3)', fontWeight: 600 }}>등록 {basisJpy ? format(basisJpy) : '—'}</span>
-          <DeltaChip label="대비" pct={profitPct} size={10.5} />
+    <div style={{ position: 'relative', borderBottom: last ? 'none' : '1px solid var(--pap3)' }}>
+      <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 34px 11px 2px', textDecoration: 'none', color: 'inherit' }}>
+        <div style={{ width: 48, height: 48, flex: 'none', borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--pap2)', display: 'grid', placeItems: 'center' }}>
+          {img ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={img} alt={cardName(c)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <span style={{ fontSize: 22 }}>🃏</span>
+          )}
         </div>
-      </div>
-      <div style={{ textAlign: 'right', flex: 'none' }}>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color: 'var(--ink)' }}>{curJpy > 0 ? format(curJpy) : '—'}</div>
-        <div style={{ marginTop: 3 }}>
-          <DeltaChip label="어제" pct={dayPct} size={12} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cardName(c)}</div>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', marginTop: 2 }}>{cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}</div>
+          {/* 등록(매입)가 + 등록 대비 수익률 */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+            <span style={{ fontFamily: 'var(--f1)', fontSize: 10.5, color: 'var(--ink3)', fontWeight: 600 }}>등록 {basisJpy ? format(basisJpy) : '—'}</span>
+            <DeltaChip label="수익" pct={profitPct} size={10.5} />
+          </div>
         </div>
+        <div style={{ textAlign: 'right', flex: 'none' }}>
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color: 'var(--ink)' }}>{curJpy > 0 ? format(curJpy) : '—'}</div>
+          <div style={{ marginTop: 3 }}>
+            <DeltaChip label="어제" pct={dayPct} size={12} />
+          </div>
+        </div>
+      </Link>
+      {/* ⋯ 메뉴 — Link 바깥 형제(우측 세로 중앙). */}
+      <div style={{ position: 'absolute', top: '50%', right: 0, transform: 'translateY(-50%)', zIndex: 6 }}>
+        <CardMenu apparelId={c.snkrdunkApparelId} onRemove={() => onRemove(c.id)} />
       </div>
-    </Link>
+    </div>
   );
 }
 
