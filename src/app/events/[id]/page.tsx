@@ -31,6 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!post) return { title: '이벤트' };
 
   const description = plainExcerpt(post.body) || `${post.title} — 포케페스타30 이벤트`;
+  const ogImage = post.imageUrl ?? '/meta.png';
   const canonical = `/events/${id}`;
   return {
     title: post.title,
@@ -41,11 +42,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${post.title} · 포케페스타30`,
       description,
       url: canonical,
-      ...(post.imageUrl ? { images: [{ url: post.imageUrl }] } : {}),
+      images: [{ url: ogImage }],
     },
-    twitter: post.imageUrl
-      ? { card: 'summary_large_image', images: [post.imageUrl] }
-      : undefined,
+    twitter: { card: 'summary_large_image', images: [ogImage] },
   };
 }
 

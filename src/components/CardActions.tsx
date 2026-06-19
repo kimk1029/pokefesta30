@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { snkrdunkApparelUrl } from '@/lib/snkrdunk';
 import { useToast } from '@/components/ToastProvider';
@@ -190,8 +191,7 @@ export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: 
           cursor: 'pointer',
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/snkrdunk-icon.png" alt="" style={{ width: 20, height: 20, display: 'block' }} />
+        <Image src="/snkrdunk-icon.png" alt="snkrdunk" width={20} height={20} style={{ display: 'block' }} />
       </a>
       <button
         type="button"

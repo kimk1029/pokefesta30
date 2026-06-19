@@ -32,7 +32,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `[${action}] ${trade.title}`;
   const description =
     plainExcerpt(trade.body) || `${trade.place} · ${trade.title} — 포켓몬 TCG 카드 거래`;
-  const image = trade.images?.[0];
+  // 실제 상품 사진이 있으면 그걸, 없으면 브랜드 이미지로 폴백 — 공유 카드가 항상 채워지도록.
+  const ogImage = trade.images?.[0] ?? '/meta.png';
   const canonical = `/trade/${id}`;
   return {
     title,
@@ -43,9 +44,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${title} · 포케페스타30`,
       description,
       url: canonical,
-      ...(image ? { images: [{ url: image }] } : {}),
+      images: [{ url: ogImage }],
     },
-    twitter: image ? { card: 'summary_large_image', images: [image] } : undefined,
+    twitter: { card: 'summary_large_image', images: [ogImage] },
   };
 }
 

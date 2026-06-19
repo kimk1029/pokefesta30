@@ -136,11 +136,13 @@ export function CollectionScreen() {
             ? c.buyPrice
             : c.buyPrice / (rate || 1)
           : null;
+      // 등록(매입)가 대비 등락 — 내가 등록한 금액 기준 손익률.
       const profitPct = basisJpy && curJpy > 0 ? ((curJpy - basisJpy) / basisJpy) * 100 : null;
+      // 어제(직전 체결일) 대비 등락 — 시세 추이 마지막 두 점.
       const t = c.trend ?? [];
       const dayPct =
         t.length >= 2 && t[t.length - 2] > 0 ? ((t[t.length - 1] - t[t.length - 2]) / t[t.length - 2]) * 100 : null;
-      return { c, curJpy, qty, basisJpy, changePct: profitPct ?? dayPct, value: curJpy * qty };
+      return { c, curJpy, qty, basisJpy, profitPct, dayPct, changePct: profitPct ?? dayPct, value: curJpy * qty };
     });
   }, [cards, usePsa10, rate]);
 
@@ -207,20 +209,17 @@ export function CollectionScreen() {
       .sort((a, b) => b.val - a.val);
   }, [allRows]);
 
-  // 시리즈별 비중 TOP 5 — 카탈로그 시리즈명 기준 평가액 비중.
-  const seriesTop = useMemo(() => {
-    const sums = new Map<string, number>();
-    let total = 0;
-    for (const r of allRows) {
-      if (r.curJpy <= 0) continue;
-      const name = r.c.series || '기타';
-      sums.set(name, (sums.get(name) ?? 0) + r.value);
-      total += r.value;
-    }
-    if (total <= 0) return [];
-    const arr = [...sums.entries()].map(([name, val]) => ({ name, val, pct: (val / total) * 100 }));
-    arr.sort((a, b) => b.val - a.val);
-    return arr.slice(0, 5);
+  // 가격 비중(카드별) — 총 평가액에서 각 카드(평가액=현재가×수량)가 차지하는 비중.
+  const cardWeights = useMemo(() => {
+    const priced = allRows.filter((r) => r.curJpy > 0 && r.value > 0);
+    const total = priced.reduce((s, r) => s + r.value, 0);
+    if (total <= 0) return { items: [] as Array<{ row: Row; pct: number }>, restVal: 0, restCount: 0, restPct: 0 };
+    const sorted = [...priced].sort((a, b) => b.value - a.value);
+    const TOP = 8;
+    const items = sorted.slice(0, TOP).map((row) => ({ row, pct: (row.value / total) * 100 }));
+    const rest = sorted.slice(TOP);
+    const restVal = rest.reduce((s, r) => s + r.value, 0);
+    return { items, restVal, restCount: rest.length, restPct: (restVal / total) * 100 };
   }, [allRows]);
 
   if (err)
@@ -341,8 +340,8 @@ export function CollectionScreen() {
         </div>
       </Section>
 
-      {/* ── 자산 구성 (지역별) + 시리즈 TOP5 ── */}
-      {(composition.length > 0 || seriesTop.length > 0) && (
+      {/* ── 자산 구성 (지역별 도넛) + 가격 비중(카드별) ── */}
+      {(composition.length > 0 || cardWeights.items.length > 0) && (
         <Section title="자산 구성">
           <Panel style={{ padding: 16 }}>
             {composition.length > 0 && (
@@ -361,19 +360,53 @@ export function CollectionScreen() {
               </div>
             )}
 
-            {seriesTop.length > 0 && (
+            {cardWeights.items.length > 0 && (
               <>
                 <div style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink)', margin: composition.length > 0 ? '20px 0 12px' : '0 0 12px' }}>
-                  시리즈별 비중 TOP {seriesTop.length}
+                  가격 비중 (카드별)
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {seriesTop.map((s, i) => (
-                    <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                      <span style={{ width: 21, height: 21, borderRadius: '50%', background: PIE[i] ?? 'var(--ink3)', color: '#fff', fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 800, display: 'grid', placeItems: 'center', flex: 'none' }}>{i + 1}</span>
-                      <span style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
-                      <span style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 800, color: 'var(--ink)' }}>{s.pct.toFixed(1)}%</span>
+                  {cardWeights.items.map(({ row, pct }, i) => {
+                    const img = row.c.snkrdunkImageUrl || row.c.photoUrl || null;
+                    const color = PIE[i] ?? 'var(--ink3)';
+                    return (
+                      <div key={row.c.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 34, height: 34, flex: 'none', borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--pap2)', display: 'grid', placeItems: 'center' }}>
+                          {img ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={img} alt={cardName(row.c)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <span style={{ fontSize: 16 }}>🃏</span>
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                            <span style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cardName(row.c)}</span>
+                            <span style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink)', flex: 'none' }}>{pct.toFixed(1)}%</span>
+                          </div>
+                          {/* 비중 막대 */}
+                          <div style={{ height: 6, borderRadius: 3, background: 'var(--pap3)', overflow: 'hidden', marginTop: 5 }}>
+                            <div style={{ width: `${Math.max(2, pct).toFixed(1)}%`, height: '100%', background: color, borderRadius: 3 }} />
+                          </div>
+                          <div style={{ fontFamily: 'var(--f1)', fontSize: 10.5, color: 'var(--ink3)', fontWeight: 600, marginTop: 4 }}>
+                            {format(row.value)}{row.qty > 1 ? ` · ${row.qty}장` : ''}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {cardWeights.restCount > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 34, height: 34, flex: 'none', borderRadius: 'var(--r-sm)', background: 'var(--pap2)', display: 'grid', placeItems: 'center', fontSize: 14, color: 'var(--ink3)' }}>＋</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                          <span style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 700, color: 'var(--ink3)', flex: 1 }}>기타 {cardWeights.restCount}장</span>
+                          <span style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink3)', flex: 'none' }}>{cardWeights.restPct.toFixed(1)}%</span>
+                        </div>
+                        <div style={{ fontFamily: 'var(--f1)', fontSize: 10.5, color: 'var(--ink3)', fontWeight: 600, marginTop: 4 }}>{format(cardWeights.restVal)}</div>
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               </>
             )}
@@ -485,6 +518,10 @@ type Row = {
   curJpy: number;
   qty: number;
   basisJpy: number | null;
+  /** 등록(매입)가 대비 손익률. */
+  profitPct: number | null;
+  /** 어제 대비 시세 등락률. */
+  dayPct: number | null;
   changePct: number | null;
   value: number;
 };
@@ -505,10 +542,21 @@ const FALLBACK_GRADS = [
   'linear-gradient(150deg,#11998e,#38ef7d)',
 ];
 
+/** 등락률 칩 — 라벨 + 부호색(상승 빨강/하락 파랑). */
+function DeltaChip({ label, pct, size = 11.5 }: { label: string; pct: number | null; size?: number }) {
+  if (pct == null) return null;
+  const up = pct >= 0;
+  return (
+    <span style={{ fontFamily: 'var(--f1)', fontSize: size, fontWeight: 800, color: up ? UP : DOWN, whiteSpace: 'nowrap' }}>
+      <span style={{ color: 'var(--ink3)', fontWeight: 700 }}>{label} </span>
+      {up ? '+' : ''}{pct.toFixed(1)}%
+    </span>
+  );
+}
+
 function CardGridItem({ row, rank, format }: { row: Row; rank: number; format: (j: number) => string }) {
-  const { c, curJpy, qty, changePct } = row;
+  const { c, curJpy, qty, basisJpy, profitPct, dayPct } = row;
   const img = c.snkrdunkImageUrl || c.photoUrl || null;
-  const cu = (changePct ?? 0) >= 0;
   const href = c.snkrdunkApparelId ? `/cards/snkrdunk/${c.snkrdunkApparelId}` : undefined;
   const body = (
     <>
@@ -530,15 +578,19 @@ function CardGridItem({ row, rank, format }: { row: Row; rank: number; format: (
         <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {cardSub(c)}
         </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
+        {/* 현재가 + 어제 대비 등락 */}
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginTop: 8 }}>
           <span style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color: 'var(--ink)' }}>{curJpy > 0 ? format(curJpy) : '—'}</span>
-          {changePct != null && (
-            <span style={{ fontFamily: 'var(--f1)', fontSize: 11.5, fontWeight: 800, color: cu ? UP : DOWN }}>
-              {cu ? '+' : ''}{changePct.toFixed(1)}%
-            </span>
-          )}
+          <DeltaChip label="어제" pct={dayPct} />
         </div>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, marginTop: 4 }}>{qty}장 보유</div>
+        {/* 등록(매입)가 + 등록 대비 손익 */}
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginTop: 4 }}>
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            등록 {basisJpy ? format(basisJpy) : '—'}
+          </span>
+          <DeltaChip label="대비" pct={profitPct} size={11} />
+        </div>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, marginTop: 5 }}>{qty}장 보유</div>
       </div>
     </>
   );
@@ -551,9 +603,8 @@ function CardGridItem({ row, rank, format }: { row: Row; rank: number; format: (
 }
 
 function CardListItem({ row, format, last }: { row: Row; format: (j: number) => string; last: boolean }) {
-  const { c, curJpy, qty, changePct } = row;
+  const { c, curJpy, qty, basisJpy, profitPct, dayPct } = row;
   const img = c.snkrdunkImageUrl || c.photoUrl || null;
-  const cu = (changePct ?? 0) >= 0;
   const href = c.snkrdunkApparelId ? `/cards/snkrdunk/${c.snkrdunkApparelId}` : '#';
   return (
     <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 2px', borderBottom: last ? 'none' : '1px solid var(--pap3)', textDecoration: 'none', color: 'inherit' }}>
@@ -568,14 +619,17 @@ function CardListItem({ row, format, last }: { row: Row; format: (j: number) => 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cardName(c)}</div>
         <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', marginTop: 2 }}>{cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}</div>
+        {/* 등록(매입)가 + 등록 대비 손익 */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 10.5, color: 'var(--ink3)', fontWeight: 600 }}>등록 {basisJpy ? format(basisJpy) : '—'}</span>
+          <DeltaChip label="대비" pct={profitPct} size={10.5} />
+        </div>
       </div>
       <div style={{ textAlign: 'right', flex: 'none' }}>
         <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color: 'var(--ink)' }}>{curJpy > 0 ? format(curJpy) : '—'}</div>
-        {changePct != null && (
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 12, fontWeight: 800, color: cu ? UP : DOWN, marginTop: 3 }}>
-            {cu ? '▲' : '▼'} {cu ? '+' : ''}{changePct.toFixed(1)}%
-          </div>
-        )}
+        <div style={{ marginTop: 3 }}>
+          <DeltaChip label="어제" pct={dayPct} size={12} />
+        </div>
       </div>
     </Link>
   );

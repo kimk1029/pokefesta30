@@ -1,10 +1,17 @@
-import { Fragment, type CSSProperties } from 'react';
+import { type CSSProperties } from 'react';
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { fmtDate, parseIntParam } from '@/lib/format';
 import { CatalogReparseButton } from '@/components/CatalogReparseButton';
 import { CARD_GAME_LABEL, type CardGame } from '../../../../shared/cardStatics';
+import { getCardPack } from '../../../../shared/data/cardPacks';
+
+/** 세트코드(예: "SV8A")를 박스 한글명으로. CARD_PACKS 에 없으면 null. */
+function setCodeToKo(setCode: string | null | undefined): string | null {
+  if (!setCode) return null;
+  return getCardPack(setCode)?.name ?? getCardPack(setCode.toLowerCase())?.name ?? null;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -130,6 +137,115 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     return parts.length ? `?${parts.join('&')}` : '';
   };
 
+  // 테이블 헤더 — 일반/아코디언 양쪽에서 재사용.
+  const head = (
+    <thead>
+      <tr>
+        <th>이미지</th>
+        <th style={NOWRAP}>ID</th>
+        <th style={NOWRAP}>게임</th>
+        <th>카드명</th>
+        <th style={NOWRAP}>세트코드</th>
+        <th style={NOWRAP}>카드번호</th>
+        <th style={NOWRAP}>레어도</th>
+        <th style={NOWRAP}>분류</th>
+        <th style={NOWRAP}>품번</th>
+        <th style={{ textAlign: 'right', ...NOWRAP }}>최신가 PSA10 / 싱글 (JPY)</th>
+        <th style={NOWRAP}>수집일</th>
+      </tr>
+    </thead>
+  );
+
+  // 카드 한 행 → <tr>. (일반 테이블 / 세트코드 아코디언에서 공통 사용)
+  const rowFor = (c: (typeof cards)[number]) => {
+    const snap = snapMap.get(c.apparelId);
+    const gKey = c.game === '' ? 'other' : c.game;
+    const gStyle = GAME_TAG_STYLE[gKey] ?? GAME_TAG_STYLE.other;
+    const setKo = setCodeToKo(c.setCode);
+    return (
+      <tr key={c.apparelId}>
+        <td>
+          {c.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={c.imageUrl}
+              alt={c.koName || c.localizedName || c.name || ''}
+              style={{ width: 34, height: 46, objectFit: 'contain', display: 'block' }}
+              loading="lazy"
+            />
+          ) : (
+            <span className="muted">-</span>
+          )}
+        </td>
+        <td className="mono" style={NOWRAP}>
+          <a href={`https://snkrdunk.com/apparels/${c.apparelId}`} target="_blank" rel="noreferrer">
+            {c.apparelId}
+          </a>
+        </td>
+        <td style={NOWRAP}>
+          <span className="tag" style={gStyle}>
+            {CARD_GAME_LABEL[gKey as CardGame] ?? '기타'}
+          </span>
+        </td>
+        <td>
+          {c.koName || c.localizedName || c.name || <span className="muted">-</span>}
+          {c.koName && (c.localizedName || c.name) && (
+            <div className="muted">{c.localizedName || c.name}</div>
+          )}
+        </td>
+        <td style={NOWRAP}>
+          {c.setCode ? (
+            <>
+              {/* 세트코드 클릭 → 해당 세트만 모아보기. 아래에 박스 한글명. */}
+              <Link className="mono" href={`/cards${qs({ set: c.setCode })}`}>{c.setCode}</Link>
+              {setKo && <div className="muted">{setKo}</div>}
+            </>
+          ) : (
+            <span className="tag tag-report">미파싱</span>
+          )}
+        </td>
+        <td className="mono" style={NOWRAP}>
+          {c.cardNumber || <span className="tag tag-report">미파싱</span>}
+        </td>
+        <td style={NOWRAP}>{c.rarity ? <span className="tag tag-general">{c.rarity}</span> : <span className="muted">-</span>}</td>
+        <td style={NOWRAP}>
+          <span className={`tag ${c.itemKind === 'box' ? 'tag-open' : ''}`}>{c.itemKind}</span>
+        </td>
+        <td className="mono" style={NOWRAP}>{c.productNumber || <span className="muted">-</span>}</td>
+        <td className="mono" style={{ textAlign: 'right', ...NOWRAP }}>
+          {snap ? (
+            <>
+              <div>PSA10 {snap.pricePsa10 > 0 ? `¥${snap.pricePsa10.toLocaleString()}` : '—'}</div>
+              <div>
+                싱글{' '}
+                {snap.priceSingle > 0
+                  ? `¥${snap.priceSingle.toLocaleString()}`
+                  : snap.minPrice > 0
+                    ? `¥${snap.minPrice.toLocaleString()}~`
+                    : '—'}
+              </div>
+              <div className="muted">{fmtDate(snap.fetchedAt)}</div>
+            </>
+          ) : (
+            <span className="muted">-</span>
+          )}
+        </td>
+        <td className="muted" style={NOWRAP}>{fmtDate(c.firstSeenAt)}</td>
+      </tr>
+    );
+  };
+
+  // 세트코드별 보기: 인접한 같은 setCode 행을 그룹으로 묶음(orderBy 가 setCode 순이라 연속).
+  const groups: { setCode: string; rows: typeof cards }[] = [];
+  if (groupBySet) {
+    for (const c of cards) {
+      const sc = c.setCode ?? '';
+      const last = groups[groups.length - 1];
+      if (last && last.setCode === sc) last.rows.push(c);
+      else groups.push({ setCode: sc, rows: [c] });
+    }
+  }
+
   return (
     <>
       <h1 className="admin-h1">카드 카탈로그</h1>
@@ -201,103 +317,43 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
 
       {cards.length === 0 ? (
         <div className="empty">저장된 카드가 없습니다.</div>
+      ) : groupBySet ? (
+        // 세트코드별 아코디언 — 박스별로 묶어 접었다 펼 수 있게.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {groups.map((g) => {
+            const ko = setCodeToKo(g.setCode);
+            const label = g.setCode
+              ? ko
+                ? `${ko} (${g.setCode})`
+                : g.setCode
+              : '세트코드 미파싱';
+            return (
+              <details key={g.setCode || '_none'} open>
+                <summary
+                  style={{
+                    cursor: 'pointer',
+                    padding: '9px 12px',
+                    background: '#EEF2FF',
+                    fontWeight: 700,
+                    color: '#3730A3',
+                    borderRadius: 6,
+                    ...NOWRAP,
+                  }}
+                >
+                  📦 {label} · {g.rows.length}건
+                </summary>
+                <table className="tbl" style={{ marginTop: 6 }}>
+                  {head}
+                  <tbody>{g.rows.map(rowFor)}</tbody>
+                </table>
+              </details>
+            );
+          })}
+        </div>
       ) : (
         <table className="tbl">
-          <thead>
-            <tr>
-              <th>이미지</th>
-              <th style={NOWRAP}>ID</th>
-              <th style={NOWRAP}>게임</th>
-              <th>카드명</th>
-              <th style={NOWRAP}>세트코드</th>
-              <th style={NOWRAP}>카드번호</th>
-              <th style={NOWRAP}>레어도</th>
-              <th style={NOWRAP}>분류</th>
-              <th style={NOWRAP}>품번</th>
-              <th style={{ textAlign: 'right', ...NOWRAP }}>최신가 (JPY)</th>
-              <th style={NOWRAP}>수집일</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cards.map((c, i) => {
-              const snap = snapMap.get(c.apparelId);
-              const price = snap ? snap.priceSingle || snap.minPrice : 0;
-              const gKey = c.game === '' ? 'other' : c.game;
-              const gStyle = GAME_TAG_STYLE[gKey] ?? GAME_TAG_STYLE.other;
-              // 세트코드별 보기: 세트코드가 바뀌는 첫 행 위에 그룹 헤더를 끼운다.
-              const prevSet = i > 0 ? cards[i - 1].setCode ?? '' : null;
-              const showGroupHeader = groupBySet && prevSet !== (c.setCode ?? '');
-              return (
-                <Fragment key={c.apparelId}>
-                  {showGroupHeader && (
-                    <tr>
-                      <td colSpan={11} style={{ background: '#EEF2FF', fontWeight: 700, color: '#3730A3', ...NOWRAP }}>
-                        📦 세트코드: {c.setCode || '미파싱'}
-                      </td>
-                    </tr>
-                  )}
-                  <tr>
-                    <td>
-                      {c.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={c.imageUrl}
-                          alt=""
-                          style={{ width: 34, height: 46, objectFit: 'contain', display: 'block' }}
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="muted">-</span>
-                      )}
-                    </td>
-                    <td className="mono" style={NOWRAP}>
-                      <a href={`https://snkrdunk.com/apparels/${c.apparelId}`} target="_blank" rel="noreferrer">
-                        {c.apparelId}
-                      </a>
-                    </td>
-                    <td style={NOWRAP}>
-                      <span className="tag" style={gStyle}>
-                        {CARD_GAME_LABEL[gKey as CardGame] ?? '기타'}
-                      </span>
-                    </td>
-                    <td>
-                      {c.koName || c.localizedName || c.name || <span className="muted">-</span>}
-                      {c.koName && (c.localizedName || c.name) && (
-                        <div className="muted">{c.localizedName || c.name}</div>
-                      )}
-                    </td>
-                    <td className="mono" style={NOWRAP}>
-                      {c.setCode ? (
-                        // 세트코드 클릭 → 해당 세트만 모아보기.
-                        <Link href={`/cards${qs({ set: c.setCode })}`}>{c.setCode}</Link>
-                      ) : (
-                        <span className="tag tag-report">미파싱</span>
-                      )}
-                    </td>
-                    <td className="mono" style={NOWRAP}>
-                      {c.cardNumber || <span className="tag tag-report">미파싱</span>}
-                    </td>
-                    <td style={NOWRAP}>{c.rarity ? <span className="tag tag-general">{c.rarity}</span> : <span className="muted">-</span>}</td>
-                    <td style={NOWRAP}>
-                      <span className={`tag ${c.itemKind === 'box' ? 'tag-open' : ''}`}>{c.itemKind}</span>
-                    </td>
-                    <td className="mono" style={NOWRAP}>{c.productNumber || <span className="muted">-</span>}</td>
-                    <td className="mono" style={{ textAlign: 'right', ...NOWRAP }}>
-                      {price > 0 ? (
-                        <>
-                          ¥{price.toLocaleString()}
-                          <div className="muted">{fmtDate(snap!.fetchedAt)}</div>
-                        </>
-                      ) : (
-                        <span className="muted">-</span>
-                      )}
-                    </td>
-                    <td className="muted" style={NOWRAP}>{fmtDate(c.firstSeenAt)}</td>
-                  </tr>
-                </Fragment>
-              );
-            })}
-          </tbody>
+          {head}
+          <tbody>{cards.map(rowFor)}</tbody>
         </table>
       )}
 

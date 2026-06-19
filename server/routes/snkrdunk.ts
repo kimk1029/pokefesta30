@@ -12,6 +12,7 @@ import {
   upsertCatalogCard,
   upsertSearchResults,
 } from '../lib/snkrdunkCatalog.js';
+import { computeApparelPrices } from '@/lib/snkrdunkPrice';
 
 const router = Router();
 
@@ -54,14 +55,34 @@ router.get('/apparels/:id', async (req: Request, res: Response) => {
       .json({ data: null, reason: 'SNKRDUNK 상품 정보를 가져오지 못했습니다.' });
   }
   res.json({ data });
-  // 조회된 카드의 정적 정보 + 현재 최저가를 우리 DB 에 적재 (응답 후, 실패 무시).
+  // 조회된 카드의 정적 정보를 우리 DB 에 적재 (응답 후, 실패 무시).
   void upsertCatalogCard(data);
-  if (data.minPrice > 0) {
-    void recordPriceSnapshot(apparelId, {
-      minPrice: data.minPrice,
-      listingCount: data.listingCount,
-    });
-  }
+  // 최신가 수집 — 싱글(raw 중앙값)/PSA10/추이까지 계산해 풀 스냅샷으로 기록.
+  // (응답 후 백그라운드. 거래이력·차트 추가 조회는 사용자 응답 지연 없음.)
+  void (async () => {
+    try {
+      const [hist, chart] = await Promise.all([
+        fetchSnkrdunkSalesHistory(apparelId).catch(() => null),
+        fetchSnkrdunkSalesChart(apparelId).catch(() => null),
+      ]);
+      const prices = computeApparelPrices(
+        hist?.history ?? [],
+        chart?.points ?? [],
+        data.minPrice ?? 0,
+      );
+      if (data.minPrice > 0 || prices.single > 0 || prices.psa10 > 0) {
+        await recordPriceSnapshot(apparelId, {
+          minPrice: data.minPrice,
+          listingCount: data.listingCount,
+          priceSingle: prices.single,
+          pricePsa10: prices.psa10,
+          trend: prices.trendJpy,
+        });
+      }
+    } catch (err) {
+      console.error('[snkrdunk.fullsnapshot]', apparelId, err);
+    }
+  })();
 });
 
 router.get('/apparels/:id/sales-history', async (req: Request, res: Response) => {

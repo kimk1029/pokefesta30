@@ -56,6 +56,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const koName = seed?.shortName ?? translateKnownCardNameToKo(jpName) ?? jpName;
   const title = `${koName} 시세`;
   const description = `${koName} 포켓몬 카드 실시간 시세 — PSA 등급별 최근가·평균가·시세 추이를 snkrdunk 데이터로 확인하세요.`;
+  const ogImage = apparel.imageUrl ?? '/meta.png';
   const canonical = `/cards/snkrdunk/${apparelId}`;
   return {
     title,
@@ -65,11 +66,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: `${title} · 포케페스타30`,
       description,
       url: canonical,
-      ...(apparel.imageUrl ? { images: [{ url: apparel.imageUrl }] } : {}),
+      images: [{ url: ogImage }],
     },
-    twitter: apparel.imageUrl
-      ? { card: 'summary_large_image', images: [apparel.imageUrl] }
-      : undefined,
+    twitter: { card: 'summary_large_image', images: [ogImage] },
   };
 }
 
