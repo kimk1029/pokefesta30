@@ -169,7 +169,7 @@ function AuctionThumb({ url, P }: { url: string | null; P: Palette }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={mvcImgProxy(url!)}
-          alt=""
+          alt="MVC 경매 카드"
           loading="lazy"
           referrerPolicy="no-referrer"
           onError={() => setErr(true)}

@@ -61,7 +61,7 @@ export default async function Page() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={p.imageUrl}
-                    alt=""
+                    alt={p.title}
                     loading="lazy"
                     style={{
                       width: '100%',

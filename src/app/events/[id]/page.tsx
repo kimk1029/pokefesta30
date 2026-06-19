@@ -1,7 +1,10 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { EventComments } from '@/components/events/EventComments';
+import { JsonLd } from '@/components/JsonLd';
+import { absUrl, plainExcerpt } from '@/lib/seo';
 import { serverFetch } from '@/lib/apiServer';
 import {
   EVENT_CATEGORY_STYLE as CATEGORY_STYLE,
@@ -15,6 +18,35 @@ export const dynamic = 'force-dynamic';
 
 interface Props {
   params: { id: string };
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const id = Number(params.id);
+  if (isNaN(id)) return { title: '이벤트' };
+  const r = await serverFetch<{ data: EventPost }>(`/api/events/${id}`, {
+    auth: false,
+    revalidate: 60,
+  });
+  const post = r.data?.data;
+  if (!post) return { title: '이벤트' };
+
+  const description = plainExcerpt(post.body) || `${post.title} — 포케페스타30 이벤트`;
+  const canonical = `/events/${id}`;
+  return {
+    title: post.title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: 'article',
+      title: `${post.title} · 포케페스타30`,
+      description,
+      url: canonical,
+      ...(post.imageUrl ? { images: [{ url: post.imageUrl }] } : {}),
+    },
+    twitter: post.imageUrl
+      ? { card: 'summary_large_image', images: [post.imageUrl] }
+      : undefined,
+  };
 }
 
 export default async function Page({ params }: Props) {
@@ -32,6 +64,23 @@ export default async function Page({ params }: Props) {
 
   return (
     <>
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'Event',
+          name: post.title,
+          description: plainExcerpt(post.body) || post.title,
+          eventStatus:
+            status === 'ended'
+              ? 'https://schema.org/EventCancelled'
+              : 'https://schema.org/EventScheduled',
+          url: absUrl(`/events/${id}`),
+          ...(post.imageUrl ? { image: [absUrl(post.imageUrl)] } : {}),
+          ...(post.startsAt ? { startDate: post.startsAt } : {}),
+          ...(post.endsAt ? { endDate: post.endsAt } : {}),
+          organizer: { '@type': 'Organization', name: '포케페스타30', url: absUrl('/') },
+        }}
+      />
       <StatusBar />
       <AppBar title="이벤트" showBack backHref="/events" />
 
@@ -80,7 +129,7 @@ export default async function Page({ params }: Props) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={post.imageUrl}
-            alt=""
+            alt={post.title}
             style={{
               width: '100%',
               display: 'block',

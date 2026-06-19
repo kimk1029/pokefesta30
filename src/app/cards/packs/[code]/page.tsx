@@ -91,5 +91,6 @@ export async function generateMetadata({ params }: Params) {
   return {
     title: `${pack.name} · 힛카드 시세 — CardVault`,
     description: `${pack.name} 팩에서 나오는 힛카드들의 실시간 시세 (스니다 기준).`,
+    alternates: { canonical: `/cards/packs/${encodeURIComponent(code)}` },
   };
 }

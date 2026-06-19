@@ -1,7 +1,10 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { JsonLd } from '@/components/JsonLd';
+import { absUrl } from '@/lib/seo';
 import { CardDetailView, type GradeAgg, type TradeRow } from '@/components/cards/CardDetailView';
 import {
   isGradedSnkrdunkBadge,
@@ -38,6 +41,38 @@ function gradeAgg(
   return { key, recent: matches[0], avg, low, count: matches.length };
 }
 
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const apparelId = Number(params.id);
+  if (!Number.isInteger(apparelId) || apparelId <= 0) return { title: '시세 상세' };
+  const seed = SNKRDUNK_FEATURED_CARDS.find((c) => c.apparelId === apparelId);
+  const r = await serverFetch<{ data: SnkrdunkApparel | null }>(
+    `/api/snkrdunk/apparels/${apparelId}`,
+    { auth: false },
+  );
+  const apparel = r.data?.data ?? null;
+  if (!apparel) return { title: '시세 상세' };
+
+  const jpName = apparel.localizedName ?? '';
+  const koName = seed?.shortName ?? translateKnownCardNameToKo(jpName) ?? jpName;
+  const title = `${koName} 시세`;
+  const description = `${koName} 포켓몬 카드 실시간 시세 — PSA 등급별 최근가·평균가·시세 추이를 snkrdunk 데이터로 확인하세요.`;
+  const canonical = `/cards/snkrdunk/${apparelId}`;
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title: `${title} · 포케페스타30`,
+      description,
+      url: canonical,
+      ...(apparel.imageUrl ? { images: [{ url: apparel.imageUrl }] } : {}),
+    },
+    twitter: apparel.imageUrl
+      ? { card: 'summary_large_image', images: [apparel.imageUrl] }
+      : undefined,
+  };
+}
+
 export default async function Page({ params }: PageProps) {
   const apparelId = Number(params.id);
   if (!Number.isInteger(apparelId) || apparelId <= 0) notFound();
@@ -71,8 +106,30 @@ export default async function Page({ params }: PageProps) {
     badge: (h.condition || localizeSnkrdunkText(h.label) || '').trim(),
   }));
 
+  const minPrice = apparel.minPrice ?? 0;
+
   return (
     <>
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: `${koName} 포켓몬 카드`,
+          ...(jpName ? { alternateName: jpName } : {}),
+          ...(apparel.imageUrl ? { image: [absUrl(apparel.imageUrl)] } : {}),
+          ...(minPrice > 0
+            ? {
+                offers: {
+                  '@type': 'Offer',
+                  price: minPrice,
+                  priceCurrency: 'JPY',
+                  availability: 'https://schema.org/InStock',
+                  url: absUrl(`/cards/snkrdunk/${apparelId}`),
+                },
+              }
+            : {}),
+        }}
+      />
       <StatusBar />
       {/* 진입 경로가 다양해 backHref 고정 없이 브라우저 history 로 돌아감. */}
       <AppBar title="시세 상세" showBack />

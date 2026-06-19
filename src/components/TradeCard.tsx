@@ -122,7 +122,7 @@ export function TradeCard({ trade, showChatCount }: Props) {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={trade.images![0]}
-                alt=""
+                alt={trade.title}
                 width={48}
                 height={48}
                 style={{

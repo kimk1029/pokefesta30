@@ -51,7 +51,7 @@ function ItemRow({ item }: { item: BunjangItem }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={item.imageUrl}
-            alt=""
+            alt={item.name}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         ) : (

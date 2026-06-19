@@ -6,6 +6,7 @@ import { AdScripts } from '@/components/ads/AdScripts';
 import { GoogleAnalytics } from '@/components/GoogleAnalytics';
 import { InAppBrowserNotice } from '@/components/InAppBrowserNotice';
 import { InventoryProvider } from '@/components/InventoryProvider';
+import { JsonLd } from '@/components/JsonLd';
 import { PageviewBeacon } from '@/components/PageviewBeacon';
 import { PhoneShell } from '@/components/PhoneShell';
 import { Providers } from '@/components/Providers';
@@ -106,6 +107,34 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
+        <JsonLd
+          data={[
+            {
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: '포케페스타30',
+              url: SITE_URL,
+              logo: `${SITE_URL}/app-icon.png`,
+              description:
+                '포켓몬 TCG 카드 거래·시세 확인 + 30주년 행사 현장 상황 공유 커뮤니티',
+            },
+            {
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: '포케페스타30 — 포켓몬 TCG 커뮤니티',
+              url: SITE_URL,
+              inLanguage: 'ko-KR',
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: {
+                  '@type': 'EntryPoint',
+                  urlTemplate: `${SITE_URL}/cards/search?q={search_term_string}`,
+                },
+                'query-input': 'required name=search_term_string',
+              },
+            },
+          ]}
+        />
         <GoogleAnalytics />
         <AdScripts />
         <Providers>

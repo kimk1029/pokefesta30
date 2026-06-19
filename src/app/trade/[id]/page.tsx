@@ -1,5 +1,8 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { JsonLd } from '@/components/JsonLd';
+import { absUrl, plainExcerpt } from '@/lib/seo';
 import { BookmarkButton } from '@/components/BookmarkButton';
 import { BumpButton } from '@/components/BumpButton';
 import { ComposedAvatar } from '@/components/ComposedAvatar';
@@ -16,6 +19,34 @@ export const dynamic = 'force-dynamic';
 
 interface Props {
   params: { id: string };
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const id = Number(params.id);
+  if (isNaN(id)) return { title: '거래글' };
+  const r = await serverFetch<{ data: TradeDetail }>(`/api/trades/${id}`, { auth: false });
+  const trade = r.data?.data;
+  if (!trade) return { title: '거래글' };
+
+  const action = trade.type === 'buy' ? '삽니다' : '팝니다';
+  const title = `[${action}] ${trade.title}`;
+  const description =
+    plainExcerpt(trade.body) || `${trade.place} · ${trade.title} — 포켓몬 TCG 카드 거래`;
+  const image = trade.images?.[0];
+  const canonical = `/trade/${id}`;
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: 'article',
+      title: `${title} · 포케페스타30`,
+      description,
+      url: canonical,
+      ...(image ? { images: [{ url: image }] } : {}),
+    },
+    twitter: image ? { card: 'summary_large_image', images: [image] } : undefined,
+  };
 }
 
 export default async function Page({ params }: Props) {
@@ -46,8 +77,43 @@ export default async function Page({ params }: Props) {
     cancelled: '취소됨',
   };
 
+  const priceNumber = Number(String(trade.price).replace(/[^\d]/g, ''));
+
   return (
     <>
+      <JsonLd
+        data={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: trade.title,
+            description: plainExcerpt(trade.body) || trade.title,
+            ...(trade.images?.length ? { image: trade.images.map(absUrl) } : {}),
+            ...(priceNumber > 0
+              ? {
+                  offers: {
+                    '@type': 'Offer',
+                    price: priceNumber,
+                    priceCurrency: 'KRW',
+                    availability:
+                      trade.status === 'open'
+                        ? 'https://schema.org/InStock'
+                        : 'https://schema.org/OutOfStock',
+                    url: absUrl(`/trade/${id}`),
+                  },
+                }
+              : {}),
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: '거래', item: absUrl('/trade') },
+              { '@type': 'ListItem', position: 2, name: trade.title, item: absUrl(`/trade/${id}`) },
+            ],
+          },
+        ]}
+      />
       <StatusBar />
       <AppBar title="거래글" showBack backHref="/trade" />
 

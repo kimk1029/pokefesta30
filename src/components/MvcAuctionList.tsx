@@ -141,7 +141,7 @@ function AuctionRow({
           <img
             // 네이버 CDN은 우리 도메인 referer를 403 차단 → pstatic 이미지는 서버 프록시 경유
             src={mvcImgProxy(item.thumbnailUrl!)}
-            alt=""
+            alt={item.subject}
             loading="lazy"
             referrerPolicy="no-referrer"
             // 깨진 이미지(403/삭제 등)는 🔨 폴백으로 대체해 빈 칸 방지
@@ -542,7 +542,7 @@ export function MvcAuctionList({ initial }: Props) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={zoomSrc}
-            alt=""
+            alt="경매 상품 사진"
             referrerPolicy="no-referrer"
             style={{
               maxWidth: '100%',

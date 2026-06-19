@@ -297,7 +297,7 @@ function EbayList({ items }: { items: EbayItemSummary[] }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={it.thumb}
-              alt=""
+              alt={it.title}
               width={40}
               height={40}
               style={{ objectFit: 'cover', background: 'var(--white)', flexShrink: 0 }}

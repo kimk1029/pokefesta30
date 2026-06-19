@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CardPriceChart } from '@/components/CardPriceChart';
 import { AppBar } from '@/components/ui/AppBar';
@@ -8,6 +9,18 @@ import { CARDS_CATALOG, snkrdunkQueryFor, snkrdunkUrl, type CardGrade } from '@/
 import { serverFetch } from '@/lib/apiServer';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: '카드 시세',
+  description:
+    '포켓몬 TCG 인기 카드 시세를 PSA 등급별로 한눈에 — 최근가·평균가·시세 추이 차트 제공.',
+  alternates: { canonical: '/cards' },
+  openGraph: {
+    title: '카드 시세 · 포케페스타30',
+    description: '포켓몬 TCG 인기 카드 시세를 등급별로 한눈에',
+    url: '/cards',
+  },
+};
 
 const GRADE_BG: Record<CardGrade, string> = {
   S: 'var(--pur)', A: 'var(--blu)', B: 'var(--tel)', C: 'var(--grn-dk)',
