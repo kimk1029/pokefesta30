@@ -1,13 +1,14 @@
 /**
  * 하단 네비게이션(탭바) 스타일 설정.
- * - 'integrated'(통합형, 기본): 하단에 꽉 찬 고정 탭바.
- * - 'floating'(분리형): 양옆/아래 여백을 두고 둥글게 떠 있는 단일 플로팅 바.
+ * - 'floating'(분리형, 기본): 양옆/아래 여백을 두고 둥글게 떠 있는 단일 플로팅 바.
+ * - 'integrated'(통합형): 하단에 꽉 찬 고정 탭바.
  * 마이페이지 설정에서 전환. 앱(mobile/src/lib/navPrefs.ts)과 동일 컨셉.
+ * 신규 방문자(저장값 없음)는 기본 클린 테마와 함께 플로팅 네비를 본다.
  */
 export type NavStyle = 'integrated' | 'floating';
 
 export const NAV_STYLE_KEY = 'pf30:navStyle';
-export const DEFAULT_NAV_STYLE: NavStyle = 'integrated';
+export const DEFAULT_NAV_STYLE: NavStyle = 'floating';
 
 export function loadNavStyle(): NavStyle {
   if (typeof window === 'undefined') return DEFAULT_NAV_STYLE;
