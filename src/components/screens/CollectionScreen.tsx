@@ -494,7 +494,7 @@ export function CollectionScreen() {
             해당 조건의 카드가 없어요
           </div>
         ) : view === 'grid' ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, paddingBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, paddingBottom: 24 }}>
             {rows.map((r, i) => (
               <CardGridItem key={r.c.id} row={r} rank={i + 1} format={format} onRemove={handleRemove} />
             ))}
@@ -679,9 +679,9 @@ function CardGridItem({ row, rank, format, onRemove }: { row: Row; rank: number;
       </div>
     </>
   );
-  const boxStyle = { display: 'block', overflow: 'hidden', textDecoration: 'none', color: 'inherit' } as const;
+  const boxStyle = { display: 'block', overflow: 'hidden', textDecoration: 'none', color: 'inherit', minWidth: 0 } as const;
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', minWidth: 0 }}>
       {href ? (
         <Panel href={href} style={boxStyle}>{body}</Panel>
       ) : (

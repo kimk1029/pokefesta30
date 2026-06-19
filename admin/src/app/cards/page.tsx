@@ -330,11 +330,6 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {groups.map((g) => {
             const meta = getSetMeta(g.setCode);
-            const label = g.setCode
-              ? meta.name
-                ? `${meta.name} (${g.setCode})`
-                : g.setCode
-              : '세트코드 미파싱';
             return (
               <details key={g.setCode || '_none'} open>
                 <summary
@@ -348,7 +343,9 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
                     ...NOWRAP,
                   }}
                 >
-                  📦 {label}
+                  {/* 말머리 = 세트코드, 그 오른쪽에 한국어 박스 이름 */}
+                  📦 <span className="mono" style={{ fontWeight: 800 }}>{g.setCode || '미파싱'}</span>
+                  {meta.name && <span style={{ marginLeft: 8, fontWeight: 700 }}>{meta.name}</span>}
                   {meta.releasedAt && (
                     <span style={{ fontWeight: 600, color: '#6366F1' }}> · 📅 {meta.releasedAt} 출시</span>
                   )}
