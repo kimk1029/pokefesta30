@@ -139,25 +139,11 @@ export function CollectionScreen() {
             ? c.buyPrice
             : c.buyPrice / (rate || 1)
           : null;
-      // ★ 등급 일치 시세 — 손익은 등록 형태와 같은 등급끼리만 비교(싱글↔싱글, PSA10↔PSA10).
-      //   동일 등급 시세 데이터가 없는 등급(PSA9 등)은 0 → 손익 미산출(오해 방지).
-      const isSingle = !c.graded;
-      const isPsa10 = c.graded && (c.gradeValue ?? '').replace(/\.0$/, '') === '10';
-      const gradePriceJpy = isSingle ? c.priceSingleJpy : isPsa10 ? c.pricePsa10Jpy : 0;
-      // 표시/평가액 현재가 — ★ 싱글(비등급) 등록 카드는 전역 PSA10 토글과 무관하게
-      //   항상 싱글 시세. 등급카드만 토글(전체 PSA10 가정) 또는 등급 일치 시세를 따른다.
-      const curJpy = isSingle
-        ? c.priceSingleJpy
-        : usePsa10
-          ? c.pricePsa10Jpy > 0
-            ? c.pricePsa10Jpy
-            : c.priceSingleJpy
-          : gradePriceJpy > 0
-            ? gradePriceJpy
-            : c.pricePsa10Jpy > 0
-              ? c.pricePsa10Jpy
-              : c.priceSingleJpy;
-      // 등록(매입)가 대비 손익률 — 등급 일치 시세 기준(단가).
+      // ★ 등급 일치 시세 — 그레이딩 체크 카드는 PSA10 시세, 비그레이딩은 싱글 시세.
+      //   등록가↔현재가를 항상 같은 등급끼리만 비교한다(전역 토글과 무관).
+      const gradePriceJpy = c.graded ? c.pricePsa10Jpy : c.priceSingleJpy;
+      const curJpy = gradePriceJpy;
+      // 등록(매입)가 대비 손익률 — 같은 등급 시세 기준(단가).
       const profitPct = basisJpy && gradePriceJpy > 0 ? ((gradePriceJpy - basisJpy) / basisJpy) * 100 : null;
       // 어제(직전 체결일) 대비 등락 — 시세 추이 마지막 두 점.
       const t = c.trend ?? [];
@@ -165,7 +151,7 @@ export function CollectionScreen() {
         t.length >= 2 && t[t.length - 2] > 0 ? ((t[t.length - 1] - t[t.length - 2]) / t[t.length - 2]) * 100 : null;
       return { c, curJpy, qty, basisJpy, profitPct, dayPct, changePct: profitPct ?? dayPct, value: curJpy * qty };
     });
-  }, [cards, usePsa10, rate]);
+  }, [cards, rate]);
 
   const rows = useMemo(() => {
     const arr = [...allRows];
@@ -557,6 +543,22 @@ function DeltaChip({ label, pct, size = 11.5 }: { label: string; pct: number | n
   );
 }
 
+/** 그레이딩 카드 표식 — 부모(position:relative) 우하단에 작게 플로팅. */
+function GradedLabel() {
+  return (
+    <span
+      style={{
+        position: 'absolute', bottom: 5, right: 5, zIndex: 4, pointerEvents: 'none',
+        fontFamily: 'var(--f1)', fontSize: 8.5, fontWeight: 800, lineHeight: 1, letterSpacing: 0.3,
+        color: '#fff', background: 'var(--gold)', padding: '2px 6px', borderRadius: 6,
+        boxShadow: '0 1px 3px rgba(0,0,0,.3)',
+      }}
+    >
+      그레이딩
+    </span>
+  );
+}
+
 /** 카드 더보기(⋯) 메뉴 — 시세 보기 / 컬렉션에서 제거. Link/Panel 바깥에 형제로 배치. */
 function CardMenu({ apparelId, onRemove, plain = false }: { apparelId: number | null; onRemove: () => void; plain?: boolean }) {
   const router = useRouter();
@@ -657,6 +659,7 @@ function CardGridItem({ row, rank, format, onRemove }: { row: Row; rank: number;
         <div style={{ position: 'absolute', top: 8, left: 8, width: 22, height: 22, borderRadius: '50%', background: rankBadgeColor(rank), color: '#fff', fontSize: 12, fontWeight: 800, display: 'grid', placeItems: 'center', boxShadow: '0 2px 5px rgba(0,0,0,.25)' }}>
           {rank}
         </div>
+        {c.graded && <GradedLabel />}
       </div>
       <div style={{ padding: '7px 9px 9px' }}>
         <div style={{ fontFamily: 'var(--f1)', fontSize: 12, fontWeight: 800, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -731,6 +734,7 @@ function CardListItem({ row, format, last, onRemove }: { row: Row; format: (j: n
       <div style={{ position: 'absolute', top: '50%', right: -2, transform: 'translateY(-50%)', zIndex: 6 }}>
         <CardMenu apparelId={c.snkrdunkApparelId} onRemove={() => onRemove(c.id)} plain />
       </div>
+      {c.graded && <GradedLabel />}
     </div>
   );
 }
