@@ -52,8 +52,11 @@ interface CardRow {
 // KR 관례: 상승=빨강, 하락=파랑.
 const UP = 'var(--red)';
 const DOWN = 'var(--blu)';
-// 도넛/순위 색 (구성·시리즈 준비 중 placeholder 용).
-const PIE = ['var(--pur)', 'var(--blu)', 'var(--gold)'];
+// 카드별 비중 도넛·막대 색 팔레트 (상위 카드별 구분색).
+const SLICE = ['#7C5CFC', '#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#06B6D4', '#EC4899', '#F97316'];
+function sliceColor(i: number): string {
+  return SLICE[i] ?? 'var(--ink3)';
+}
 
 type SortKey = 'value' | 'recent' | 'name' | 'change';
 type View = 'grid' | 'list';
@@ -129,7 +132,6 @@ export function CollectionScreen() {
   const allRows = useMemo(() => {
     if (!cards) return [];
     return cards.map((c) => {
-      const curJpy = usePsa10 && c.pricePsa10Jpy > 0 ? c.pricePsa10Jpy : c.priceSingleJpy;
       const qty = Math.max(1, c.qty || 1);
       const basisJpy =
         c.buyPrice != null && c.buyPrice > 0
@@ -137,8 +139,25 @@ export function CollectionScreen() {
             ? c.buyPrice
             : c.buyPrice / (rate || 1)
           : null;
-      // 등록(매입)가 대비 등락 — 내가 등록한 금액 기준 손익률.
-      const profitPct = basisJpy && curJpy > 0 ? ((curJpy - basisJpy) / basisJpy) * 100 : null;
+      // ★ 등급 일치 시세 — 손익은 등록 형태와 같은 등급끼리만 비교(싱글↔싱글, PSA10↔PSA10).
+      //   동일 등급 시세 데이터가 없는 등급(PSA9 등)은 0 → 손익 미산출(오해 방지).
+      const isSingle = !c.graded;
+      const isPsa10 = c.graded && (c.gradeValue ?? '').replace(/\.0$/, '') === '10';
+      const gradePriceJpy = isSingle ? c.priceSingleJpy : isPsa10 ? c.pricePsa10Jpy : 0;
+      // 표시/평가액 현재가 — PSA10 토글이면 전체 PSA10 가정, 아니면 카드 등급에 맞춘 시세.
+      const curJpy = usePsa10
+        ? c.pricePsa10Jpy > 0
+          ? c.pricePsa10Jpy
+          : c.priceSingleJpy
+        : gradePriceJpy > 0
+          ? gradePriceJpy
+          : isSingle
+            ? c.priceSingleJpy
+            : c.pricePsa10Jpy > 0
+              ? c.pricePsa10Jpy
+              : c.priceSingleJpy;
+      // 등록(매입)가 대비 손익률 — 등급 일치 시세 기준(단가).
+      const profitPct = basisJpy && gradePriceJpy > 0 ? ((gradePriceJpy - basisJpy) / basisJpy) * 100 : null;
       // 어제(직전 체결일) 대비 등락 — 시세 추이 마지막 두 점.
       const t = c.trend ?? [];
       const dayPct =
@@ -182,34 +201,6 @@ export function CollectionScreen() {
     return { d7: over(7), d30: over(30) };
   }, [port]);
 
-  // 자산 구성 — 지역(에디션)별 평가액 비중.
-  const composition = useMemo(() => {
-    const REGIONS: Array<{ key: string; label: string; color: string }> = [
-      { key: 'jp', label: '일본판', color: 'var(--pur)' },
-      { key: 'kr', label: '한국판', color: 'var(--blu)' },
-      { key: 'en', label: '영문판', color: 'var(--gold)' },
-      { key: 'etc', label: '미지정', color: 'var(--ink3)' },
-    ];
-    const sums = new Map<string, number>();
-    let total = 0;
-    for (const r of allRows) {
-      if (r.curJpy <= 0) continue;
-      // 명시 지역 우선. 미지정이라도 스니덩크(일본 마켓) 출처면 일본판으로 간주.
-      const key =
-        r.c.region === 'jp' || r.c.region === 'kr' || r.c.region === 'en'
-          ? r.c.region
-          : r.c.snkrdunkApparelId
-            ? 'jp'
-            : 'etc';
-      sums.set(key, (sums.get(key) ?? 0) + r.value);
-      total += r.value;
-    }
-    if (total <= 0) return [];
-    return REGIONS.map((reg) => ({ ...reg, val: sums.get(reg.key) ?? 0, pct: ((sums.get(reg.key) ?? 0) / total) * 100 }))
-      .filter((x) => x.val > 0)
-      .sort((a, b) => b.val - a.val);
-  }, [allRows]);
-
   // 가격 비중(카드별) — 총 평가액에서 각 카드(평가액=현재가×수량)가 차지하는 비중.
   const cardWeights = useMemo(() => {
     const priced = allRows.filter((r) => r.curJpy > 0 && r.value > 0);
@@ -222,6 +213,15 @@ export function CollectionScreen() {
     const restVal = rest.reduce((s, r) => s + r.value, 0);
     return { items, restVal, restCount: rest.length, restPct: (restVal / total) * 100 };
   }, [allRows]);
+
+  // 카드별 비중 도넛 세그먼트 (합계 100% — 상위 카드 + 기타).
+  const donutSegments = useMemo(() => {
+    const segs = cardWeights.items.map((it, i) => ({ key: String(it.row.c.id), color: sliceColor(i), pct: it.pct }));
+    if (cardWeights.restCount > 0) {
+      segs.push({ key: '_rest', color: 'var(--ink3)', pct: cardWeights.restPct });
+    }
+    return segs;
+  }, [cardWeights]);
 
   // 컬렉션에서 카드 제거 — 낙관적으로 목록에서 빼고 DELETE. 실패 시 전체 재조회.
   const handleRemove = useCallback(async (id: number) => {
@@ -355,35 +355,22 @@ export function CollectionScreen() {
         </div>
       </Section>
 
-      {/* ── 자산 구성 (지역별 도넛) + 가격 비중(카드별) ── */}
-      {(composition.length > 0 || cardWeights.items.length > 0) && (
+      {/* ── 자산 구성 — 카드별 금액 비중(합계 100%) 도넛 + 리스트 ── */}
+      {cardWeights.items.length > 0 && (
         <Section title="자산 구성">
           <Panel style={{ padding: 16 }}>
-            {composition.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <Donut segments={composition} />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 11 }}>
-                  {composition.map((c) => (
-                    <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color, flex: 'none' }} />
-                      <span style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flex: 'none' }}>{c.label}</span>
-                      <span style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>{c.pct.toFixed(1)}%</span>
-                      <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, marginLeft: 'auto' }}>{format(c.val)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <Donut segments={donutSegments} />
+            </div>
+            <div style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink)', margin: '0 0 12px' }}>
+              카드별 비중
+            </div>
             {cardWeights.items.length > 0 && (
               <>
-                <div style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink)', margin: composition.length > 0 ? '20px 0 12px' : '0 0 12px' }}>
-                  가격 비중 (카드별)
-                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {cardWeights.items.map(({ row, pct }, i) => {
                     const img = row.c.snkrdunkImageUrl || row.c.photoUrl || null;
-                    const color = PIE[i] ?? 'var(--ink3)';
+                    const color = sliceColor(i);
                     return (
                       <div key={row.c.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{ width: 34, height: 34, flex: 'none', borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--pap2)', display: 'grid', placeItems: 'center' }}>
@@ -570,7 +557,7 @@ function DeltaChip({ label, pct, size = 11.5 }: { label: string; pct: number | n
 }
 
 /** 카드 더보기(⋯) 메뉴 — 시세 보기 / 컬렉션에서 제거. Link/Panel 바깥에 형제로 배치. */
-function CardMenu({ apparelId, onRemove }: { apparelId: number | null; onRemove: () => void }) {
+function CardMenu({ apparelId, onRemove, plain = false }: { apparelId: number | null; onRemove: () => void; plain?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -583,6 +570,18 @@ function CardMenu({ apparelId, onRemove }: { apparelId: number | null; onRemove:
     e.preventDefault();
     e.stopPropagation();
   };
+  // plain: 리스트형 — 배경 컨테이너 없는 점 3개(영역 최소). 기본: 그리드 이미지 위 어두운 원형 오버레이.
+  const btnStyle: React.CSSProperties = plain
+    ? {
+        width: 20, height: 26, border: 'none', cursor: 'pointer', background: 'transparent',
+        color: 'var(--ink3)', fontSize: 17, fontWeight: 900, lineHeight: 1, padding: 0,
+        display: 'grid', placeItems: 'center',
+      }
+    : {
+        width: 26, height: 26, borderRadius: '50%', border: 'none', cursor: 'pointer',
+        background: 'rgba(0,0,0,.45)', color: '#fff', fontSize: 15, fontWeight: 900, lineHeight: 1,
+        display: 'grid', placeItems: 'center', backdropFilter: 'blur(2px)',
+      };
   return (
     <div style={{ position: 'relative' }}>
       <button
@@ -592,11 +591,7 @@ function CardMenu({ apparelId, onRemove }: { apparelId: number | null; onRemove:
           stop(e);
           setOpen((o) => !o);
         }}
-        style={{
-          width: 26, height: 26, borderRadius: '50%', border: 'none', cursor: 'pointer',
-          background: 'rgba(0,0,0,.45)', color: '#fff', fontSize: 15, fontWeight: 900, lineHeight: 1,
-          display: 'grid', placeItems: 'center', backdropFilter: 'blur(2px)',
-        }}
+        style={btnStyle}
       >
         ⋯
       </button>
@@ -662,26 +657,25 @@ function CardGridItem({ row, rank, format, onRemove }: { row: Row; rank: number;
           {rank}
         </div>
       </div>
-      <div style={{ padding: '10px 11px 12px' }}>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 800, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ padding: '7px 9px 9px' }}>
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 12, fontWeight: 800, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {cardName(c)}
         </div>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {cardSub(c)}
+        <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', fontWeight: 600, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}
         </div>
         {/* 현재가 + 어제 대비 등락 */}
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginTop: 8 }}>
-          <span style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color: 'var(--ink)' }}>{curJpy > 0 ? format(curJpy) : '—'}</span>
-          <DeltaChip label="어제" pct={dayPct} />
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4, marginTop: 6 }}>
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 900, color: 'var(--ink)' }}>{curJpy > 0 ? format(curJpy) : '—'}</span>
+          <DeltaChip label="어제" pct={dayPct} size={10.5} />
         </div>
         {/* 등록(매입)가 + 등록 대비 손익 */}
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginTop: 4 }}>
-          <span style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4, marginTop: 2 }}>
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             등록 {basisJpy ? format(basisJpy) : '—'}
           </span>
-          <DeltaChip label="수익" pct={profitPct} size={11} />
+          <DeltaChip label="수익" pct={profitPct} size={10} />
         </div>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', fontWeight: 600, marginTop: 5 }}>{qty}장 보유</div>
       </div>
     </>
   );
@@ -707,7 +701,7 @@ function CardListItem({ row, format, last, onRemove }: { row: Row; format: (j: n
   const href = c.snkrdunkApparelId ? `/cards/snkrdunk/${c.snkrdunkApparelId}` : '#';
   return (
     <div style={{ position: 'relative', borderBottom: last ? 'none' : '1px solid var(--pap3)' }}>
-      <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 34px 11px 2px', textDecoration: 'none', color: 'inherit' }}>
+      <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 20px 11px 2px', textDecoration: 'none', color: 'inherit' }}>
         <div style={{ width: 48, height: 48, flex: 'none', borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--pap2)', display: 'grid', placeItems: 'center' }}>
           {img ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -732,9 +726,9 @@ function CardListItem({ row, format, last, onRemove }: { row: Row; format: (j: n
           </div>
         </div>
       </Link>
-      {/* ⋯ 메뉴 — Link 바깥 형제(우측 세로 중앙). */}
-      <div style={{ position: 'absolute', top: '50%', right: 0, transform: 'translateY(-50%)', zIndex: 6 }}>
-        <CardMenu apparelId={c.snkrdunkApparelId} onRemove={() => onRemove(c.id)} />
+      {/* ⋯ 메뉴 — Link 바깥 형제(우측 세로 중앙). 컨테이너 없는 plain 변형. */}
+      <div style={{ position: 'absolute', top: '50%', right: -2, transform: 'translateY(-50%)', zIndex: 6 }}>
+        <CardMenu apparelId={c.snkrdunkApparelId} onRemove={() => onRemove(c.id)} plain />
       </div>
     </div>
   );
