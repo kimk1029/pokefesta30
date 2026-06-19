@@ -144,15 +144,16 @@ export function CollectionScreen() {
       const isSingle = !c.graded;
       const isPsa10 = c.graded && (c.gradeValue ?? '').replace(/\.0$/, '') === '10';
       const gradePriceJpy = isSingle ? c.priceSingleJpy : isPsa10 ? c.pricePsa10Jpy : 0;
-      // 표시/평가액 현재가 — PSA10 토글이면 전체 PSA10 가정, 아니면 카드 등급에 맞춘 시세.
-      const curJpy = usePsa10
-        ? c.pricePsa10Jpy > 0
-          ? c.pricePsa10Jpy
-          : c.priceSingleJpy
-        : gradePriceJpy > 0
-          ? gradePriceJpy
-          : isSingle
-            ? c.priceSingleJpy
+      // 표시/평가액 현재가 — ★ 싱글(비등급) 등록 카드는 전역 PSA10 토글과 무관하게
+      //   항상 싱글 시세. 등급카드만 토글(전체 PSA10 가정) 또는 등급 일치 시세를 따른다.
+      const curJpy = isSingle
+        ? c.priceSingleJpy
+        : usePsa10
+          ? c.pricePsa10Jpy > 0
+            ? c.pricePsa10Jpy
+            : c.priceSingleJpy
+          : gradePriceJpy > 0
+            ? gradePriceJpy
             : c.pricePsa10Jpy > 0
               ? c.pricePsa10Jpy
               : c.priceSingleJpy;
