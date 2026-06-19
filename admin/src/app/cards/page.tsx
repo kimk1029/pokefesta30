@@ -6,11 +6,18 @@ import { fmtDate, parseIntParam } from '@/lib/format';
 import { CatalogReparseButton } from '@/components/CatalogReparseButton';
 import { CARD_GAME_LABEL, type CardGame } from '../../../../shared/cardStatics';
 import { getCardPack } from '../../../../shared/data/cardPacks';
+import { getSetCodeMeta } from '../../../../shared/data/setCodes';
 
-/** 세트코드(예: "SV8A")를 박스 한글명으로. CARD_PACKS 에 없으면 null. */
-function setCodeToKo(setCode: string | null | undefined): string | null {
-  if (!setCode) return null;
-  return getCardPack(setCode)?.name ?? getCardPack(setCode.toLowerCase())?.name ?? null;
+/**
+ * 세트코드(예: "SV8A", "OP02") → 박스 한글명 + 일본 발매일.
+ * 원피스/유희왕/프로모는 SET_CODE_META, 포켓몬 본탄은 CARD_PACKS 로 폴백.
+ */
+function getSetMeta(setCode: string | null | undefined): { name: string | null; releasedAt: string | null } {
+  if (!setCode) return { name: null, releasedAt: null };
+  const m = getSetCodeMeta(setCode);
+  if (m) return { name: m.name, releasedAt: m.releasedAt ?? null };
+  const pack = getCardPack(setCode) ?? getCardPack(setCode.toLowerCase());
+  return { name: pack?.name ?? null, releasedAt: pack?.releasedAt ?? null };
 }
 
 export const dynamic = 'force-dynamic';
@@ -161,7 +168,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
     const snap = snapMap.get(c.apparelId);
     const gKey = c.game === '' ? 'other' : c.game;
     const gStyle = GAME_TAG_STYLE[gKey] ?? GAME_TAG_STYLE.other;
-    const setKo = setCodeToKo(c.setCode);
+    const setMeta = getSetMeta(c.setCode);
     return (
       <tr key={c.apparelId}>
         <td>
@@ -196,9 +203,10 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         <td style={NOWRAP}>
           {c.setCode ? (
             <>
-              {/* 세트코드 클릭 → 해당 세트만 모아보기. 아래에 박스 한글명. */}
+              {/* 세트코드 클릭 → 해당 세트만 모아보기. 아래에 박스 한글명·출시일. */}
               <Link className="mono" href={`/cards${qs({ set: c.setCode })}`}>{c.setCode}</Link>
-              {setKo && <div className="muted">{setKo}</div>}
+              {setMeta.name && <div className="muted">{setMeta.name}</div>}
+              {setMeta.releasedAt && <div className="muted" style={NOWRAP}>📅 {setMeta.releasedAt}</div>}
             </>
           ) : (
             <span className="tag tag-report">미파싱</span>
@@ -321,10 +329,10 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
         // 세트코드별 아코디언 — 박스별로 묶어 접었다 펼 수 있게.
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {groups.map((g) => {
-            const ko = setCodeToKo(g.setCode);
+            const meta = getSetMeta(g.setCode);
             const label = g.setCode
-              ? ko
-                ? `${ko} (${g.setCode})`
+              ? meta.name
+                ? `${meta.name} (${g.setCode})`
                 : g.setCode
               : '세트코드 미파싱';
             return (
@@ -340,7 +348,11 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
                     ...NOWRAP,
                   }}
                 >
-                  📦 {label} · {g.rows.length}건
+                  📦 {label}
+                  {meta.releasedAt && (
+                    <span style={{ fontWeight: 600, color: '#6366F1' }}> · 📅 {meta.releasedAt} 출시</span>
+                  )}
+                  <span style={{ fontWeight: 600, color: '#6366F1' }}> · {g.rows.length}건</span>
                 </summary>
                 <table className="tbl" style={{ marginTop: 6 }}>
                   {head}
