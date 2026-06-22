@@ -543,6 +543,23 @@ function DeltaChip({ label, pct, size = 11.5 }: { label: string; pct: number | n
   );
 }
 
+/** 손익률 부호색 — 이득(≥0) 빨강 / 손해(<0) 파랑 / 기준 없음(null) 기본 잉크. */
+function profitColor(pct: number | null): string {
+  if (pct == null) return 'var(--ink)';
+  return pct >= 0 ? UP : DOWN;
+}
+
+/** 현재가 옆 손익률 태그 — 라벨 없이 부호색 ▲/▼ X%. 매입가 없으면 렌더 안 함. */
+function ProfitTag({ pct, size = 12 }: { pct: number | null; size?: number }) {
+  if (pct == null) return null;
+  const up = pct >= 0;
+  return (
+    <span style={{ fontFamily: 'var(--f1)', fontSize: size, fontWeight: 800, color: up ? UP : DOWN, whiteSpace: 'nowrap' }}>
+      {up ? '▲' : '▼'}{Math.abs(pct).toFixed(1)}%
+    </span>
+  );
+}
+
 /** 그레이딩 카드 표식 — 부모(position:relative) 우하단에 작게 플로팅. */
 function GradedLabel() {
   return (
@@ -668,17 +685,17 @@ function CardGridItem({ row, rank, format, onRemove }: { row: Row; rank: number;
         <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', fontWeight: 600, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}
         </div>
-        {/* 현재가 + 어제 대비 등락 */}
+        {/* 현재가(손익 색상) + 등록가 대비 손익률 */}
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4, marginTop: 6 }}>
-          <span style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 900, color: 'var(--ink)' }}>{curJpy > 0 ? format(curJpy) : '—'}</span>
-          <DeltaChip label="어제" pct={dayPct} size={10.5} />
+          <span style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 900, color: profitColor(profitPct) }}>{curJpy > 0 ? format(curJpy) : '—'}</span>
+          <ProfitTag pct={profitPct} size={11} />
         </div>
-        {/* 등록(매입)가 + 등록 대비 손익 */}
+        {/* 등록(매입)가 + 어제 대비 등락 */}
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4, marginTop: 2 }}>
           <span style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             등록 {basisJpy ? format(basisJpy) : '—'}
           </span>
-          <DeltaChip label="수익" pct={profitPct} size={10} />
+          <DeltaChip label="어제" pct={dayPct} size={10} />
         </div>
       </div>
     </>
@@ -717,16 +734,17 @@ function CardListItem({ row, format, last, onRemove }: { row: Row; format: (j: n
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cardName(c)}</div>
           <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', marginTop: 2 }}>{cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}</div>
-          {/* 등록(매입)가 + 등록 대비 수익률 */}
+          {/* 등록(매입)가 + 어제 대비 등락 */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
             <span style={{ fontFamily: 'var(--f1)', fontSize: 10.5, color: 'var(--ink3)', fontWeight: 600 }}>등록 {basisJpy ? format(basisJpy) : '—'}</span>
-            <DeltaChip label="수익" pct={profitPct} size={10.5} />
+            <DeltaChip label="어제" pct={dayPct} size={10.5} />
           </div>
         </div>
         <div style={{ textAlign: 'right', flex: 'none' }}>
-          <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color: 'var(--ink)' }}>{curJpy > 0 ? format(curJpy) : '—'}</div>
+          {/* 현재가(손익 색상) + 등록가 대비 손익률 */}
+          <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 900, color: profitColor(profitPct) }}>{curJpy > 0 ? format(curJpy) : '—'}</div>
           <div style={{ marginTop: 3 }}>
-            <DeltaChip label="어제" pct={dayPct} size={12} />
+            <ProfitTag pct={profitPct} size={12} />
           </div>
         </div>
       </Link>
