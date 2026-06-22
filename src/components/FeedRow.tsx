@@ -204,7 +204,7 @@ interface FeedComment {
  * 등록 버튼만 — 구분선/박스를 최소화한 감각적인 한 줄 디자인.
  * 부모(feed-item)가 클릭 토글이라 내부 클릭은 전파를 막는다.
  */
-function FeedComments({ feedId, dateLabel }: { feedId: number; dateLabel: string }) {
+export function FeedComments({ feedId, dateLabel }: { feedId: number; dateLabel: string }) {
   const [comments, setComments] = useState<FeedComment[] | null>(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -334,7 +334,7 @@ function FeedComments({ feedId, dateLabel }: { feedId: number; dateLabel: string
  * - 좌우 화살표 (≥2장) 로 이동
  * - Esc 키로 닫힘
  */
-function Lightbox({
+export function Lightbox({
   urls,
   startIdx,
   onClose,

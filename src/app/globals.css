@@ -2116,6 +2116,10 @@ a{color:inherit;text-decoration:none;}
 .cv-search input{flex:1;border:none;outline:none;background:transparent;
   font-family:var(--f2);font-size:14px;padding:10px 8px;color:var(--ink);}
 
+/* ── CV: 커뮤니티 가로 스크롤(카테고리 탭·HOT 키워드) — 스크롤바 숨김 ── */
+.cv-hrow{scrollbar-width:none;-ms-overflow-style:none;}
+.cv-hrow::-webkit-scrollbar{display:none;}
+
 /* ── CV: CHIP ROW (가로 스크롤) ── */
 .cv-chip-row{display:flex;gap:6px;overflow-x:auto;padding:0 var(--gap);
   margin-bottom:8px;scrollbar-width:none;}

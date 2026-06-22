@@ -1,14 +1,175 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import { FeedRow } from '@/components/FeedRow';
-import { AppBar } from '@/components/ui/AppBar';
+import { useState, type ReactNode } from 'react';
 import { StatusBar } from '@/components/ui/StatusBar';
+import { useTheme } from '@/components/ThemeProvider';
+import { ComposedAvatar } from '@/components/ComposedAvatar';
+import { BookmarkButton } from '@/components/BookmarkButton';
+import { FeedComments, Lightbox } from '@/components/FeedRow';
+import { isAvatarId } from '@/lib/avatars';
 import type { FeedPost, Trade } from '@/lib/types';
 
-type Tab = 'feed' | 'market';
-type MktTab = 'all' | 'sell' | 'buy';
+/**
+ * 커뮤니티 — Claude Design 'POKE30 커뮤니티' 프로토타입 레이아웃.
+ *  헤더(커뮤니티+팔로잉/내게시글) · 카테고리 탭 · 인기글(불타는글/개념글) ·
+ *  실시간 HOT 키워드 · 정렬 행 · 공지 · 글 목록('거래/나눔'=실제 마켓).
+ * 모든 테마가 같은 레이아웃을 쓰고, 색/폰트만 테마별로 달라진다(클린은 프로토타입
+ * 퍼플 팔레트 그대로, 그 외 테마는 CSS 변수 토큰).
+ */
+
+const PURPLE = '#6a3aff';
+const RED = '#F5333F';
+
+interface Palette {
+  pageBg: string;
+  cardBg: string;
+  ink: string;
+  ink2: string;
+  ink3: string;
+  accent: string;
+  accentDk: string;
+  accentSoft: string;
+  kwBg: string;
+  red: string;
+  redSoft: string;
+  line: string;
+  chip: string;
+  chev: string;
+}
+
+// 클린 = 프로토타입 퍼플 팔레트(승인된 모습 그대로).
+const CLEAN_P: Palette = {
+  pageBg: '#F7F7F9',
+  cardBg: '#ffffff',
+  ink: '#16161a',
+  ink2: '#6B6B70',
+  ink3: '#9A9AA0',
+  accent: PURPLE,
+  accentDk: '#5a3ad6',
+  accentSoft: '#EFEBFF',
+  kwBg: 'linear-gradient(120deg,#f0ecff,#f6f3ff)',
+  red: RED,
+  redSoft: '#FFECEC',
+  line: '#F4F4F6',
+  chip: '#F2F2F4',
+  chev: '#C2C2C8',
+};
+
+// 그 외 테마 = 각 테마의 CSS 변수 토큰(테마별 색/폰트 자동 반영).
+const VAR_P: Palette = {
+  pageBg: 'var(--pap2)',
+  cardBg: 'var(--paper)',
+  ink: 'var(--ink)',
+  ink2: 'var(--ink2)',
+  ink3: 'var(--ink3)',
+  accent: 'var(--gold)',
+  accentDk: 'var(--gold)',
+  accentSoft: 'var(--pap3)',
+  kwBg: 'var(--pap3)',
+  red: 'var(--red)',
+  redSoft: 'var(--pap2)',
+  line: 'var(--pap3)',
+  chip: 'var(--pap2)',
+  chev: 'var(--ink3)',
+};
+
+const GRAD = {
+  zard: 'linear-gradient(150deg,#ff6a3d,#c81d25)',
+  mew: 'linear-gradient(150deg,#f7a6c4,#b78cf0)',
+  gard: 'linear-gradient(150deg,#9d6bd6,#4568dc)',
+  umb: 'linear-gradient(150deg,#3a3a44,#16161a)',
+  char: 'linear-gradient(150deg,#ff9a3c,#ff5a1f)',
+  gengar: 'linear-gradient(150deg,#7b4bc4,#3a1f6e)',
+  koi: 'linear-gradient(150deg,#5b86e5,#36d1dc)',
+};
+
+type CatId = '전체' | '자유' | '시세/정보' | '질문' | '자랑' | '거래/나눔' | '꿀팁';
+const CATS: CatId[] = ['전체', '자유', '시세/정보', '질문', '자랑', '거래/나눔', '꿀팁'];
+
+type SortId = '최신순' | '추천순' | '댓글순';
+const SORTS: SortId[] = ['최신순', '추천순', '댓글순'];
+
+// 게시글 카테고리별 태그 색(클린). VAR 테마는 accent 톤으로 대체.
+const TAG_COLOR: Record<string, { fg: string; bg: string }> = {
+  '자유': { fg: '#5a3ad6', bg: '#EFEBFF' },
+  '질문': { fg: '#1E8E5A', bg: '#E3F6EC' },
+  '자랑': { fg: '#C2410C', bg: '#FFEDD5' },
+  '꿀팁': { fg: '#2563EB', bg: '#E0EDFF' },
+  '거래/나눔': { fg: '#7C3AED', bg: '#F1EAFF' },
+  '시세/정보': { fg: '#0369A1', bg: '#E0F2FE' },
+};
+function tagStyle(label: string, clean: boolean, P: Palette): { fg: string; bg: string } {
+  if (clean) return TAG_COLOR[label] ?? TAG_COLOR['자유'];
+  return { fg: P.accentDk, bg: P.accentSoft };
+}
+
+/* ---------------- 정적 편집 데이터 (인기글 / 키워드 / 공지) ---------------- */
+
+interface FeatureItem {
+  rank: number;
+  title: string;
+  comments: number;
+  likes: string;
+  grad: string;
+  emoji: string;
+  heat?: string;
+}
+const FEATURE_HOT: FeatureItem[] = [
+  { rank: 1, title: 'PSA 10 리자몽 가격 미쳤네요...🔥', comments: 123, likes: '1,234', grad: GRAD.zard, emoji: '🔥', heat: '999+' },
+  { rank: 2, title: '포켓몬 카드 재테크 현실 수익률', comments: 89, likes: '987', grad: GRAD.gengar, emoji: '👻', heat: '999+' },
+  { rank: 3, title: '이거 진짜 사야 하나요? 의견 부탁드려요', comments: 67, likes: '523', grad: GRAD.mew, emoji: '✨', heat: '999+' },
+];
+const FEATURE_BEST: FeatureItem[] = [
+  { rank: 1, title: '초보자를 위한 포켓몬 카드 등급 가이드', comments: 45, likes: '1,234', grad: GRAD.char, emoji: '🦎' },
+  { rank: 2, title: 'PSA 제출 전 꼭 알아야 할 10가지', comments: 32, likes: '987', grad: GRAD.umb, emoji: '📋' },
+  { rank: 3, title: '2024년 상반기 포켓몬 카드 시세 총정리', comments: 25, likes: '523', grad: GRAD.gard, emoji: '📊' },
+];
+
+const KEYWORDS = ['# 리자몽', '# PSA10', '# 흑염의지배자', '# 일본판', '# 시세폭등', '# 크림'];
+
+interface Notice {
+  badge: string;
+  badgeRed?: boolean;
+  title: string;
+  author: string;
+  date: string;
+  comments: number;
+  likes: number;
+}
+const NOTICES: Notice[] = [
+  { badge: '공지', title: '커뮤니티 운영 규칙 안내', author: '관리자', date: '2024.05.20', comments: 123, likes: 999 },
+  { badge: '필독', badgeRed: true, title: '시세 정보 글 작성 가이드 (필독)', author: '관리자', date: '2024.05.18', comments: 67, likes: 482 },
+];
+
+/* ---------------- 아이콘 ---------------- */
+
+const Ic = {
+  search: (c: string, s = 22) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+  ),
+  bell: (c: string, s = 22) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+  ),
+  edit: (c: string, s = 16) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+  ),
+  chat: (c: string, s = 14) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+  ),
+  like: (stroke: string, fill: string, s = 14) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" /></svg>
+  ),
+  chevR: (c: string, s = 13) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 6 6-6 6" /></svg>
+  ),
+  chevD: (c: string, s = 13) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+  ),
+  refresh: (c: string, s = 13) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /><path d="M3 21v-5h5" /></svg>
+  ),
+};
 
 interface Props {
   initialFeed: FeedPost[];
@@ -16,160 +177,311 @@ interface Props {
 }
 
 export function CommunityScreen({ initialFeed, trades }: Props) {
-  const [tab, setTab] = useState<Tab>('feed');
-  const [mktTab, setMktTab] = useState<MktTab>('all');
+  const { theme } = useTheme();
+  const clean = theme === 'clean';
+  const P = clean ? CLEAN_P : VAR_P;
 
-  const mktList = trades.filter((t) => mktTab === 'all' || t.type === mktTab);
+  const [cat, setCat] = useState<CatId>('전체');
+  const [sort, setSort] = useState<SortId>('최신순');
+  const [feature, setFeature] = useState<'hot' | 'best'>('hot');
+  const [mine, setMine] = useState(false);
+
+  const isMarket = cat === '거래/나눔';
+  const writeHref = isMarket ? '/write/trade' : '/write/feed';
+  const featureItems = feature === 'hot' ? FEATURE_HOT : FEATURE_BEST;
 
   return (
     <>
       <StatusBar />
-      <AppBar
-        title="커뮤니티"
-        right={
-          <Link
-            href={tab === 'feed' ? '/write/feed' : '/write/trade'}
-            className="appbar-right"
-            aria-label="글쓰기"
-            style={{ width: 'auto', padding: '0 10px', fontSize: 12, whiteSpace: 'nowrap' }}
-          >
-            글쓰기
-          </Link>
-        }
-      />
-      <div style={{ height: 12 }} />
+      <div style={{ fontFamily: 'var(--f1)', background: P.pageBg, minHeight: '100%' }}>
+        {/* header */}
+        <div style={{ background: P.cardBg, position: 'sticky', top: 0, zIndex: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 16px' }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: P.ink, letterSpacing: '-.6px' }}>커뮤니티</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: P.ink }}>팔로잉</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: P.ink3 }}>내 게시글</div>
+            <div style={{ flex: 1 }} />
+            <Link href="/cards/snkrdunk/search" aria-label="검색" style={{ display: 'block', color: P.ink }}>{Ic.search(P.ink)}</Link>
+            <Link href="/my/messages" aria-label="알림" style={{ position: 'relative', display: 'block', color: P.ink }}>
+              {Ic.bell(P.ink)}
+              <span style={{ position: 'absolute', top: -4, right: -4, minWidth: 15, height: 15, padding: '0 3px', background: P.red, borderRadius: 8, color: '#fff', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${P.cardBg}` }}>3</span>
+            </Link>
+            <Link href={writeHref} aria-label="글쓰기" style={{ width: 32, height: 32, borderRadius: 10, background: clean ? 'linear-gradient(150deg,#9d6bff,#6a3aff)' : P.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: clean ? '0 3px 8px rgba(106,58,255,.35)' : 'none' }}>
+              {Ic.edit('#fff')}
+            </Link>
+          </div>
 
-      {/* Main subtabs */}
-      <div className="cv-subseg">
-        <button type="button" className={tab === 'feed' ? 'on' : ''} onClick={() => setTab('feed')}>
-          🗣 피드
-        </button>
-        <button type="button" className={tab === 'market' ? 'on' : ''} onClick={() => setTab('market')}>
-          🏷 마켓
-        </button>
-      </div>
+          {/* category tabs */}
+          <div className="cv-hrow" style={{ display: 'flex', alignItems: 'center', gap: 18, overflowX: 'auto', padding: '4px 16px 0', borderBottom: `1px solid ${P.line}` }}>
+            {CATS.map((c) => {
+              const on = cat === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCat(c)}
+                  style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 15, fontWeight: on ? 800 : 600, color: on ? P.accent : P.ink2, padding: '8px 1px 12px', borderBottom: `2.5px solid ${on ? P.accent : 'transparent'}`, marginBottom: -1, background: 'none', border: 'none', borderBottomStyle: 'solid', cursor: 'pointer' }}
+                >
+                  {c}
+                </button>
+              );
+            })}
+            <span style={{ flex: 'none', paddingBottom: 10 }}>{Ic.chevD(P.ink3, 18)}</span>
+          </div>
+        </div>
 
-      {tab === 'feed' && <FeedList posts={initialFeed} />}
-
-      {tab === 'market' && (
-        <>
-          <div className="cv-subseg" style={{ marginTop: 4 }}>
-            {(
-              [
-                ['all', '전체'],
-                ['sell', '팝니다'],
-                ['buy', '삽니다'],
-              ] as Array<[MktTab, string]>
-            ).map(([id, lb]) => (
-              <button
-                key={id}
-                type="button"
-                className={mktTab === id ? 'on' : ''}
-                onClick={() => setMktTab(id)}
-              >
-                {lb}
-              </button>
+        {/* feature card (불타는 글 / 개념글) */}
+        <div style={{ padding: '16px 16px 4px' }}>
+          <div style={{ background: P.cardBg, borderRadius: 18, padding: '16px 16px 10px', boxShadow: clean ? '0 2px 10px rgba(0,0,0,.05)' : 'none', border: clean ? 'none' : `1px solid ${P.line}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ display: 'flex', gap: 7 }}>
+                {([['hot', '🔥 불타는 글'], ['best', '👍 개념글']] as Array<['hot' | 'best', string]>).map(([id, lb]) => {
+                  const on = feature === id;
+                  return (
+                    <button key={id} type="button" onClick={() => setFeature(id)} style={{ fontSize: 13.5, fontWeight: 800, padding: '8px 14px', borderRadius: 11, border: 'none', cursor: 'pointer', background: on ? P.ink : P.chip, color: on ? (clean ? '#fff' : P.cardBg) : P.ink3 }}>{lb}</button>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: 12, fontWeight: 700, color: P.ink3 }}>더보기{Ic.chevR(P.ink3, 12)}</div>
+            </div>
+            {featureItems.map((f) => (
+              <Link key={f.rank} href="/feed" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: 13, padding: '11px 0', borderTop: `1px solid ${P.line}` }}>
+                <div style={{ fontSize: 19, fontWeight: 900, color: f.heat ? P.red : P.ink, width: 15, flex: 'none', textAlign: 'center' }}>{f.rank}</div>
+                <div style={{ width: 46, height: 62, borderRadius: 7, background: f.grad, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, boxShadow: '0 3px 7px rgba(0,0,0,.16)' }}>{f.emoji}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: P.ink, lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{f.title}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+                    <Meta icon={Ic.chat(P.chev, 12)} label={String(f.comments)} P={P} />
+                    <Meta icon={Ic.like(P.chev, 'none', 12)} label={String(f.likes)} P={P} />
+                  </div>
+                </div>
+                {f.heat && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 12, fontWeight: 800, color: P.red, flex: 'none', background: P.redSoft, padding: '5px 9px', borderRadius: 14 }}>🔥 {f.heat}</div>
+                )}
+              </Link>
             ))}
           </div>
-          <MarketList list={mktList} />
-        </>
-      )}
+        </div>
 
-      <div className="bggap" />
+        {/* HOT keyword */}
+        <div style={{ padding: '10px 16px 4px' }}>
+          <div style={{ background: P.kwBg, borderRadius: 16, padding: 15 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontSize: 14.5, fontWeight: 900, color: P.accent }}>실시간 HOT 키워드</span>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: P.ink3 }}>지금 가장 많이 언급되는 키워드에요</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 13 }}>
+              <div className="cv-hrow" style={{ display: 'flex', gap: 7, overflowX: 'auto', flex: 1 }}>
+                {KEYWORDS.map((k) => (
+                  <span key={k} style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: 700, color: clean ? '#5a3ad6' : P.ink, background: P.cardBg, padding: '8px 13px', borderRadius: 18, boxShadow: clean ? '0 1px 3px rgba(106,58,255,.1)' : 'none' }}>{k}</span>
+                ))}
+              </div>
+              <button type="button" style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, fontWeight: 700, color: P.ink3, background: P.cardBg, padding: '8px 11px', borderRadius: 18, border: 'none', cursor: 'pointer' }}>{Ic.refresh(P.ink3)}새로고침</button>
+            </div>
+          </div>
+        </div>
+
+        {/* sort row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px 10px' }}>
+          {SORTS.map((s, i) => {
+            const on = sort === s;
+            return (
+              <button key={s} type="button" onClick={() => setSort(s)} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 13.5, fontWeight: on ? 800 : 600, color: on ? P.accent : P.ink3, background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {s}{i === 0 && Ic.chevD(on ? P.accent : P.ink3, 13)}
+              </button>
+            );
+          })}
+          <div style={{ flex: 1 }} />
+          <button type="button" onClick={() => setMine((m) => !m)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: P.ink3, background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <span style={{ width: 16, height: 16, border: `1.5px solid ${mine ? P.accent : P.chev}`, borderRadius: 5, background: mine ? P.accent : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{mine && <span style={{ color: '#fff', fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}</span>
+            내가 쓴 글 보기
+          </button>
+        </div>
+
+        {/* post list */}
+        <div style={{ background: P.cardBg }}>
+          {!isMarket && NOTICES.map((n) => (
+            <Link key={n.title} href="/feed" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: 12, padding: '15px 18px', borderBottom: `1px solid ${P.line}` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: n.badgeRed ? P.red : P.accent, padding: '3px 8px', borderRadius: 7, flex: 'none' }}>{n.badge}</span>
+                  <span style={{ fontSize: 14.5, fontWeight: 800, color: P.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.title}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 7, fontSize: 12, color: P.ink3, fontWeight: 600 }}><span>{n.author}</span><span>{n.date}</span></div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 13, flex: 'none' }}>
+                <Meta icon={Ic.chat(P.chev)} label={String(n.comments)} P={P} />
+                <Meta icon={Ic.like(P.chev, 'none')} label={String(n.likes)} P={P} />
+              </div>
+            </Link>
+          ))}
+
+          {isMarket ? (
+            <MarketList list={trades} P={P} clean={clean} />
+          ) : (
+            <FeedList posts={initialFeed} P={P} clean={clean} />
+          )}
+
+          <div style={{ height: 20 }} />
+        </div>
+
+        <div className="bggap" />
+      </div>
     </>
+  );
+}
+
+function Meta({ icon, label, P }: { icon: ReactNode; label: string; P: Palette }) {
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11.5, fontWeight: 700, color: P.ink3 }}>{icon}{label}</span>
   );
 }
 
 /* ---------------- feed ---------------- */
 
-function FeedList({ posts }: { posts: FeedPost[] }) {
+function FeedList({ posts, P, clean }: { posts: FeedPost[]; P: Palette; clean: boolean }) {
   if (posts.length === 0) {
     return (
-      <div className="cv-empty">
+      <div style={{ textAlign: 'center', padding: '46px 20px', color: P.ink3, fontSize: 14 }}>
         아직 글이 없어요.
         <br />
-        <Link href="/write/feed" style={{ color: 'var(--ink)', textDecoration: 'underline' }}>
-          ＋ 첫 번째가 되어보세요
-        </Link>
+        <Link href="/write/feed" style={{ color: P.accent, fontWeight: 700, textDecoration: 'none' }}>＋ 첫 번째가 되어보세요</Link>
       </div>
     );
   }
   return (
-    <div className="sect">
+    <>
       {posts.map((p) => (
-        <FeedRow key={`feed-${p.id}`} post={p} />
+        <PostRow key={p.id} post={p} P={P} clean={clean} />
       ))}
+    </>
+  );
+}
+
+function PostRow({ post, P, clean }: { post: FeedPost; P: Palette; clean: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [opened, setOpened] = useState(false);
+  const [lightbox, setLightbox] = useState<number | null>(null);
+  const images = post.images ?? [];
+  const hasThumb = images.length > 0;
+  const cat = hasThumb ? '자랑' : '자유';
+  const ts = tagStyle(cat, clean, P);
+  const hasPixelAvatar = isAvatarId(post.user);
+
+  const toggle = () => setOpen((v) => { if (!v) setOpened(true); return !v; });
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={toggle}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}
+      style={{ display: 'flex', gap: 12, padding: '16px 18px', borderBottom: `1px solid ${P.line}`, cursor: 'pointer' }}
+    >
+      {/* avatar */}
+      <div style={{ flex: 'none', width: 40 }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', background: P.accentSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21 }}>
+          {hasPixelAvatar ? <ComposedAvatar avatar={post.user} bg={post.authorBgId} frame={post.authorFrameId} size={40} /> : <span>{post.user || '🙂'}</span>}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: ts.fg, background: ts.bg, padding: '2px 8px', borderRadius: 6, flex: 'none' }}>{cat}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: P.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{post.authorName ?? '익명'}</span>
+          <span style={{ fontSize: 12, fontWeight: 500, color: P.ink3, flex: 'none' }}>{post.time}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 11, marginTop: 9 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, color: P.ink2, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: open ? 99 : 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{post.text}</div>
+          </div>
+          {hasThumb && !open && (
+            <div style={{ width: 62, height: 84, borderRadius: 8, background: P.accentSoft, flex: 'none', overflow: 'hidden', boxShadow: '0 3px 8px rgba(0,0,0,.18)' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={images[0]} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+          )}
+        </div>
+
+        {/* expand: images + comments */}
+        {opened && (
+          <div onClick={(e) => e.stopPropagation()} style={{ display: open ? 'block' : 'none' }}>
+            {hasThumb && (
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(images.length, 3)}, 1fr)`, gap: 6, marginTop: 11 }}>
+                {images.map((url, i) => (
+                  <button key={url} type="button" onClick={() => setLightbox(i)} style={{ display: 'block', aspectRatio: '1/1', overflow: 'hidden', padding: 0, border: 'none', background: P.accentSoft, borderRadius: 8, cursor: 'zoom-in' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`사진 ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </button>
+                ))}
+              </div>
+            )}
+            <FeedComments feedId={post.id} dateLabel={formatAbs(post.createdAt)} />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 11 }} onClick={(e) => e.stopPropagation()}>
+          <button type="button" onClick={toggle} aria-label="댓글" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5, fontWeight: 700, color: P.ink3, background: 'none', border: 'none', cursor: 'pointer' }}>{Ic.chat(P.chev, 15)}댓글</button>
+          <BookmarkButton feedId={post.id} />
+          {hasThumb && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5, fontWeight: 700, color: P.ink3 }}>📷 {images.length}</span>
+          )}
+        </div>
+      </div>
+
+      {lightbox !== null && <Lightbox urls={images} startIdx={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   );
 }
 
-/* ---------------- market ---------------- */
+function formatAbs(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
-function MarketList({ list }: { list: Trade[] }) {
+/* ---------------- market (거래/나눔) ---------------- */
+
+function MarketList({ list, P, clean }: { list: Trade[]; P: Palette; clean: boolean }) {
   if (list.length === 0) {
     return (
-      <div className="cv-empty">
-        해당 카테고리 거래글이 없어요.
+      <div style={{ textAlign: 'center', padding: '46px 20px', color: P.ink3, fontSize: 14 }}>
+        거래/나눔 글이 없어요.
         <br />
-        <Link href="/write/trade" style={{ color: 'var(--ink)', textDecoration: 'underline' }}>
-          ＋ 거래글 작성
-        </Link>
+        <Link href="/write/trade" style={{ color: P.accent, fontWeight: 700, textDecoration: 'none' }}>＋ 거래글 작성</Link>
       </div>
     );
   }
   return (
-    <div className="cv-sect">
-      {list.map((t) => (
-        <Link
-          key={t.id}
-          href={`/trade/${t.id}`}
-          className="cv-list-card"
-          style={{ textDecoration: 'none', color: 'inherit' }}
-        >
-          <div
-            className="cv-list-thumb cv-card-img"
-            style={{ background: 'linear-gradient(160deg,#3A5BD933,var(--ink2))' }}
-          >
-            {t.images && t.images.length > 0 ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={t.images[0]}
-                alt={t.title}
-                loading="lazy"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', inset: 0 }}
-              />
-            ) : (
-              <div className="cv-card-em" style={{ fontSize: 25 }}>
-                {t.type === 'sell' ? '🏷' : '🛒'}
-              </div>
-            )}
-          </div>
-          <div className="cv-lc-body">
-            <div className="cv-lc-title">{t.title}</div>
-            <div className="cv-lc-sub">
-              {t.place ? `📍 ${t.place}` : ''} · {t.time}
-            </div>
-            <div className="cv-lc-row">
-              <span className={`cv-tag cv-tag-${t.type}`}>
-                {t.type === 'sell' ? '팝니다' : '삽니다'}
-              </span>
-              {typeof t.bumpCount === 'number' && t.bumpCount > 0 && (
-                <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>
-                  ↑ {t.bumpCount}
-                </span>
+    <>
+      {list.map((t) => {
+        const isSell = t.type === 'sell';
+        return (
+          <Link key={t.id} href={`/trade/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', gap: 12, padding: '16px 18px', borderBottom: `1px solid ${P.line}` }}>
+            <div style={{ width: 62, height: 84, borderRadius: 8, background: P.accentSoft, flex: 'none', overflow: 'hidden', position: 'relative', boxShadow: '0 3px 8px rgba(0,0,0,.14)' }}>
+              {t.images && t.images.length > 0 ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={t.images[0]} alt={t.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>{isSell ? '🏷' : '🛒'}</div>
               )}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-              <span style={{ fontFamily: 'var(--f1)', fontSize: 12, color: 'var(--grn-dk)', letterSpacing: 0.5 }}>
-                {t.price}
-              </span>
-              <span style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)' }}>
-                {t.authorName ?? '익명'}
-              </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: P.ink, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{t.title}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 7 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: isSell ? P.red : (clean ? '#2563EB' : 'var(--blu)'), padding: '2px 8px', borderRadius: 6, flex: 'none' }}>{isSell ? '팝니다' : '삽니다'}</span>
+                {t.place && <span style={{ fontSize: 12, color: P.ink3, fontWeight: 600 }}>📍 {t.place}</span>}
+                <span style={{ fontSize: 12, color: P.ink3, fontWeight: 500 }}>{t.time}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                <span style={{ fontSize: 14.5, fontWeight: 900, color: clean ? '#0A7A56' : 'var(--grn-dk)', letterSpacing: '-.2px' }}>{t.price}</span>
+                <span style={{ fontSize: 11.5, color: P.ink3, fontWeight: 600 }}>{typeof t.bumpCount === 'number' && t.bumpCount > 0 ? `↑ ${t.bumpCount} · ` : ''}{t.authorName ?? '익명'}</span>
+              </div>
             </div>
-          </div>
-        </Link>
-      ))}
-    </div>
+          </Link>
+        );
+      })}
+    </>
   );
 }

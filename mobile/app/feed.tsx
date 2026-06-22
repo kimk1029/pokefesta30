@@ -1,318 +1,497 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ScrollView, View, Pressable, Text } from 'react-native';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { router } from 'expo-router';
-import { AppBar, ABtn } from '@/components/AppBar';
-import { PixelText } from '@/components/PixelText';
-import { CardThumb } from '@/components/cv/CardThumb';
-import { RarBadge } from '@/components/cv/RarBadge';
-import { Seg } from '@/components/cv/Seg';
+import { useTheme, useThemeColors } from '@/components/ThemeProvider';
+import { isFlatTheme } from '@/lib/theme';
 import { PixelFrame } from '@/components/cv/PixelFrame';
-import { PixelPress } from '@/components/cv/PixelPress';
-import { colors } from '@/theme/tokens';
-import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
-import { POSTS, MARKET, CARDS, fmt } from '@/data/cardvault';
+import { fonts } from '@/theme/tokens';
+import { MARKET, CARDS, fmt } from '@/data/cardvault';
 
-type Tab = 'feed' | 'market' | 'grade-req';
-type MktTab = 'all' | 'sell' | 'buy' | 'trade';
+/**
+ * 커뮤니티 — Claude Design 'POKE30 커뮤니티' 프로토타입 레이아웃 (네이티브).
+ * 모든 테마가 같은 레이아웃을 쓰고 색/폰트만 테마별로 달라진다 — 클린은 프로토타입
+ * 퍼플 팔레트 그대로, 그 외 테마는 테마 토큰(tc). 인기글·HOT키워드·공지는 정적 편집
+ * 콘텐츠, '거래/나눔' 탭은 실제 마켓 데이터.
+ */
+
+const PURPLE = '#6a3aff';
+const RED = '#F5333F';
+
+interface Palette {
+  pageBg: string;
+  cardBg: string;
+  ink: string;
+  ink2: string;
+  ink3: string;
+  accent: string;
+  accentDk: string;
+  accentSoft: string;
+  kwBg: string;
+  red: string;
+  redSoft: string;
+  line: string;
+  chip: string;
+  chev: string;
+}
+
+const CLEAN_P: Palette = {
+  pageBg: '#F7F7F9',
+  cardBg: '#ffffff',
+  ink: '#16161a',
+  ink2: '#6B6B70',
+  ink3: '#9A9AA0',
+  accent: PURPLE,
+  accentDk: '#5a3ad6',
+  accentSoft: '#EFEBFF',
+  kwBg: '#F1ECFF',
+  red: RED,
+  redSoft: '#FFECEC',
+  line: '#F0F0F2',
+  chip: '#F2F2F4',
+  chev: '#C2C2C8',
+};
+
+type CatId = '전체' | '자유' | '시세/정보' | '질문' | '자랑' | '거래/나눔' | '꿀팁';
+const CATS: CatId[] = ['전체', '자유', '시세/정보', '질문', '자랑', '거래/나눔', '꿀팁'];
+
+type SortId = '최신순' | '추천순' | '댓글순';
+const SORTS: SortId[] = ['최신순', '추천순', '댓글순'];
+
+const TAG_COLOR: Record<string, { fg: string; bg: string }> = {
+  '자유': { fg: '#5a3ad6', bg: '#EFEBFF' },
+  '질문': { fg: '#1E8E5A', bg: '#E3F6EC' },
+  '자랑': { fg: '#C2410C', bg: '#FFEDD5' },
+  '꿀팁': { fg: '#2563EB', bg: '#E0EDFF' },
+  '거래/나눔': { fg: '#7C3AED', bg: '#F1EAFF' },
+  '시세/정보': { fg: '#0369A1', bg: '#E0F2FE' },
+};
+
+/* ---------------- 정적 편집 데이터 ---------------- */
+
+interface FeatureItem {
+  rank: number;
+  title: string;
+  comments: number;
+  likes: string;
+  bg: string;
+  emoji: string;
+  heat?: string;
+}
+const FEATURE_HOT: FeatureItem[] = [
+  { rank: 1, title: 'PSA 10 리자몽 가격 미쳤네요...🔥', comments: 123, likes: '1,234', bg: '#ff5a2b', emoji: '🔥', heat: '999+' },
+  { rank: 2, title: '포켓몬 카드 재테크 현실 수익률', comments: 89, likes: '987', bg: '#5a3aa0', emoji: '👻', heat: '999+' },
+  { rank: 3, title: '이거 진짜 사야 하나요? 의견 부탁드려요', comments: 67, likes: '523', bg: '#c98ce0', emoji: '✨', heat: '999+' },
+];
+const FEATURE_BEST: FeatureItem[] = [
+  { rank: 1, title: '초보자를 위한 포켓몬 카드 등급 가이드', comments: 45, likes: '1,234', bg: '#ff7a2f', emoji: '🦎' },
+  { rank: 2, title: 'PSA 제출 전 꼭 알아야 할 10가지', comments: 32, likes: '987', bg: '#2a2a34', emoji: '📋' },
+  { rank: 3, title: '2024년 상반기 포켓몬 카드 시세 총정리', comments: 25, likes: '523', bg: '#6a5ad0', emoji: '📊' },
+];
+
+const KEYWORDS = ['# 리자몽', '# PSA10', '# 흑염의지배자', '# 일본판', '# 시세폭등', '# 크림'];
+
+interface NoticeItem {
+  badge: string;
+  red?: boolean;
+  title: string;
+  author: string;
+  date: string;
+  comments: number;
+  likes: number;
+}
+const NOTICES: NoticeItem[] = [
+  { badge: '공지', title: '커뮤니티 운영 규칙 안내', author: '관리자', date: '2024.05.20', comments: 123, likes: 999 },
+  { badge: '필독', red: true, title: '시세 정보 글 작성 가이드 (필독)', author: '관리자', date: '2024.05.18', comments: 67, likes: 482 },
+];
+
+interface PostItemUI {
+  id: number;
+  avatar: string;
+  avBg: string;
+  online?: boolean;
+  tag: CatId;
+  author: string;
+  time: string;
+  body: string;
+  thumbEmoji?: string;
+  thumbBg?: string;
+  comments: number;
+  likes: string;
+  likedHot?: boolean;
+}
+const POSTS: PostItemUI[] = [
+  { id: 1, avatar: '🐹', avBg: '#ffd98a', online: true, tag: '자유', author: '포케사랑', time: '1시간 전', body: '흑염의 지배자 리자몽 ex SAR PSA 10가 100만원 돌파했네요 ㄷㄷ 어디까지 갈까요?', thumbEmoji: '🔥', thumbBg: '#ff5a2b', comments: 123, likes: '1,234', likedHot: true },
+  { id: 2, avatar: '🌸', avBg: '#f3a6c4', tag: '질문', author: '뮤츠좋아', time: '3시간 전', body: 'budget 50인데 이거 사도 괜찮을까요? 나중에 오를 가능성 있을까요?', comments: 67, likes: '523' },
+  { id: 3, avatar: '👾', avBg: '#7b5bc4', tag: '자랑', author: '겟데이', time: '5시간 전', body: '원하던 카드 저렴하게 구매 성공! 역시 기다리길 잘했네요 😎', thumbEmoji: '✨', thumbBg: '#c98ce0', comments: 32, likes: '412' },
+  { id: 4, avatar: '🦎', avBg: '#ff9a3c', tag: '꿀팁', author: '파이리', time: '7시간 전', body: '슬리브, 탑로더, 하드케이스 다 사긴 했는데 보관 방법이 헷갈리네요 ㅠㅠ', comments: 45, likes: '287' },
+  { id: 5, avatar: '🌿', avBg: '#3fd07f', tag: '거래/나눔', author: '코이킹', time: '9시간 전', body: '잉어킹 프로모 보유 중이고 피카츄 프로모랑 교환 희망합니다. 쪽지 주세요!', thumbEmoji: '🐟', thumbBg: '#3a8fd0', comments: 18, likes: '156' },
+];
+
+/* ---------------- 아이콘 ---------------- */
+
+function Search({ c, s = 22 }: { c: string; s?: number }) {
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={2} strokeLinecap="round">
+      <Circle cx={11} cy={11} r={7} /><Path d="m20 20-3.5-3.5" />
+    </Svg>
+  );
+}
+function Bell({ c, s = 22 }: { c: string; s?: number }) {
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><Path d="M13.7 21a2 2 0 0 1-3.4 0" />
+    </Svg>
+  );
+}
+function Edit({ c, s = 16 }: { c: string; s?: number }) {
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 20h9" /><Path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </Svg>
+  );
+}
+function Chat({ c, s = 14 }: { c: string; s?: number }) {
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </Svg>
+  );
+}
+function Like({ stroke, fill, s = 14 }: { stroke: string; fill: string; s?: number }) {
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M7 10v12M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+    </Svg>
+  );
+}
+function ChevR({ c, s = 13 }: { c: string; s?: number }) {
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="m9 6 6 6-6 6" />
+    </Svg>
+  );
+}
+function ChevD({ c, s = 13 }: { c: string; s?: number }) {
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="m6 9 6 6 6-6" />
+    </Svg>
+  );
+}
+function Refresh({ c, s = 13 }: { c: string; s?: number }) {
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><Path d="M21 3v5h-5" /><Path d="M21 12a9 9 0 0 1-15 6.7L3 16" /><Path d="M3 21v-5h5" />
+    </Svg>
+  );
+}
 
 export default function CommunityScreen() {
+  const { theme } = useTheme();
   const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  const [tab, setTab] = useState<Tab>('feed');
-  const [mktTab, setMktTab] = useState<MktTab>('all');
+  const flat = isFlatTheme(theme);
+  const pixel = !flat;
+  const isClean = theme === 'clean';
+
+  const P: Palette = isClean
+    ? CLEAN_P
+    : {
+        pageBg: tc.pap2,
+        cardBg: tc.paper,
+        ink: tc.ink,
+        ink2: tc.ink2,
+        ink3: tc.ink3,
+        accent: tc.gold,
+        accentDk: tc.gold,
+        accentSoft: tc.pap3,
+        kwBg: tc.pap3,
+        red: tc.red,
+        redSoft: tc.pap2,
+        line: tc.pap3,
+        chip: tc.pap2,
+        chev: tc.ink3,
+      };
+
+  const fontReg = flat ? undefined : fonts.ko;
+  const fontBold = flat ? undefined : fonts.koBold;
+  const ts = (size: number, weight: '400' | '500' | '600' | '700' | '800' | '900', color: string) => ({
+    fontFamily: Number(weight) >= 700 ? fontBold : fontReg,
+    fontSize: size,
+    fontWeight: weight,
+    color,
+    lineHeight: Math.round(size * 1.35),
+  });
+
+  const tagStyle = (label: string) => (isClean ? TAG_COLOR[label] ?? TAG_COLOR['자유'] : { fg: P.accentDk, bg: P.accentSoft });
+
+  const [cat, setCat] = useState<CatId>('전체');
+  const [sort, setSort] = useState<SortId>('최신순');
+  const [feature, setFeature] = useState<'hot' | 'best'>('hot');
+  const [mine, setMine] = useState(false);
   const [liked, setLiked] = useState<Record<number, boolean>>({});
 
-  const mktList = MARKET.filter((m) => mktTab === 'all' || m.type === mktTab);
+  const isMarket = cat === '거래/나눔';
+  const featureItems = feature === 'hot' ? FEATURE_HOT : FEATURE_BEST;
+
+  // 카드 컨테이너 — 픽셀: PixelFrame(직각·하드섀도) / 플랫: 둥근 소프트.
+  const Card = ({ children, style }: { children: ReactNode; style?: object }) =>
+    pixel ? (
+      <View style={style}>
+        <PixelFrame borderWidth={3} shadow={5} inner={3} bg={tc.white}>
+          {children}
+        </PixelFrame>
+      </View>
+    ) : (
+      <View
+        style={[
+          {
+            backgroundColor: P.cardBg,
+            borderRadius: 18,
+            borderWidth: isClean ? 0 : 1,
+            borderColor: P.line,
+            shadowColor: '#000',
+            shadowOpacity: isClean ? 0.05 : 0,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 2 },
+          },
+          style,
+        ]}
+      >
+        {children}
+      </View>
+    );
 
   return (
-    <View style={{ flex: 1, backgroundColor: tc.paper }}>
-      <AppBar title="커뮤니티" right={<ABtn onPress={() => router.push('/write/feed' as never)}>✏</ABtn>} />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 120 }}>
-        <View style={{ marginHorizontal: 14 }}>
-          <Seg
-            value={tab}
-            onChange={(t) => setTab(t)}
-            tabs={[
-              { id: 'feed', label: '피드' },
-              { id: 'market', label: '🏷 마켓' },
-              { id: 'grade-req', label: '감정 요청' },
-            ]}
-            size={10}
-          />
+    <View style={{ flex: 1, backgroundColor: P.pageBg }}>
+      {/* header */}
+      <View style={{ backgroundColor: P.cardBg, paddingTop: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 8 }}>
+          <Text style={ts(22, '900', P.ink)}>커뮤니티</Text>
+          <Text style={ts(14, '700', P.ink)}>팔로잉</Text>
+          <Text style={ts(14, '700', P.ink3)}>내 게시글</Text>
+          <View style={{ flex: 1 }} />
+          <Pressable onPress={() => router.push('/cards/snkrdunk/search' as never)} hitSlop={8}><Search c={P.ink} /></Pressable>
+          <Pressable onPress={() => router.push('/messages' as never)} hitSlop={8} style={{ position: 'relative' }}>
+            <Bell c={P.ink} />
+            <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 15, height: 15, paddingHorizontal: 3, backgroundColor: P.red, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: P.cardBg }}>
+              <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>3</Text>
+            </View>
+          </Pressable>
+          <Pressable onPress={() => router.push((isMarket ? '/write/trade' : '/write/feed') as never)} style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: P.accent, alignItems: 'center', justifyContent: 'center' }}>
+            <Edit c="#fff" />
+          </Pressable>
         </View>
 
-        {tab === 'feed' && (
-          <View style={{ paddingHorizontal: 14, marginTop: 14 }}>
-            {POSTS.filter((p) => p.type !== 'grade-req').map((post) => (
-              <View key={post.id} style={{ marginBottom: 14 }}>
-              <PixelFrame borderWidth={3} shadow={5}>
-              <View style={{ padding: 12 }}>
-                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-                  <View
-                    style={{
-                      width: 36,
-                      height: 36,
-                      backgroundColor: tc.gold,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderColor: tc.ink,
-                      borderWidth: 2,
-                    }}
-                  >
-                    <Text style={{ fontSize: 18 }}>{post.avatar}</Text>
+        {/* category tabs */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ alignItems: 'center', gap: 18, paddingHorizontal: 16, paddingTop: 4 }}
+          style={{ borderBottomWidth: 1, borderBottomColor: P.line }}
+        >
+          {CATS.map((c) => {
+            const on = cat === c;
+            return (
+              <Pressable key={c} onPress={() => setCat(c)} style={{ paddingTop: 8, paddingBottom: 12, borderBottomWidth: 2.5, borderBottomColor: on ? P.accent : 'transparent', marginBottom: -1 }}>
+                <Text style={ts(15, on ? '800' : '600', on ? P.accent : P.ink2)}>{c}</Text>
+              </Pressable>
+            );
+          })}
+          <View style={{ paddingBottom: 10 }}><ChevD c={P.ink3} s={18} /></View>
+        </ScrollView>
+      </View>
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        {/* feature card */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 }}>
+          <Card>
+            <View style={{ padding: 16, paddingBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <View style={{ flexDirection: 'row', gap: 7 }}>
+                  {(['hot', 'best'] as const).map((id) => {
+                    const on = feature === id;
+                    return (
+                      <Pressable key={id} onPress={() => setFeature(id)} style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: 11, backgroundColor: on ? P.ink : P.chip }}>
+                        <Text style={ts(13.5, '800', on ? P.cardBg : P.ink3)}>{id === 'hot' ? '🔥 불타는 글' : '👍 개념글'}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 1 }}>
+                  <Text style={ts(12, '700', P.ink3)}>더보기</Text>
+                  <ChevR c={P.ink3} s={12} />
+                </View>
+              </View>
+              {featureItems.map((f) => (
+                <View key={f.rank} style={{ flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 11, borderTopWidth: 1, borderTopColor: P.line }}>
+                  <Text style={[ts(19, '900', f.heat ? P.red : P.ink), { width: 15, textAlign: 'center' }]}>{f.rank}</Text>
+                  <View style={{ width: 46, height: 62, borderRadius: 7, backgroundColor: f.bg, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 24 }}>{f.emoji}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <PixelText variant={txt} size={11} numberOfLines={1}>
-                      {post.user}
-                    </PixelText>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 }}>
-                      <View
-                        style={{
-                          backgroundColor: post.type === 'showcase' ? tc.red : tc.grn,
-                          paddingHorizontal: 6,
-                          height: 18,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderColor: tc.ink,
-                          borderWidth: 1,
-                        }}
-                      >
-                        <PixelText variant={txt} size={8} color={post.type === 'showcase' ? tc.white : tc.ink}>
-                          {post.type === 'showcase' ? '자랑' : '잡담'}
-                        </PixelText>
-                      </View>
-                      <PixelText variant={txt} size={9} color={tc.ink3}>
-                        {post.time}
-                      </PixelText>
+                    <Text numberOfLines={2} style={ts(14, '700', P.ink)}>{f.title}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 }}>
+                      <Meta icon={<Chat c={P.chev} s={12} />} label={String(f.comments)} P={P} ts={ts} />
+                      <Meta icon={<Like stroke={P.chev} fill="none" s={12} />} label={f.likes} P={P} ts={ts} />
                     </View>
                   </View>
+                  {f.heat ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: P.redSoft, paddingVertical: 5, paddingHorizontal: 9, borderRadius: 14 }}>
+                      <Text style={ts(12, '800', P.red)}>🔥 {f.heat}</Text>
+                    </View>
+                  ) : null}
                 </View>
-
-                <PixelText variant="ko" size={13} color={tc.ink2} style={{ lineHeight: 20, marginBottom: 4 }}>
-                  {post.text}
-                </PixelText>
-
-                {post.hasCard && post.card ? (
-                  <Pressable
-                    onPress={() => router.push(`/cards/${post.card!.id}` as never)}
-                    style={{ height: 96, marginTop: 10, borderColor: tc.ink, borderWidth: 2, overflow: 'hidden' }}
-                  >
-                    <CardThumb card={post.card} height={92} emojiSize={36} showLabel={false} />
-                  </Pressable>
-                ) : null}
-
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-                  <PostAct
-                    icon="♥"
-                    label={String(post.likes + (liked[post.id] ? 1 : 0))}
-                    active={liked[post.id]}
-                    onPress={() => setLiked((l) => ({ ...l, [post.id]: !l[post.id] }))}
-                  />
-                  <PostAct icon="💬" label={String(post.comments)} />
-                </View>
-              </View>
-              </PixelFrame>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {tab === 'market' && (
-          <View>
-            <View style={{ marginHorizontal: 14, marginTop: 14 }}>
-              <Seg
-                value={mktTab}
-                onChange={(t) => setMktTab(t)}
-                tabs={[
-                  { id: 'all', label: '전체' },
-                  { id: 'sell', label: '팝니다' },
-                  { id: 'buy', label: '삽니다' },
-                  { id: 'trade', label: '교환' },
-                ]}
-              />
+              ))}
             </View>
-            <View style={{ paddingHorizontal: 14, marginTop: 14 }}>
-              {mktList.map((m) => {
-                const card = CARDS.find((c) => c.id === m.cardId) ?? CARDS[0];
-                return (
-                  <PixelPress
-                    key={m.id}
-                    onPress={() => router.push(`/cards/${card.id}` as never)}
-                    wrapStyle={{ marginBottom: 12 }}
-                  >
-                    <View
-                      style={{
-                        paddingHorizontal: 14,
-                        paddingVertical: 12,
-                        flexDirection: 'row',
-                        gap: 12,
-                      }}
-                    >
-                      <View style={{ width: 52, height: 72, borderColor: tc.ink, borderWidth: 2 }}>
-                        <CardThumb card={card} height={68} emojiSize={26} showLabel={false} />
+          </Card>
+        </View>
+
+        {/* HOT keyword */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 }}>
+          <View style={{ backgroundColor: P.kwBg, borderRadius: 16, padding: 15 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <Text style={ts(14.5, '900', P.accent)}>실시간 HOT 키워드</Text>
+              <Text style={ts(11.5, '600', P.ink3)}>지금 많이 언급되는 키워드</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 13 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }} style={{ flex: 1 }}>
+                {KEYWORDS.map((k) => (
+                  <View key={k} style={{ backgroundColor: P.cardBg, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 18 }}>
+                    <Text style={ts(12.5, '700', isClean ? '#5a3ad6' : P.ink)}>{k}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: P.cardBg, paddingVertical: 8, paddingHorizontal: 11, borderRadius: 18 }}>
+                <Refresh c={P.ink3} />
+                <Text style={ts(11.5, '700', P.ink3)}>새로고침</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* sort row */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 10 }}>
+          {SORTS.map((s, i) => {
+            const on = sort === s;
+            return (
+              <Pressable key={s} onPress={() => setSort(s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Text style={ts(13.5, on ? '800' : '600', on ? P.accent : P.ink3)}>{s}</Text>
+                {i === 0 ? <ChevD c={on ? P.accent : P.ink3} s={13} /> : null}
+              </Pressable>
+            );
+          })}
+          <View style={{ flex: 1 }} />
+          <Pressable onPress={() => setMine((m) => !m)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 16, height: 16, borderWidth: 1.5, borderColor: mine ? P.accent : P.chev, borderRadius: 5, backgroundColor: mine ? P.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+              {mine ? <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>✓</Text> : null}
+            </View>
+            <Text style={ts(12.5, '600', P.ink3)}>내가 쓴 글 보기</Text>
+          </Pressable>
+        </View>
+
+        {/* post list */}
+        <View style={{ paddingHorizontal: pixel ? 16 : 0 }}>
+          <Card style={pixel ? undefined : { borderRadius: 0, borderWidth: 0, marginHorizontal: 0 }}>
+            <View style={{ backgroundColor: pixel ? tc.white : P.cardBg }}>
+              {!isMarket && NOTICES.map((n) => (
+                <View key={n.title} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: P.line }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={{ backgroundColor: n.red ? P.red : P.accent, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 7 }}>
+                        <Text style={ts(11, '800', '#fff')}>{n.badge}</Text>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <PixelText variant={txt} size={11} style={{ marginBottom: 6 }}>
-                          {card.name}
-                        </PixelText>
-                        <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginBottom: 6 }}>
-                          {card.set}
-                        </PixelText>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                          <View
-                            style={{
-                              backgroundColor:
-                                m.type === 'sell' ? tc.red : m.type === 'buy' ? tc.blu : tc.teal,
-                              paddingHorizontal: 7,
-                              paddingVertical: 3,
-                              borderColor: tc.ink,
-                              borderWidth: 1,
-                            }}
-                          >
-                            <PixelText variant={txt} size={9} color={tc.white}>
-                              {m.type === 'sell' ? '팝니다' : m.type === 'buy' ? '삽니다' : '교환'}
-                            </PixelText>
+                      <Text numberOfLines={1} style={[ts(14.5, '800', P.ink), { flex: 1 }]}>{n.title}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 7 }}>
+                      <Text style={ts(12, '600', P.ink3)}>{n.author}</Text>
+                      <Text style={ts(12, '600', P.ink3)}>{n.date}</Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
+                    <Meta icon={<Chat c={P.chev} />} label={String(n.comments)} P={P} ts={ts} />
+                    <Meta icon={<Like stroke={P.chev} fill="none" />} label={String(n.likes)} P={P} ts={ts} />
+                  </View>
+                </View>
+              ))}
+
+              {isMarket
+                ? MARKET.map((m) => {
+                    const card = CARDS.find((c) => c.id === m.cardId) ?? CARDS[0];
+                    const tg = m.type === 'sell' ? { fg: '#fff', bg: P.red, label: '팝니다' } : m.type === 'buy' ? { fg: '#fff', bg: isClean ? '#2563EB' : tc.blu, label: '삽니다' } : { fg: '#fff', bg: isClean ? '#7C3AED' : tc.teal, label: '교환' };
+                    return (
+                      <Pressable key={m.id} onPress={() => router.push(`/cards/${card.id}` as never)} style={{ flexDirection: 'row', gap: 12, paddingVertical: 16, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: P.line }}>
+                        <View style={{ width: 62, height: 84, borderRadius: 8, backgroundColor: P.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 28 }}>{card.emoji}</Text>
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text numberOfLines={2} style={ts(15, '800', P.ink)}>{card.name}</Text>
+                          <Text numberOfLines={1} style={[ts(12, '500', P.ink3), { marginTop: 4 }]}>{card.set}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 7 }}>
+                            <View style={{ backgroundColor: tg.bg, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 6 }}>
+                              <Text style={ts(11, '800', tg.fg)}>{tg.label}</Text>
+                            </View>
+                            <Text style={ts(12, '500', P.ink3)}>{m.condition}</Text>
                           </View>
-                          <RarBadge rar={card.rar} />
-                          <PixelText variant={txt} size={9} color={tc.ink3}>
-                            {m.condition}
-                          </PixelText>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                            <Text style={ts(14.5, '900', isClean ? '#0A7A56' : tc.grn)}>{m.price ? `₩${fmt(m.price)}` : '협의'}</Text>
+                            <Text style={ts(11.5, '600', P.ink3)}>{m.time} · {m.seller}</Text>
+                          </View>
                         </View>
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            marginTop: 6,
-                          }}
-                        >
-                          {m.price ? (
-                            <PixelText variant={txt} size={12} color={tc.grnDk}>
-                              ₩{fmt(m.price)}
-                            </PixelText>
-                          ) : (
-                            <PixelText variant={txt} size={10} color={tc.ink3}>
-                              협의
-                            </PixelText>
-                          )}
-                          <PixelText variant={txt} size={9} color={tc.ink3}>
-                            {m.time} · {m.seller}
-                          </PixelText>
+                      </Pressable>
+                    );
+                  })
+                : POSTS.map((p) => {
+                    const tgs = tagStyle(p.tag);
+                    const isLiked = liked[p.id] ?? p.likedHot ?? false;
+                    return (
+                      <Pressable key={p.id} onPress={() => router.push('/feed' as never)} style={{ flexDirection: 'row', gap: 12, paddingVertical: 16, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: P.line }}>
+                        <View style={{ position: 'relative' }}>
+                          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: p.avBg, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontSize: 21 }}>{p.avatar}</Text>
+                          </View>
+                          {p.online ? <View style={{ position: 'absolute', bottom: -1, right: -1, width: 14, height: 14, borderRadius: 7, backgroundColor: '#2BB673', borderWidth: 2, borderColor: P.cardBg }} /> : null}
                         </View>
-                      </View>
-                    </View>
-                  </PixelPress>
-                );
-              })}
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                            <View style={{ backgroundColor: tgs.bg, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 6 }}>
+                              <Text style={ts(11, '800', tgs.fg)}>{p.tag}</Text>
+                            </View>
+                            <Text style={ts(12, '700', P.ink)}>{p.author}</Text>
+                            <Text style={ts(12, '500', P.ink3)}>{p.time}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 11, marginTop: 9 }}>
+                            <Text numberOfLines={2} style={[ts(13.5, '400', P.ink2), { flex: 1 }]}>{p.body}</Text>
+                            {p.thumbEmoji ? (
+                              <View style={{ width: 62, height: 84, borderRadius: 8, backgroundColor: p.thumbBg, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ fontSize: 30 }}>{p.thumbEmoji}</Text>
+                              </View>
+                            ) : null}
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 11 }}>
+                            <Meta icon={<Chat c={P.chev} s={15} />} label={String(p.comments)} P={P} ts={ts} />
+                            <Pressable onPress={() => setLiked((l) => ({ ...l, [p.id]: !isLiked }))} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Like stroke={isLiked ? P.red : P.chev} fill={isLiked ? P.red : 'none'} s={15} />
+                              <Text style={ts(12.5, '700', isLiked ? P.red : P.ink3)}>{p.likes}</Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
             </View>
-          </View>
-        )}
-
-        {tab === 'grade-req' && (
-          <View style={{ paddingHorizontal: 14, marginTop: 14 }}>
-            {POSTS.filter((p) => p.type === 'grade-req').map((post) => (
-              <View key={post.id} style={{ marginBottom: 14 }}>
-              <PixelFrame borderWidth={3} shadow={5}>
-              <View style={{ padding: 12 }}>
-                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-                  <View
-                    style={{
-                      width: 36,
-                      height: 36,
-                      backgroundColor: tc.gold,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderColor: tc.ink,
-                      borderWidth: 2,
-                    }}
-                  >
-                    <Text style={{ fontSize: 18 }}>{post.avatar}</Text>
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <PixelText variant={txt} size={11} numberOfLines={1}>
-                      {post.user}
-                    </PixelText>
-                    <View style={{ flexDirection: 'row', gap: 5, marginTop: 5, alignItems: 'center' }}>
-                      <View
-                        style={{
-                          backgroundColor: tc.orn,
-                          paddingHorizontal: 6,
-                          height: 18,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderColor: tc.ink,
-                          borderWidth: 1,
-                        }}
-                      >
-                        <PixelText variant={txt} size={8} color={tc.white}>
-                          감정 요청
-                        </PixelText>
-                      </View>
-                      <PixelText variant={txt} size={9} color={tc.ink3}>
-                        {post.time}
-                      </PixelText>
-                    </View>
-                  </View>
-                </View>
-
-                <PixelText variant="ko" size={13} color={tc.ink2} style={{ lineHeight: 20 }}>
-                  {post.text}
-                </PixelText>
-
-                {post.hasCard && post.card ? (
-                  <View style={{ height: 96, marginTop: 10, borderColor: tc.ink, borderWidth: 2, overflow: 'hidden' }}>
-                    <CardThumb card={post.card} height={92} emojiSize={36} showLabel={false} />
-                  </View>
-                ) : null}
-
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, alignItems: 'center' }}>
-                  <PostAct icon="♥" label={String(post.likes)} />
-                  <PostAct icon="💬" label={String(post.comments)} />
-                  <View style={{ flex: 1 }} />
-                  <PostAct icon="⏱" label="감정하기" bg={tc.pur} fg={tc.white} />
-                </View>
-              </View>
-              </PixelFrame>
-              </View>
-            ))}
-          </View>
-        )}
+          </Card>
+        </View>
       </ScrollView>
     </View>
   );
 }
 
-interface ActProps {
-  icon: string;
-  label: string;
-  active?: boolean;
-  bg?: string;
-  fg?: string;
-  onPress?: () => void;
-}
-
-function PostAct({ icon, label, active, bg, fg, onPress }: ActProps) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
+function Meta({ icon, label, P, ts }: { icon: ReactNode; label: string; P: Palette; ts: (s: number, w: '400' | '500' | '600' | '700' | '800' | '900', c: string) => object }) {
   return (
-    <Pressable onPress={onPress}>
-      <View
-        style={{
-          backgroundColor: bg ?? tc.pap2,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 5,
-          paddingHorizontal: 8,
-          paddingVertical: 5,
-          borderColor: tc.ink,
-          borderWidth: 2,
-        }}
-      >
-        <Text style={{ fontSize: 12, color: active ? tc.red : fg ?? tc.ink3 }}>{icon}</Text>
-        <PixelText variant={txt} size={10} color={active ? tc.red : fg ?? tc.ink3}>
-          {label}
-        </PixelText>
-      </View>
-    </Pressable>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+      {icon}
+      <Text style={ts(11.5, '700', P.ink3)}>{label}</Text>
+    </View>
   );
 }
