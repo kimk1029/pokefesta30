@@ -79,9 +79,13 @@ interface Display {
   rar: Rarity;
   gradeNum: number | null;
   priceJpy: number;
+  /** 매입가(JPY 환산). 구매가 미입력이면 null. */
+  basisJpy: number | null;
+  /** 등록가 대비 손익률(%). 구매가 없으면 null. */
+  profitPct: number | null;
 }
 
-function toDisplay(c: MyCardRow, mode: 'single' | 'psa10'): Display {
+function toDisplay(c: MyCardRow, mode: 'single' | 'psa10', rate: number): Display {
   const raw =
     c.nickname ||
     c.snkrdunkName ||
@@ -91,14 +95,27 @@ function toDisplay(c: MyCardRow, mode: 'single' | 'psa10'): Display {
       : '미식별 카드');
   const psa10 = c.pricePsa10Jpy ?? 0;
   const single = c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0;
+  const priceJpy = mode === 'psa10' && psa10 > 0 ? psa10 : single;
+  // 등록가(매입가) → JPY 환산. KRW 입력분은 라이브 환율로 나눔(웹 CollectionScreen 동일).
+  const buy = c.buyPrice ?? 0;
+  const basisJpy = buy > 0 ? (c.buyCurrency === 'JPY' ? buy : buy / (rate || 1)) : null;
+  const profitPct = basisJpy && priceJpy > 0 ? ((priceJpy - basisJpy) / basisJpy) * 100 : null;
   return {
     src: c,
     name: localizeCardName(raw),
     imageUrl: c.photoUrl || c.snkrdunkImageUrl || null,
     rar: detectRarity(c.nickname, c.snkrdunkName, c.cardId),
     gradeNum: parsePsa(c.gradeEstimate),
-    priceJpy: mode === 'psa10' && psa10 > 0 ? psa10 : single,
+    priceJpy,
+    basisJpy,
+    profitPct,
   };
+}
+
+/** 손익률 부호색 — 이득(≥0) 빨강 / 손해(<0) 파랑 / 구매가 없음(null) 기본 초록. */
+function priceColorOf(profitPct: number | null, tc: { red: string; blu: string; grnDk: string }): string {
+  if (profitPct == null) return tc.grnDk;
+  return profitPct >= 0 ? tc.red : tc.blu;
 }
 
 function parsePsa(label: string | null | undefined): number | null {
@@ -121,6 +138,18 @@ function changeFromTrend(trend: number[] | undefined): { pct: number; dir: Dir }
 // 한국 관습: 상승=빨강, 하락=파랑.
 const CHANGE_COLOR: Record<Dir, string> = { up: colors.red, down: colors.blu, flat: colors.ink3 };
 const CHANGE_ARROW: Record<Dir, string> = { up: '▲', down: '▼', flat: '–' };
+
+/** 등록가 대비 손익률 배지 — 이득 빨강 ▲ / 손해 파랑 ▼ (웹 CollectionScreen 동일). */
+function ProfitBadge({ pct }: { pct: number }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
+  const up = pct >= 0;
+  return (
+    <PixelText variant={txt} size={8} weight="bold" color={up ? tc.red : tc.blu} style={{ marginLeft: 5 }}>
+      {up ? '▲' : '▼'}{Math.abs(pct).toFixed(1)}%
+    </PixelText>
+  );
+}
 
 function useAuthed(): boolean {
   const [authed, setAuthed] = useState(() => isAuthenticated());
@@ -165,7 +194,7 @@ export default function MyCardsScreen() {
     );
   }
 
-  const display: Display[] = (data ?? []).map((c) => toDisplay(c, priceMode));
+  const display: Display[] = (data ?? []).map((c) => toDisplay(c, priceMode, rate));
 
   const presentRarities = useMemo(() => {
     const set = new Set<Rarity>();
@@ -437,15 +466,17 @@ function GridCell({
                 </PixelText>
               )}
             </View>
-            <PixelText
-              variant={txt}
-              size={d.priceJpy > 0 ? autoPriceSize(format(d.priceJpy), 10, 7) : 10}
-              color={tc.grnDk}
-              numberOfLines={1}
-              style={{ marginTop: 5 }}
-            >
-              {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
-            </PixelText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+              <PixelText
+                variant={txt}
+                size={d.priceJpy > 0 ? autoPriceSize(format(d.priceJpy), 10, 7) : 10}
+                color={d.priceJpy > 0 ? priceColorOf(d.profitPct, tc) : tc.grnDk}
+                numberOfLines={1}
+              >
+                {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
+              </PixelText>
+              {d.priceJpy > 0 && d.profitPct != null ? <ProfitBadge pct={d.profitPct} /> : null}
+            </View>
           </View>
         </Pressable>
         <SpotlightButton
@@ -578,17 +609,17 @@ function ListRow({
                       </PixelText>
                     )}
                   </View>
-                  {/* 시세 + 등락률 */}
+                  {/* 시세 + 등록가 대비 손익률(구매가 없으면 시세 등락률) */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'nowrap' }}>
                     <PixelText
                       variant={txt}
                       size={d.priceJpy > 0 ? autoPriceSize(format(d.priceJpy), 10, 7) : 10}
-                      color={tc.grnDk}
+                      color={d.priceJpy > 0 ? priceColorOf(d.profitPct, tc) : tc.grnDk}
                       numberOfLines={1}
                     >
                       {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
                     </PixelText>
-                    <ChangeBadge trend={trend} />
+                    {d.priceJpy > 0 && d.profitPct != null ? <ProfitBadge pct={d.profitPct} /> : <ChangeBadge trend={trend} />}
                   </View>
                 </View>
               </Pressable>
@@ -779,8 +810,8 @@ function FilmTile({
           {d.name}
         </PixelText>
         {d.priceJpy > 0 && (
-          <PixelText variant={txt} size={8} color={tc.grnDk} numberOfLines={1}>
-            {format(d.priceJpy)}
+          <PixelText variant={txt} size={8} color={priceColorOf(d.profitPct, tc)} numberOfLines={1}>
+            {format(d.priceJpy)}{d.profitPct != null ? ` ${d.profitPct >= 0 ? '▲' : '▼'}${Math.abs(d.profitPct).toFixed(1)}%` : ''}
           </PixelText>
         )}
       </Pressable>
