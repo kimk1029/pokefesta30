@@ -83,6 +83,7 @@ type FeedRow = {
   images?: unknown;
   createdAt: Date;
   author?: { name: string | null } | null;
+  _count?: { comments: number; bookmarks: number } | null;
 };
 
 function toFeedPost(r: FeedRow): FeedPost {
@@ -96,6 +97,8 @@ function toFeedPost(r: FeedRow): FeedPost {
     authorBgId: r.authorBgId,
     authorFrameId: r.authorFrameId,
     images: asImages(r.images),
+    commentCount: r._count?.comments ?? 0,
+    likeCount: r._count?.bookmarks ?? 0,
   };
 }
 
@@ -157,6 +160,7 @@ export async function getFeedPage(opts: {
       take: limit + 1,
       include: {
         author: { select: { name: true } },
+        _count: { select: { comments: true, bookmarks: true } },
       },
     });
     const hasMore = rows.length > limit;

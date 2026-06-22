@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { useTheme } from '@/components/ThemeProvider';
 import { ComposedAvatar } from '@/components/ComposedAvatar';
@@ -184,11 +184,60 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
   const [cat, setCat] = useState<CatId>('전체');
   const [sort, setSort] = useState<SortId>('최신순');
   const [feature, setFeature] = useState<'hot' | 'best'>('hot');
-  const [mine, setMine] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [keywords, setKeywords] = useState<string[]>(KEYWORDS);
 
   const isMarket = cat === '거래/나눔';
   const writeHref = isMarket ? '/write/trade' : '/write/feed';
   const featureItems = feature === 'hot' ? FEATURE_HOT : FEATURE_BEST;
+
+  // 검색어 필터 + 정렬을 실제 목록에 적용. (최신순=작성시각, 추천순=북마크수, 댓글순=댓글수)
+  const visiblePosts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? initialFeed.filter(
+          (p) =>
+            (p.text ?? '').toLowerCase().includes(q) ||
+            (p.authorName ?? '').toLowerCase().includes(q),
+        )
+      : initialFeed;
+    const sorted = [...filtered];
+    if (sort === '추천순') sorted.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0));
+    else if (sort === '댓글순') sorted.sort((a, b) => (b.commentCount ?? 0) - (a.commentCount ?? 0));
+    else sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return sorted;
+  }, [initialFeed, query, sort]);
+
+  // 실시간 HOT 키워드 — 가로 마퀴 자동 슬라이드. 키워드를 2세트 렌더하고
+  // 1세트 길이만큼 지나면 되감아 끊김 없이 순환.
+  const kwRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = kwRef.current;
+    if (!el) return;
+    let raf = 0;
+    const tick = () => {
+      const half = el.scrollWidth / 2;
+      if (half > 0) {
+        el.scrollLeft += 0.4;
+        if (el.scrollLeft >= half) el.scrollLeft -= half;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [keywords]);
+
+  // 새로고침 — 키워드 순서를 섞어 갱신감을 준다(편집 데이터라 셔플로 대체).
+  const shuffleKeywords = () =>
+    setKeywords((prev) => {
+      const a = [...prev];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    });
 
   return (
     <>
@@ -199,9 +248,9 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 16px' }}>
             <div style={{ fontSize: 22, fontWeight: 900, color: P.ink, letterSpacing: '-.6px' }}>커뮤니티</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: P.ink }}>팔로잉</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: P.ink3 }}>내 게시글</div>
+            <Link href="/my/feeds" style={{ fontSize: 14, fontWeight: 700, color: P.ink3, textDecoration: 'none' }}>내 게시글</Link>
             <div style={{ flex: 1 }} />
-            <Link href="/cards/snkrdunk/search" aria-label="검색" style={{ display: 'block', color: P.ink }}>{Ic.search(P.ink)}</Link>
+            <button type="button" aria-label="검색" onClick={() => setSearchOpen((v) => !v)} style={{ display: 'block', color: searchOpen ? P.accent : P.ink, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>{Ic.search(searchOpen ? P.accent : P.ink)}</button>
             <Link href="/my/messages" aria-label="알림" style={{ position: 'relative', display: 'block', color: P.ink }}>
               {Ic.bell(P.ink)}
               <span style={{ position: 'absolute', top: -4, right: -4, minWidth: 15, height: 15, padding: '0 3px', background: P.red, borderRadius: 8, color: '#fff', fontSize: 9.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${P.cardBg}` }}>3</span>
@@ -211,8 +260,27 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
             </Link>
           </div>
 
-          {/* category tabs */}
-          <div className="cv-hrow" style={{ display: 'flex', alignItems: 'center', gap: 18, overflowX: 'auto', padding: '4px 16px 0', borderBottom: `1px solid ${P.line}` }}>
+          {/* search bar (검색 아이콘 토글) */}
+          {searchOpen && (
+            <div style={{ padding: '4px 16px 8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: P.chip, borderRadius: 12, padding: '9px 12px' }}>
+                {Ic.search(P.ink3, 18)}
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="제목·내용·작성자 검색"
+                  style={{ flex: 1, minWidth: 0, border: 'none', background: 'none', outline: 'none', fontSize: 14, fontWeight: 600, color: P.ink, fontFamily: 'var(--f1)' }}
+                />
+                {query && (
+                  <button type="button" aria-label="지우기" onClick={() => setQuery('')} style={{ flex: 'none', background: 'none', border: 'none', cursor: 'pointer', color: P.ink3, fontSize: 16, fontWeight: 800, lineHeight: 1, padding: 0 }}>×</button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* category tabs — 선택 탭만 밑줄(전체 구분선 없음) */}
+          <div className="cv-hrow" style={{ display: 'flex', alignItems: 'center', gap: 18, overflowX: 'auto', padding: '4px 16px 0' }}>
             {CATS.map((c) => {
               const on = cat === c;
               return (
@@ -220,7 +288,7 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
                   key={c}
                   type="button"
                   onClick={() => setCat(c)}
-                  style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 15, fontWeight: on ? 800 : 600, color: on ? P.accent : P.ink2, padding: '8px 1px 12px', borderBottom: `2.5px solid ${on ? P.accent : 'transparent'}`, marginBottom: -1, background: 'none', border: 'none', borderBottomStyle: 'solid', cursor: 'pointer' }}
+                  style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 15, fontWeight: on ? 800 : 600, color: on ? P.accent : P.ink2, padding: '8px 1px 12px', borderBottom: `2.5px solid ${on ? P.accent : 'transparent'}`, background: 'none', border: 'none', borderBottomStyle: 'solid', cursor: 'pointer' }}
                 >
                   {c}
                 </button>
@@ -271,12 +339,12 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
               <span style={{ fontSize: 11.5, fontWeight: 600, color: P.ink3 }}>지금 가장 많이 언급되는 키워드에요</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 13 }}>
-              <div className="cv-hrow" style={{ display: 'flex', gap: 7, overflowX: 'auto', flex: 1 }}>
-                {KEYWORDS.map((k) => (
-                  <span key={k} style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: 700, color: clean ? '#5a3ad6' : P.ink, background: P.cardBg, padding: '8px 13px', borderRadius: 18, boxShadow: clean ? '0 1px 3px rgba(106,58,255,.1)' : 'none' }}>{k}</span>
+              <div ref={kwRef} className="cv-hrow" style={{ display: 'flex', gap: 7, overflowX: 'hidden', flex: 1, maskImage: 'linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 16px),transparent)', WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 16px),transparent)' }}>
+                {[...keywords, ...keywords].map((k, i) => (
+                  <span key={`${k}-${i}`} style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: 700, color: clean ? '#5a3ad6' : P.ink, background: P.cardBg, padding: '8px 13px', borderRadius: 18, boxShadow: clean ? '0 1px 3px rgba(106,58,255,.1)' : 'none' }}>{k}</span>
                 ))}
               </div>
-              <button type="button" style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, fontWeight: 700, color: P.ink3, background: P.cardBg, padding: '8px 11px', borderRadius: 18, border: 'none', cursor: 'pointer' }}>{Ic.refresh(P.ink3)}새로고침</button>
+              <button type="button" aria-label="키워드 새로고침" onClick={shuffleKeywords} style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, color: P.ink3, background: P.cardBg, borderRadius: '50%', border: 'none', cursor: 'pointer' }}>{Ic.refresh(P.ink3, 15)}</button>
             </div>
           </div>
         </div>
@@ -292,10 +360,10 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
             );
           })}
           <div style={{ flex: 1 }} />
-          <button type="button" onClick={() => setMine((m) => !m)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: P.ink3, background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            <span style={{ width: 16, height: 16, border: `1.5px solid ${mine ? P.accent : P.chev}`, borderRadius: 5, background: mine ? P.accent : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{mine && <span style={{ color: '#fff', fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}</span>
+          <Link href="/my/feeds" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: P.ink3, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            <span style={{ width: 16, height: 16, border: `1.5px solid ${P.chev}`, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }} />
             내가 쓴 글 보기
-          </button>
+          </Link>
         </div>
 
         {/* post list */}
@@ -319,7 +387,7 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
           {isMarket ? (
             <MarketList list={trades} P={P} clean={clean} />
           ) : (
-            <FeedList posts={initialFeed} P={P} clean={clean} />
+            <FeedList posts={visiblePosts} P={P} clean={clean} />
           )}
 
           <div style={{ height: 20 }} />
@@ -421,8 +489,11 @@ function PostRow({ post, P, clean }: { post: FeedPost; P: Palette; clean: boolea
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 11 }} onClick={(e) => e.stopPropagation()}>
-          <button type="button" onClick={toggle} aria-label="댓글" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5, fontWeight: 700, color: P.ink3, background: 'none', border: 'none', cursor: 'pointer' }}>{Ic.chat(P.chev, 15)}댓글</button>
-          <BookmarkButton feedId={post.id} />
+          <button type="button" onClick={toggle} aria-label="댓글" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5, fontWeight: 700, color: P.ink3, background: 'none', border: 'none', cursor: 'pointer' }}>{Ic.chat(P.chev, 15)}댓글{post.commentCount ? ` ${post.commentCount}` : ''}</button>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <BookmarkButton feedId={post.id} />
+            {(post.likeCount ?? 0) > 0 && <span style={{ fontSize: 12.5, fontWeight: 700, color: P.ink3 }}>{post.likeCount}</span>}
+          </span>
           {hasThumb && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12.5, fontWeight: 700, color: P.ink3 }}>📷 {images.length}</span>
           )}
