@@ -52,8 +52,7 @@ export function CardGrader() {
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null);
   const [outer, setOuter] = useState<Quad | null>(null);
   const [inner, setInner] = useState<Quad | null>(null);
-  // 외곽 검출은 순수 JS — 다운로드 0bytes, 즉시 실행. OpenCV 의존성 제거됨.
-  const [busyLabel, setBusyLabel] = useState<string | null>(null);
+  // 외곽 검출은 순수 JS — 이미지 로드 시 1회 자동 실행(detectCardOuterPureJs). 수동 버튼 없음.
   const [err, setErr] = useState<string | null>(null);
 
   // OCR (카드 정보 추출) 상태
@@ -173,28 +172,6 @@ export function CardGrader() {
     img.src = url;
   };
 
-  /* 자동 외곽 검출 — 순수 JS, 외부 라이브러리/CDN 의존 없음 ----- */
-  const runDetection = useCallback((image: HTMLImageElement) => {
-    setBusyLabel('외곽 검출 중…');
-    setErr(null);
-    // 짧은 setTimeout — UI 가 spinner 보여줄 시간 확보 (검출 자체는 ~30ms 면 끝)
-    setTimeout(() => {
-      try {
-        const detected = detectCardOuterPureJs(image);
-        if (detected) {
-          setOuter(detected);
-          setInner(shrinkQuad(detected, 0.045));
-        } else {
-          setErr('외곽 자동 검출 실패 — 핸들로 4모서리를 카드에 맞춰 끌어 보거나, 그대로 OCR 시도(전체 이미지) 가능합니다.');
-        }
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : '검출 실패');
-      } finally {
-        setBusyLabel(null);
-      }
-    }, 30);
-  }, []);
-
   /* 이미지가 바뀌면 자동으로 OCR 한 번 — 사용자가 굳이 "📖 카드 정보 추출" 을
      누르지 않아도 카드가 뜨자마자 결과·후보·시세가 같이 표시된다. 같은 imgEl
      에 대해선 한 번만 (autoOcrFiredRef 가 그 인스턴스를 기억). */
@@ -277,12 +254,6 @@ export function CardGrader() {
       setOcrProgress(null);
     }
   }, [imgEl, outer, ocrLoading, scanLang]);
-
-  /* 사용자가 자동 검출 클릭 — 즉시 순수 JS 검출 실행 ----------- */
-  const onClickAutoDetect = useCallback(() => {
-    if (!imgEl) return;
-    runDetection(imgEl);
-  }, [imgEl, runDetection]);
 
   /* 코너 드래그 ------------------------------------------------ */
   const draggingRef = useRef<{ which: 'outer' | 'inner'; idx: 0 | 1 | 2 | 3 } | null>(null);
@@ -403,7 +374,7 @@ export function CardGrader() {
             📷 카드 사진 선택 / 촬영
           </button>
           <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', textAlign: 'center', lineHeight: 1.6 }}>
-            먼저 사진을 올려주세요 — 그 다음 자동 외곽 검출(선택) 또는 핸들 드래그로 맞춥니다.
+            먼저 사진을 올려주세요 — 외곽/내곽 핸들을 드래그해 카드 라인에 맞춥니다.
           </div>
         </div>
       )}
@@ -531,88 +502,6 @@ export function CardGrader() {
                 />
               );
             })()}
-            {busyLabel && (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'rgba(0,0,0,.7)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 14,
-                  color: 'var(--yel)',
-                  fontFamily: 'var(--f1)',
-                  fontSize: 11,
-                  letterSpacing: 0.5,
-                  padding: 16,
-                  textAlign: 'center',
-                }}
-              >
-                <Spinner />
-                <div>{busyLabel}</div>
-              </div>
-            )}
-          </div>
-
-          {/* 컨트롤 */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={onClickAutoDetect}
-              disabled={!!busyLabel}
-              style={{
-                ...ctrlBtn('var(--blu)'),
-                opacity: busyLabel ? 0.6 : 1,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-              }}
-            >
-              {busyLabel ? (
-                <>
-                  <SpinnerSm /> 검출 중…
-                </>
-              ) : (
-                '🪄 외곽 자동 검출'
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (outer) setInner(shrinkQuad(outer, 0.045));
-              }}
-              disabled={!outer}
-              style={ctrlBtn('var(--orn)')}
-            >
-              ↺ 내곽 리셋
-            </button>
-            <button
-              type="button"
-              onClick={onClickRecognize}
-              disabled={ocrLoading || !!busyLabel}
-              style={{
-                ...ctrlBtn('var(--pur)'),
-                opacity: ocrLoading || !!busyLabel ? 0.6 : 1,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-              }}
-            >
-              {ocrLoading ? (
-                <>
-                  <SpinnerSm /> OCR…
-                </>
-              ) : (
-                '📖 카드 정보 추출'
-              )}
-            </button>
-            <button type="button" onClick={() => fileInputRef.current?.click()} style={ctrlBtn('var(--ink2)')}>
-              🖼 다른 사진
-            </button>
           </div>
 
           {/* 카드 이름 언어 — 모바일 scan.tsx 와 동일한 한/일/영 토글. 서버 OCR 워커를
@@ -740,9 +629,6 @@ export function CardGrader() {
             ocr={ocrResult}
             hasCandidates={(ocrResult?.candidates.length ?? 0) > 0}
           />
-
-          {/* 결과 */}
-          {result && <ResultCard r={result} />}
 
           {/* 범례 */}
           <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', lineHeight: 1.7 }}>
@@ -1020,21 +906,6 @@ function ProgressBar({
 
 /* ---------------------------- spinners -------------------------- */
 
-function Spinner() {
-  // 포켓볼 스타일 큰 스피너 — 페이지 전체 로딩에 사용
-  return (
-    <div
-      aria-hidden
-      className="pf-pokeball-spinner"
-      style={{
-        width: 44,
-        height: 44,
-        animation: 'pf-ball-spin 0.8s linear infinite',
-      }}
-    />
-  );
-}
-
 function SpinnerSm() {
   // 버튼 안에 들어가는 작은 스피너
   return (
@@ -1076,44 +947,6 @@ function Handle({
         touchAction: 'none',
       }}
     />
-  );
-}
-
-/* --------------------------- result card ------------------------ */
-
-function ResultCard({ r }: { r: CenteringResult }) {
-  return (
-    <div
-      style={{
-        padding: 12,
-        marginBottom: 12,
-        background: 'var(--white)',
-        boxShadow:
-          '-3px 0 0 var(--ink),3px 0 0 var(--ink),0 -3px 0 var(--ink),0 3px 0 var(--ink),4px 4px 0 var(--ink)',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-        <Stat label="좌/우 (L/R)" value={r.lrLabel} hi={r.worstAxis === 'L/R'} />
-        <Stat label="상/하 (T/B)" value={r.tbLabel} hi={r.worstAxis === 'T/B'} />
-      </div>
-      <div
-        style={{
-          padding: '10px 12px',
-          background: r.band.tone,
-          color: '#fff',
-          fontFamily: 'var(--f1)',
-          fontSize: 13,
-          letterSpacing: 0.5,
-          textAlign: 'center',
-          marginBottom: 8,
-        }}
-      >
-        ▶ 추정 등급: <b>{r.band.label}</b>
-      </div>
-      <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', lineHeight: 1.6, textAlign: 'center' }}>
-        센터링 한 항목 기준. 코너 / 표면 / 인쇄 결함은 별도.
-      </div>
-    </div>
   );
 }
 
@@ -1537,27 +1370,6 @@ function KvRow({ k, v, highlight }: { k: string; v: string; highlight?: boolean 
   );
 }
 
-function Stat({ label, value, hi }: { label: string; value: string; hi: boolean }) {
-  return (
-    <div style={{ flex: 1 }}>
-      <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: 0.5, marginBottom: 4 }}>
-        {label} {hi && '⚠'}
-      </div>
-      <div
-        style={{
-          fontFamily: 'var(--f1)',
-          fontSize: 19,
-          fontWeight: 700,
-          color: hi ? 'var(--red)' : 'var(--ink)',
-          letterSpacing: 0.5,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
 /* --------------------- helpers (math + cv) ---------------------- */
 
 /** SVG <polygon points="..."> 문자열 — quad 4점을 자연 좌표로. */
@@ -1649,17 +1461,3 @@ function mainBtn(bg: string): React.CSSProperties {
   };
 }
 
-function ctrlBtn(bg: string): React.CSSProperties {
-  return {
-    flex: 1,
-    minWidth: 100,
-    padding: '8px 10px',
-    fontFamily: 'var(--f1)',
-    fontSize: 10,
-    letterSpacing: 0.5,
-    color: 'var(--white)',
-    background: bg,
-    border: 'none',
-    cursor: 'pointer',
-  };
-}
