@@ -104,6 +104,12 @@ function tagStyle(label: string, clean: boolean, P: Palette): { fg: string; bg: 
   return { fg: P.accentDk, bg: P.accentSoft };
 }
 
+/** 글의 카테고리 추정 — 현재 글에 카테고리 컬럼이 없어 사진 유무로 자랑/자유 구분.
+ *  (PostRow 표시 로직과 동일 기준. 시세/정보·질문·꿀팁은 데이터가 없어 비게 됨.) */
+function postCat(p: FeedPost): CatId {
+  return (p.images?.length ?? 0) > 0 ? '자랑' : '자유';
+}
+
 /* ---------------- 정적 편집 데이터 (인기글 / 키워드 / 공지) ---------------- */
 
 interface FeatureItem {
@@ -192,41 +198,40 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
   const writeHref = isMarket ? '/write/trade' : '/write/feed';
   const featureItems = feature === 'hot' ? FEATURE_HOT : FEATURE_BEST;
 
-  // 검색어 필터 + 정렬을 실제 목록에 적용. (최신순=작성시각, 추천순=북마크수, 댓글순=댓글수)
+  // 검색어 + 카테고리 필터 + 정렬을 실제 목록에 적용.
+  // (전체=모두, 그 외 탭=해당 카테고리만 / 최신순=작성시각, 추천순=북마크수, 댓글순=댓글수)
   const visiblePosts = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = q
+    let list = q
       ? initialFeed.filter(
           (p) =>
             (p.text ?? '').toLowerCase().includes(q) ||
             (p.authorName ?? '').toLowerCase().includes(q),
         )
       : initialFeed;
-    const sorted = [...filtered];
+    if (cat !== '전체') list = list.filter((p) => postCat(p) === cat);
+    const sorted = [...list];
     if (sort === '추천순') sorted.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0));
     else if (sort === '댓글순') sorted.sort((a, b) => (b.commentCount ?? 0) - (a.commentCount ?? 0));
     else sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return sorted;
-  }, [initialFeed, query, sort]);
+  }, [initialFeed, query, sort, cat]);
 
-  // 실시간 HOT 키워드 — 가로 마퀴 자동 슬라이드. 키워드를 2세트 렌더하고
-  // 1세트 길이만큼 지나면 되감아 끊김 없이 순환.
-  const kwRef = useRef<HTMLDivElement | null>(null);
+  // 카테고리 탭 — 선택 탭 위치를 측정해 슬라이딩 밑줄(인디케이터)을 이동.
+  // 탭 자체엔 보더가 없어 클릭 전/후 잔여 보더가 생기지 않는다.
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const firstTabMeasure = useRef(true);
+  const [indicator, setIndicator] = useState<{ left: number; width: number; animate: boolean }>({ left: 0, width: 0, animate: false });
   useEffect(() => {
-    const el = kwRef.current;
-    if (!el) return;
-    let raf = 0;
-    const tick = () => {
-      const half = el.scrollWidth / 2;
-      if (half > 0) {
-        el.scrollLeft += 0.4;
-        if (el.scrollLeft >= half) el.scrollLeft -= half;
-      }
-      raf = requestAnimationFrame(tick);
+    const measure = () => {
+      const el = tabRefs.current[cat];
+      if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth, animate: !firstTabMeasure.current });
+      firstTabMeasure.current = false;
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [keywords]);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [cat]);
 
   // 새로고침 — 키워드 순서를 섞어 갱신감을 준다(편집 데이터라 셔플로 대체).
   const shuffleKeywords = () =>
@@ -279,25 +284,38 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
             </div>
           )}
 
-          {/* category tabs — 선택 탭만 밑줄(전체 구분선 없음) */}
-          <div className="cv-hrow" style={{ display: 'flex', alignItems: 'center', gap: 18, overflowX: 'auto', padding: '4px 16px 0' }}>
+          {/* category tabs — 보더 없음. 선택 탭 아래로 슬라이딩 밑줄만 이동 */}
+          <div className="cv-hrow" style={{ display: 'flex', alignItems: 'center', gap: 18, overflowX: 'auto', padding: '4px 16px 0', position: 'relative' }}>
             {CATS.map((c) => {
               const on = cat === c;
               return (
                 <button
                   key={c}
+                  ref={(el) => { tabRefs.current[c] = el; }}
                   type="button"
                   onClick={() => setCat(c)}
-                  style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 15, fontWeight: on ? 800 : 600, color: on ? P.accent : P.ink2, padding: '8px 1px 12px', borderBottom: `2.5px solid ${on ? P.accent : 'transparent'}`, background: 'none', border: 'none', borderBottomStyle: 'solid', cursor: 'pointer' }}
+                  style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 15, fontWeight: on ? 800 : 600, color: on ? P.accent : P.ink2, padding: '8px 1px 12px', background: 'none', border: 'none', cursor: 'pointer' }}
                 >
                   {c}
                 </button>
               );
             })}
             <span style={{ flex: 'none', paddingBottom: 10 }}>{Ic.chevD(P.ink3, 18)}</span>
+            {/* 슬라이딩 밑줄 인디케이터 — 선택 탭 위치로 부드럽게 이동 */}
+            <span
+              aria-hidden
+              style={{
+                position: 'absolute', bottom: 0, left: indicator.left, width: indicator.width, height: 2.5,
+                background: P.accent, borderRadius: 2, pointerEvents: 'none',
+                transition: indicator.animate ? 'left .28s cubic-bezier(.4,0,.2,1), width .28s cubic-bezier(.4,0,.2,1)' : 'none',
+              }}
+            />
           </div>
         </div>
 
+        {/* 전체 탭에서만 인기글 + HOT 키워드 노출. 그 외 카테고리는 목록만. */}
+        {cat === '전체' && (
+          <>
         {/* feature card (불타는 글 / 개념글) */}
         <div style={{ padding: '16px 16px 4px' }}>
           <div style={{ background: P.cardBg, borderRadius: 18, padding: '16px 16px 10px', boxShadow: clean ? '0 2px 10px rgba(0,0,0,.05)' : 'none', border: clean ? 'none' : `1px solid ${P.line}` }}>
@@ -339,15 +357,19 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
               <span style={{ fontSize: 11.5, fontWeight: 600, color: P.ink3 }}>지금 가장 많이 언급되는 키워드에요</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 13 }}>
-              <div ref={kwRef} className="cv-hrow" style={{ display: 'flex', gap: 7, overflowX: 'hidden', flex: 1, maskImage: 'linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 16px),transparent)', WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 16px),transparent)' }}>
-                {[...keywords, ...keywords].map((k, i) => (
-                  <span key={`${k}-${i}`} style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: 700, color: clean ? '#5a3ad6' : P.ink, background: P.cardBg, padding: '8px 13px', borderRadius: 18, boxShadow: clean ? '0 1px 3px rgba(106,58,255,.1)' : 'none' }}>{k}</span>
-                ))}
+              <div style={{ overflow: 'hidden', flex: 1, maskImage: 'linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 16px),transparent)', WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 16px,#000 calc(100% - 16px),transparent)' }}>
+                <div className="pf-kw-track">
+                  {[...keywords, ...keywords].map((k, i) => (
+                    <span key={`${k}-${i}`} style={{ flex: 'none', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: 700, color: clean ? '#5a3ad6' : P.ink, background: P.cardBg, padding: '8px 13px', borderRadius: 18, boxShadow: clean ? '0 1px 3px rgba(106,58,255,.1)' : 'none', marginRight: 7 }}>{k}</span>
+                  ))}
+                </div>
               </div>
               <button type="button" aria-label="키워드 새로고침" onClick={shuffleKeywords} style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, color: P.ink3, background: P.cardBg, borderRadius: '50%', border: 'none', cursor: 'pointer' }}>{Ic.refresh(P.ink3, 15)}</button>
             </div>
           </div>
         </div>
+          </>
+        )}
 
         {/* sort row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px 10px' }}>
@@ -368,7 +390,7 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
 
         {/* post list */}
         <div style={{ background: P.cardBg }}>
-          {!isMarket && NOTICES.map((n) => (
+          {cat === '전체' && NOTICES.map((n) => (
             <Link key={n.title} href="/feed" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: 12, padding: '15px 18px', borderBottom: `1px solid ${P.line}` }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
