@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { ScrollView, View, Pressable, Text } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ScrollView, View, Pressable, Text, TextInput, Animated, Easing } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { router } from 'expo-router';
 import { useTheme, useThemeColors } from '@/components/ThemeProvider';
@@ -228,11 +228,65 @@ export default function CommunityScreen() {
   const [cat, setCat] = useState<CatId>('전체');
   const [sort, setSort] = useState<SortId>('최신순');
   const [feature, setFeature] = useState<'hot' | 'best'>('hot');
-  const [mine, setMine] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [keywords, setKeywords] = useState<string[]>(KEYWORDS);
   const [liked, setLiked] = useState<Record<number, boolean>>({});
 
   const isMarket = cat === '거래/나눔';
   const featureItems = feature === 'hot' ? FEATURE_HOT : FEATURE_BEST;
+
+  // 검색 + 카테고리 필터 + 정렬을 실제 목록에 적용.
+  const visiblePosts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = q
+      ? POSTS.filter((p) => p.body.toLowerCase().includes(q) || p.author.toLowerCase().includes(q))
+      : POSTS;
+    if (cat !== '전체') list = list.filter((p) => p.tag === cat);
+    const num = (s: string) => Number(s.replace(/[^0-9]/g, '')) || 0;
+    const sorted = [...list];
+    if (sort === '추천순') sorted.sort((a, b) => num(b.likes) - num(a.likes));
+    else if (sort === '댓글순') sorted.sort((a, b) => b.comments - a.comments);
+    else sorted.sort((a, b) => b.id - a.id);
+    return sorted;
+  }, [cat, sort, query]);
+
+  // 새로고침 — HOT 키워드 순서 셔플.
+  const shuffleKeywords = () =>
+    setKeywords((prev) => {
+      const a = [...prev];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    });
+
+  // 카테고리 탭 슬라이딩 밑줄 — 탭 레이아웃을 측정해 인디케이터를 이동.
+  const tabLayouts = useRef<Record<string, { x: number; width: number }>>({});
+  const indLeft = useRef(new Animated.Value(0)).current;
+  const indWidth = useRef(new Animated.Value(0)).current;
+  const indReady = useRef(false);
+  const moveIndicator = (c: CatId, animate: boolean) => {
+    const l = tabLayouts.current[c];
+    if (!l) return;
+    if (!animate) {
+      indLeft.setValue(l.x);
+      indWidth.setValue(l.width);
+    } else {
+      Animated.parallel([
+        Animated.timing(indLeft, { toValue: l.x, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+        Animated.timing(indWidth, { toValue: l.width, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      ]).start();
+    }
+  };
+  useEffect(() => {
+    if (tabLayouts.current[cat]) {
+      moveIndicator(cat, indReady.current);
+      indReady.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cat]);
 
   // 카드 컨테이너 — 픽셀: PixelFrame(직각·하드섀도) / 플랫: 둥근 소프트.
   const Card = ({ children, style }: { children: ReactNode; style?: object }) =>
@@ -269,9 +323,9 @@ export default function CommunityScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 8 }}>
           <Text style={ts(22, '900', P.ink)}>커뮤니티</Text>
           <Text style={ts(14, '700', P.ink)}>팔로잉</Text>
-          <Text style={ts(14, '700', P.ink3)}>내 게시글</Text>
+          <Pressable onPress={() => router.push('/my/feeds' as never)} hitSlop={6}><Text style={ts(14, '700', P.ink3)}>내 게시글</Text></Pressable>
           <View style={{ flex: 1 }} />
-          <Pressable onPress={() => router.push('/cards/snkrdunk/search' as never)} hitSlop={8}><Search c={P.ink} /></Pressable>
+          <Pressable onPress={() => setSearchOpen((v) => !v)} hitSlop={8}><Search c={searchOpen ? P.accent : P.ink} /></Pressable>
           <Pressable onPress={() => router.push('/messages' as never)} hitSlop={8} style={{ position: 'relative' }}>
             <Bell c={P.ink} />
             <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 15, height: 15, paddingHorizontal: 3, backgroundColor: P.red, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: P.cardBg }}>
@@ -283,26 +337,62 @@ export default function CommunityScreen() {
           </Pressable>
         </View>
 
-        {/* category tabs */}
+        {/* search bar (검색 토글) */}
+        {searchOpen ? (
+          <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: P.chip, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+              <Search c={P.ink3} s={18} />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="제목·내용·작성자 검색"
+                placeholderTextColor={P.ink3}
+                autoFocus
+                style={[ts(14, '600', P.ink), { flex: 1, padding: 0 }]}
+              />
+              {query ? (
+                <Pressable onPress={() => setQuery('')} hitSlop={8}><Text style={ts(16, '800', P.ink3)}>×</Text></Pressable>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
+        {/* category tabs — 보더 없음. 선택 탭으로 슬라이딩 밑줄 이동 */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ alignItems: 'center', gap: 18, paddingHorizontal: 16, paddingTop: 4 }}
-          style={{ borderBottomWidth: 1, borderBottomColor: P.line }}
         >
           {CATS.map((c) => {
             const on = cat === c;
             return (
-              <Pressable key={c} onPress={() => setCat(c)} style={{ paddingTop: 8, paddingBottom: 12, borderBottomWidth: 2.5, borderBottomColor: on ? P.accent : 'transparent', marginBottom: -1 }}>
+              <Pressable
+                key={c}
+                onPress={() => setCat(c)}
+                onLayout={(e) => {
+                  const { x, width } = e.nativeEvent.layout;
+                  tabLayouts.current[c] = { x, width };
+                  if (c === cat && !indReady.current) {
+                    moveIndicator(cat, false);
+                    indReady.current = true;
+                  }
+                }}
+                style={{ paddingTop: 8, paddingBottom: 12 }}
+              >
                 <Text style={ts(15, on ? '800' : '600', on ? P.accent : P.ink2)}>{c}</Text>
               </Pressable>
             );
           })}
           <View style={{ paddingBottom: 10 }}><ChevD c={P.ink3} s={18} /></View>
+          {/* 슬라이딩 밑줄 인디케이터 */}
+          <Animated.View pointerEvents="none" style={{ position: 'absolute', bottom: 0, height: 2.5, borderRadius: 2, backgroundColor: P.accent, left: indLeft, width: indWidth }} />
         </ScrollView>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        {/* 전체 탭에서만 인기글 + HOT 키워드 노출. 그 외 카테고리는 목록만. */}
+        {cat === '전체' ? (
+          <>
         {/* feature card */}
         <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 }}>
           <Card>
@@ -355,20 +445,15 @@ export default function CommunityScreen() {
               <Text style={ts(11.5, '600', P.ink3)}>지금 많이 언급되는 키워드</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 13 }}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }} style={{ flex: 1 }}>
-                {KEYWORDS.map((k) => (
-                  <View key={k} style={{ backgroundColor: P.cardBg, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 18 }}>
-                    <Text style={ts(12.5, '700', isClean ? '#5a3ad6' : P.ink)}>{k}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: P.cardBg, paddingVertical: 8, paddingHorizontal: 11, borderRadius: 18 }}>
-                <Refresh c={P.ink3} />
-                <Text style={ts(11.5, '700', P.ink3)}>새로고침</Text>
-              </View>
+              <KeywordMarquee keywords={keywords} P={P} isClean={isClean} ts={ts} />
+              <Pressable onPress={shuffleKeywords} hitSlop={6} style={{ width: 34, height: 34, alignItems: 'center', justifyContent: 'center', backgroundColor: P.cardBg, borderRadius: 17 }}>
+                <Refresh c={P.ink3} s={15} />
+              </Pressable>
             </View>
           </View>
         </View>
+          </>
+        ) : null}
 
         {/* sort row */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingTop: 16, paddingBottom: 10 }}>
@@ -382,10 +467,8 @@ export default function CommunityScreen() {
             );
           })}
           <View style={{ flex: 1 }} />
-          <Pressable onPress={() => setMine((m) => !m)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={{ width: 16, height: 16, borderWidth: 1.5, borderColor: mine ? P.accent : P.chev, borderRadius: 5, backgroundColor: mine ? P.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-              {mine ? <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>✓</Text> : null}
-            </View>
+          <Pressable onPress={() => router.push('/my/feeds' as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 16, height: 16, borderWidth: 1.5, borderColor: P.chev, borderRadius: 5 }} />
             <Text style={ts(12.5, '600', P.ink3)}>내가 쓴 글 보기</Text>
           </Pressable>
         </View>
@@ -394,7 +477,7 @@ export default function CommunityScreen() {
         <View style={{ paddingHorizontal: pixel ? 16 : 0 }}>
           <Card style={pixel ? undefined : { borderRadius: 0, borderWidth: 0, marginHorizontal: 0 }}>
             <View style={{ backgroundColor: pixel ? tc.white : P.cardBg }}>
-              {!isMarket && NOTICES.map((n) => (
+              {cat === '전체' && NOTICES.map((n) => (
                 <View key={n.title} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: P.line }}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -441,7 +524,7 @@ export default function CommunityScreen() {
                       </Pressable>
                     );
                   })
-                : POSTS.map((p) => {
+                : visiblePosts.map((p) => {
                     const tgs = tagStyle(p.tag);
                     const isLiked = liked[p.id] ?? p.likedHot ?? false;
                     return (
@@ -492,6 +575,41 @@ function Meta({ icon, label, P, ts }: { icon: ReactNode; label: string; P: Palet
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
       {icon}
       <Text style={ts(11.5, '700', P.ink3)}>{label}</Text>
+    </View>
+  );
+}
+
+/** HOT 키워드 자동 마퀴 — 키워드 2세트를 translateX 로 끊김 없이 저속 슬라이드. */
+function KeywordMarquee({ keywords, P, isClean, ts }: { keywords: string[]; P: Palette; isClean: boolean; ts: (s: number, w: '400' | '500' | '600' | '700' | '800' | '900', c: string) => object }) {
+  const [w, setW] = useState(0);
+  const x = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (w <= 0) return;
+    x.setValue(0);
+    const anim = Animated.loop(
+      Animated.timing(x, { toValue: -w, duration: Math.max(6000, Math.round(w * 28)), easing: Easing.linear, useNativeDriver: true }),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [w, keywords, x]);
+
+  const chipStyle = { backgroundColor: P.cardBg, paddingVertical: 8, paddingHorizontal: 13, borderRadius: 18, marginRight: 7 } as const;
+  const chipText = ts(12.5, '700', isClean ? '#5a3ad6' : P.ink);
+
+  return (
+    <View style={{ flex: 1, overflow: 'hidden' }}>
+      <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: x }] }}>
+        <View style={{ flexDirection: 'row' }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+          {keywords.map((k, i) => (
+            <View key={`a-${k}-${i}`} style={chipStyle}><Text style={chipText}>{k}</Text></View>
+          ))}
+        </View>
+        <View style={{ flexDirection: 'row' }}>
+          {keywords.map((k, i) => (
+            <View key={`b-${k}-${i}`} style={chipStyle}><Text style={chipText}>{k}</Text></View>
+          ))}
+        </View>
+      </Animated.View>
     </View>
   );
 }
