@@ -17,7 +17,7 @@ import { isAuthenticated, subscribeSession } from '@/lib/session';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/lib/priceMode';
 import { useCollection } from '@/lib/collection';
-import { cardKrw, cardProfit } from '@/data/cardvault';
+import { cardKrw, cardJpy, cardProfit } from '@/data/cardvault';
 import { fetchPortfolio, type PortfolioSummary } from '@/lib/myApi';
 
 type PortfolioChartMode = 'day' | 'week' | 'month';
@@ -108,7 +108,6 @@ function useAuthed(): boolean {
 interface HeroData {
   authed: boolean;
   serverPortfolio: PortfolioSummary | null;
-  totalVal: number;
   changePct: number;
   ownedLen: number;
   gradedLen: number;
@@ -118,6 +117,10 @@ interface HeroData {
   chartData: number[];
   chartMode: PortfolioChartMode;
   setChartMode: (m: PortfolioChartMode) => void;
+  /** 보유 카드 현재 평가액 합계(JPY). 통화 토글 표시는 format() 으로. */
+  totalJpy: number;
+  /** @internal — changePct 계산용 로컬 KRW 합계. 표시엔 totalJpy 사용. */
+  totalVal: number;
   /** 보유 카드 매입가 합계(KRW). 구매가 미입력분은 0. */
   investedKrw: number;
   /** 평가 손익(KRW) = 현재가 합 − 매입가 합 (매입가 입력 카드 한정). */
@@ -129,6 +132,8 @@ function usePortfolioHeroData(): HeroData {
   const authed = useAuthed();
   const ownedAll = useCollection();
   const owned = ownedAll.filter((c) => !c.favorite);
+  // 라이브 환율 — 집계도 표시(format)와 동일한 환율로 통일.
+  const { rate } = useCurrency();
 
   const [serverPortfolio, setServerPortfolio] = useState<PortfolioSummary | null>(null);
   useEffect(() => {
@@ -144,7 +149,8 @@ function usePortfolioHeroData(): HeroData {
   const hasAnyPsa10 = owned.some((c) => (c.pricePsa10 ?? 0) > 0);
   const priceMode: 'single' | 'psa10' = hasAnyPsa10 ? globalPriceMode : 'single';
 
-  const totalVal = owned.reduce((a, c) => a + cardKrw(c, priceMode), 0);
+  const totalVal = owned.reduce((a, c) => a + cardKrw(c, priceMode, rate), 0);
+  const totalJpy = owned.reduce((a, c) => a + cardJpy(c, priceMode, rate), 0);
   const prevVal = Math.round(totalVal * 0.88);
   const changePct = prevVal > 0 ? Math.round(((totalVal - prevVal) / prevVal) * 100) : 0;
   const graded = owned.filter((c) => c.grade != null);
@@ -152,7 +158,7 @@ function usePortfolioHeroData(): HeroData {
   // 매입가/평가손익 집계 — 구매가 입력 카드만 (cardProfit.hasBuy). 더미 없이 실데이터.
   const profitAgg = owned.reduce(
     (a, c) => {
-      const p = cardProfit(c, priceMode);
+      const p = cardProfit(c, priceMode, rate);
       a.invested += p.investedKrw;
       a.profit += p.profitKrw;
       return a;
@@ -162,7 +168,7 @@ function usePortfolioHeroData(): HeroData {
 
   const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
   const ownedForChart = owned.map((c) => ({
-    latestPrice: cardKrw(c, priceMode),
+    latestPrice: cardKrw(c, priceMode, rate),
     trend: Array.isArray(c.trend) ? c.trend : [],
   }));
   const realHistory = serverPortfolio?.history ?? [];
@@ -173,7 +179,7 @@ function usePortfolioHeroData(): HeroData {
   const chartData = chartPoints.map((point) => point.totalJpy);
 
   return {
-    authed, serverPortfolio, totalVal, changePct,
+    authed, serverPortfolio, totalVal, totalJpy, changePct,
     ownedLen: owned.length, gradedLen: graded.length,
     hasAnyPsa10, priceMode, togglePriceMode, chartData, chartMode, setChartMode,
     investedKrw: profitAgg.invested, profitKrw: profitAgg.profit,
@@ -187,7 +193,7 @@ export function PortfolioHero() {
   const flat = isFlatTheme(theme);
   const { format: formatCurrency, rate } = useCurrency();
   const {
-    authed, serverPortfolio, totalVal, changePct, ownedLen, gradedLen,
+    authed, serverPortfolio, totalJpy, changePct, ownedLen, gradedLen,
     hasAnyPsa10, priceMode, togglePriceMode, chartData, chartMode, setChartMode,
     investedKrw, profitKrw,
   } = usePortfolioHeroData();
@@ -197,7 +203,9 @@ export function PortfolioHero() {
   const profitJpy = rate > 0 ? profitKrw / rate : 0;
   const hasInvested = investedKrw > 0;
 
-  const valueText = serverPortfolio ? formatCurrency(serverPortfolio.totalJpy) : `₩${totalVal.toLocaleString()}`;
+  // 서버 포트폴리오가 있으면 그 JPY 총액, 없으면 로컬 집계 JPY 총액 — 둘 다 format() 로
+  // 통화 토글(엔/원)을 동일하게 반영. (이전엔 폴백이 항상 ₩ 고정이었음.)
+  const valueText = formatCurrency(serverPortfolio ? serverPortfolio.totalJpy : totalJpy);
   const realPct = serverPortfolio?.changePct ?? null;
   const heroPct = realPct != null ? Math.round(realPct) : changePct;
 

@@ -1,3 +1,5 @@
+import { DEFAULT_JPY_KRW } from '@/lib/currency';
+
 export type Rarity = 'C' | 'U' | 'R' | 'SR' | 'HR' | 'S';
 export type Game = '포켓몬' | '유희왕' | '원피스' | 'MTG' | '스포츠' | '기타';
 
@@ -177,16 +179,15 @@ export function inferCardCurrency(card: CardItem): PriceCurrency {
   return 'KRW';
 }
 
-/** Rough JPY → KRW factor used for portfolio aggregation. Real FX moves
- *  but at this app's "approximate collection value" granularity a
- *  hand-picked constant is fine; refine once we have a quotes source. */
-export const JPY_TO_KRW = 10;
+/** JPY → KRW 환율 폴백. 라이브 환율(useCurrency().rate)을 못 받을 때만 사용.
+ *  앱 전역 표시 환산(currency.ts)과 동일한 9.5 상수로 통일. */
+export const JPY_TO_KRW = DEFAULT_JPY_KRW;
 
 /** Convert any price+currency pair to KRW for aggregation. KRW values are
- *  passed through unchanged. */
-export function toKrw(price: number, currency: PriceCurrency = 'KRW'): number {
+ *  passed through unchanged. `rate` = 1 JPY = rate KRW (라이브 환율, 기본 폴백). */
+export function toKrw(price: number, currency: PriceCurrency = 'KRW', rate: number = JPY_TO_KRW): number {
   if (!price || price <= 0) return 0;
-  if (currency === 'JPY') return Math.round(price * JPY_TO_KRW);
+  if (currency === 'JPY') return Math.round(price * (rate > 0 ? rate : JPY_TO_KRW));
   return price;
 }
 
@@ -202,22 +203,22 @@ export function cardPrice(card: CardItem, mode: PriceMode = 'single'): number {
 }
 
 /** Card-aware wrapper — uses inferred currency for legacy entries. */
-export function cardKrw(card: CardItem, mode: PriceMode = 'single'): number {
-  return toKrw(cardPrice(card, mode), inferCardCurrency(card));
+export function cardKrw(card: CardItem, mode: PriceMode = 'single', rate: number = JPY_TO_KRW): number {
+  return toKrw(cardPrice(card, mode), inferCardCurrency(card), rate);
 }
 
 /** Convert any price+currency pair to JPY. KRW values are divided back by the
- *  same constant used for aggregation. Used to feed the currency-aware
+ *  same `rate` used for aggregation. Used to feed the currency-aware
  *  `format()` (which takes JPY) so home metrics respect the 엔/원 setting. */
-export function toJpy(price: number, currency: PriceCurrency = 'KRW'): number {
+export function toJpy(price: number, currency: PriceCurrency = 'KRW', rate: number = JPY_TO_KRW): number {
   if (!price || price <= 0) return 0;
-  if (currency === 'KRW') return Math.round(price / JPY_TO_KRW);
+  if (currency === 'KRW') return Math.round(price / (rate > 0 ? rate : JPY_TO_KRW));
   return price;
 }
 
 /** Card-aware JPY value — feed to CurrencyProvider `format()`. */
-export function cardJpy(card: CardItem, mode: PriceMode = 'single'): number {
-  return toJpy(cardPrice(card, mode), inferCardCurrency(card));
+export function cardJpy(card: CardItem, mode: PriceMode = 'single', rate: number = JPY_TO_KRW): number {
+  return toJpy(cardPrice(card, mode), inferCardCurrency(card), rate);
 }
 
 export interface CardProfit {
@@ -236,12 +237,13 @@ export interface CardProfit {
 }
 
 /** 카드 한 장(또는 수량 묶음)의 수익률. 현재 시세는 가격모드(single/psa10)를
- *  따르며 모두 KRW 로 환산해 비교한다. 구매가가 없으면 hasBuy=false. */
-export function cardProfit(card: CardItem, mode: PriceMode = 'single'): CardProfit {
+ *  따르며 모두 KRW 로 환산해 비교한다. 구매가가 없으면 hasBuy=false.
+ *  `rate` = 라이브 JPY→KRW 환율(기본 폴백). */
+export function cardProfit(card: CardItem, mode: PriceMode = 'single', rate: number = JPY_TO_KRW): CardProfit {
   const qty = Math.max(1, card.qty ?? 1);
-  const currentKrw = cardKrw(card, mode) * qty;
+  const currentKrw = cardKrw(card, mode, rate) * qty;
   const hasBuy = typeof card.buyPrice === 'number' && card.buyPrice > 0;
-  const investedKrw = hasBuy ? toKrw(card.buyPrice as number, card.buyCurrency ?? 'KRW') * qty : 0;
+  const investedKrw = hasBuy ? toKrw(card.buyPrice as number, card.buyCurrency ?? 'KRW', rate) * qty : 0;
   const profitKrw = currentKrw - investedKrw;
   const ratePct = hasBuy && investedKrw > 0 ? (profitKrw / investedKrw) * 100 : null;
   return { qty, investedKrw, currentKrw, profitKrw, ratePct, hasBuy };
