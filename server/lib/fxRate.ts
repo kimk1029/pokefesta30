@@ -2,8 +2,11 @@
  * JPY → KRW 실시간 환율. 메모리에 30분 캐시 (외부 API rate-limit 대비).
  * 폴백: 1 JPY ≈ 9.5 KRW (2024-2026 평균 근처. fetch 실패 시에만 사용).
  *
- * 소스: exchangerate.host (free, no API key). 다운되면 frankfurter.app 시도.
+ * 소스: frankfurter.dev (free, no API key, ECB 기준). 다운되면 open.er-api.com 시도.
  * 환율 변동성은 30분 단위 갱신으로 충분 — 카드 시세 가격 보조 표시 용도.
+ *
+ * NOTE: 구 exchangerate.host 는 2024 부터 access_key 필수로 바뀌어 폐기.
+ *       구 frankfurter.app 도 frankfurter.dev 로 이전(301)됐다.
  */
 
 const TTL_MS = 30 * 60 * 1000;
@@ -17,11 +20,10 @@ interface RateCache {
 
 let cached: RateCache | null = null;
 
-async function fetchFromExchangerateHost(): Promise<number | null> {
+async function fetchFromFrankfurter(): Promise<number | null> {
   try {
-    const r = await fetch('https://api.exchangerate.host/latest?base=JPY&symbols=KRW', {
-      // node fetch — explicit timeout via AbortSignal would be ideal but undici default is OK.
-    });
+    // frankfurter.dev — 무료·무키, ECB 기준. (구 .app 도메인은 여기로 301.)
+    const r = await fetch('https://api.frankfurter.dev/v1/latest?base=JPY&symbols=KRW');
     if (!r.ok) return null;
     const j = (await r.json()) as { rates?: { KRW?: number } };
     const v = j.rates?.KRW;
@@ -31,9 +33,10 @@ async function fetchFromExchangerateHost(): Promise<number | null> {
   }
 }
 
-async function fetchFromFrankfurter(): Promise<number | null> {
+async function fetchFromErApi(): Promise<number | null> {
   try {
-    const r = await fetch('https://api.frankfurter.app/latest?from=JPY&to=KRW');
+    // open.er-api.com — 무료·무키 폴백. base=JPY 의 rates.KRW.
+    const r = await fetch('https://open.er-api.com/v6/latest/JPY');
     if (!r.ok) return null;
     const j = (await r.json()) as { rates?: { KRW?: number } };
     const v = j.rates?.KRW;
@@ -46,7 +49,7 @@ async function fetchFromFrankfurter(): Promise<number | null> {
 export interface JpyKrwRate {
   rate: number;
   asOf: string;
-  source: 'exchangerate.host' | 'frankfurter.app' | 'fallback' | 'cache';
+  source: 'frankfurter.dev' | 'open.er-api.com' | 'fallback' | 'cache';
 }
 
 /**
@@ -68,11 +71,11 @@ export async function getJpyKrwRate(): Promise<JpyKrwRate> {
     return { rate: cached.rate, asOf: cached.asOf, source: 'cache' };
   }
 
-  let rate = await fetchFromExchangerateHost();
-  let source: JpyKrwRate['source'] = 'exchangerate.host';
+  let rate = await fetchFromFrankfurter();
+  let source: JpyKrwRate['source'] = 'frankfurter.dev';
   if (rate == null) {
-    rate = await fetchFromFrankfurter();
-    source = 'frankfurter.app';
+    rate = await fetchFromErApi();
+    source = 'open.er-api.com';
   }
   if (rate == null) {
     return { rate: FALLBACK_JPY_KRW, asOf: new Date().toISOString(), source: 'fallback' };
