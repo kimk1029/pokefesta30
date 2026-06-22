@@ -531,18 +531,6 @@ const FALLBACK_GRADS = [
   'linear-gradient(150deg,#11998e,#38ef7d)',
 ];
 
-/** 등락률 칩 — 라벨 + 방향 화살표 + 부호색(상승 빨강/하락 파랑). 주식 호가 느낌. */
-function DeltaChip({ label, pct, size = 11.5 }: { label: string; pct: number | null; size?: number }) {
-  if (pct == null) return null;
-  const up = pct >= 0;
-  return (
-    <span style={{ fontFamily: 'var(--f1)', fontSize: size, fontWeight: 800, color: up ? UP : DOWN, whiteSpace: 'nowrap' }}>
-      <span style={{ color: 'var(--ink3)', fontWeight: 700 }}>{label} </span>
-      {up ? '▲' : '▼'}{Math.abs(pct).toFixed(1)}%
-    </span>
-  );
-}
-
 /** 손익률 부호색 — 이득(≥0) 빨강 / 손해(<0) 파랑 / 기준 없음(null) 기본 잉크. */
 function profitColor(pct: number | null): string {
   if (pct == null) return 'var(--ink)';
@@ -661,7 +649,7 @@ const menuItemStyle: React.CSSProperties = {
 };
 
 function CardGridItem({ row, rank, format, onRemove }: { row: Row; rank: number; format: (j: number) => string; onRemove: (id: number) => void }) {
-  const { c, curJpy, qty, basisJpy, profitPct, dayPct } = row;
+  const { c, curJpy, qty, basisJpy, profitPct } = row;
   const img = c.snkrdunkImageUrl || c.photoUrl || null;
   const href = c.snkrdunkApparelId ? `/cards/snkrdunk/${c.snkrdunkApparelId}` : undefined;
   const body = (
@@ -690,12 +678,11 @@ function CardGridItem({ row, rank, format, onRemove }: { row: Row; rank: number;
           <span style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 900, color: profitColor(profitPct) }}>{curJpy > 0 ? format(curJpy) : '—'}</span>
           <ProfitTag pct={profitPct} size={11} />
         </div>
-        {/* 등록(매입)가 + 어제 대비 등락 */}
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4, marginTop: 2 }}>
+        {/* 등록(매입)가 */}
+        <div style={{ marginTop: 2 }}>
           <span style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             등록 {basisJpy ? format(basisJpy) : '—'}
           </span>
-          <DeltaChip label="어제" pct={dayPct} size={10} />
         </div>
       </div>
     </>
@@ -717,7 +704,7 @@ function CardGridItem({ row, rank, format, onRemove }: { row: Row; rank: number;
 }
 
 function CardListItem({ row, format, last, onRemove }: { row: Row; format: (j: number) => string; last: boolean; onRemove: (id: number) => void }) {
-  const { c, curJpy, qty, basisJpy, profitPct, dayPct } = row;
+  const { c, curJpy, qty, basisJpy, profitPct } = row;
   const img = c.snkrdunkImageUrl || c.photoUrl || null;
   const href = c.snkrdunkApparelId ? `/cards/snkrdunk/${c.snkrdunkApparelId}` : '#';
   return (
@@ -734,10 +721,9 @@ function CardListItem({ row, format, last, onRemove }: { row: Row; format: (j: n
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cardName(c)}</div>
           <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', marginTop: 2 }}>{cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}</div>
-          {/* 등록(매입)가 + 어제 대비 등락 */}
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+          {/* 등록(매입)가 */}
+          <div style={{ marginTop: 4 }}>
             <span style={{ fontFamily: 'var(--f1)', fontSize: 10.5, color: 'var(--ink3)', fontWeight: 600 }}>등록 {basisJpy ? format(basisJpy) : '—'}</span>
-            <DeltaChip label="어제" pct={dayPct} size={10.5} />
           </div>
         </div>
         <div style={{ textAlign: 'right', flex: 'none' }}>
