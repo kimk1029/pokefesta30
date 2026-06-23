@@ -552,7 +552,7 @@ function LiveView({
                     <div style={{ fontSize: 16, fontWeight: 800, color: P.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{stripDeadlinePrefix(it.subject)}</div>
                     <ChipRow region={region} grade={grade} P={P} mt={9} />
                     <div style={{ fontSize: 12, color: P.ink3, fontWeight: 600, marginTop: 13 }}>현재가</div>
-                    <div style={{ fontSize: 21, fontWeight: 900, color: P.ink, letterSpacing: '-.6px', marginTop: 2 }}>{fmtPrice(bid?.amount)}</div>
+                    <div style={{ fontSize: 21, fontWeight: 900, color: P.ink, letterSpacing: '-.6px', marginTop: 2, whiteSpace: 'nowrap' }}>{fmtPrice(bid?.amount)}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: P.ink3, fontWeight: 600, marginTop: 7 }}>
                       <span>입찰 {it.commentCount}회</span>
                       {changedIds.has(it.articleId) && <span style={{ fontSize: 10, fontWeight: 800, color: '#fff', background: 'var(--grn,#16a34a)', padding: '1px 6px', borderRadius: 6 }}>갱신</span>}
@@ -633,7 +633,7 @@ function NotableList({
                 </div>
                 <div style={{ textAlign: 'right', flex: 'none' }}>
                   <div style={{ fontSize: 11.5, color: P.ink3, fontWeight: 600 }}>현재가</div>
-                  <div style={{ fontSize: 17, fontWeight: 900, color: P.ink, marginTop: 3, letterSpacing: '-.4px' }}>{fmtPrice(bid?.amount)}</div>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: P.ink, marginTop: 3, letterSpacing: '-.4px', whiteSpace: 'nowrap' }}>{fmtPrice(bid?.amount)}</div>
                   <div style={{ fontSize: 11.5, color: P.ink3, fontWeight: 600, marginTop: 4 }}>입찰 {it.commentCount}회</div>
                 </div>
                 <button type="button" onClick={(e) => { e.stopPropagation(); onToggleFav(it); }} aria-label="관심" style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>

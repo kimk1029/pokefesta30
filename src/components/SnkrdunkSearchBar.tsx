@@ -74,7 +74,7 @@ export function SnkrdunkSearchBar() {
           inputMode="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="카드명을 일본어로 검색 (예: リザードン)"
+          placeholder="일본어로 검색 (예: リザードン)"
           aria-label="스니덩크 검색"
           style={{
             position: 'absolute',
@@ -90,6 +90,10 @@ export function SnkrdunkSearchBar() {
             fontSize: 11,
             color: 'var(--ink)',
             letterSpacing: 0.3,
+            // 픽셀 폰트 폭이 넓어도 placeholder 는 항상 한 줄(줄바꿈→세로 두꺼워짐 방지).
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
             transition: 'width 220ms ease, padding 220ms ease',
             boxShadow: open
               ? '-2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),inset 2px 2px 0 rgba(0,0,0,.1)'

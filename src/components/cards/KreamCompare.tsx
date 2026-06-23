@@ -3,26 +3,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Panel } from '@/components/ui/Panel';
 import { useCurrency } from '@/components/CurrencyProvider';
+import { bestKreamMatch, type KreamItemLite } from '../../../shared/util/kreamMatch';
 
 /**
  * 시세 비교 — SNKRDUNK(엔화) vs KREAM(원화)를 원화로 환산해 나란히 보여준다.
- * KREAM 은 이름으로 검색해(스크래핑·캐시·플레이키) 최적 매칭의 즉시판매가만 제공하므로
- * 1개 가격 비교. 실패/매칭 없으면 "KREAM 에서 검색" 이동 버튼으로 폴백.
+ * KREAM 은 이름으로 검색해(스크래핑·캐시·플레이키) 후보를 받은 뒤, 카드의
+ * setCode / cardNumber / rarity 힌트로 정확한 카드를 골라 즉시판매가를 비교한다.
+ * 실패/매칭 없으면 "KREAM 에서 검색" 이동 버튼으로 폴백.
  */
 
-interface KreamItem {
-  id: string;
-  name: string;
-  price: number; // KRW
-  imageUrl: string | null;
-  productUrl: string;
-}
+type KreamItem = KreamItemLite; // { id, name, price(KRW), imageUrl, productUrl }
 
 interface Props {
   /** 검색어(카드 한글명). */
   query: string;
   /** SNKRDUNK 비교 기준가 (JPY). 보통 RAW 최근 거래가. */
   snkrPriceJpy: number;
+  /** 콜렉터 번호 (예: "059"). */
+  cardNumber?: string | null;
+  /** 세트 코드 (예: "SV2A"). */
+  setCode?: string | null;
+  /** 등급 토큰 (예: "SAR"). */
+  rarity?: string | null;
 }
 
 function fmtKrw(v: number): string {
@@ -30,33 +32,10 @@ function fmtKrw(v: number): string {
   return `₩${Math.round(v).toLocaleString('ko-KR')}`;
 }
 
-function norm(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, '');
-}
-
-/** 검색 결과에서 카드명과 가장 잘 맞는 항목 선택(토큰 포함 수). 없으면 첫 결과. */
-function bestMatch(items: KreamItem[], query: string): KreamItem | null {
-  if (items.length === 0) return null;
-  const tokens = query.split(/\s+/).filter((t) => t.length >= 2);
-  let best = items[0];
-  let bestScore = -1;
-  for (const it of items) {
-    const n = norm(it.name);
-    let score = 0;
-    for (const t of tokens) if (n.includes(norm(t))) score += 1;
-    if (it.price > 0) score += 0.5; // 가격 있는 매물 우대
-    if (score > bestScore) {
-      bestScore = score;
-      best = it;
-    }
-  }
-  return best;
-}
-
-export function KreamCompare({ query, snkrPriceJpy }: Props) {
+export function KreamCompare({ query, snkrPriceJpy, cardNumber, setCode, rarity }: Props) {
   const { rate } = useCurrency();
   const [state, setState] = useState<'loading' | 'done'>('loading');
-  const [item, setItem] = useState<KreamItem | null>(null);
+  const [items, setItems] = useState<KreamItem[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -66,9 +45,9 @@ export function KreamCompare({ query, snkrPriceJpy }: Props) {
         const r = await fetch(`/api/kream/search?q=${encodeURIComponent(query)}`);
         const j = (await r.json()) as { items?: KreamItem[] };
         if (!alive) return;
-        setItem(bestMatch(j.items ?? [], query));
+        setItems(j.items ?? []);
       } catch {
-        if (alive) setItem(null);
+        if (alive) setItems([]);
       } finally {
         if (alive) setState('done');
       }
@@ -77,6 +56,11 @@ export function KreamCompare({ query, snkrPriceJpy }: Props) {
       alive = false;
     };
   }, [query]);
+
+  const item = useMemo(
+    () => bestKreamMatch(items, query, { cardNumber, setCode, rarity }),
+    [items, query, cardNumber, setCode, rarity],
+  );
 
   const searchUrl = `https://kream.co.kr/search?keyword=${encodeURIComponent(query)}`;
   const snkrKrw = snkrPriceJpy > 0 ? snkrPriceJpy * rate : 0;

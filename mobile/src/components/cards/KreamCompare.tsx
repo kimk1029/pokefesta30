@@ -11,49 +11,33 @@ import { SectHd } from '@/components/cv/SectHd';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { api } from '@/lib/apiClient';
+import { bestKreamMatch, type KreamItemLite } from '../../../../shared/util/kreamMatch';
 
-interface KreamItem {
-  id: string;
-  name: string;
-  price: number; // KRW
-  imageUrl: string | null;
-  productUrl: string;
-}
+type KreamItem = KreamItemLite; // { id, name, price(KRW), imageUrl, productUrl }
 
 function fmtKrw(v: number): string {
   if (!v || v <= 0) return '—';
   return `₩${Math.round(v).toLocaleString('ko-KR')}`;
 }
 
-function norm(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, '');
-}
-
-/** 검색 결과에서 카드명과 가장 잘 맞는 항목 선택(토큰 포함 수). 없으면 첫 결과. */
-function bestMatch(items: KreamItem[], query: string): KreamItem | null {
-  if (items.length === 0) return null;
-  const tokens = query.split(/\s+/).filter((t) => t.length >= 2);
-  let best = items[0];
-  let bestScore = -1;
-  for (const it of items) {
-    const n = norm(it.name);
-    let score = 0;
-    for (const t of tokens) if (n.includes(norm(t))) score += 1;
-    if (it.price > 0) score += 0.5;
-    if (score > bestScore) {
-      bestScore = score;
-      best = it;
-    }
-  }
-  return best;
-}
-
-export function KreamCompare({ query, snkrPriceJpy }: { query: string; snkrPriceJpy: number }) {
+export function KreamCompare({
+  query,
+  snkrPriceJpy,
+  cardNumber,
+  setCode,
+  rarity,
+}: {
+  query: string;
+  snkrPriceJpy: number;
+  cardNumber?: string | null;
+  setCode?: string | null;
+  rarity?: string | null;
+}) {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
   const { rate } = useCurrency();
   const [state, setState] = useState<'loading' | 'done'>('loading');
-  const [item, setItem] = useState<KreamItem | null>(null);
+  const [items, setItems] = useState<KreamItem[]>([]);
 
   useEffect(() => {
     if (!query) {
@@ -66,9 +50,9 @@ export function KreamCompare({ query, snkrPriceJpy }: { query: string; snkrPrice
       try {
         const j = await api<{ items?: KreamItem[] }>(`/api/kream/search?q=${encodeURIComponent(query)}`, { auth: false });
         if (!alive) return;
-        setItem(bestMatch(j.items ?? [], query));
+        setItems(j.items ?? []);
       } catch {
-        if (alive) setItem(null);
+        if (alive) setItems([]);
       } finally {
         if (alive) setState('done');
       }
@@ -77,6 +61,11 @@ export function KreamCompare({ query, snkrPriceJpy }: { query: string; snkrPrice
       alive = false;
     };
   }, [query]);
+
+  const item = useMemo(
+    () => bestKreamMatch(items, query, { cardNumber, setCode, rarity }),
+    [items, query, cardNumber, setCode, rarity],
+  );
 
   const searchUrl = `https://kream.co.kr/search?keyword=${encodeURIComponent(query)}`;
   const snkrKrw = snkrPriceJpy > 0 ? snkrPriceJpy * rate : 0;

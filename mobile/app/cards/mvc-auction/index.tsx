@@ -305,7 +305,7 @@ export default function MvcAuctionScreen() {
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={ts(11.5, '600', P.ink3)}>현재가</Text>
-          <Text style={[ts(17, '900', P.ink), { marginTop: 3 }]}>{fmtPrice(bid?.amount)}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={[ts(17, '900', P.ink), { marginTop: 3 }]}>{fmtPrice(bid?.amount)}</Text>
           <Text style={[ts(11.5, '600', P.ink3), { marginTop: 4 }]}>입찰 {item.commentCount}회</Text>
         </View>
         <Pressable onPress={() => onToggleFav(item)} hitSlop={8} style={{ position: 'absolute', top: 10, right: 10, padding: 2 }}>
@@ -425,7 +425,7 @@ export default function MvcAuctionScreen() {
                           <Text numberOfLines={1} style={ts(16, '800', P.ink)}>{stripDeadline(it.subject)}</Text>
                           <ChipRow subject={it.subject} />
                           <Text style={[ts(12, '600', P.ink3), { marginTop: 13 }]}>현재가</Text>
-                          <Text style={[ts(21, '900', P.ink), { marginTop: 2 }]}>{fmtPrice(bid?.amount)}</Text>
+                          <Text numberOfLines={1} adjustsFontSizeToFit style={[ts(21, '900', P.ink), { marginTop: 2 }]}>{fmtPrice(bid?.amount)}</Text>
                           <Text style={[ts(12, '600', P.ink3), { marginTop: 7 }]}>입찰 {it.commentCount}회</Text>
                         </View>
                       </Pressable>

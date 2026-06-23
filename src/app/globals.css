@@ -888,6 +888,9 @@ a{color:inherit;text-decoration:none;}
 .sh-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;}
 .sh-price{font-family:var(--f1);font-size:11px;color:var(--red);letter-spacing:.5px;
   white-space:nowrap;}
+/* 금액은 모든 페이지에서 절대 줄바꿈하지 않는다 — 한 줄에 다 들어오게(넘치면 글자가 잘려도 줄바꿈 X). */
+.t-price,.cv-price,.cv-reg-price,.cv-reg-price-krw,.ob-price,.avatar-tile-price,
+.cv-pf-rowcur,.cv-pf-rowchg{white-space:nowrap;}
 .sh-buy{padding:8px 10px;background:var(--blu);color:var(--white);
   font-family:var(--f1);font-size:9px;letter-spacing:1px;cursor:pointer;
   box-shadow:

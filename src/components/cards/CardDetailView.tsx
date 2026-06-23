@@ -41,6 +41,12 @@ interface Props {
   grades: GradeAgg[];
   chartPoints: Array<[number, number]>;
   trades: TradeRow[];
+  /** KREAM 매칭 힌트 — 콜렉터 번호. */
+  kreamCardNumber?: string | null;
+  /** KREAM 매칭 힌트 — 세트 코드. */
+  kreamSetCode?: string | null;
+  /** KREAM 매칭 힌트 — 등급 토큰. */
+  kreamRarity?: string | null;
 }
 
 const GRADE_COLORS: Record<string, string> = {
@@ -110,6 +116,9 @@ export function CardDetailView({
   grades,
   chartPoints,
   trades,
+  kreamCardNumber,
+  kreamSetCode,
+  kreamRarity,
 }: Props) {
   // 데이터가 가장 많은 등급을 기본 선택(없으면 RAW).
   const defaultGrade =
@@ -206,7 +215,7 @@ export function CardDetailView({
             최근 거래가 ({gradeKey})
           </div>
           <div style={{ fontFamily: 'var(--f1)', fontSize: 28, fontWeight: 900, color: 'var(--ink)', letterSpacing: 0.2, marginTop: 4 }}>
-            <Price jpy={headlinePrice} empty="—" />
+            <Price jpy={headlinePrice} empty="—" autoSizeBase={28} autoSizeMin={16} />
           </div>
           <div style={{ display: 'flex', gap: 20, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--pap3)' }}>
             <div style={{ flex: 1 }}>
@@ -279,7 +288,7 @@ export function CardDetailView({
                 {g.key}
               </span>
               <div style={{ fontFamily: 'var(--f1)', fontSize: 19, fontWeight: 900, color: 'var(--ink)', marginTop: 11 }}>
-                <Price jpy={g.recent} empty="—" />
+                <Price jpy={g.recent} empty="—" autoSizeBase={19} autoSizeMin={12} />
               </div>
               <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <GradeRow label="평균가" value={<Price jpy={g.avg} empty="—" />} />
@@ -296,7 +305,13 @@ export function CardDetailView({
       </div>
 
       {/* ── 시세 비교 (SNKRDUNK vs 크림) ────────────────────── */}
-      <KreamCompare query={koName} snkrPriceJpy={rawRecent} />
+      <KreamCompare
+        query={koName}
+        snkrPriceJpy={rawRecent}
+        cardNumber={kreamCardNumber}
+        setCode={kreamSetCode}
+        rarity={kreamRarity}
+      />
 
       {/* ── 가격 추이 (실데이터 + 기간 탭) ───────────────────── */}
       <div className="sect">

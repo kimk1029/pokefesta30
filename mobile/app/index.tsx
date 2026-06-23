@@ -353,8 +353,9 @@ function LegacyHome() {
                 onSubmitEditing={submitHomeSearch}
                 returnKeyType="search"
                 inputMode="search"
-                placeholder="한국어로 카드 검색 (예: 리자몽, 피카츄)"
+                placeholder="카드 검색 (예: 리자몽)"
                 placeholderTextColor={tc.ink4}
+                numberOfLines={1}
                 style={{
                   flex: 1,
                   height: '100%',

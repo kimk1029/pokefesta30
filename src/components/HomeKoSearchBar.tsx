@@ -69,7 +69,7 @@ export function HomeKoSearchBar() {
           inputMode="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="한국어로 카드 검색 (예: 리자몽, 피카츄)"
+          placeholder="카드 검색 (예: 리자몽)"
           aria-label="스니덩크 한국어 검색"
           style={{
             width: '100%',
@@ -81,6 +81,10 @@ export function HomeKoSearchBar() {
             fontSize: 11,
             color: 'var(--ink)',
             letterSpacing: 0.3,
+            // 픽셀 폰트는 폭이 넓어 placeholder 가 줄바꿈→세로로 두꺼워졌다. 항상 한 줄.
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
             ...(isClean
               ? {
                   border: '1px solid var(--pap3)',

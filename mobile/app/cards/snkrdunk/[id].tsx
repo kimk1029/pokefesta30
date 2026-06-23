@@ -24,6 +24,7 @@ import {
   type SnkrdunkSalesHistory,
 } from '@/services/snkrdunk';
 import { localizeCardName } from '@/lib/cardNameKo';
+import { parseKreamHints } from '../../../../shared/util/kreamMatch';
 
 function fmtYen(n: number): string {
   if (!n) return '—';
@@ -126,6 +127,11 @@ export default function SnkrdunkDetail() {
 
   const displayNameKo = localizeCardName(seed?.shortName ?? apparel?.localizedName) ?? '카드 정보';
   const originalJp = apparel?.localizedName ?? '';
+  // KREAM 매칭 정확도용 힌트 — 카드명(일/한)·상품번호에서 setCode/번호/등급 추출.
+  const kreamHints = useMemo(
+    () => parseKreamHints(originalJp, displayNameKo, apparel?.productNumber),
+    [originalJp, displayNameKo, apparel?.productNumber],
+  );
   const allPoints = chart?.points ?? [];
 
   const historyList = history?.history ?? [];
@@ -244,7 +250,7 @@ export default function SnkrdunkDetail() {
                 <PixelFrame bg={tc.white}>
                   <View style={{ padding: 16 }}>
                     <PixelText variant={txt} size={11} weight="bold" color={tc.ink3}>최근 거래가 ({effectiveGrade})</PixelText>
-                    <PixelText variant={txt} size={26} weight="bold" color={tc.ink} style={{ marginTop: 5 }}>
+                    <PixelText variant={txt} size={26} weight="bold" color={tc.ink} numberOfLines={1} adjustsFontSizeToFit style={{ marginTop: 5 }}>
                       {fmtYen(headlinePrice)}
                     </PixelText>
                     <View style={{ flexDirection: 'row', gap: 20, marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: tc.pap3 }}>
@@ -304,7 +310,7 @@ export default function SnkrdunkDetail() {
                         <View style={{ alignSelf: 'flex-start', backgroundColor: gc, paddingHorizontal: 9, paddingVertical: 4 }}>
                           <PixelText variant={txt} size={10} weight="bold" color={tc.white}>{g.key}</PixelText>
                         </View>
-                        <PixelText variant={txt} size={18} weight="bold" color={tc.ink} style={{ marginTop: 10 }}>{fmtYen(g.recent)}</PixelText>
+                        <PixelText variant={txt} size={18} weight="bold" color={tc.ink} numberOfLines={1} adjustsFontSizeToFit style={{ marginTop: 10 }}>{fmtYen(g.recent)}</PixelText>
                         <View style={{ marginTop: 11, gap: 8 }}>
                           <GradeRow tc={tc} txt={txt} label="평균가" value={fmtYen(g.avg)} />
                           <GradeRow tc={tc} txt={txt} label="최근 최저" value={fmtYen(g.low)} />
@@ -319,7 +325,13 @@ export default function SnkrdunkDetail() {
             </ScrollView>
 
             {/* ── 시세 비교 (SNKRDUNK vs 크림) ── */}
-            <KreamCompare query={displayNameKo} snkrPriceJpy={rawRecent} />
+            <KreamCompare
+              query={displayNameKo}
+              snkrPriceJpy={rawRecent}
+              cardNumber={kreamHints.cardNumber}
+              setCode={kreamHints.setCode}
+              rarity={kreamHints.rarity}
+            />
 
             {/* ── 가격 추이 (기간 탭) ── */}
             <View style={{ marginHorizontal: 14 }}>
@@ -425,8 +437,8 @@ function Chip({ tc, txt, children, muted }: { tc: ReturnType<typeof useThemeColo
 function GradeRow({ tc, txt, label, value }: { tc: ReturnType<typeof useThemeColors>; txt: 'pixel' | 'ko'; label: string; value: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-      <PixelText variant={txt} size={10} color={tc.ink3}>{label}</PixelText>
-      <PixelText variant={txt} size={11} weight="bold" color={tc.ink}>{value}</PixelText>
+      <PixelText variant={txt} size={10} color={tc.ink3} numberOfLines={1}>{label}</PixelText>
+      <PixelText variant={txt} size={11} weight="bold" color={tc.ink} numberOfLines={1} style={{ flexShrink: 1 }}>{value}</PixelText>
     </View>
   );
 }

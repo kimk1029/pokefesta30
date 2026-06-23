@@ -16,6 +16,7 @@ import {
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { SNKRDUNK_FEATURED_CARDS } from '@/lib/snkrdunkCards';
 import { serverFetch } from '@/lib/apiServer';
+import { parseKreamHints } from '../../../../../shared/util/kreamMatch';
 
 interface PageProps {
   params: { id: string };
@@ -107,6 +108,9 @@ export default async function Page({ params }: PageProps) {
 
   const minPrice = apparel.minPrice ?? 0;
 
+  // KREAM 매칭 정확도용 힌트 — 카드명(일/한)·상품번호에서 setCode/번호/등급 추출.
+  const kreamHints = parseKreamHints(jpName, koName, apparel.productNumber);
+
   return (
     <>
       <JsonLd
@@ -147,6 +151,9 @@ export default async function Page({ params }: PageProps) {
         grades={grades}
         chartPoints={salesChart?.points ?? []}
         trades={trades}
+        kreamCardNumber={kreamHints.cardNumber}
+        kreamSetCode={kreamHints.setCode}
+        kreamRarity={kreamHints.rarity}
       />
 
       <div style={{ height: 40 }} />
