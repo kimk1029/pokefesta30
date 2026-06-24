@@ -12,6 +12,7 @@
  */
 import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
+import { ensureCardImage } from './cardImageCache.js';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { fetchSnkrdunkApparel, type SnkrdunkApparel } from '@/lib/snkrdunk';
 import { parseCardStatics } from '../../shared/cardStatics';
@@ -68,6 +69,8 @@ export async function upsertCatalogCard(
         ...(statics.rarity ? { rarity: statics.rarity } : {}),
       },
     });
+    // 원본 이미지를 자체 CDN(webp)으로 1회 캐싱 — 응답 막지 않음.
+    void ensureCardImage(a.id, a.imageUrl);
   } catch (err) {
     console.error('[snkrdunkCatalog.upsert]', a.id, err);
   }
@@ -108,6 +111,8 @@ export async function upsertSearchResults(
           ...(statics.rarity ? { rarity: statics.rarity } : {}),
         },
       });
+      // 검색에 노출된 카드 이미지도 자체 CDN 으로 캐싱(있을 때만).
+      if (r.imageUrl) void ensureCardImage(r.apparelId, r.imageUrl);
     }
   } catch (err) {
     console.error('[snkrdunkCatalog.upsertSearch]', err);
@@ -217,7 +222,8 @@ export async function loadCatalogEntries(ids: number[]): Promise<Map<number, Cat
       map.set(c.apparelId, {
         apparelId: c.apparelId,
         name: c.localizedName || c.name,
-        imageUrl: c.imageUrl,
+        // 캐싱된 자체 CDN webp 우선, 없으면 원본 imageUrl 로 폴백.
+        imageUrl: c.cdnImageUrl ?? c.imageUrl,
         packCode: c.packCode ?? null,
         setCode: c.setCode ?? null,
         snapshot: s

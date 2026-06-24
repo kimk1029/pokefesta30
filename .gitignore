@@ -9,6 +9,9 @@ server/.env*
 .DS_Store
 *.tsbuildinfo
 
+# 자체 CDN 카드 이미지 캐시 — NAS 디스크에 런타임 생성(트랙 안 함).
+server/public/cdn/
+
 # 모바일 빌드 산출물 — 소스만 트랙, 빌드 결과물은 무시.
 # (mobile/.gitignore 와 중복이지만 root git 에서도 확실히 가드)
 mobile/node_modules/

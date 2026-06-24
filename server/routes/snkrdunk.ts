@@ -12,6 +12,7 @@ import {
   upsertCatalogCard,
   upsertSearchResults,
 } from '../lib/snkrdunkCatalog.js';
+import { getCachedCardImageUrl } from '../lib/cardImageCache.js';
 import { computeApparelPrices } from '@/lib/snkrdunkPrice';
 
 const router = Router();
@@ -54,8 +55,11 @@ router.get('/apparels/:id', async (req: Request, res: Response) => {
       .status(502)
       .json({ data: null, reason: 'SNKRDUNK 상품 정보를 가져오지 못했습니다.' });
   }
-  res.json({ data });
+  // 이미 캐싱된 자체 CDN 이미지가 있으면 응답에 실어 보낸다(없으면 null → 원본 폴백).
+  const cdnImageUrl = await getCachedCardImageUrl(apparelId);
+  res.json({ data: { ...data, cdnImageUrl } });
   // 조회된 카드의 정적 정보를 우리 DB 에 적재 (응답 후, 실패 무시).
+  // upsertCatalogCard 내부에서 첫 조회 시 원본→webp 캐싱도 트리거된다.
   void upsertCatalogCard(data);
   // 최신가 수집 — 싱글(raw 중앙값)/PSA10/추이까지 계산해 풀 스냅샷으로 기록.
   // (응답 후 백그라운드. 거래이력·차트 추가 조회는 사용자 응답 지연 없음.)

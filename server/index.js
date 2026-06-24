@@ -23,6 +23,7 @@ import { lookupIllustrator, searchTcgdexByIllustrator } from './lib/illustrator.
 import { dominantNeonForUrl } from './lib/imageColor.js';
 import { matchSnkrdunkForCard } from './lib/snkrdunkMatch.js';
 import { prisma } from './lib/prisma.js';
+import { CARD_CDN_DIR } from './lib/cardImageCache.js';
 import { fetchApparelSingleJpy } from '@/lib/snkrdunkPrice';
 import { buildCors } from './middleware/cors.js';
 import { requireAdmin } from './middleware/requireAdmin.js';
@@ -124,6 +125,9 @@ app.get('/api/navercafe/img', async (req, res) => {
 });
 
 app.use(express.static(join(__dirname, 'public')));
+// 자체 CDN: 카드 아트 webp 캐시. /api/cdn/cards/<apparelId>.webp (Vercel→NAS 프록시 경유).
+// 콘텐츠는 apparelId 당 불변이라 길게 캐싱.
+app.use('/api/cdn', express.static(CARD_CDN_DIR, { maxAge: '7d', immutable: true }));
 // /debug/* 는 최근 사용자가 업로드한 스캔 원본 사진(last-orig.jpg)·OCR 결과를
 // 노출하므로 관리자 세션에서만 접근 가능.
 app.use('/debug', requireAdmin, express.static(DEBUG_DIR));

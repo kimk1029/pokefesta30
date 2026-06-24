@@ -422,6 +422,8 @@ model SnkrdunkCard {
   itemKind       String   @default("single")
   shortName      String   @default("")
   imageUrl       String?
+  /// 자체 CDN 캐싱 webp 경로 (/api/cdn/cards/<apparelId>.webp). 미캐싱이면 null → imageUrl 폴백.
+  cdnImageUrl    String?
   productNumber  String   @default("")
   /// 박스 출시일 (YYYY-MM-DD).
   releasedAt     String?

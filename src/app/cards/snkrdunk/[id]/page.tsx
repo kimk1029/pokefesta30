@@ -144,7 +144,7 @@ export default async function Page({ params }: PageProps) {
         koName={koName}
         jpName={jpName}
         category={seed?.category ?? null}
-        imageUrl={apparel.imageUrl ?? null}
+        imageUrl={apparel.cdnImageUrl ?? apparel.imageUrl ?? null}
         minPrice={apparel.minPrice ?? 0}
         listingCountText={apparel.listingCountText ?? ''}
         productNumber={apparel.productNumber ?? ''}

@@ -25,6 +25,8 @@ export interface SnkrdunkApparel {
   name: string;
   localizedName: string;
   imageUrl: string | null;
+  /** 자체 CDN 캐싱 webp 경로. 서버 라우트가 채움. 미캐싱이면 없음 → imageUrl 폴백. */
+  cdnImageUrl?: string | null;
   itemKind: SnkrdunkItemKind;
   minPrice: number;
   regularPrice: number;
