@@ -106,11 +106,22 @@ export function KreamCompare({ query, snkrPriceJpy, cardNumber, setCode, rarity 
         <span className="more">SNKRDUNK vs 크림</span>
       </div>
       <Panel style={{ padding: 16 }}>
+        {/* 비교 기준 — 양쪽 모두 RAW(비등급) 동일 기준. */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+          <span
+            style={{
+              fontFamily: 'var(--f1)', fontSize: 9, fontWeight: 800, letterSpacing: 0.3,
+              color: 'var(--grn)', background: 'var(--pap2)', padding: '4px 11px', borderRadius: 'var(--r-pill)',
+            }}
+          >
+            RAW · 비등급 기준 비교
+          </span>
+        </div>
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 10 }}>
           {/* SNKRDUNK */}
           <Col
             name="SNKRDUNK"
-            sub="최근 거래가(엔화 환산)"
+            sub="RAW 최근거래가 · 엔화환산"
             price={fmtKrw(snkrKrw)}
             highlight={cmp?.cheaper === 'snkr'}
           />
@@ -118,7 +129,7 @@ export function KreamCompare({ query, snkrPriceJpy, cardNumber, setCode, rarity 
           {/* KREAM */}
           <Col
             name="크림 KREAM"
-            sub="즉시판매가"
+            sub="RAW 즉시판매가"
             price={state === 'loading' ? '조회 중…' : fmtKrw(kreamKrw)}
             highlight={cmp?.cheaper === 'kream'}
             href={item?.productUrl}

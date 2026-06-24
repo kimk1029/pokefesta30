@@ -173,6 +173,9 @@ export function CardDetailView({
     return (m.length > 0 ? m : trades).slice(0, 20);
   }, [trades, gradeKey]);
 
+  // 거래가 있는 등급만 — 거래내역 등급 토글 노출용(PSA10·RAW 등 전환).
+  const tradeGrades = useMemo(() => grades.filter((g) => g.count > 0), [grades]);
+
   return (
     <>
       {/* ── HERO ───────────────────────────────────────────── */}
@@ -357,12 +360,38 @@ export function CardDetailView({
         </Panel>
       </div>
 
-      {/* ── 최근 거래 내역 (실데이터, 등급 필터) ─────────────── */}
+      {/* ── 최근 거래 내역 (실데이터, 등급 전환) ─────────────── */}
       <div className="sect">
         <div className="sect-hd">
-          <h2>최근 거래 내역 ({gradeKey})</h2>
+          <h2>최근 거래 내역</h2>
           <span className="more">{filteredTrades.length}건</span>
         </div>
+        {/* 등급 토글 — 거래가 있는 등급(PSA10/RAW 등)만 노출, 바꿔서 볼 수 있게. */}
+        {tradeGrades.length > 1 && (
+          <div className="hrow" style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 10 }}>
+            {tradeGrades.map((g) => {
+              const active = g.key === gradeKey;
+              const c = GRADE_COLORS[g.key] ?? 'var(--ink)';
+              return (
+                <button
+                  key={g.key}
+                  type="button"
+                  onClick={() => setGradeKey(g.key)}
+                  style={{
+                    flex: 'none', whiteSpace: 'nowrap', cursor: 'pointer',
+                    fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 800, letterSpacing: 0.2,
+                    padding: '6px 13px', borderRadius: 'var(--r-pill)',
+                    border: `1.5px solid ${active ? c : 'var(--pap3)'}`,
+                    background: active ? c : 'transparent',
+                    color: active ? 'var(--white)' : 'var(--ink3)',
+                  }}
+                >
+                  {g.key} · {g.count}건
+                </button>
+              );
+            })}
+          </div>
+        )}
         <Panel style={{ padding: '6px 14px' }}>
           {filteredTrades.length > 0 ? (
             filteredTrades.map((t, i, arr) => {
@@ -467,8 +496,10 @@ function GradeRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-/** 간단한 SVG 라인 차트 — 테마 색(var) 사용. */
+/** SVG 라인 차트 — Y축 눈금 라벨 + 호버 툴팁/가이드. 테마 색(var) 사용. */
 function MiniChart({ points }: { points: Array<[number, number]> }) {
+  const [hover, setHover] = useState<number | null>(null);
+
   if (points.length < 2) {
     return (
       <div style={{ height: 184, display: 'grid', placeItems: 'center', fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)' }}>
@@ -479,7 +510,7 @@ function MiniChart({ points }: { points: Array<[number, number]> }) {
   const W = 800;
   const H = 184;
   const PAD_T = 14;
-  const PAD_B = 24;
+  const PAD_B = 14;
   const innerH = H - PAD_T - PAD_B;
   const xs = points.map((p) => p[0]);
   const ys = points.map((p) => p[1]);
@@ -500,23 +531,84 @@ function MiniChart({ points }: { points: Array<[number, number]> }) {
     return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
   };
 
+  // Y축 눈금 (위=최고 → 아래=최저).
+  const TICKS = [0, 0.25, 0.5, 0.75, 1];
+  const tickValue = (t: number) => maxY - t * rangeY;
+
+  // 호버 — 마우스/터치 X → 가장 가까운 데이터 인덱스.
+  const n = points.length;
+  const pickX = (clientX: number, rect: DOMRect) => {
+    const rel = Math.max(0, Math.min(1, (clientX - rect.left) / (rect.width || 1)));
+    setHover(Math.round(rel * (n - 1)));
+  };
+  const hp = hover != null ? points[hover] : null;
+  const hxPct = hp ? (hover! / (n - 1)) * 100 : 0;
+  const hyPx = hp ? yOf(hp[1]) : 0; // viewBox y == px (SVG 높이 H 고정)
+  const tipFlip = hxPct > 58;
+
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: 'block' }} aria-label="가격 추이 차트">
-        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-          <line key={t} x1={0} y1={PAD_T + t * innerH} x2={W} y2={PAD_T + t * innerH} stroke="var(--pap3)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-        ))}
-        <defs>
-          <linearGradient id="cdArea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.22" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#cdArea)" />
-        <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        <circle cx={xOf(maxX)} cy={yOf(ys[ys.length - 1])} r="4" fill={color} stroke="var(--white)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: 0.3 }}>
+      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+        {/* Y축 라벨 */}
+        <div style={{ position: 'relative', width: 48, height: H, flex: 'none' }}>
+          {TICKS.map((t) => (
+            <div
+              key={t}
+              style={{
+                position: 'absolute', right: 6, top: PAD_T + t * innerH, transform: 'translateY(-50%)',
+                fontFamily: 'var(--f1)', fontSize: 8.5, color: 'var(--ink3)', whiteSpace: 'nowrap', letterSpacing: 0.2,
+              }}
+            >
+              <Price jpy={tickValue(t)} />
+            </div>
+          ))}
+        </div>
+
+        {/* 차트 영역 */}
+        <div
+          style={{ position: 'relative', flex: 1, height: H, cursor: 'crosshair' }}
+          onMouseMove={(e) => pickX(e.clientX, e.currentTarget.getBoundingClientRect())}
+          onMouseLeave={() => setHover(null)}
+          onTouchStart={(e) => e.touches[0] && pickX(e.touches[0].clientX, e.currentTarget.getBoundingClientRect())}
+          onTouchMove={(e) => e.touches[0] && pickX(e.touches[0].clientX, e.currentTarget.getBoundingClientRect())}
+        >
+          <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: 'block' }} aria-label="가격 추이 차트">
+            {TICKS.map((t) => (
+              <line key={t} x1={0} y1={PAD_T + t * innerH} x2={W} y2={PAD_T + t * innerH} stroke="var(--pap3)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+            ))}
+            <defs>
+              <linearGradient id="cdArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+                <stop offset="100%" stopColor={color} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d={area} fill="url(#cdArea)" />
+            <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            <circle cx={xOf(maxX)} cy={yOf(ys[ys.length - 1])} r="4" fill={color} stroke="var(--white)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          </svg>
+
+          {/* 호버 가이드 + 점 + 툴팁 (HTML 오버레이) */}
+          {hp && (
+            <>
+              <div style={{ position: 'absolute', left: `${hxPct}%`, top: 0, bottom: 0, width: 1, background: 'var(--ink3)', opacity: 0.45, transform: 'translateX(-0.5px)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', left: `${hxPct}%`, top: hyPx, width: 9, height: 9, borderRadius: '50%', background: color, border: '2px solid var(--white)', transform: 'translate(-50%, -50%)', pointerEvents: 'none', boxShadow: '0 0 0 1px var(--pap3)' }} />
+              <div
+                style={{
+                  position: 'absolute', left: `${hxPct}%`, top: 2,
+                  transform: `translateX(${tipFlip ? '-104%' : '4%'})`,
+                  background: 'var(--ink)', color: 'var(--white)', fontFamily: 'var(--f1)',
+                  padding: '5px 8px', borderRadius: 6, whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 2,
+                }}
+              >
+                <div style={{ fontSize: 8.5, opacity: 0.8, letterSpacing: 0.3 }}>{fmtDate(hp[0])}</div>
+                <div style={{ fontSize: 11, fontWeight: 800, marginTop: 2 }}><Price jpy={hp[1]} /></div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, marginLeft: 48, fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', letterSpacing: 0.3 }}>
         <span>{fmtDate(minX)} ~ {fmtDate(maxX)}</span>
         <span>최저 <Price jpy={minY} /> · 최고 <Price jpy={maxY} /></span>
       </div>
