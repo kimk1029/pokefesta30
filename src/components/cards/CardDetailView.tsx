@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTheme } from '@/components/ThemeProvider';
 import { Panel } from '@/components/ui/Panel';
 import { Price } from '@/components/Price';
 import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
@@ -499,6 +500,9 @@ function GradeRow({ label, value }: { label: string; value: React.ReactNode }) {
 /** SVG 라인 차트 — Y축 눈금 라벨 + 호버 툴팁/가이드. 테마 색(var) 사용. */
 function MiniChart({ points }: { points: Array<[number, number]> }) {
   const [hover, setHover] = useState<number | null>(null);
+  const { theme } = useTheme();
+  // 픽셀 폰트(pokemon·sports)는 폭이 넓어 Y축 라벨이 컨테이너 밖으로 나간다 → -2pt.
+  const axisFont = theme === 'pokemon' || theme === 'sports' ? 6.5 : 8.5;
 
   if (points.length < 2) {
     return (
@@ -556,7 +560,7 @@ function MiniChart({ points }: { points: Array<[number, number]> }) {
               key={t}
               style={{
                 position: 'absolute', right: 6, top: PAD_T + t * innerH, transform: 'translateY(-50%)',
-                fontFamily: 'var(--f1)', fontSize: 8.5, color: 'var(--ink3)', whiteSpace: 'nowrap', letterSpacing: 0.2,
+                fontFamily: 'var(--f1)', fontSize: axisFont, color: 'var(--ink3)', whiteSpace: 'nowrap', letterSpacing: 0.2,
               }}
             >
               <Price jpy={tickValue(t)} />

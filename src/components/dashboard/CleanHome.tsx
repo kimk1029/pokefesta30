@@ -264,6 +264,8 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
   // 빠른 스캔 타일을 픽셀 입체 박스로 — 웹 .card 가 픽셀로 남는 테마(pokemon·sports)에만.
   // (yugioh·onepiece·clean·dark 는 globals.css 에서 .card 를 플랫 처리하므로 제외.)
   const pixelTiles = theme === 'pokemon' || theme === 'sports';
+  // 픽셀 폰트(Press Start 2P/Galmuri) 테마 — 폰트 폭이 넓어 가격·등락률 글씨를 줄인다.
+  const pixel = pixelTiles;
 
   const fmtPrice = (jpy: number) => (jpy > 0 ? format(jpy) : '—');
 
@@ -420,7 +422,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
                   </div>
                   <div
                     style={{
-                      fontSize: 15, fontWeight: 900, color: P.ink, marginTop: 4, letterSpacing: '-.3px',
+                      fontSize: pixel ? 13 : 15, fontWeight: 900, color: P.ink, marginTop: 4, letterSpacing: '-.3px',
                       fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}
                   >
@@ -429,7 +431,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
                   {(() => {
                     const pc = pctInfo(c.changePct, P);
                     return pc ? (
-                      <div style={{ fontSize: 12, fontWeight: 800, color: pc.color, marginTop: 2 }}>{pc.text}</div>
+                      <div style={{ fontSize: pixel ? 9 : 12, fontWeight: 800, color: pc.color, marginTop: 2, whiteSpace: 'nowrap' }}>{pc.text}</div>
                     ) : null;
                   })()}
                 </Link>
@@ -498,7 +500,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
                 </div>
                 <div style={{ textAlign: 'right', flex: 'none' }}>
                   <div style={{ fontSize: 14.5, fontWeight: 900, color: P.ink, letterSpacing: '-.3px', fontVariantNumeric: 'tabular-nums' }}>{fmtPrice(m.minPrice)}</div>
-                  {pc ? <div style={{ fontSize: 12.5, fontWeight: 800, color: pc.color, marginTop: 3 }}>{pc.text}</div> : null}
+                  {pc ? <div style={{ fontSize: pixel ? 9.5 : 12.5, fontWeight: 800, color: pc.color, marginTop: 3, whiteSpace: 'nowrap' }}>{pc.text}</div> : null}
                 </div>
               </Link>
             );
