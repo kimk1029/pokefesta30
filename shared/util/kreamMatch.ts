@@ -94,6 +94,8 @@ interface Scored {
   score: number;
   /** setCode/cardNumber/rarity 중 하나라도 검증됐는지. */
   strong: boolean;
+  /** 이름에 포함된 query 토큰 수 (폴백 매칭 임계용). */
+  nameHits: number;
 }
 
 function scoreItem(it: KreamItemLite, tokens: string[], hints: KreamHints): Scored {
@@ -101,8 +103,14 @@ function scoreItem(it: KreamItemLite, tokens: string[], hints: KreamHints): Scor
   const up = it.name.toUpperCase();
   let score = 0;
   let strong = false;
+  let nameHits = 0;
 
-  for (const t of tokens) if (n.includes(norm(t))) score += 1;
+  for (const t of tokens) {
+    if (n.includes(norm(t))) {
+      score += 1;
+      nameHits += 1;
+    }
+  }
 
   const cn = hints.cardNumber ? stripZeros(hints.cardNumber) : null;
   if (cn && nameHasNumber(it.name, cn)) {
@@ -119,14 +127,20 @@ function scoreItem(it: KreamItemLite, tokens: string[], hints: KreamHints): Scor
   }
   if (it.price > 0) score += 0.5; // 가격 있는 매물 우대
 
-  return { item: it, score, strong };
+  return { item: it, score, strong, nameHits };
 }
 
 /**
  * 검색 결과에서 카드와 가장 잘 맞는 항목을 선택.
- * 힌트(setCode/cardNumber/rarity)가 있으면 그걸 검증한 항목만 후보로 두고,
- * 어떤 항목도 검증하지 못하면 null(매칭 없음).
- * 힌트가 전혀 없으면 기존처럼 이름 토큰 점수로 1등을 고른다.
+ *
+ * 2단계:
+ *   ① 강한 매칭 우선 — setCode/cardNumber/rarity 중 하나라도 검증된 항목이 있으면
+ *      그 중 점수 1등. (가장 정확)
+ *   ② 강한 매칭이 없으면 이름 매칭으로 폴백 — query 토큰을 충분히(2토큰 이상 질의는
+ *      최소 2개) 포함하는 매물 중 점수 1등. KREAM 상품명은 서술형 한글명이라
+ *      번호/세트코드를 거의 안 담으므로, ①만 고집하면 멀쩡한 카드도 못 잡는다.
+ *      (점수에 rarity/setCode 부분일치 가산이 있어 폴백도 같은 등급을 우선한다.)
+ *   둘 다 실패하면 null.
  */
 export function bestKreamMatch(
   items: KreamItemLite[],
@@ -136,13 +150,19 @@ export function bestKreamMatch(
   if (items.length === 0) return null;
   const tokens = query.split(/\s+/).filter((t) => t.length >= 2);
   const h: KreamHints = hints ?? {};
-  const haveHints = !!(h.cardNumber || h.setCode || h.rarity);
 
   const scored = items.map((it) => scoreItem(it, tokens, h));
-  const pool = haveHints ? scored.filter((s) => s.strong) : scored;
-  if (pool.length === 0) return null; // 힌트 있는데 검증된 결과 없음 → 폴백
+  const pickBest = (arr: Scored[]): KreamItemLite =>
+    arr.reduce((a, b) => (b.score > a.score ? b : a)).item;
 
-  let best = pool[0];
-  for (const s of pool) if (s.score > best.score) best = s;
-  return best.item;
+  // ① 강한 매칭(번호/세트/등급 검증)
+  const strong = scored.filter((s) => s.strong);
+  if (strong.length > 0) return pickBest(strong);
+
+  // ② 이름 매칭 폴백 — 최소 토큰 수 충족 + 가격 있는 매물만.
+  const minHits = tokens.length >= 2 ? 2 : 1;
+  const named = scored.filter((s) => s.nameHits >= minHits && s.item.price > 0);
+  if (named.length > 0) return pickBest(named);
+
+  return null;
 }
