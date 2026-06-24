@@ -104,3 +104,95 @@ export async function getCachedCardImageUrl(apparelId) {
     return null;
   }
 }
+
+/* ── 일괄 워밍 (카탈로그 backfill) ───────────────────────────────── */
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** 워밍 진행 상태 (어드민 상태표시용, 인메모리). */
+const WARM = { running: false, total: 0, done: 0, failed: 0, startedAt: null, finishedAt: null };
+
+export function getWarmState() {
+  return { ...WARM };
+}
+
+/**
+ * 카탈로그에서 cdnImageUrl 이 비어있는(미캐싱) 카드를 throttle 걸어 일괄 워밍.
+ * concurrency 동시 + 배치 사이 delay 로 스니덩 부담 최소화. 중복 실행 가드.
+ * lazy 캐싱이 인기 카드를 이미 덮으므로 이건 롱테일을 채운다.
+ *
+ * @param {{limit?:number, concurrency?:number, batchDelayMs?:number, missingOnly?:boolean}} opts
+ */
+export async function warmCatalogImages(opts = {}) {
+  const { limit = 200, concurrency = 3, batchDelayMs = 300, missingOnly = true } = opts;
+  if (WARM.running) return { ...WARM, skipped: true };
+
+  let cards;
+  try {
+    cards = await prisma.snkrdunkCard.findMany({
+      where: missingOnly
+        ? { cdnImageUrl: null, imageUrl: { not: null } }
+        : { imageUrl: { not: null } },
+      select: { apparelId: true, imageUrl: true },
+      orderBy: { updatedAt: 'desc' }, // 최근 갱신(=인기) 카드 우선
+      take: Math.max(1, Math.min(5000, limit)),
+    });
+  } catch (err) {
+    console.error('[cardImageCache.warm] query', err?.message || err);
+    return { ...WARM, error: true };
+  }
+
+  WARM.running = true;
+  WARM.total = cards.length;
+  WARM.done = 0;
+  WARM.failed = 0;
+  WARM.startedAt = Date.now();
+  WARM.finishedAt = null;
+  console.log(`[cardImageCache.warm] start: ${cards.length} cards (conc ${concurrency})`);
+
+  try {
+    for (let i = 0; i < cards.length; i += concurrency) {
+      const batch = cards.slice(i, i + concurrency);
+      await Promise.all(
+        batch.map((c) =>
+          ensureCardImage(c.apparelId, c.imageUrl)
+            .then(() => {
+              WARM.done += 1;
+            })
+            .catch(() => {
+              WARM.failed += 1;
+            }),
+        ),
+      );
+      if (i + concurrency < cards.length) await sleep(batchDelayMs);
+    }
+  } finally {
+    WARM.running = false;
+    WARM.finishedAt = Date.now();
+    console.log(`[cardImageCache.warm] done: ${WARM.done} ok / ${WARM.failed} fail`);
+  }
+  return { ...WARM };
+}
+
+/**
+ * 부팅 후 + 매일 1회, 미캐싱 카드를 bounded 하게 점진 워밍.
+ * CARD_WARM_DISABLED=1 로 끄고, CARD_WARM_BATCH 로 1회 처리량 조절.
+ */
+let warmTimer = null;
+export function startCardImageWarmer({
+  intervalMs = 24 * 60 * 60_000,
+  bootDelayMs = 90_000,
+} = {}) {
+  if (process.env.CARD_WARM_DISABLED === '1') {
+    console.log('[cardImageCache.warm] disabled (CARD_WARM_DISABLED=1)');
+    return;
+  }
+  if (warmTimer) return;
+  const batchLimit = Number(process.env.CARD_WARM_BATCH) || 200;
+  setTimeout(() => void warmCatalogImages({ limit: batchLimit }), bootDelayMs);
+  warmTimer = setInterval(() => void warmCatalogImages({ limit: batchLimit }), intervalMs);
+  if (typeof warmTimer.unref === 'function') warmTimer.unref();
+  console.log(`[cardImageCache.warm] scheduler started (daily, ${batchLimit}/run)`);
+}

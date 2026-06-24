@@ -4,6 +4,7 @@ import { put } from '@vercel/blob';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { warmCatalogImages, getWarmState } from '../lib/cardImageCache.js';
 
 const SLIDE_CLASSES = ['slide-a', 'slide-b', 'slide-c', 'slide-d'] as const;
 const VISUAL_TYPES = ['emoji', 'image'] as const;
@@ -114,6 +115,32 @@ function validateBanner(
 
 const router = Router();
 router.use(requireAdmin);
+
+/* ── 카드 이미지 자체 CDN: 커버리지 상태 + 일괄 워밍 ─────────────── */
+
+// 카탈로그 CDN 캐싱 현황 + 진행중 워밍 상태.
+router.get('/cards/cdn-status', async (_req: Request, res: Response) => {
+  try {
+    const [total, cached] = await Promise.all([
+      prisma.snkrdunkCard.count({ where: { imageUrl: { not: null } } }),
+      prisma.snkrdunkCard.count({ where: { cdnImageUrl: { not: null } } }),
+    ]);
+    res.json({ total, cached, missing: Math.max(0, total - cached), warm: getWarmState() });
+  } catch (err) {
+    console.error('[admin.cards.cdn-status]', err);
+    res.status(500).json({ error: 'internal' });
+  }
+});
+
+// 미캐싱 카드 일괄 워밍 시작(throttle). 백그라운드 — 즉시 응답.
+router.post('/cards/warm-images', async (req: Request, res: Response) => {
+  const limit = Number((req.body ?? {}).limit) || 500;
+  const missingOnly = (req.body ?? {}).missingOnly !== false;
+  const state = getWarmState();
+  if (state.running) return res.json({ ok: true, alreadyRunning: true, warm: state });
+  void warmCatalogImages({ limit, missingOnly });
+  res.json({ ok: true, started: true, limit, missingOnly });
+});
 
 router.get('/banners', async (_req: Request, res: Response) => {
   try {

@@ -23,7 +23,7 @@ import { lookupIllustrator, searchTcgdexByIllustrator } from './lib/illustrator.
 import { dominantNeonForUrl } from './lib/imageColor.js';
 import { matchSnkrdunkForCard } from './lib/snkrdunkMatch.js';
 import { prisma } from './lib/prisma.js';
-import { CARD_CDN_DIR } from './lib/cardImageCache.js';
+import { CARD_CDN_DIR, startCardImageWarmer } from './lib/cardImageCache.js';
 import { fetchApparelSingleJpy } from '@/lib/snkrdunkPrice';
 import { buildCors } from './middleware/cors.js';
 import { requireAdmin } from './middleware/requireAdmin.js';
@@ -735,6 +735,8 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`OCR server listening http://localhost:${PORT}  vision=${visionAvailable() ? 'on' : 'off'}`);
   // 가격 알림 주기 점검 시작(단일 서버 인스턴스 내 setInterval).
   startPriceAlertScheduler();
+  // 카드 이미지 자체 CDN 워밍 — 부팅 후 + 매일, 미캐싱 카드 점진 backfill.
+  startCardImageWarmer();
 });
 
 const exit = async () => {
