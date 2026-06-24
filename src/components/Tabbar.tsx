@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LineIcon, type LineIconName } from './Icons';
 import { useTheme } from './ThemeProvider';
 import { useNavPrefs } from './NavPrefsProvider';
@@ -47,6 +47,12 @@ export function Tabbar(_props: { onFab?: () => void } = {}) {
   const [ballAnim, setBallAnim] = useState(false);
   const { theme } = useTheme();
   const { navStyle } = useNavPrefs();
+  // navStyle 은 마운트 후 localStorage 에서 로드된다. 그 전(SSR/첫 페인트)엔 기본값
+  // (통합형) 바가 잠깐 그려져 플로팅 사용자에게 풀바 배경·상하 보더가 깜빡인다.
+  // 마운트 전까지 숨겨(visibility) 잘못된 바가 보이지 않게 한다(레이아웃은 유지).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const hideUntilReady = mounted ? undefined : ('hidden' as const);
 
   const handleFabClick = () => {
     setBallAnim(false);
@@ -56,7 +62,7 @@ export function Tabbar(_props: { onFab?: () => void } = {}) {
   // ── 분리형(플로팅) ── 아이콘만(라벨 숨김) + 가운데 강조 버튼을 바 안으로(돌출 X).
   if (navStyle === 'floating') {
     return (
-      <nav className="tabbar tabbar--floating" aria-label="하단 네비게이션">
+      <nav className="tabbar tabbar--floating" aria-label="하단 네비게이션" style={{ visibility: hideUntilReady }}>
         {TABS.map((t) => {
           const on = active === t.id;
           if (t.fab) {
@@ -81,7 +87,7 @@ export function Tabbar(_props: { onFab?: () => void } = {}) {
   }
 
   return (
-    <div className="tabbar">
+    <div className="tabbar" style={{ visibility: hideUntilReady }}>
       {TABS.map((t) => {
         const cls = ['tab', active === t.id ? 'on' : '', t.fab ? 'fab-tab' : '']
           .filter(Boolean)
