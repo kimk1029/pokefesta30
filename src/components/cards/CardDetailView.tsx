@@ -6,6 +6,7 @@ import { Price } from '@/components/Price';
 import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
 import { CardActions } from '@/components/CardActions';
 import { KreamCompare } from '@/components/cards/KreamCompare';
+import { MultiSourceKoPrice } from '@/components/cards/MultiSourceKoPrice';
 import { downsamplePricePoints, isGradedSnkrdunkBadge } from '@/lib/snkrdunk';
 
 /**
@@ -245,7 +246,7 @@ export function CardDetailView({
       {/* ── 지역 탭 (일본판 실데이터 / 그 외 준비 중) ───────────── */}
       <div style={{ display: 'flex', gap: 8, padding: '6px var(--gap) 0', borderBottom: '1px solid var(--pap3)' }}>
         {['일본판', '한국판', '북미판'].map((r) => {
-          const ready = r === '일본판';
+          const ready = r === '일본판' || r === '한국판';
           const active = region === r;
           return (
             <button
@@ -268,6 +269,19 @@ export function CardDetailView({
         })}
       </div>
 
+      {/* 한국판 — 멀티소스 체결/판매가 집계 (코드+번호+등급 매칭) */}
+      {region === '한국판' && (
+        <MultiSourceKoPrice
+          name={koName}
+          setCode={kreamSetCode}
+          cardNumber={kreamCardNumber}
+          rarity={kreamRarity}
+        />
+      )}
+
+      {/* 일본판 — SNKRDUNK 등급·차트·거래내역 */}
+      {region === '일본판' && (
+        <>
       {/* ── 등급 카드 (가로 스크롤) ─────────────────────────── */}
       <div className="hrow" style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '14px var(--gap) 6px' }}>
         {grades.map((g) => {
@@ -395,6 +409,17 @@ export function CardDetailView({
           <ComingSoon height={72} />
         </Panel>
       </div>
+        </>
+      )}
+
+      {/* 북미판 — eBay/Scrydex 준비 중 */}
+      {region === '북미판' && (
+        <div className="sect">
+          <Panel style={{ padding: 14 }}>
+            <ComingSoon height={72} />
+          </Panel>
+        </div>
+      )}
 
       {/* ── 가격 알림 — 앱 전용. 웹은 간략 안내만. ─────────────── */}
       <div className="sect">
