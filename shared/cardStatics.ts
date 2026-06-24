@@ -60,6 +60,17 @@ export function parseCardStatics(name: string, productNumber?: string | null): P
   const rarity = src.match(RARITY_RE)?.[1]?.toUpperCase() ?? null;
   const keywordGame = gameFromKeywords(src);
 
+  // 0) 포켓몬 스니덩 구조화 코드 — 숫자 없는 세트코드(MC 등)까지 잡는다.
+  //    품번 "pkmn-tcg-MC-765" 또는 이름 "[MC 765/742]" 형식.
+  const pkProd = src.match(/pkmn-tcg-(.+?)-(\d{1,4})\b/i);
+  if (pkProd) {
+    return { setCode: pkProd[1].toUpperCase(), cardNumber: pkProd[2], rarity, game: keywordGame ?? 'pokemon' };
+  }
+  const pkBracket = name.match(/\[([A-Za-z][A-Za-z0-9-]{0,5})\s+(\d{1,4})\s*\/\s*\d{1,4}\]/);
+  if (pkBracket && keywordGame !== 'onepiece' && keywordGame !== 'yugioh') {
+    return { setCode: pkBracket[1].toUpperCase(), cardNumber: pkBracket[2], rarity, game: keywordGame ?? 'pokemon' };
+  }
+
   // 1) 원피스 — 코드 형식이 가장 명확.
   const op = src.match(ONEPIECE_RE);
   if (op) {

@@ -72,6 +72,17 @@ export function parseKreamHints(...texts: Array<string | null | undefined>): Kre
     }
   }
 
+  // 구조화 코드 우선 — 숫자 없는 세트코드(MC 등)까지: 품번 "pkmn-tcg-MC-765"
+  // 또는 이름 "[MC 765/742]". (스니덩 포켓몬 표기)
+  const prod = joined.match(/pkmn-tcg-(.+?)-(\d{1,4})\b/i);
+  const bracket = joined.match(/\[([A-Za-z][A-Za-z0-9-]{0,5})\s+(\d{1,4})\s*\/\s*\d{1,4}\]/);
+  if (prod) {
+    return { cardNumber: prod[2], setCode: prod[1].toUpperCase(), rarity };
+  }
+  if (bracket) {
+    return { cardNumber: bracket[2], setCode: bracket[1].toUpperCase(), rarity };
+  }
+
   // 콜렉터 번호 — "059/165", "201 / SV-P" 형태의 좌측값.
   const numMatch = joined.match(/(\d{1,3})\s*\/\s*[0-9A-Za-z-]{1,6}/);
   const cardNumber = numMatch ? numMatch[1] : null;
