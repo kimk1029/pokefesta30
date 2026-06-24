@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { View, ScrollView, Pressable, Text, Image, Animated, Easing } from 'react-native';
+import { View, ScrollView, Pressable, Text, TextInput, Image, Animated, Easing } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { router } from 'expo-router';
 import { HeroBanner, type HeroSlideData } from '@/components/HeroBanner';
@@ -283,6 +283,13 @@ export function CleanHomeScreen() {
 
   const fmtPrice = (jpy: number) => (jpy > 0 ? format(jpy) : '—');
 
+  // 홈 검색 — 직접 타이핑 → 검색 화면에 결과(?q=).
+  const [homeQuery, setHomeQuery] = useState('');
+  const submitSearch = () => {
+    const q = homeQuery.trim();
+    if (q) router.push(`/cards/snkrdunk/search?q=${encodeURIComponent(q)}` as never);
+  };
+
   const [snkrRows, setSnkrRows] = useState<SnkrRow[]>([]);
   useEffect(() => {
     let alive = true;
@@ -430,34 +437,47 @@ export function CleanHomeScreen() {
         {/* search — 픽셀: 직각 PixelFrame 박스 / 플랫: 둥근 소프트 타일 */}
         <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 14 }}>
           {pixel ? (
-            <Pressable onPress={() => router.push('/cards/snkrdunk/search' as never)}>
-              <PixelFrame borderWidth={3} shadow={5} inner={3}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: tc.white, paddingVertical: 12, paddingHorizontal: 14 }}>
-                  <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={2.4} strokeLinecap="round">
-                    <Circle cx={11} cy={11} r={7} />
-                    <Path d="m20 20-3.5-3.5" />
-                  </Svg>
-                  <Text style={[ts(13, '700', P.ink3), { flex: 1 }]}>카드명·세트명 검색</Text>
-                  <View style={{ width: 30, height: 30, backgroundColor: tc.ink, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={ts(13, '800', tc.gold)}>▶</Text>
-                  </View>
-                </View>
-              </PixelFrame>
-            </Pressable>
+            <PixelFrame borderWidth={3} shadow={5} inner={3}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: tc.white, paddingVertical: 8, paddingHorizontal: 14 }}>
+                <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={2.4} strokeLinecap="round">
+                  <Circle cx={11} cy={11} r={7} />
+                  <Path d="m20 20-3.5-3.5" />
+                </Svg>
+                <TextInput
+                  value={homeQuery}
+                  onChangeText={setHomeQuery}
+                  onSubmitEditing={submitSearch}
+                  returnKeyType="search"
+                  placeholder="카드명·세트명 검색"
+                  placeholderTextColor={P.ink3}
+                  style={{ flex: 1, padding: 0, fontFamily: fontReg, fontSize: 13, color: P.ink }}
+                />
+                <Pressable onPress={submitSearch} hitSlop={6} style={{ width: 30, height: 30, backgroundColor: tc.ink, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={ts(13, '800', tc.gold)}>▶</Text>
+                </Pressable>
+              </View>
+            </PixelFrame>
           ) : (
-            <Pressable
-              onPress={() => router.push('/cards/snkrdunk/search' as never)}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: P.searchBg, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16 }}
-            >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: P.searchBg, borderRadius: 14, paddingVertical: 6, paddingHorizontal: 16 }}>
               <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={2.2} strokeLinecap="round">
                 <Circle cx={11} cy={11} r={7} />
                 <Path d="m20 20-3.5-3.5" />
               </Svg>
-              <Text style={[ts(14.5, '400', P.ink3), { flex: 1 }]}>카드명 또는 세트명으로 검색하세요</Text>
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-                <Path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
-              </Svg>
-            </Pressable>
+              <TextInput
+                value={homeQuery}
+                onChangeText={setHomeQuery}
+                onSubmitEditing={submitSearch}
+                returnKeyType="search"
+                placeholder="카드명 또는 세트명으로 검색하세요"
+                placeholderTextColor={P.ink3}
+                style={{ flex: 1, padding: 0, fontFamily: fontReg, fontSize: 14.5, color: P.ink }}
+              />
+              <Pressable onPress={submitSearch} hitSlop={6}>
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+                  <Path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
+                </Svg>
+              </Pressable>
+            </View>
           )}
         </View>
 

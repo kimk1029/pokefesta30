@@ -6,6 +6,7 @@ import { useCurrency } from '@/components/CurrencyProvider';
 import { useUnread } from '@/components/UnreadProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
+import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import type { SnkrdunkRow } from '@/components/dashboard/DashboardScreen';
 import { HomeMvcAuctions } from '@/components/dashboard/HomeMvcAuctions';
@@ -339,21 +340,9 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
         </Link>
       </div>
 
-      {/* search */}
+      {/* search — 직접 타이핑 검색(Enter/▶ → /cards/snkrdunk/search?q=). 카메라 스캔은 인풋 내장. */}
       <div style={{ padding: '6px 20px 14px' }}>
-        <Link
-          href="/cards/snkrdunk/search"
-          style={{ display: 'flex', alignItems: 'center', gap: 10, background: P.searchBg, borderRadius: 14, padding: '13px 16px', textDecoration: 'none' }}
-        >
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth="2.2" strokeLinecap="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-          <span style={{ flex: 1, fontSize: 14.5, color: P.ink3 }}>카드명 또는 세트명으로 검색하세요</span>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
-          </svg>
-        </Link>
+        <HomeKoSearchBar />
       </div>
 
       {/* promo banner — 실제 배너 데이터(HeroSlider). 비면 컴포넌트 내장 폴백 슬라이드. */}
