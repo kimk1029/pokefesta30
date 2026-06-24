@@ -519,10 +519,10 @@ export function CleanHomeScreen() {
                     </View>
                   </CardArt>
                   <Text numberOfLines={1} style={[ts(12.5, '700', P.ink), { marginTop: 9 }]}>{seed.shortName}</Text>
-                  <Text numberOfLines={1} style={[ts(15, '900', P.ink), { marginTop: 4, letterSpacing: -0.3 }]}>{fmtPrice(data?.minPrice ?? 0)}</Text>
+                  <Text numberOfLines={1} style={[ts(flat ? 15 : 13, '900', P.ink), { marginTop: 4, letterSpacing: -0.3 }]}>{fmtPrice(data?.minPrice ?? 0)}</Text>
                   {(() => {
                     const pc = pctInfo(changeById[seed.apparelId], P);
-                    return pc ? <Text numberOfLines={1} style={[ts(12, '800', pc.color), { marginTop: 2 }]}>{pc.text}</Text> : null;
+                    return pc ? <Text numberOfLines={1} style={[ts(flat ? 12 : 9, '800', pc.color), { marginTop: 2 }]}>{pc.text}</Text> : null;
                   })()}
                 </Pressable>
               )}
@@ -585,7 +585,7 @@ export function CleanHomeScreen() {
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={ts(14.5, '900', P.ink)}>{fmtPrice(data?.minPrice ?? 0)}</Text>
-                      {pc ? <Text style={[ts(12.5, '800', pc.color), { marginTop: 3 }]}>{pc.text}</Text> : null}
+                      {pc ? <Text numberOfLines={1} style={[ts(flat ? 12.5 : 9.5, '800', pc.color), { marginTop: 3 }]}>{pc.text}</Text> : null}
                     </View>
                   </Pressable>
                 );

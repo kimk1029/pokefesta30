@@ -189,7 +189,7 @@ export function HeroBanner({ slides }: { slides: HeroSlideData[] }) {
   );
 
   return (
-    <View style={{ marginHorizontal: flat ? 20 : 14, marginBottom: 8 }}>
+    <View style={{ marginHorizontal: 0, marginBottom: 8 }}>
       {/* 픽셀 테마: PixelFrame 입체 테두리 + 면색 여백 / 플랫(클린·다크): 컨테이너 없이 슬라이드만 */}
       {flat ? (
         track
