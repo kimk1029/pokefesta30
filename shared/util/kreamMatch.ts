@@ -166,3 +166,42 @@ export function bestKreamMatch(
 
   return null;
 }
+
+/* ── 세트코드+번호 검색 (정확) ──────────────────────────────────── */
+
+/**
+ * KREAM 검색 키워드를 만든다.
+ * setCode + cardNumber 가 있으면 "sv11b 054" 처럼 코드로 검색 — KREAM 이 내부
+ * 메타로 정확한 카드만 필터해 변형(언어/미러)만 남는다(이름 매칭보다 훨씬 정확).
+ * 없으면 카드명으로 폴백.
+ */
+export function kreamSearchQuery(
+  hints: KreamHints,
+  fallbackName: string,
+): { q: string; byCode: boolean } {
+  const num = hints.cardNumber ? hints.cardNumber.split('/')[0].trim() : '';
+  if (hints.setCode && num) return { q: `${hints.setCode} ${num}`, byCode: true };
+  return { q: fallbackName, byCode: false };
+}
+
+/**
+ * 코드(setCode+번호)로 검색한 결과에서 1건 선별.
+ * 결과는 이미 그 카드로 한정돼 있으니 이름 토큰 매칭 대신:
+ *   ① 가격 있는 매물 → ② rarity 일치 우선 → ③ 기본판 우선(미러/특수볼/리버스 변형 뒤로).
+ * KREAM 관련도 순서를 유지하므로 후보 중 첫 항목이 보통 정본.
+ */
+const VARIANT_RE = /(미러|마스터볼|몬스터볼|리버스|mirror|reverse)/i;
+
+export function pickKreamByCode(items: KreamItemLite[], hints: KreamHints): KreamItemLite | null {
+  const priced = items.filter((it) => it.price > 0);
+  let pool = priced.length > 0 ? priced : items;
+  if (pool.length === 0) return null;
+
+  if (hints.rarity) {
+    const up = hints.rarity.toUpperCase();
+    const m = pool.filter((it) => hasToken(it.name.toUpperCase(), up));
+    if (m.length > 0) pool = m;
+  }
+  const base = pool.filter((it) => !VARIANT_RE.test(it.name));
+  return (base.length > 0 ? base : pool)[0];
+}

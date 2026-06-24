@@ -15,7 +15,7 @@
  * 모든 소스 호출은 allSettled 로 격리 — 한 소스가 죽어도 나머지는 반환된다.
  */
 import { fetchKreamSearch } from '@/lib/kream';
-import { bestKreamMatch } from '../../shared/util/kreamMatch';
+import { bestKreamMatch, kreamSearchQuery, pickKreamByCode } from '../../shared/util/kreamMatch';
 import { searchNaverShopping, naverShoppingEnabled } from './naverShopping.js';
 
 /** 체결가(낙찰/거래) vs 판매가(쇼핑몰 호가) 구분. */
@@ -63,12 +63,22 @@ const kreamAdapter: Adapter = {
   kind: '판매',
   enabled: true,
   async run(h) {
-    const items = await fetchKreamSearch(h.name);
-    const best = bestKreamMatch(items, h.name, {
+    const hints = {
       setCode: h.setCode ?? null,
       cardNumber: h.cardNumber ?? null,
       rarity: h.rarity ?? null,
-    });
+    };
+    // 코드(setCode+번호) 우선 검색 → 빈결과면 카드명 폴백.
+    const { q, byCode } = kreamSearchQuery(hints, h.name);
+    let items = await fetchKreamSearch(q);
+    let viaCode = byCode;
+    if (byCode && items.length === 0) {
+      items = await fetchKreamSearch(h.name);
+      viaCode = false;
+    }
+    const best = viaCode
+      ? pickKreamByCode(items, hints)
+      : bestKreamMatch(items, h.name, hints);
     if (!best || !best.price) return [];
     return [
       {

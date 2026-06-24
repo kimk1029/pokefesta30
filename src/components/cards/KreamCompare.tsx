@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Panel } from '@/components/ui/Panel';
 import { useCurrency } from '@/components/CurrencyProvider';
-import { bestKreamMatch, type KreamItemLite } from '../../../shared/util/kreamMatch';
+import {
+  bestKreamMatch,
+  kreamSearchQuery,
+  pickKreamByCode,
+  type KreamItemLite,
+} from '../../../shared/util/kreamMatch';
 
 /**
  * 시세 비교 — SNKRDUNK(엔화) vs KREAM(원화)를 원화로 환산해 나란히 보여준다.
@@ -36,33 +41,53 @@ export function KreamCompare({ query, snkrPriceJpy, cardNumber, setCode, rarity 
   const { rate } = useCurrency();
   const [state, setState] = useState<'loading' | 'done'>('loading');
   const [items, setItems] = useState<KreamItem[]>([]);
+  // 코드(setCode+번호) 검색으로 받은 결과인지 — 선별 로직이 갈린다.
+  const [viaCode, setViaCode] = useState(false);
+
+  // 코드 우선 검색 → 빈결과면 카드명으로 폴백.
+  const { q: searchKw, byCode } = useMemo(
+    () => kreamSearchQuery({ cardNumber, setCode, rarity }, query),
+    [cardNumber, setCode, rarity, query],
+  );
 
   useEffect(() => {
     let alive = true;
     setState('loading');
-    (async () => {
+    const getItems = async (kw: string): Promise<KreamItem[]> => {
       try {
-        const r = await fetch(`/api/kream/search?q=${encodeURIComponent(query)}`);
+        const r = await fetch(`/api/kream/search?q=${encodeURIComponent(kw)}`);
         const j = (await r.json()) as { items?: KreamItem[] };
-        if (!alive) return;
-        setItems(j.items ?? []);
+        return j.items ?? [];
       } catch {
-        if (alive) setItems([]);
-      } finally {
-        if (alive) setState('done');
+        return [];
       }
+    };
+    (async () => {
+      let its = await getItems(searchKw);
+      let code = byCode;
+      if (byCode && its.length === 0) {
+        its = await getItems(query); // 코드 검색 빈결과 → 이름 폴백
+        code = false;
+      }
+      if (!alive) return;
+      setItems(its);
+      setViaCode(code);
+      setState('done');
     })();
     return () => {
       alive = false;
     };
-  }, [query]);
+  }, [searchKw, byCode, query]);
 
   const item = useMemo(
-    () => bestKreamMatch(items, query, { cardNumber, setCode, rarity }),
-    [items, query, cardNumber, setCode, rarity],
+    () =>
+      viaCode
+        ? pickKreamByCode(items, { cardNumber, setCode, rarity })
+        : bestKreamMatch(items, query, { cardNumber, setCode, rarity }),
+    [items, viaCode, query, cardNumber, setCode, rarity],
   );
 
-  const searchUrl = `https://kream.co.kr/search?keyword=${encodeURIComponent(query)}`;
+  const searchUrl = `https://kream.co.kr/search?keyword=${encodeURIComponent(searchKw)}`;
   const snkrKrw = snkrPriceJpy > 0 ? snkrPriceJpy * rate : 0;
   const kreamKrw = item?.price ?? 0;
 
