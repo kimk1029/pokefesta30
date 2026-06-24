@@ -452,8 +452,11 @@ export function CleanHomeScreen() {
                   placeholderTextColor={P.ink3}
                   style={{ flex: 1, padding: 0, fontFamily: fontReg, fontSize: 13, color: P.ink }}
                 />
-                <Pressable onPress={submitSearch} hitSlop={6} style={{ width: 30, height: 30, backgroundColor: tc.ink, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={ts(13, '800', tc.gold)}>▶</Text>
+                <Pressable onPress={() => router.push('/scan' as never)} hitSlop={6} style={{ width: 30, height: 30, backgroundColor: tc.ink, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="카드 사진 스캔">
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={tc.gold} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+                    <Path d="M14.5 4h-5L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3l-2.5-3Z" />
+                    <Circle cx={12} cy={13} r={3.2} />
+                  </Svg>
                 </Pressable>
               </View>
             </PixelFrame>
@@ -472,9 +475,10 @@ export function CleanHomeScreen() {
                 placeholderTextColor={P.ink3}
                 style={{ flex: 1, padding: 0, fontFamily: fontReg, fontSize: 14.5, color: P.ink }}
               />
-              <Pressable onPress={submitSearch} hitSlop={6}>
+              <Pressable onPress={() => router.push('/scan' as never)} hitSlop={6} accessibilityLabel="카드 사진 스캔">
                 <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-                  <Path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
+                  <Path d="M14.5 4h-5L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3l-2.5-3Z" />
+                  <Circle cx={12} cy={13} r={3.2} />
                 </Svg>
               </Pressable>
             </View>
