@@ -9,12 +9,14 @@
  *   - TCGBox       : ⏸ 스텁 — Cafe24 EC-Front 가 상품을 JS(async)로 렌더 → AJAX 엔드포인트
  *                    역공학 또는 헤드리스 필요. enabled=false.
  *   - 네이버카페   : ⏸ 스텁 — 경매 낙찰가(=체결가). 카드별 키워드 검색 API 역공학 필요.
- *   - 네이버쇼핑   : 제외 — 안티봇(418). 공식 검색 API 키 발급 시 별도 어댑터.
+ *   - 네이버쇼핑   : ✅ 공식 오픈API(openapi.naver.com). 최저판매가=판매.
+ *                    NAVER_(SEARCH_)CLIENT_ID/SECRET 있고 앱에 검색 권한 있을 때만 활성.
  *
  * 모든 소스 호출은 allSettled 로 격리 — 한 소스가 죽어도 나머지는 반환된다.
  */
 import { fetchKreamSearch } from '@/lib/kream';
 import { bestKreamMatch } from '../../shared/util/kreamMatch';
+import { searchNaverShopping, naverShoppingEnabled } from './naverShopping.js';
 
 /** 체결가(낙찰/거래) vs 판매가(쇼핑몰 호가) 구분. */
 export type KoPriceKind = '체결' | '판매';
@@ -104,7 +106,43 @@ const naverCafeAdapter: Adapter = {
   },
 };
 
-const ADAPTERS: Adapter[] = [kreamAdapter, tcgboxAdapter, naverCafeAdapter];
+/* ── 네이버쇼핑 (공식 오픈API, 최저판매가 = 판매) ────────────────── */
+const naverShoppingAdapter: Adapter = {
+  key: 'navershopping',
+  label: '네이버쇼핑',
+  kind: '판매',
+  // 키 + 검색권한 있을 때만. (없으면 자동 빈결과지만 불필요 호출 줄이려 플래그도 검사)
+  enabled: naverShoppingEnabled(),
+  async run(h) {
+    const items = await searchNaverShopping(h.name);
+    const lite = items.map((it, i) => ({
+      id: String(i),
+      name: it.name,
+      price: it.price,
+      imageUrl: it.imageUrl,
+      productUrl: it.url,
+    }));
+    const best = bestKreamMatch(lite, h.name, {
+      setCode: h.setCode ?? null,
+      cardNumber: h.cardNumber ?? null,
+      rarity: h.rarity ?? null,
+    });
+    if (!best || !best.price) return [];
+    return [
+      {
+        source: 'navershopping',
+        label: '네이버쇼핑',
+        kind: '판매',
+        price: best.price,
+        title: best.name,
+        url: best.productUrl,
+        imageUrl: best.imageUrl,
+      },
+    ];
+  },
+};
+
+const ADAPTERS: Adapter[] = [kreamAdapter, naverShoppingAdapter, tcgboxAdapter, naverCafeAdapter];
 
 /** 활성 소스를 병렬 조회해 정규화 행을 합쳐 반환. 체결가 먼저, 그다음 가격 오름차순. */
 export async function aggregateKoPrices(h: KoPriceHints): Promise<KoPriceRow[]> {
