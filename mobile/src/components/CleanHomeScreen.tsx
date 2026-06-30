@@ -14,6 +14,8 @@ import {
   fetchSnkrdunkApparelGroup,
   fetchSnkrdunkBrowse,
   fetchSnkrdunkSalesChart,
+  fetchSnkrdunkSalesHistory,
+  headlinePriceFromHistory,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
   type SnkrdunkCardSeed,
@@ -325,17 +327,25 @@ export function CleanHomeScreen() {
     };
   }, []);
 
-  // 등락률 — 표시된 인기 카드의 판매 차트를 받아 % 계산(렌더 후 점진 채움).
+  // 등락률 + 대표 시세 — 표시된 인기 카드의 판매 차트/거래내역을 받아 채움(렌더 후 점진).
+  // 대표 시세 = 시세상세 헤드라인과 동일(거래 많은 등급의 최근 체결가). 없으면 minPrice 폴백.
   const [changeById, setChangeById] = useState<Record<number, number>>({});
+  const [priceById, setPriceById] = useState<Record<number, number>>({});
   useEffect(() => {
     if (snkrRows.length === 0) return;
     let alive = true;
     (async () => {
       await Promise.all(
-        snkrRows.map(async ({ seed }) => {
-          const chart = await fetchSnkrdunkSalesChart(seed.apparelId).catch(() => null);
+        snkrRows.map(async ({ seed, data }) => {
+          const [chart, history] = await Promise.all([
+            fetchSnkrdunkSalesChart(seed.apparelId).catch(() => null),
+            fetchSnkrdunkSalesHistory(seed.apparelId).catch(() => null),
+          ]);
+          if (!alive) return;
           const pct = chart ? trendChangePct(chart.points) : undefined;
-          if (alive && pct != null) setChangeById((prev) => ({ ...prev, [seed.apparelId]: pct }));
+          if (pct != null) setChangeById((prev) => ({ ...prev, [seed.apparelId]: pct }));
+          const price = headlinePriceFromHistory(history, data?.minPrice ?? 0);
+          if (price > 0) setPriceById((prev) => ({ ...prev, [seed.apparelId]: price }));
         }),
       );
     })();
@@ -542,7 +552,7 @@ export function CleanHomeScreen() {
                     </View>
                   </CardArt>
                   <Text numberOfLines={1} style={[ts(12.5, '700', P.ink), { marginTop: 9 }]}>{seed.shortName}</Text>
-                  <Text numberOfLines={1} style={[ts(flat ? 15 : 13, '900', P.ink), { marginTop: 4, letterSpacing: -0.3 }]}>{fmtPrice(data?.minPrice ?? 0)}</Text>
+                  <Text numberOfLines={1} style={[ts(flat ? 15 : 13, '900', P.ink), { marginTop: 4, letterSpacing: -0.3 }]}>{fmtPrice(priceById[seed.apparelId] ?? data?.minPrice ?? 0)}</Text>
                   {(() => {
                     const pc = pctInfo(changeById[seed.apparelId], P);
                     return pc ? <Text numberOfLines={1} style={[ts(flat ? 12 : 9, '800', pc.color), { marginTop: 2 }]}>{pc.text}</Text> : null;
@@ -607,7 +617,7 @@ export function CleanHomeScreen() {
                       <Text numberOfLines={1} style={[ts(12, '400', P.ink3), { marginTop: 2 }]}>{seed.category ?? '카드'}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={ts(14.5, '900', P.ink)}>{fmtPrice(data?.minPrice ?? 0)}</Text>
+                      <Text style={ts(14.5, '900', P.ink)}>{fmtPrice(priceById[seed.apparelId] ?? data?.minPrice ?? 0)}</Text>
                       {pc ? <Text numberOfLines={1} style={[ts(flat ? 12.5 : 9.5, '800', pc.color), { marginTop: 3 }]}>{pc.text}</Text> : null}
                     </View>
                   </Pressable>

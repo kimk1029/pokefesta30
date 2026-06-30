@@ -16,10 +16,12 @@ import {
   fetchSnkrdunkApparel,
   fetchSnkrdunkSalesHistory,
   fetchSnkrdunkSalesChart,
+  isGradedSnkrdunkBadge,
   type SnkrdunkSaleEntry,
 } from '@/lib/snkrdunk';
 
 const PSA10_RE = /PSA\s*10\b/i;
+const PSA9_RE = /PSA\s*9\b/i;
 const PSA_ANY_RE = /PSA\s*\d+/i;
 
 function median(arr: number[]): number {
@@ -66,6 +68,49 @@ export function computeApparelPrices(
     }
   }
   return { single, psa10: median(psa10Prices), trendJpy };
+}
+
+/** 한 등급의 최근가/평균/최저/건수 집계. (history 는 최신순 전제) — 시세상세와 공유. */
+export interface SnkrGradeAgg {
+  /** 'PSA 10' | 'PSA 9' | 'RAW' */
+  key: string;
+  recent: number;
+  avg: number;
+  low: number;
+  count: number;
+}
+
+/** 거래내역에서 한 등급의 최근가/평균/최저/건수 집계. (history 는 최신순 전제) */
+export function gradeAgg(
+  history: ReadonlyArray<{ price: number; condition?: string; label?: string }>,
+  predicate: (badge: string) => boolean,
+  key: string,
+): SnkrGradeAgg {
+  const matches = history
+    .filter((h) => typeof h.price === 'number' && h.price > 0)
+    .filter((h) => predicate((h.condition || h.label || '').trim()))
+    .map((h) => h.price);
+  if (matches.length === 0) return { key, recent: 0, avg: 0, low: 0, count: 0 };
+  const top5 = matches.slice(0, 5);
+  const avg = Math.round(top5.reduce((a, b) => a + b, 0) / top5.length);
+  const low = Math.min(...matches.slice(0, 10));
+  return { key, recent: matches[0], avg, low, count: matches.length };
+}
+
+/**
+ * 시세상세 헤드라인과 동일한 '대표 시세' — 거래가 가장 많은 등급의 최근 체결가
+ * (없으면 평균 → 최저매물 순 폴백). CardDetailView 의 기본 헤드라인 계산과 일치.
+ */
+export function headlinePriceFromHistory(history: SnkrdunkSaleEntry[], minPrice: number): number {
+  const grades = [
+    gradeAgg(history, (b) => PSA10_RE.test(b), 'PSA 10'),
+    gradeAgg(history, (b) => PSA9_RE.test(b), 'PSA 9'),
+    gradeAgg(history, (b) => !isGradedSnkrdunkBadge(b), 'RAW'),
+  ];
+  const sel =
+    grades.slice().sort((a, b) => b.count - a.count).find((g) => g.count > 0) ??
+    grades[grades.length - 1];
+  return sel?.recent || sel?.avg || minPrice || 0;
 }
 
 /**

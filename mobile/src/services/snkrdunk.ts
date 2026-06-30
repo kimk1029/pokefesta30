@@ -334,6 +334,42 @@ export function recentTransactionMedian(
     : sorted[mid];
 }
 
+// 등급 판정 — snkrdunk [id] 상세의 isGradedBadge 와 동일.
+const HEADLINE_GRADED_RE = /PSA|BGS|CGC|SGC|ARS|ACE|BVG|HGA|以下|\d/i;
+
+/**
+ * 시세상세 헤드라인과 동일한 '대표 시세' — 거래가 가장 많은 등급의 최근 체결가
+ * (없으면 평균 → 최저매물 순 폴백). 홈 인기/급등 카드가 상세와 같은 가격을 보이도록.
+ */
+export function headlinePriceFromHistory(
+  history: SnkrdunkSalesHistory | null | undefined,
+  minPrice: number,
+): number {
+  const list = history?.history ?? [];
+  const agg = (predicate: (badge: string) => boolean) => {
+    const matches = list
+      .filter((h) => typeof h.price === 'number' && h.price > 0)
+      .filter((h) => predicate((h.condition || h.label || '').trim()))
+      .map((h) => h.price);
+    if (matches.length === 0) return { recent: 0, avg: 0, count: 0 };
+    const top5 = matches.slice(0, 5);
+    return {
+      recent: matches[0],
+      avg: Math.round(top5.reduce((a, b) => a + b, 0) / top5.length),
+      count: matches.length,
+    };
+  };
+  const grades = [
+    agg((b) => /PSA\s*10\b/i.test(b)),
+    agg((b) => /PSA\s*9\b/i.test(b)),
+    agg((b) => !HEADLINE_GRADED_RE.test((b ?? '').trim())),
+  ];
+  const sel =
+    grades.slice().sort((a, b) => b.count - a.count).find((g) => g.count > 0) ??
+    grades[grades.length - 1];
+  return sel?.recent || sel?.avg || minPrice || 0;
+}
+
 export async function fetchSnkrdunkSalesChart(
   apparelId: number,
 ): Promise<SnkrdunkSalesChart | null> {

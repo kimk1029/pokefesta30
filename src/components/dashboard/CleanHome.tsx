@@ -413,7 +413,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
                       fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}
                   >
-                    {fmtPrice(c.minPrice)}
+                    {fmtPrice(c.recentPrice ?? c.minPrice)}
                   </div>
                   {(() => {
                     const pc = pctInfo(c.changePct, P);
@@ -486,7 +486,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
                   <div style={{ fontSize: 12, color: P.ink3, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
                 </div>
                 <div style={{ textAlign: 'right', flex: 'none' }}>
-                  <div style={{ fontSize: 14.5, fontWeight: 900, color: P.ink, letterSpacing: '-.3px', fontVariantNumeric: 'tabular-nums' }}>{fmtPrice(m.minPrice)}</div>
+                  <div style={{ fontSize: 14.5, fontWeight: 900, color: P.ink, letterSpacing: '-.3px', fontVariantNumeric: 'tabular-nums' }}>{fmtPrice(m.recentPrice ?? m.minPrice)}</div>
                   {pc ? <div style={{ fontSize: pixel ? 9.5 : 12.5, fontWeight: 800, color: pc.color, marginTop: 3, whiteSpace: 'nowrap' }}>{pc.text}</div> : null}
                 </div>
               </Link>

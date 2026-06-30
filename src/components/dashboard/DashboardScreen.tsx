@@ -116,7 +116,10 @@ export interface SnkrdunkRow {
   localizedName?: string;
   category: SnkrdunkCategory | null;
   imageUrl: string | null;
+  /** 최저 매물가(라이브 호가). */
   minPrice: number;
+  /** 대표 시세 — 시세상세 헤드라인과 동일(거래 많은 등급의 최근 체결가). 없으면 minPrice 로 폴백 표시. */
+  recentPrice?: number;
   listingCountText: string;
   /** 등락률(%) — 판매 차트 기간 시세 변화. 양수=상승, 음수=하락. 데이터 없으면 미표시. */
   changePct?: number;

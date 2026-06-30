@@ -4,8 +4,8 @@ import { getServerUser, serverFetch } from '@/lib/apiServer';
 import type { HeroSlideData } from '@/components/HeroSlider';
 import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCards';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
-import { classifySnkrdunkName } from '@/lib/snkrdunk';
-import { trendChangePct } from '@/lib/snkrdunkPrice';
+import { classifySnkrdunkName, type SnkrdunkSalesHistory } from '@/lib/snkrdunk';
+import { trendChangePct, headlinePriceFromHistory } from '@/lib/snkrdunkPrice';
 import { CARD_PACKS } from '@/lib/cardPacks';
 import { fetchMvcAuctionPage, type MvcAuctionItem } from '@/lib/navercafe';
 
@@ -127,16 +127,23 @@ async function fetchBoxRows(): Promise<SnkrdunkRow[]> {
 
 /** seed → 상세 조회로 가격·매물·이미지·등락률 채운 행. (인기 카드용) */
 async function seedToRow(seed: SnkrSeed): Promise<SnkrdunkRow> {
-  const [ar, chartResp] = await Promise.all([
+  const [ar, chartResp, histResp] = await Promise.all([
     serverFetch<{ data: ApparelDetail }>(`/api/snkrdunk/apparels/${seed.apparelId}`, { auth: false }),
     serverFetch<{ data: { points?: Array<[number, number]> } | null }>(
       `/api/snkrdunk/apparels/${seed.apparelId}/sales-chart`,
+      { auth: false },
+    ).catch(() => null),
+    serverFetch<{ data: SnkrdunkSalesHistory | null }>(
+      `/api/snkrdunk/apparels/${seed.apparelId}/sales-history`,
       { auth: false },
     ).catch(() => null),
   ]);
   const apparel = ar.data?.data;
   const chartPoints = chartResp?.data?.data?.points;
   const changePct = chartPoints ? trendChangePct(chartPoints) : undefined;
+  // 대표 시세 = 시세상세 헤드라인과 동일(거래 많은 등급의 최근 체결가). 없으면 minPrice 폴백.
+  const history = histResp?.data?.data?.history ?? [];
+  const recentPrice = headlinePriceFromHistory(history, apparel?.minPrice ?? 0);
   // 큐레이션된 seed.shortName 이 우선, 없으면 일본어 원문을 한국어로 자동 번역.
   const jp = apparel?.localizedName ?? apparel?.name ?? '';
   const ko = FEATURED_BY_ID.has(seed.apparelId)
@@ -149,6 +156,7 @@ async function seedToRow(seed: SnkrSeed): Promise<SnkrdunkRow> {
     category: seed.category,
     imageUrl: apparel?.imageUrl ?? null,
     minPrice: apparel?.minPrice ?? 0,
+    recentPrice,
     listingCountText: apparel?.listingCountText ?? '',
     changePct,
   };

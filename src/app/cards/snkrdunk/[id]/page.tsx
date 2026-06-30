@@ -14,6 +14,7 @@ import {
   type SnkrdunkSalesHistory,
 } from '@/lib/snkrdunk';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
+import { gradeAgg } from '@/lib/snkrdunkPrice';
 import { SNKRDUNK_FEATURED_CARDS } from '@/lib/snkrdunkCards';
 import { serverFetch } from '@/lib/apiServer';
 import { parseKreamHints } from '../../../../../shared/util/kreamMatch';
@@ -24,23 +25,6 @@ interface PageProps {
 
 const PSA10_RE = /PSA\s*10\b/i;
 const PSA9_RE = /PSA\s*9\b/i;
-
-/** 거래내역에서 한 등급의 최근가/평균/최저/건수 집계. (history 는 최신순 전제) */
-function gradeAgg(
-  history: ReadonlyArray<{ price: number; condition?: string; label?: string }>,
-  predicate: (badge: string) => boolean,
-  key: string,
-): GradeAgg {
-  const matches = history
-    .filter((h) => typeof h.price === 'number' && h.price > 0)
-    .filter((h) => predicate((h.condition || h.label || '').trim()))
-    .map((h) => h.price);
-  if (matches.length === 0) return { key, recent: 0, avg: 0, low: 0, count: 0 };
-  const top5 = matches.slice(0, 5);
-  const avg = Math.round(top5.reduce((a, b) => a + b, 0) / top5.length);
-  const low = Math.min(...matches.slice(0, 10));
-  return { key, recent: matches[0], avg, low, count: matches.length };
-}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const apparelId = Number(params.id);
