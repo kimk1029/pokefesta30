@@ -434,8 +434,11 @@ export function CleanHomeScreen() {
           </Pressable>
         </View>
 
+        {/* promo banner — 비면 컴포넌트 내장 폴백 슬라이드 */}
+        <HeroBanner slides={banners} />
+
         {/* search — 픽셀: 직각 PixelFrame 박스 / 플랫: 둥근 소프트 타일 */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 14 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14 }}>
           {pixel ? (
             <PixelFrame borderWidth={3} shadow={5} inner={3}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: tc.white, paddingVertical: 8, paddingHorizontal: 14 }}>
@@ -485,24 +488,9 @@ export function CleanHomeScreen() {
           )}
         </View>
 
-        {/* promo banner — 비면 컴포넌트 내장 폴백 슬라이드 */}
-        <HeroBanner slides={banners} />
-
         {/* quick scan */}
         <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 }}>
-          <Text style={[ts(18, '800', P.ink), { marginBottom: 12 }]}>빠른 스캔</Text>
           <View style={{ flexDirection: 'row', gap: 11 }}>
-            <ScanTile onPress={() => router.push('/cards/packs' as never)}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={P.priceIcon} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-                  <Path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
-                  <Circle cx={12} cy={12} r={3.2} />
-                </Svg>
-                <Chevron size={16} color={P.chev} w={2.4} />
-              </View>
-              <Text style={[ts(16, '800', P.ink), { marginTop: 14 }]}>시세 확인</Text>
-              <Text style={[ts(12, '400', P.ink2), { marginTop: 3 }]}>카드 시세를 바로 확인해요</Text>
-            </ScanTile>
             <ScanTile onPress={() => router.push('/cards/add' as never)}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={P.regIcon} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
@@ -514,6 +502,17 @@ export function CleanHomeScreen() {
               </View>
               <Text style={[ts(16, '800', P.ink), { marginTop: 14 }]}>내 카드 등록</Text>
               <Text style={[ts(12, '400', P.ink2), { marginTop: 3 }]}>보유 카드를 등록하고 관리해요</Text>
+            </ScanTile>
+            <ScanTile onPress={() => router.push('/cards/packs' as never)}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <Svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke={P.priceIcon} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+                  <Path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
+                  <Circle cx={12} cy={12} r={3.2} />
+                </Svg>
+                <Chevron size={16} color={P.chev} w={2.4} />
+              </View>
+              <Text style={[ts(16, '800', P.ink), { marginTop: 14 }]}>시세 확인</Text>
+              <Text style={[ts(12, '400', P.ink2), { marginTop: 3 }]}>카드 시세를 바로 확인해요</Text>
             </ScanTile>
           </View>
         </View>

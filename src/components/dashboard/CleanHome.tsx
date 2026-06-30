@@ -9,7 +9,6 @@ import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
 import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import type { SnkrdunkRow } from '@/components/dashboard/DashboardScreen';
-import { HomeMvcAuctions } from '@/components/dashboard/HomeMvcAuctions';
 import type { MvcAuctionItem } from '@/lib/navercafe';
 
 /**
@@ -257,7 +256,7 @@ function CardArt({
   );
 }
 
-export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = [], mvcAuctions = [] }: Props) {
+export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = [] }: Props) {
   const { format } = useCurrency();
   const { count: unread } = useUnread();
   const { theme } = useTheme();
@@ -340,31 +339,17 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
         </Link>
       </div>
 
-      {/* search — 직접 타이핑 검색(Enter/▶ → /cards/snkrdunk/search?q=). 카메라 스캔은 인풋 내장. */}
-      <div style={{ padding: '6px 20px 14px' }}>
-        <HomeKoSearchBar />
-      </div>
-
       {/* promo banner — 실제 배너 데이터(HeroSlider). 비면 컴포넌트 내장 폴백 슬라이드. */}
       <HeroSlider slides={heroBanners} compact />
 
+      {/* search — 직접 타이핑 검색(Enter/▶ → /cards/snkrdunk/search?q=). 카메라 스캔은 인풋 내장. */}
+      <div style={{ padding: '14px 20px' }}>
+        <HomeKoSearchBar />
+      </div>
+
       {/* quick scan */}
       <div style={{ padding: '8px 20px 24px' }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: P.ink, marginBottom: 12 }}>빠른 스캔</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 11 }}>
-          <QuickTile
-            P={P}
-            pixel={pixelTiles}
-            href="/cards/packs"
-            label="시세 확인"
-            desc="카드 시세를 바로 확인해요"
-            icon={
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={P.priceIcon} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
-                <circle cx="12" cy="12" r="3.2" />
-              </svg>
-            }
-          />
           <QuickTile
             P={P}
             pixel={pixelTiles}
@@ -376,6 +361,19 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
                 <path d="M14 3v4a1 1 0 0 0 1 1h4" />
                 <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
                 <path d="M12 11v6M9 14h6" />
+              </svg>
+            }
+          />
+          <QuickTile
+            P={P}
+            pixel={pixelTiles}
+            href="/cards/packs"
+            label="시세 확인"
+            desc="카드 시세를 바로 확인해요"
+            icon={
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={P.priceIcon} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
+                <circle cx="12" cy="12" r="3.2" />
               </svg>
             }
           />
@@ -496,9 +494,6 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
           })}
         </div>
       )}
-
-      {/* 실시간 MVC 경매 — 오늘 마감 경매 미리보기(최종호가 자동 갱신). */}
-      <HomeMvcAuctions initial={mvcAuctions} P={P} />
 
       <div className="bggap" />
     </div>
