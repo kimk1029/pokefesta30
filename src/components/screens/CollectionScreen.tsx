@@ -260,7 +260,6 @@ export function CollectionScreen() {
 
   const totalJpy = usePsa10 && port.totalPsa10Jpy > 0 ? port.totalPsa10Jpy : port.totalJpy;
   const up = (port.changePct ?? 0) >= 0;
-  const spark = port.history.slice(-40).map((h) => h.totalJpy);
 
   return (
     <div style={{ paddingBottom: 40 }}>
@@ -307,14 +306,16 @@ export function CollectionScreen() {
               {format(totalJpy)}
             </div>
             {port.changePct != null && (
-              <div style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 800, color: up ? '#FF6B5E' : '#6FA8FF', marginTop: 6 }}>
-                {up ? '+' : '-'}{format(Math.abs(port.changeAbsJpy ?? 0))} ({up ? '+' : ''}{port.changePct.toFixed(2)}%) {up ? '▲' : '▼'}
+              <div style={{ marginTop: 8 }}>
+                <span style={{ fontFamily: 'var(--f1)', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.5)', marginRight: 7 }}>
+                  어제 대비 등락
+                </span>
+                <span style={{ fontFamily: 'var(--f1)', fontSize: 13.5, fontWeight: 800, color: up ? '#FF6B5E' : '#6FA8FF' }}>
+                  {up ? '+' : '-'}{format(Math.abs(port.changeAbsJpy ?? 0))} ({up ? '+' : ''}{port.changePct.toFixed(2)}%) {up ? '▲' : '▼'}
+                </span>
               </div>
             )}
           </div>
-
-          {/* 스파크라인 */}
-          <Sparkline values={spark} up={up} />
 
           <div style={{ display: 'flex', marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.12)', position: 'relative', zIndex: 2 }}>
             <HeroStat label="보유 카드" value={`${port.totalCount}장`} />
@@ -841,31 +842,6 @@ function Donut({ segments }: { segments: Array<{ key: string; color: string; pct
 }
 
 /** 다크 히어로용 스파크라인(우하단 배경). */
-function Sparkline({ values, up }: { values: number[]; up: boolean }) {
-  const pts = values.filter((n) => typeof n === 'number' && n > 0);
-  if (pts.length < 2) return null;
-  const W = 240;
-  const H = 80;
-  const min = Math.min(...pts);
-  const max = Math.max(...pts);
-  const span = Math.max(1, max - min);
-  const step = W / (pts.length - 1);
-  const line = pts.map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)},${(H - ((v - min) / span) * (H - 8) - 4).toFixed(1)}`).join(' ');
-  const col = up ? '#FF5247' : '#5A9BFF';
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ position: 'absolute', right: 0, top: 64, width: 200, height: 80, zIndex: 1 }}>
-      <defs>
-        <linearGradient id="pfTotArea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={col} stopOpacity="0.45" />
-          <stop offset="100%" stopColor={col} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${line} L${W},${H} L0,${H} Z`} fill="url(#pfTotArea)" />
-      <path d={line} fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
-
 function Msg({ children }: { children: ReactNode }) {
   return (
     <div style={{ padding: '60px 24px', textAlign: 'center', fontFamily: 'var(--f1)', fontSize: 13, color: 'var(--ink3)', lineHeight: 1.8 }}>
