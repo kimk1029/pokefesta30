@@ -114,21 +114,34 @@ export function headlinePriceFromHistory(history: SnkrdunkSaleEntry[], minPrice:
 }
 
 /**
- * 판매 차트 포인트에서 등락률(%)을 계산. 등급 체결 스파이크는 중앙값 2.5배 초과 컷으로
- * 제외(used 차트 오염 방지). 유효 포인트가 2개 미만이면 undefined.
- * 기간 시작(첫 유효 포인트) → 최신 시세 변화율.
+ * 판매 차트 포인트에서 '어제 대비' 등락률(%)을 계산. 최신 시세 vs 그 하루(24h) 전 시세.
+ * 등급 체결 스파이크는 중앙값 2.5배 초과 컷으로 제외(used 차트 오염 방지).
+ * 포인트는 [timestamp(ms), price] 형식. 유효 포인트가 2개 미만이면 undefined.
+ * 하루 전 포인트가 없으면(그날치만 있음) 직전 체결로 폴백.
  */
 export function trendChangePct(points: Array<[number, number]>): number | undefined {
-  const ys = (points ?? []).map((p) => p[1]).filter((n) => typeof n === 'number' && n > 0);
-  if (ys.length < 2) return undefined;
-  const med = median(ys);
+  const DAY_MS = 86_400_000;
+  const valid = (points ?? [])
+    .filter((p) => Array.isArray(p) && typeof p[0] === 'number' && typeof p[1] === 'number' && p[1] > 0)
+    .sort((a, b) => a[0] - b[0]);
+  if (valid.length < 2) return undefined;
+  const med = median(valid.map((p) => p[1]));
   const ceil = med > 0 ? med * 2.5 : Infinity;
-  const clean = ys.filter((n) => n <= ceil);
+  const clean = valid.filter((p) => p[1] <= ceil);
   if (clean.length < 2) return undefined;
-  const first = clean[0];
-  const last = clean[clean.length - 1];
-  if (first <= 0) return undefined;
-  return ((last - first) / first) * 100;
+  const [lastTs, last] = clean[clean.length - 1];
+  // 어제 시세 = 최신 포인트보다 약 하루 이상 오래된 가장 최근 포인트.
+  const cutoff = lastTs - DAY_MS;
+  let prev: number | undefined;
+  for (let i = clean.length - 2; i >= 0; i--) {
+    if (clean[i][0] <= cutoff) {
+      prev = clean[i][1];
+      break;
+    }
+  }
+  if (prev === undefined) prev = clean[clean.length - 2][1];
+  if (prev <= 0) return undefined;
+  return ((last - prev) / prev) * 100;
 }
 
 /** apparelId 로 apparel/sales 를 받아 시세를 계산. */
