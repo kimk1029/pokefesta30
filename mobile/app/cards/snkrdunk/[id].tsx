@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { CardActions } from '@/components/CardActions';
 import { KreamCompare } from '@/components/cards/KreamCompare';
+import { MultiSourceKoPrice } from '@/components/cards/MultiSourceKoPrice';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { SectHd } from '@/components/cv/SectHd';
@@ -285,7 +286,7 @@ export default function SnkrdunkDetail() {
             {/* ── 지역 탭 (일본판 실데이터 / 그 외 준비중) ── */}
             <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 14, marginTop: 6, borderBottomWidth: 1, borderBottomColor: tc.pap3 }}>
               {['일본판', '한국판', '북미판'].map((r) => {
-                const ready = r === '일본판';
+                const ready = r === '일본판' || r === '한국판';
                 const active = region === r;
                 return (
                   <Pressable
@@ -301,6 +302,18 @@ export default function SnkrdunkDetail() {
               })}
             </View>
 
+            {/* ── 한국판 — 멀티소스 체결/판매가 (코드+번호+등급 매칭, 웹 동일) ── */}
+            {region === '한국판' ? (
+              <MultiSourceKoPrice
+                name={displayNameKo}
+                setCode={kreamHints.setCode}
+                cardNumber={kreamHints.cardNumber}
+                rarity={kreamHints.rarity}
+              />
+            ) : null}
+
+            {region === '일본판' ? (
+            <>
             {/* ── 등급 카드 (가로 스크롤) ── */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 14, gap: 12 }}>
               {grades.map((g) => {
@@ -438,6 +451,8 @@ export default function SnkrdunkDetail() {
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
               <PixelText variant={txt} size={8} color={tc.ink3}>데이터 출처: snkrdunk.com (10분 캐시)</PixelText>
             </View>
+            </>
+            ) : null}
           </>
         )}
       </ScrollView>
