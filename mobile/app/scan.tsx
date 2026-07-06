@@ -35,10 +35,10 @@ import type { GuideRect, ScanLanguage } from '@/types/cardScan';
 
 type Mode = 'choose' | 'camera' | 'preview' | 'batch' | 'manual' | 'register' | 'result' | 'batchResult';
 
-/** 이번 달을 YYYY-MM 으로. 등록 시트 구매 시기 기본값. */
-function currentYm(): string {
+/** 오늘을 YYYY-MM-DD 로. 등록 시트 구매일 기본값 (웹 CardRegisterSheet todayStr 동일). */
+function todayStr(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export default function ScanScreen() {
@@ -106,7 +106,9 @@ function ScanScreenInner() {
   // 5단계 — 구매정보 입력 시트 상태. 카드 확인 직후 이 카드를 받아 띄운다.
   const [pendingCard, setPendingCard] = useState<CardItem | null>(null);
   const [pendingFrom, setPendingFrom] = useState<'scan' | 'manual'>('scan');
-  const [buyYm, setBuyYm] = useState(currentYm());
+  const [buyYm, setBuyYm] = useState(todayStr());
+  const [region, setRegion] = useState<'jp' | 'kr' | 'en'>('jp');
+  const [memo, setMemo] = useState('');
   const [buyPriceStr, setBuyPriceStr] = useState('');
   const [buyCur, setBuyCur] = useState<PriceCurrency>('KRW');
   const [buyQty, setBuyQty] = useState(1);
@@ -119,7 +121,9 @@ function ScanScreenInner() {
   const openRegister = (card: CardItem, from: 'scan' | 'manual') => {
     setPendingCard(card);
     setPendingFrom(from);
-    setBuyYm(currentYm());
+    setBuyYm(todayStr());
+    setRegion('jp');
+    setMemo('');
     setBuyPriceStr('');
     // 시세가 JPY 인 카드는 구매가도 JPY 로 입력할 확률이 높다 → 기본 통화 맞춤.
     setBuyCur(inferCardCurrency(card));
@@ -217,6 +221,8 @@ function ScanScreenInner() {
       buyCurrency: card.buyCurrency ?? 'KRW',
       qty: card.qty ?? 1,
       buyDate: card.buyDate ?? null,
+      region,
+      memo: memo.trim() || null,
       selfPulled: card.selfPulled ?? false,
       graded: card.graded ?? false,
       gradeCompany: card.gradeCompany ?? null,
@@ -766,15 +772,35 @@ function ScanScreenInner() {
             {/* 구매 시기 */}
             <View>
               <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                📅 구매 시기
+                📅 구매일
               </PixelText>
               <TextInput
                 value={buyYm}
                 onChangeText={setBuyYm}
-                placeholder="2026-06"
+                placeholder="2026-07-02"
                 placeholderTextColor={tc.ink4}
                 style={inputStyle}
               />
+            </View>
+
+            {/* 발매 지역 — 웹 CardRegisterSheet region 동일 */}
+            <View>
+              <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                🌏 발매 지역
+              </PixelText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {(
+                  [
+                    ['jp', '일본판'],
+                    ['kr', '한국판'],
+                    ['en', '영문판'],
+                  ] as const
+                ).map(([k, lb]) => (
+                  <Chip key={k} on={region === k} onPress={() => setRegion(k)} size={9} px={10} py={6}>
+                    {lb}
+                  </Chip>
+                ))}
+              </View>
             </View>
 
             {/* 구매가 + 통화 — 직접뽑기면 현재시세 기준가 안내로 대체 */}
@@ -928,7 +954,7 @@ function ScanScreenInner() {
                     등급사
                   </PixelText>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                    {['PSA', 'BGS', 'CGC', 'SGC'].map((co) => (
+                    {['PSA', 'BGS', 'CGC', 'SGC', 'ARS'].map((co) => (
                       <Chip key={co} on={gradeCompany === co} onPress={() => setGradeCompany(co)} size={9} px={8} py={6}>
                         {co}
                       </Chip>
@@ -950,6 +976,21 @@ function ScanScreenInner() {
                 </View>
               </View>
             )}
+
+            {/* 메모 — 웹 CardRegisterSheet memo 동일 */}
+            <View>
+              <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
+                📝 메모 (선택)
+              </PixelText>
+              <TextInput
+                value={memo}
+                onChangeText={setMemo}
+                placeholder="구매처, 상태 등 자유롭게"
+                placeholderTextColor={tc.ink4}
+                multiline
+                style={[inputStyle, { minHeight: 64, textAlignVertical: 'top' }]}
+              />
+            </View>
 
             {/* 6단계 — 수익률 실시간 미리보기 */}
             {preview.hasBuy && (

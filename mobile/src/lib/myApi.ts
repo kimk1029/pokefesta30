@@ -208,6 +208,9 @@ export interface CreateMyCardInput {
   buyCurrency?: string;
   qty?: number;
   buyDate?: string | null;
+  /** 발매 지역 — 웹 CardRegisterSheet 동일 ('jp' | 'kr' | 'en'). */
+  region?: string;
+  memo?: string | null;
   selfPulled?: boolean;
   graded?: boolean;
   gradeCompany?: string | null;

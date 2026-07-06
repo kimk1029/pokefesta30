@@ -35,7 +35,6 @@ function useAuthed(): boolean {
 interface HeroData {
   authed: boolean;
   serverPortfolio: PortfolioSummary | null;
-  changePct: number;
   ownedLen: number;
   gradedLen: number;
   hasAnyPsa10: boolean;
@@ -75,8 +74,6 @@ function usePortfolioHeroData(): HeroData {
 
   const totalVal = owned.reduce((a, c) => a + cardKrw(c, priceMode, rate), 0);
   const totalJpy = owned.reduce((a, c) => a + cardJpy(c, priceMode, rate), 0);
-  const prevVal = Math.round(totalVal * 0.88);
-  const changePct = prevVal > 0 ? Math.round(((totalVal - prevVal) / prevVal) * 100) : 0;
   const graded = owned.filter((c) => c.grade != null);
 
   // 매입가/평가손익 집계 — 구매가 입력 카드만 (cardProfit.hasBuy). 더미 없이 실데이터.
@@ -91,7 +88,7 @@ function usePortfolioHeroData(): HeroData {
   );
 
   return {
-    authed, serverPortfolio, totalVal, totalJpy, changePct,
+    authed, serverPortfolio, totalVal, totalJpy,
     ownedLen: owned.length, gradedLen: graded.length,
     hasAnyPsa10, priceMode, togglePriceMode,
     investedKrw: profitAgg.invested, profitKrw: profitAgg.profit,
@@ -105,7 +102,7 @@ export function PortfolioHero() {
   const flat = isFlatTheme(theme);
   const { format: formatCurrency, rate } = useCurrency();
   const {
-    authed, serverPortfolio, totalJpy, changePct, ownedLen, gradedLen,
+    authed, serverPortfolio, totalJpy, ownedLen, gradedLen,
     hasAnyPsa10, priceMode, togglePriceMode,
     investedKrw, profitKrw,
   } = usePortfolioHeroData();
@@ -118,17 +115,20 @@ export function PortfolioHero() {
   // 서버 포트폴리오가 있으면 그 JPY 총액, 없으면 로컬 집계 JPY 총액 — 둘 다 format() 로
   // 통화 토글(엔/원)을 동일하게 반영. (이전엔 폴백이 항상 ₩ 고정이었음.)
   const valueText = formatCurrency(serverPortfolio ? serverPortfolio.totalJpy : totalJpy);
-  const realPct = serverPortfolio?.changePct ?? null;
-  const heroPct = realPct != null ? Math.round(realPct) : changePct;
 
   // '어제 대비 등락' — 웹 내 자산 히어로와 동일 표기: +금액 (+pct%) ▲.
+  // 서버 changePct 가 없으면 표기하지 않음(웹 동일 — 더미 폴백 제거).
+  const realPct = serverPortfolio?.changePct ?? null;
   const realAbsJpy = serverPortfolio?.changeAbsJpy ?? null;
-  const heroUp = (realPct ?? heroPct) >= 0;
-  const deltaLabel = realPct != null ? '어제 대비 등락' : '지난주 대비 등락';
+  const heroPct = realPct != null ? Math.round(realPct) : 0;
+  const heroUp = (realPct ?? 0) >= 0;
+  const deltaLabel = '어제 대비 등락';
   const deltaText =
-    realPct != null && realAbsJpy != null
-      ? `${realPct >= 0 ? '+' : '-'}${formatCurrency(Math.abs(realAbsJpy))} (${realPct >= 0 ? '+' : ''}${realPct.toFixed(2)}%) ${realPct >= 0 ? '▲' : '▼'}`
-      : `${heroUp ? '+' : ''}${heroPct}% ${heroUp ? '▲' : '▼'}`;
+    realPct == null
+      ? null
+      : realAbsJpy != null
+        ? `${realPct >= 0 ? '+' : '-'}${formatCurrency(Math.abs(realAbsJpy))} (${realPct >= 0 ? '+' : ''}${realPct.toFixed(2)}%) ${realPct >= 0 ? '▲' : '▼'}`
+        : `${realPct >= 0 ? '+' : ''}${realPct.toFixed(2)}% ${realPct >= 0 ? '▲' : '▼'}`;
 
   return (
     <View style={{ marginHorizontal: 14, marginBottom: 6, position: 'relative' }}>
@@ -204,14 +204,16 @@ export function PortfolioHero() {
                 <PixelText variant={txt} size={26} color={tc.gold} style={{ letterSpacing: -2, marginRight: 12 }}>
                   {valueText}
                 </PixelText>
-                <View style={{ paddingBottom: 4 }}>
-                  <PixelText variant={txt} size={11} color={heroUp ? '#22C55E' : '#E63946'}>
-                    {deltaText}
-                  </PixelText>
-                  <PixelText variant={txt} size={9} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }}>
-                    {deltaLabel}
-                  </PixelText>
-                </View>
+                {deltaText ? (
+                  <View style={{ paddingBottom: 4 }}>
+                    <PixelText variant={txt} size={11} color={heroUp ? '#22C55E' : '#E63946'}>
+                      {deltaText}
+                    </PixelText>
+                    <PixelText variant={txt} size={9} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }}>
+                      {deltaLabel}
+                    </PixelText>
+                  </View>
+                ) : null}
               </View>
 
               {/* 4 stat chips — 실데이터 (보유/그레이딩/구매금액/평가손익) */}
@@ -300,7 +302,7 @@ function CleanDarkPortfolioHero({
   value: string;
   changePct: number;
   deltaLabel: string;
-  deltaText: string;
+  deltaText: string | null;
   hasAnyPsa10: boolean;
   priceMode: 'single' | 'psa10';
   togglePriceMode: () => void;
@@ -330,10 +332,14 @@ function CleanDarkPortfolioHero({
         </View>
         <PixelText variant={txt} size={30} weight="bold" color={tc.ink} style={{ letterSpacing: -1 }}>{value}</PixelText>
         {/* '어제 대비 등락' — 웹 내 자산 히어로와 동일 표기 (그래프 없이 라벨+등락값). */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10, marginBottom: 8, flexWrap: 'wrap' }}>
-          <PixelText variant={txt} size={11} color={tc.ink3}>{deltaLabel}</PixelText>
-          <PixelText variant={txt} size={13} weight="bold" color={upColor}>{deltaText}</PixelText>
-        </View>
+        {deltaText ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+            <PixelText variant={txt} size={11} color={tc.ink3}>{deltaLabel}</PixelText>
+            <PixelText variant={txt} size={13} weight="bold" color={upColor}>{deltaText}</PixelText>
+          </View>
+        ) : (
+          <View style={{ marginBottom: 8 }} />
+        )}
       </View>
       <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: tc.pap3 }}>
         {([
