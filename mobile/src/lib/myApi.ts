@@ -140,10 +140,27 @@ export interface InventorySnapshot {
   points: number;
 }
 
+/** 웹 src/lib/level.ts LevelInfo 와 동일 — /api/me/summary 응답의 level. */
 export interface LevelInfo {
   level: number;
-  nextThreshold: number;
-  progress: number;
+  /** 현재 레벨 구간 내에서 누적된 포인트 (0 ~ xpNeeded) */
+  xp: number;
+  /** 다음 레벨까지 필요한 포인트 */
+  xpNeeded: number;
+  title: string;
+  maxLevel: number;
+}
+
+/** 미읽음 쪽지 수 — 웹 UnreadProvider 와 동일 엔드포인트. */
+export function fetchUnreadCount(): Promise<number> {
+  return api<{ count: number }>('/api/messages/unread')
+    .then((r) => (Number.isFinite(r.count) ? r.count : 0))
+    .catch(() => 0);
+}
+
+/** 닉네임 변경 — 웹 EditableName 과 동일 PATCH /api/me/name. */
+export function updateMyName(name: string): Promise<{ ok?: boolean; error?: string }> {
+  return api<{ ok?: boolean; error?: string }>('/api/me/name', { method: 'PATCH', body: { name } });
 }
 
 export interface MySummary {

@@ -4,7 +4,7 @@
  * 미인증 시: 익명 더미 + 로그인 CTA.
  */
 import { useEffect, useState } from 'react';
-import { ScrollView, View, Text } from 'react-native';
+import { Modal, Pressable, ScrollView, TextInput, View, Text } from 'react-native';
 import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
@@ -12,9 +12,11 @@ import { SectHd } from '@/components/cv/SectHd';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
-import { colors } from '@/theme/tokens';
+import { PortfolioTotal } from '@/components/PortfolioTotal';
+import { useToast } from '@/components/ToastProvider';
+import { colors, fonts } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
-import { fetchMySummary, type MySummary } from '@/lib/myApi';
+import { fetchMySummary, fetchUnreadCount, updateMyName, type MySummary } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 import { isAuthenticated, setSession, subscribeSession } from '@/lib/session';
 
@@ -45,11 +47,28 @@ interface MenuSection {
 export default function MyScreen() {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
+  const toast = useToast();
   const authed = useAuthed();
-  const { data, error } = useAsync<MySummary>(
+  const { data, error, refresh } = useAsync<MySummary>(
     fetchMySummary,
     [authed],
   );
+
+  // 미읽음 쪽지 수 — 웹 useUnread 대응.
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    if (!authed) return;
+    let alive = true;
+    fetchUnreadCount().then((n) => alive && setUnread(n));
+    return () => {
+      alive = false;
+    };
+  }, [authed]);
+
+  // 이름 편집 — 웹 EditableName 대응(PATCH /api/me/name).
+  const [editOpen, setEditOpen] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [nameBusy, setNameBusy] = useState(false);
 
   // 인라인 로그인 게이트 — 바텀 탭바는 PhoneShell 이 유지.
   if (!authed) {
@@ -65,18 +84,40 @@ export default function MyScreen() {
 
   const summary = data ?? null;
   const points = summary?.inventory.points ?? 0;
-  const level = summary?.level.level ?? 1;
+  const lv = summary?.level ?? null;
+  const level = lv?.level ?? 1;
+  const xpPct = lv ? Math.max(0, Math.min(100, Math.round((lv.xp / lv.xpNeeded) * 100))) : 0;
   const userName = summary?.user.name ?? '게스트';
   const cardCount = summary?.counts.cardCount ?? 0;
   const tradeCount = summary?.counts.tradeCount ?? 0;
   const savedCount = summary?.counts.savedCount ?? 0;
+
+  const saveName = async () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed || nameBusy) return;
+    if (trimmed === userName) {
+      setEditOpen(false);
+      return;
+    }
+    setNameBusy(true);
+    try {
+      await updateMyName(trimmed);
+      setEditOpen(false);
+      toast.success('이름이 변경되었습니다');
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '이름 변경 실패');
+    } finally {
+      setNameBusy(false);
+    }
+  };
 
   // 웹 마이페이지(/my)와 동일한 메뉴 구성.
   const sections: MenuSection[] = [
     {
       title: '내 활동',
       items: [
-        { icon: '✉️', iconBg: '#0D7377', label: '쪽지함', desc: '거래 채팅', onPress: () => router.push('/my/messages' as never) },
+        { icon: '✉️', iconBg: '#0D7377', label: '쪽지함', desc: '거래 채팅', badge: unread > 0 ? `${unread > 99 ? '99+' : unread} 안읽음` : undefined, onPress: () => router.push('/my/messages' as never) },
         { icon: '📈', iconBg: '#16A357', label: '포트폴리오', desc: '평가액·등락률·일별 차트', onPress: () => router.push('/my/portfolio' as never) },
         { icon: '🃏', iconBg: '#FB923C', label: '내 카드', desc: `${cardCount}장 보유 중`, onPress: () => router.push('/my/cards' as never) },
         { icon: '⭐', iconBg: '#7C3AED', label: '관심카드', desc: '찜한 시세 카드', onPress: () => router.push('/my/favorites' as never) },
@@ -128,11 +169,20 @@ export default function MyScreen() {
                     {userName}
                   </PixelText>
                   <PixelText variant={txt} size={10} color={tc.gold} style={{ marginTop: 6, letterSpacing: 0.5 }} numberOfLines={1}>
-                    ★ LV.{level} · {points.toLocaleString('ko-KR')}P
+                    ★ LV.{level}{lv?.title ? ` ${lv.title}` : ''} · {points.toLocaleString('ko-KR')}P
                   </PixelText>
                 </View>
                 {authed ? (
-                  <PixelPress onPress={() => undefined} bg={tc.gold} hi={tc.goldLt} lo={tc.goldDk} shadow={4}>
+                  <PixelPress
+                    onPress={() => {
+                      setNameInput(userName);
+                      setEditOpen(true);
+                    }}
+                    bg={tc.gold}
+                    hi={tc.goldLt}
+                    lo={tc.goldDk}
+                    shadow={4}
+                  >
                     <View style={{ paddingHorizontal: 10, paddingVertical: 8 }}>
                       <PixelText variant={txt} size={10} color={tc.ink}>편집</PixelText>
                     </View>
@@ -145,11 +195,39 @@ export default function MyScreen() {
                   </PixelPress>
                 )}
               </View>
-              <View style={{ flexDirection: 'row', marginTop: 14, gap: 8 }}>
+              {/* XP 진행바 — 웹 MyScreen 동일 */}
+              {lv ? (
+                <View style={{ marginTop: 14 }}>
+                  <PixelText variant={txt} size={9} color="rgba(255,255,255,0.5)" style={{ letterSpacing: 0.5, marginBottom: 6 }}>
+                    XP {lv.xp} / {lv.xpNeeded}
+                  </PixelText>
+                  <View style={{ height: 10, backgroundColor: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }}>
+                    <View style={{ width: `${xpPct}%`, height: '100%', backgroundColor: tc.gold }} />
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6 }}>
+                    <PixelText variant={txt} size={9} color="rgba(255,255,255,0.5)" style={{ letterSpacing: 0.3 }}>
+                      다음 LV.까지 {lv.xpNeeded - lv.xp} XP
+                    </PixelText>
+                  </View>
+                </View>
+              ) : null}
+
+              <View style={{ flexDirection: 'row', marginTop: 12, gap: 8 }}>
                 <Stat label="카드" value={`${cardCount}장`} />
                 <Stat label="거래" value={`${tradeCount}건`} />
                 <Stat label="찜" value={`${savedCount}건`} />
               </View>
+
+              {/* 포트폴리오 총액 + 어제 대비 등락 + 30일 스파크라인 — 웹 PortfolioTotal 동일 */}
+              <PortfolioTotal />
+              <Pressable
+                onPress={() => router.push('/my/portfolio' as never)}
+                style={{ marginTop: 8, paddingVertical: 8, alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}
+              >
+                <PixelText variant={txt} size={10} color={tc.gold} style={{ letterSpacing: 0.4 }}>
+                  📈 포트폴리오 자세히 보기 →
+                </PixelText>
+              </Pressable>
               {!authed && error ? (
                 <View style={{ marginTop: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(255,255,255,0.08)' }}>
                   <PixelText variant="ko" size={9} color={tc.white} style={{ lineHeight: 14, opacity: 0.7 }}>
@@ -209,6 +287,40 @@ export default function MyScreen() {
           </PixelPress>
         </View>
       </ScrollView>
+
+      {/* 이름 편집 모달 — 웹 EditableName 대응 */}
+      <Modal visible={editOpen} transparent animationType="fade" onRequestClose={() => setEditOpen(false)}>
+        <Pressable onPress={() => setEditOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 320 }}>
+            <PixelFrame bg={tc.paper} borderWidth={3} shadow={6} inner={3}>
+              <View style={{ padding: 16, gap: 12 }}>
+                <PixelText variant={txt} size={12} weight="bold" color={tc.ink}>이름 변경</PixelText>
+                <TextInput
+                  value={nameInput}
+                  onChangeText={setNameInput}
+                  placeholder="새 이름"
+                  placeholderTextColor={tc.ink3}
+                  maxLength={20}
+                  autoFocus
+                  style={{ backgroundColor: tc.white, borderColor: tc.ink, borderWidth: 3, padding: 10, fontFamily: fonts.ko, fontSize: 14, color: tc.ink }}
+                />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable onPress={() => setEditOpen(false)} style={{ flex: 1, paddingVertical: 11, alignItems: 'center', backgroundColor: tc.white, borderColor: tc.ink, borderWidth: 2 }}>
+                    <PixelText variant={txt} size={10} color={tc.ink3}>취소</PixelText>
+                  </Pressable>
+                  <Pressable
+                    onPress={saveName}
+                    disabled={nameBusy || !nameInput.trim()}
+                    style={{ flex: 1, paddingVertical: 11, alignItems: 'center', backgroundColor: tc.gold, borderColor: tc.ink, borderWidth: 2, opacity: nameBusy || !nameInput.trim() ? 0.5 : 1 }}
+                  >
+                    <PixelText variant={txt} size={10} color={tc.ink}>{nameBusy ? '저장 중…' : '저장'}</PixelText>
+                  </Pressable>
+                </View>
+              </View>
+            </PixelFrame>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
