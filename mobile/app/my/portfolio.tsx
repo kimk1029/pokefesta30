@@ -11,6 +11,9 @@ import { fetchPortfolio, fetchMyCards, type PortfolioSummary, type MyCardRow } f
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 
+type Filter = 'all' | 'up' | 'down' | 'graded' | 'pull';
+type Range = 7 | 30 | 90 | 0; // 0 = 전체
+
 export default function PortfolioPage() {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
@@ -20,6 +23,10 @@ export default function PortfolioPage() {
   const [cards, setCards] = useState<MyCardRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [selIdx, setSelIdx] = useState<number | null>(null);
+  // 웹 PortfolioScreen 동일 — 정렬/필터/차트 기간.
+  const [sort, setSort] = useState<'value' | 'change'>('value');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [range, setRange] = useState<Range>(30);
 
   useEffect(() => {
     let alive = true;
@@ -40,7 +47,7 @@ export default function PortfolioPage() {
 
   const usePsa10 = priceMode === 'psa10';
 
-  const rows = useMemo(() => {
+  const allRows = useMemo(() => {
     if (!cards) return [];
     return cards.map((c) => {
       const curJpy = usePsa10 && (c.pricePsa10Jpy ?? 0) > 0 ? (c.pricePsa10Jpy as number) : c.priceSingleJpy ?? 0;
@@ -55,14 +62,26 @@ export default function PortfolioPage() {
       const t = c.trend ?? [];
       const dayPct =
         t.length >= 2 && t[t.length - 2] > 0 ? ((t[t.length - 1] - t[t.length - 2]) / t[t.length - 2]) * 100 : null;
-      return { c, curJpy, qty, basisJpy, profitPct, dayPct };
+      return { c, curJpy, qty, basisJpy, profitPct, dayPct, changePct: profitPct ?? dayPct, value: curJpy * qty };
     });
   }, [cards, usePsa10, rate]);
+
+  // 필터 + 정렬 — 웹 rows 동일.
+  const rows = useMemo(() => {
+    let r = allRows;
+    if (filter === 'up') r = r.filter((x) => (x.changePct ?? 0) > 0);
+    else if (filter === 'down') r = r.filter((x) => (x.changePct ?? 0) < 0);
+    else if (filter === 'graded') r = r.filter((x) => x.c.graded);
+    else if (filter === 'pull') r = r.filter((x) => x.c.selfPulled);
+    return [...r].sort((a, b) =>
+      sort === 'value' ? b.value - a.value : (b.changePct ?? -999) - (a.changePct ?? -999),
+    );
+  }, [allRows, filter, sort]);
 
   const totals = useMemo(() => {
     let invested = 0;
     let current = 0;
-    for (const r of rows) {
+    for (const r of allRows) {
       if (r.basisJpy && r.curJpy > 0) {
         invested += r.basisJpy * r.qty;
         current += r.curJpy * r.qty;
@@ -71,7 +90,20 @@ export default function PortfolioPage() {
     const profit = current - invested;
     const pct = invested > 0 ? (profit / invested) * 100 : null;
     return { invested, current, profit, pct };
-  }, [rows]);
+  }, [allRows]);
+
+  // 오늘의 등락 — 웹 movers 동일.
+  const movers = useMemo(() => {
+    const withChg = allRows.filter((r) => r.changePct != null);
+    if (withChg.length === 0) return { up: null, down: null, nUp: 0, nDown: 0 };
+    const sorted = [...withChg].sort((a, b) => (b.changePct ?? 0) - (a.changePct ?? 0));
+    return {
+      up: (sorted[0].changePct ?? 0) > 0 ? sorted[0] : null,
+      down: (sorted[sorted.length - 1].changePct ?? 0) < 0 ? sorted[sorted.length - 1] : null,
+      nUp: withChg.filter((r) => (r.changePct ?? 0) > 0).length,
+      nDown: withChg.filter((r) => (r.changePct ?? 0) < 0).length,
+    };
+  }, [allRows]);
 
   return (
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
@@ -136,14 +168,102 @@ export default function PortfolioPage() {
             );
           })()}
 
-          {/* 일별 차트 */}
-          <PortfolioChart history={port.history} format={format} selIdx={selIdx} onSelect={setSelIdx} />
+          {/* KPI 인포그래픽 그리드 — 웹 동일 6종 */}
+          {(() => {
+            const totalJpy = usePsa10 && (port.totalPsa10Jpy ?? 0) > 0 ? (port.totalPsa10Jpy as number) : port.totalJpy;
+            const gradedCount = cards.filter((c) => c.graded).length;
+            return (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <Kpi label="매입 합계" value={totals.invested > 0 ? format(totals.invested) : '—'} />
+                <Kpi label="현재 평가" value={totals.current > 0 ? format(totals.current) : format(totalJpy)} color={tc.gold} />
+                <Kpi
+                  label="평가손익"
+                  value={totals.pct != null ? `${totals.profit >= 0 ? '+' : '-'}${format(Math.abs(totals.profit))}` : '—'}
+                  sub={totals.pct != null ? `${totals.pct >= 0 ? '+' : ''}${totals.pct.toFixed(1)}%` : undefined}
+                  color={totals.pct == null ? undefined : totals.profit >= 0 ? tc.red : tc.blu}
+                />
+                <Kpi label="보유" value={`${cards.length}장`} />
+                <Kpi label="시세반영" value={`${port.pricedCount}/${port.totalCount}`} color="#7FB0FF" />
+                <Kpi label="그레이딩" value={`${gradedCount}건`} color="#A78BFA" />
+              </View>
+            );
+          })()}
 
-          {/* 카드별 등락률 */}
-          <PixelText variant={txt} size={11} color={tc.ink2} style={{ letterSpacing: 1 }}>
-            보유 카드 등락률 ({rows.length})
-          </PixelText>
+          {/* 차트 기간 탭 — 웹 동일 7/30/90/전체 */}
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {([7, 30, 90, 0] as Range[]).map((r) => {
+              const on = range === r;
+              return (
+                <Pressable
+                  key={r}
+                  onPress={() => setRange(r)}
+                  style={{ flex: 1, paddingVertical: 8, alignItems: 'center', backgroundColor: on ? tc.ink : tc.white, borderColor: tc.ink, borderWidth: 2 }}
+                >
+                  <PixelText variant={txt} size={9} color={on ? tc.gold : tc.ink3}>{r === 0 ? '전체' : `${r}일`}</PixelText>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* 일별 차트 */}
+          <PortfolioChart history={range === 0 ? port.history : port.history.slice(-range)} format={format} selIdx={selIdx} onSelect={setSelIdx} />
+
+          {/* 오늘의 등락 (movers) — 웹 동일 */}
+          {movers.up || movers.down ? (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Mover row={movers.up} dir="up" tc={tc} txt={txt} />
+              <Mover row={movers.down} dir="down" tc={tc} txt={txt} />
+            </View>
+          ) : null}
+
+          {/* 필터 — 웹 동일 5종(건수 표시) */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {(
+              [
+                { k: 'all', label: '전체', n: allRows.length },
+                { k: 'up', label: '🔺상승', n: movers.nUp },
+                { k: 'down', label: '🔻하락', n: movers.nDown },
+                { k: 'graded', label: '🏅등급', n: cards.filter((c) => c.graded).length },
+                { k: 'pull', label: '🎁직뽑', n: cards.filter((c) => c.selfPulled).length },
+              ] as Array<{ k: Filter; label: string; n: number }>
+            ).map((f) => {
+              const on = filter === f.k;
+              return (
+                <Pressable
+                  key={f.k}
+                  onPress={() => setFilter(f.k)}
+                  style={{ paddingVertical: 7, paddingHorizontal: 10, backgroundColor: on ? tc.ink : tc.white, borderColor: tc.ink, borderWidth: 2 }}
+                >
+                  <PixelText variant={txt} size={9} color={on ? tc.gold : tc.ink3}>
+                    {f.label} {f.n}
+                  </PixelText>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* 리스트 헤더 + 정렬 — 웹 동일 */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <PixelText variant={txt} size={11} color={tc.ink2} style={{ letterSpacing: 1 }}>
+              보유 종목 {rows.length}
+            </PixelText>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {(['value', 'change'] as const).map((s) => {
+                const on = sort === s;
+                return (
+                  <Pressable key={s} onPress={() => setSort(s)} style={{ paddingVertical: 5, paddingHorizontal: 8, backgroundColor: on ? tc.gold : tc.white, borderColor: tc.ink, borderWidth: 2 }}>
+                    <PixelText variant={txt} size={8} color={tc.ink}>{s === 'value' ? '평가액순' : '등락순'}</PixelText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
           <View style={{ gap: 8 }}>
+            {rows.length === 0 ? (
+              <PixelText variant={txt} size={10} color={tc.ink3} style={{ textAlign: 'center', paddingVertical: 20 }}>
+                해당 조건의 종목이 없어요
+              </PixelText>
+            ) : null}
             {rows.map(({ c, curJpy, profitPct, dayPct, basisJpy, qty }) => {
               const img = c.snkrdunkImageUrl || c.photoUrl || null;
               const name = c.snkrdunkName || c.nickname || '이름 미상';
@@ -170,6 +290,9 @@ export default function PortfolioPage() {
                         {c.selfPulled ? ' · 직접뽑기' : ''}
                       </PixelText>
                     </View>
+                    {Array.isArray(c.trend) && c.trend.length >= 2 ? (
+                      <Spark trend={c.trend} up={changeUp} tc={tc} />
+                    ) : null}
                     <View style={{ alignItems: 'flex-end' }}>
                       <PixelText variant={txt} size={11}>{curJpy > 0 ? format(curJpy) : '시세없음'}</PixelText>
                       {changePct != null && (
@@ -187,6 +310,77 @@ export default function PortfolioPage() {
         </ScrollView>
       )}
     </View>
+  );
+}
+
+/** KPI 셀 — 웹 Kpi 동일 (3열 그리드). */
+function Kpi({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
+  return (
+    <View style={{ width: '31.5%', flexGrow: 1, backgroundColor: tc.white, borderColor: tc.ink, borderWidth: 2, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center' }}>
+      <PixelText variant={txt} size={10} weight="bold" color={color ?? tc.ink} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </PixelText>
+      {sub ? (
+        <PixelText variant={txt} size={8} color={color ?? tc.ink3} style={{ marginTop: 2 }}>{sub}</PixelText>
+      ) : null}
+      <PixelText variant={txt} size={8} color={tc.ink3} style={{ marginTop: 4 }}>{label}</PixelText>
+    </View>
+  );
+}
+
+/** 오늘의 등락 TOP — 웹 Mover 동일. */
+function Mover({
+  row,
+  dir,
+  tc,
+  txt,
+}: {
+  row: { c: MyCardRow; changePct: number | null } | null;
+  dir: 'up' | 'down';
+  tc: ReturnType<typeof useThemeColors>;
+  txt: 'pixel' | 'ko';
+}) {
+  const color = dir === 'up' ? tc.red : tc.blu;
+  const head = dir === 'up' ? '▲ 상승 TOP' : '▼ 하락 TOP';
+  return (
+    <View style={{ flex: 1, backgroundColor: tc.white, borderColor: tc.ink, borderWidth: 2, padding: 10 }}>
+      <PixelText variant={txt} size={8} weight="bold" color={color}>{head}</PixelText>
+      {row ? (
+        <>
+          <PixelText variant="ko" size={10} weight="bold" color={tc.ink} numberOfLines={1} style={{ marginTop: 5 }}>
+            {row.c.snkrdunkName || row.c.nickname || '이름 미상'}
+          </PixelText>
+          <PixelText variant={txt} size={10} weight="bold" color={color} style={{ marginTop: 3 }}>
+            {(row.changePct ?? 0) >= 0 ? '+' : ''}{(row.changePct ?? 0).toFixed(1)}%
+          </PixelText>
+        </>
+      ) : (
+        <PixelText variant={txt} size={10} color={tc.ink3} style={{ marginTop: 5 }}>—</PixelText>
+      )}
+    </View>
+  );
+}
+
+/** 카드별 미니 스파크라인 — 웹 Spark 동일. */
+function Spark({ trend, up, tc }: { trend: number[]; up: boolean; tc: ReturnType<typeof useThemeColors> }) {
+  const pts = (trend ?? []).filter((n) => typeof n === 'number' && n > 0);
+  if (pts.length < 2) return null;
+  const w = 46;
+  const h = 22;
+  const min = Math.min(...pts);
+  const max = Math.max(...pts);
+  const span = max - min || 1;
+  const stepX = w / (pts.length - 1);
+  const d = pts
+    .map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * stepX).toFixed(1)},${(h - ((v - min) / span) * (h - 4) - 2).toFixed(1)}`)
+    .join(' ');
+  const color = up ? tc.red : tc.blu;
+  return (
+    <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+      <Path d={d} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
   );
 }
 
