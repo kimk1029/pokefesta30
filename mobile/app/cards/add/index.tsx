@@ -12,12 +12,12 @@ export default function CardAddScreen() {
       <AppBar onBack={() => router.push('/my/cards' as never)} title="카드 추가" />
 
       <View style={{ paddingHorizontal: 14, paddingTop: 14 }}>
-        <PixelFrame bg={colors.ink} borderWidth={3} shadow={6}>
-          <View style={{ padding: 14 }}>
-            <PixelText variant="ko" size={14} weight="bold" color={colors.gold}>
+        <PixelFrame bg={colors.white} borderWidth={3} shadow={5}>
+          <View style={{ padding: 14, alignItems: 'center' }}>
+            <PixelText variant="ko" size={13} weight="bold" color={colors.ink}>
               어떻게 추가할까요?
             </PixelText>
-            <PixelText variant="ko" size={10} color={colors.white} style={{ marginTop: 7, lineHeight: 16 }}>
+            <PixelText variant="ko" size={9} color={colors.ink3} style={{ marginTop: 8, lineHeight: 15, textAlign: 'center' }}>
               스캔으로 자동 등록하거나 직접 입력해 보관할 수 있어요
             </PixelText>
           </View>
@@ -42,8 +42,8 @@ export default function CardAddScreen() {
           />
         </View>
 
-        <PixelText variant="ko" size={10} color={colors.ink3} style={{ marginTop: 16, lineHeight: 16 }}>
-          스캔 결과가 어색하다면 직접 입력으로 보완할 수 있어요
+        <PixelText variant="ko" size={10} color={colors.ink3} style={{ marginTop: 16, lineHeight: 16, textAlign: 'center' }}>
+          💡 스캔 결과가 어색하다면 직접 입력으로 보완할 수 있어요
         </PixelText>
       </View>
     </View>
@@ -76,8 +76,8 @@ function AddCard({
           <PixelText variant="ko" size={9} color={colors.white} style={{ marginTop: 8, lineHeight: 15, textAlign: 'center', opacity: 0.9 }}>
             {desc}
           </PixelText>
-          <View style={{ marginTop: 'auto', backgroundColor: colors.ink, paddingHorizontal: 8, paddingVertical: 7 }}>
-            <PixelText variant="pixel" size={8} color={colors.gold}>
+          <View style={{ marginTop: 'auto', backgroundColor: 'rgba(0,0,0,0.25)', paddingHorizontal: 8, paddingVertical: 5 }}>
+            <PixelText variant="ko" size={9} color={colors.white}>
               ▶ {cta}
             </PixelText>
           </View>

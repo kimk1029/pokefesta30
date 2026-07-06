@@ -1,23 +1,20 @@
 /**
- * 토탈 포트폴리오 hero (모바일) — 홈 메인과 내 컬렉션 상단에서 동일하게 재사용.
- * 클린/다크 = CleanDarkPortfolioHero, 그 외 = 픽셀 보드. 미로그인 시 잠금 오버레이.
- * 데이터(보유/평가액/등락)는 usePortfolioHeroData 훅이 useCollection +
- * /api/me/portfolio 로 계산한다(웹 lib/portfolioHero 와 동일 컨셉).
- * 히어로 그래프는 웹 '내 자산'과 동일하게 제거 — 차트는 /my/portfolio 에서.
+ * '내 자산' 총 자산 가치 히어로 — 웹 CollectionScreen 다크 히어로와 1:1 동일.
+ * 전 테마 공통 디자인(웹도 테마 무관 inline 스타일): 다크 패널 + 우상단
+ * 원화/엔화 토글 + 총액 + '어제 대비 등락' + 보유/구매금액/평가손익 스탯.
+ * 총액은 서버 /api/me/portfolio 의 totalJpy — 등급 일치 합산(그레이딩 카드는
+ * PSA10가, 비그레이딩은 싱글가). 싱글/PSA10 토글은 웹에 없으므로 제거.
+ * 미로그인 시 잠금 오버레이.
  */
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { PixelText } from '@/components/PixelText';
-import { PixelFrame } from '@/components/cv/PixelFrame';
-import { colors } from '@/theme/tokens';
-import { useThemeColors, useTheme, useThemeTextVariant } from '@/components/ThemeProvider';
-import { isFlatTheme } from '@/lib/theme';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { isAuthenticated, subscribeSession } from '@/lib/session';
 import { useCurrency } from '@/components/CurrencyProvider';
-import { usePriceMode } from '@/lib/priceMode';
 import { useCollection } from '@/lib/collection';
-import { cardKrw, cardJpy, cardProfit } from '@/data/cardvault';
+import { cardJpy, cardProfit } from '@/data/cardvault';
 import { fetchPortfolio, type PortfolioSummary } from '@/lib/myApi';
 
 /** 로그인 상태를 반응형으로 구독. */
@@ -32,247 +29,112 @@ function useAuthed(): boolean {
   return authed;
 }
 
-interface HeroData {
-  authed: boolean;
-  serverPortfolio: PortfolioSummary | null;
-  ownedLen: number;
-  gradedLen: number;
-  hasAnyPsa10: boolean;
-  priceMode: 'single' | 'psa10';
-  togglePriceMode: () => void;
-  /** 보유 카드 현재 평가액 합계(JPY). 통화 토글 표시는 format() 으로. */
-  totalJpy: number;
-  /** @internal — changePct 계산용 로컬 KRW 합계. 표시엔 totalJpy 사용. */
-  totalVal: number;
-  /** 보유 카드 매입가 합계(KRW). 구매가 미입력분은 0. */
-  investedKrw: number;
-  /** 평가 손익(KRW) = 현재가 합 − 매입가 합 (매입가 입력 카드 한정). */
-  profitKrw: number;
-}
-
-/** hero 표시에 필요한 데이터 — useCollection + 서버 포트폴리오 스냅샷. */
-function usePortfolioHeroData(): HeroData {
+export function PortfolioHero() {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
   const authed = useAuthed();
-  const ownedAll = useCollection();
-  const owned = ownedAll.filter((c) => !c.favorite);
-  // 라이브 환율 — 집계도 표시(format)와 동일한 환율로 통일.
-  const { rate } = useCurrency();
+  const { format, rate, mode, setMode } = useCurrency();
 
-  const [serverPortfolio, setServerPortfolio] = useState<PortfolioSummary | null>(null);
+  // 서버 포트폴리오 — totalJpy 는 등급 일치 합산(웹 동일 소스).
+  const [port, setPort] = useState<PortfolioSummary | null>(null);
   useEffect(() => {
     if (!authed) return;
     let alive = true;
     fetchPortfolio()
-      .then((d) => alive && d && d.totalCount > 0 && setServerPortfolio(d))
+      .then((d) => alive && d && d.totalCount > 0 && setPort(d))
       .catch(() => undefined);
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [authed]);
 
-  const { mode: globalPriceMode, toggle: togglePriceMode } = usePriceMode();
-  const hasAnyPsa10 = owned.some((c) => (c.pricePsa10 ?? 0) > 0);
-  const priceMode: 'single' | 'psa10' = hasAnyPsa10 ? globalPriceMode : 'single';
-
-  const totalVal = owned.reduce((a, c) => a + cardKrw(c, priceMode, rate), 0);
-  const totalJpy = owned.reduce((a, c) => a + cardJpy(c, priceMode, rate), 0);
-  const graded = owned.filter((c) => c.grade != null);
-
-  // 매입가/평가손익 집계 — 구매가 입력 카드만 (cardProfit.hasBuy). 더미 없이 실데이터.
+  // 매입가/평가손익 — 로컬 컬렉션에서 구매가 입력 카드만 집계(웹 totals 동일 컨셉).
+  const ownedAll = useCollection();
+  const owned = ownedAll.filter((c) => !c.favorite);
   const profitAgg = owned.reduce(
     (a, c) => {
-      const p = cardProfit(c, priceMode, rate);
+      const p = cardProfit(c, 'single', rate);
       a.invested += p.investedKrw;
       a.profit += p.profitKrw;
       return a;
     },
     { invested: 0, profit: 0 },
   );
+  const investedJpy = rate > 0 ? profitAgg.invested / rate : 0;
+  const profitJpy = rate > 0 ? profitAgg.profit / rate : 0;
+  const hasInvested = profitAgg.invested > 0;
 
-  return {
-    authed, serverPortfolio, totalVal, totalJpy,
-    ownedLen: owned.length, gradedLen: graded.length,
-    hasAnyPsa10, priceMode, togglePriceMode,
-    investedKrw: profitAgg.invested, profitKrw: profitAgg.profit,
-  };
-}
+  const localTotalJpy = owned.reduce((a, c) => a + cardJpy(c, 'single', rate), 0);
+  const totalJpy = port ? port.totalJpy : localTotalJpy;
+  const totalCount = port ? port.totalCount : owned.length;
 
-export function PortfolioHero() {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  const { theme } = useTheme();
-  const flat = isFlatTheme(theme);
-  const { format: formatCurrency, rate } = useCurrency();
-  const {
-    authed, serverPortfolio, totalJpy, ownedLen, gradedLen,
-    hasAnyPsa10, priceMode, togglePriceMode,
-    investedKrw, profitKrw,
-  } = usePortfolioHeroData();
-
-  // 칩 표시용 — KRW 집계를 JPY 로 환산해 통화 토글(format)과 일관되게 표시.
-  const investedJpy = rate > 0 ? investedKrw / rate : 0;
-  const profitJpy = rate > 0 ? profitKrw / rate : 0;
-  const hasInvested = investedKrw > 0;
-
-  // 서버 포트폴리오가 있으면 그 JPY 총액, 없으면 로컬 집계 JPY 총액 — 둘 다 format() 로
-  // 통화 토글(엔/원)을 동일하게 반영. (이전엔 폴백이 항상 ₩ 고정이었음.)
-  const valueText = formatCurrency(serverPortfolio ? serverPortfolio.totalJpy : totalJpy);
-
-  // '어제 대비 등락' — 웹 내 자산 히어로와 동일 표기: +금액 (+pct%) ▲.
-  // 서버 changePct 가 없으면 표기하지 않음(웹 동일 — 더미 폴백 제거).
-  const realPct = serverPortfolio?.changePct ?? null;
-  const realAbsJpy = serverPortfolio?.changeAbsJpy ?? null;
-  const heroPct = realPct != null ? Math.round(realPct) : 0;
-  const heroUp = (realPct ?? 0) >= 0;
-  const deltaLabel = '어제 대비 등락';
-  const deltaText =
-    realPct == null
-      ? null
-      : realAbsJpy != null
-        ? `${realPct >= 0 ? '+' : '-'}${formatCurrency(Math.abs(realAbsJpy))} (${realPct >= 0 ? '+' : ''}${realPct.toFixed(2)}%) ${realPct >= 0 ? '▲' : '▼'}`
-        : `${realPct >= 0 ? '+' : ''}${realPct.toFixed(2)}% ${realPct >= 0 ? '▲' : '▼'}`;
+  const realPct = port?.changePct ?? null;
+  const realAbsJpy = port?.changeAbsJpy ?? null;
+  const up = (realPct ?? 0) >= 0;
 
   return (
     <View style={{ marginHorizontal: 14, marginBottom: 6, position: 'relative' }}>
       <View style={authed ? undefined : { opacity: 0.35 }} pointerEvents={authed ? 'auto' : 'none'}>
-        {flat ? (
-          <CleanDarkPortfolioHero
-            dark={theme === 'dark'}
-            tc={tc}
-            txt={txt}
-            value={valueText}
-            changePct={heroPct}
-            deltaLabel={deltaLabel}
-            deltaText={deltaText}
-            hasAnyPsa10={hasAnyPsa10}
-            priceMode={priceMode}
-            togglePriceMode={togglePriceMode}
-            ownedLen={ownedLen}
-            gradedLen={gradedLen}
-            investedText={hasInvested ? formatCurrency(investedJpy) : '—'}
-            profitText={hasInvested ? `${profitJpy >= 0 ? '+' : '-'}${formatCurrency(Math.abs(profitJpy))}` : '—'}
-            profitColor={!hasInvested ? tc.ink3 : profitJpy >= 0 ? tc.red : tc.blu}
-          />
-        ) : (
-          <PixelFrame
-            bg={tc.ink2}
-            borderWidth={4}
-            shadow={6}
-            hi="rgba(100,130,255,0.18)"
-            lo="rgba(0,0,0,0.55)"
-            inner={4}
-          >
-            <View style={{ padding: 18, paddingBottom: 16, position: 'relative', overflow: 'hidden' }}>
-              {/* corner brackets */}
-              {(
-                [
-                  { top: 6, left: 6, borderTopWidth: 2, borderLeftWidth: 2 },
-                  { top: 6, right: 6, borderTopWidth: 2, borderRightWidth: 2 },
-                  { bottom: 6, left: 6, borderBottomWidth: 2, borderLeftWidth: 2 },
-                  { bottom: 6, right: 6, borderBottomWidth: 2, borderRightWidth: 2 },
-                ] as const
-              ).map((pos, i) => (
-                <View
-                  key={i}
-                  pointerEvents="none"
-                  style={[{ position: 'absolute', width: 14, height: 14, borderColor: 'rgba(255,210,63,0.5)' }, pos]}
-                />
-              ))}
-
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <PixelText variant={txt} size={9} color="rgba(255,255,255,0.35)" style={{ letterSpacing: 2 }}>
-                  TOTAL PORTFOLIO{hasAnyPsa10 ? ` · ${priceMode === 'psa10' ? 'PSA10' : '싱글'}` : ''}
-                </PixelText>
-                {hasAnyPsa10 ? (
+        {/* 웹: linear-gradient(160deg,#22222a,#0e0e12) + radius 16 */}
+        <View style={{ backgroundColor: '#17171c', borderRadius: 16, padding: 20, overflow: 'hidden' }}>
+          {/* 상단: 라벨 + 원화/엔화 토글 (웹 동일) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <PixelText variant="ko" size={12} weight="bold" color="rgba(255,255,255,0.65)">
+              총 자산 가치
+            </PixelText>
+            <View style={{ flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 9, padding: 3 }}>
+              {(['krw', 'jpy'] as const).map((m) => {
+                const on = mode === m;
+                return (
                   <Pressable
-                    onPress={togglePriceMode}
-                    style={{ flexDirection: 'row', borderColor: 'rgba(255,210,63,0.6)', borderWidth: 1 }}
+                    key={m}
+                    onPress={() => setMode(m)}
+                    style={{ paddingVertical: 5, paddingHorizontal: 12, borderRadius: 7, backgroundColor: on ? '#fff' : 'transparent' }}
                   >
-                    {(['single', 'psa10'] as const).map((m) => (
-                      <View
-                        key={m}
-                        style={{ paddingHorizontal: 7, paddingVertical: 3, backgroundColor: priceMode === m ? tc.gold : 'transparent' }}
-                      >
-                        <PixelText variant={txt} size={8} color={priceMode === m ? tc.ink : 'rgba(255,210,63,0.85)'}>
-                          {m === 'single' ? '싱글' : 'PSA10'}
-                        </PixelText>
-                      </View>
-                    ))}
+                    <PixelText variant="ko" size={10} weight="bold" color={on ? '#16161a' : 'rgba(255,255,255,0.6)'}>
+                      {m === 'krw' ? '원화' : '엔화'}
+                    </PixelText>
                   </Pressable>
-                ) : null}
-              </View>
-
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16 }}>
-                <PixelText variant={txt} size={26} color={tc.gold} style={{ letterSpacing: -2, marginRight: 12 }}>
-                  {valueText}
-                </PixelText>
-                {deltaText ? (
-                  <View style={{ paddingBottom: 4 }}>
-                    <PixelText variant={txt} size={11} color={heroUp ? '#22C55E' : '#E63946'}>
-                      {deltaText}
-                    </PixelText>
-                    <PixelText variant={txt} size={9} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }}>
-                      {deltaLabel}
-                    </PixelText>
-                  </View>
-                ) : null}
-              </View>
-
-              {/* 4 stat chips — 실데이터 (보유/그레이딩/구매금액/평가손익) */}
-              <View style={{ flexDirection: 'row', gap: 4 }}>
-                {[
-                  { l: '보유', v: `${ownedLen}장`, c: 'rgba(255,255,255,0.7)' },
-                  { l: '그레이딩', v: `${gradedLen}건`, c: '#A78BFA' },
-                  { l: '구매금액', v: hasInvested ? formatCurrency(investedJpy) : '—', c: tc.gold },
-                  { l: '평가손익', v: hasInvested ? `${profitJpy >= 0 ? '+' : '-'}${formatCurrency(Math.abs(profitJpy))}` : '—', c: hasInvested ? (profitJpy >= 0 ? '#FF6B5E' : '#6FA8FF') : 'rgba(255,255,255,0.5)' },
-                ].map((s) => (
-                  <View
-                    key={s.l}
-                    style={{
-                      flex: 1,
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      paddingVertical: 9,
-                      paddingHorizontal: 4,
-                      alignItems: 'center',
-                      borderColor: 'rgba(255,255,255,0.08)',
-                      borderWidth: 1,
-                      minWidth: 0,
-                    }}
-                  >
-                    <PixelText variant={txt} size={10} color={s.c} numberOfLines={1} adjustsFontSizeToFit style={{ marginBottom: 5 }}>
-                      {s.v}
-                    </PixelText>
-                    <PixelText variant={txt} size={8} color="rgba(255,255,255,0.3)" numberOfLines={1}>
-                      {s.l}
-                    </PixelText>
-                  </View>
-                ))}
-              </View>
-
-              {/* 전체 포트폴리오 페이지로 */}
-              <Pressable onPress={() => router.push('/my/portfolio' as never)} style={{ marginTop: 10, alignItems: 'flex-end' }}>
-                <PixelText variant={txt} size={9} color="rgba(255,210,63,0.75)" style={{ letterSpacing: 0.5 }}>
-                  전체 포트폴리오 보기 ▶
-                </PixelText>
-              </Pressable>
+                );
+              })}
             </View>
-          </PixelFrame>
-        )}
+          </View>
+
+          {/* 총액 */}
+          <PixelText variant="ko" size={28} weight="bold" color="#fff" style={{ marginTop: 12, letterSpacing: -0.5 }}>
+            {format(totalJpy)}
+          </PixelText>
+
+          {/* 어제 대비 등락 — 서버 changePct 있을 때만 (웹 동일) */}
+          {realPct != null ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 8, flexWrap: 'wrap' }}>
+              <PixelText variant="ko" size={10} color="rgba(255,255,255,0.5)">어제 대비 등락</PixelText>
+              <PixelText variant="ko" size={12} weight="bold" color={up ? '#FF6B5E' : '#6FA8FF'}>
+                {up ? '+' : '-'}{format(Math.abs(realAbsJpy ?? 0))} ({up ? '+' : ''}{realPct.toFixed(2)}%) {up ? '▲' : '▼'}
+              </PixelText>
+            </View>
+          ) : null}
+
+          {/* 스탯 행 — 보유 카드 / 구매 금액 / 평가 손익 (웹 HeroStat 동일) */}
+          <View style={{ flexDirection: 'row', marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)' }}>
+            <HeroStat label="보유 카드" value={`${totalCount}장`} />
+            <HeroStat label="구매 금액" value={hasInvested ? format(investedJpy) : '—'} flex={1.3} />
+            <HeroStat
+              label="평가 손익"
+              value={hasInvested ? `${profitJpy >= 0 ? '+' : '-'}${format(Math.abs(profitJpy))}` : '—'}
+              color={!hasInvested ? '#fff' : profitJpy >= 0 ? '#FF6B5E' : '#6FA8FF'}
+              flex={1.2}
+            />
+          </View>
+        </View>
       </View>
+
       {!authed && (
         <Pressable
           onPress={() => router.push('/login' as never)}
           style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: 18 }}
         >
-          <View
-            style={{
-              backgroundColor: 'rgba(15,23,42,0.92)',
-              borderColor: tc.gold,
-              borderWidth: 3,
-              paddingHorizontal: 18,
-              paddingVertical: 14,
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
+          <View style={{ backgroundColor: 'rgba(15,23,42,0.92)', borderColor: tc.gold, borderWidth: 3, paddingHorizontal: 18, paddingVertical: 14, alignItems: 'center', gap: 6 }}>
             <PixelText variant={txt} size={9} color={tc.gold} style={{ letterSpacing: 0.5 }}>
               🔒 PORTFOLIO LOCKED
             </PixelText>
@@ -289,71 +151,14 @@ export function PortfolioHero() {
   );
 }
 
-/**
- * 클린(라이트) / 다크(사이버 주식창) 포트폴리오 히어로.
- */
-function CleanDarkPortfolioHero({
-  dark, tc, txt, value, changePct, deltaLabel, deltaText, hasAnyPsa10, priceMode, togglePriceMode,
-  ownedLen, gradedLen, investedText, profitText, profitColor,
-}: {
-  dark: boolean;
-  tc: typeof colors;
-  txt: 'pixel' | 'ko';
-  value: string;
-  changePct: number;
-  deltaLabel: string;
-  deltaText: string | null;
-  hasAnyPsa10: boolean;
-  priceMode: 'single' | 'psa10';
-  togglePriceMode: () => void;
-  ownedLen: number;
-  gradedLen: number;
-  investedText: string;
-  profitText: string;
-  profitColor: string;
-}) {
-  const up = changePct >= 0;
-  const upColor = up ? tc.red : tc.blu;
-  const radius = dark ? 14 : 0;
+/** 웹 CollectionScreen HeroStat 동일 — 라벨(10.5 흰50%) + 값(13.5 800 white). */
+function HeroStat({ label, value, color = '#fff', flex = 1 }: { label: string; value: string; color?: string; flex?: number }) {
   return (
-    <View style={{ backgroundColor: tc.paper, borderColor: tc.pap3, borderWidth: 1, borderRadius: radius, overflow: 'hidden' }}>
-      <View style={{ padding: 16, paddingBottom: 8 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <PixelText variant={txt} size={11} weight="bold" color={tc.ink3}>내 포트폴리오 평가액</PixelText>
-          {hasAnyPsa10 ? (
-            <Pressable onPress={togglePriceMode} style={{ flexDirection: 'row', backgroundColor: tc.pap2, borderColor: tc.pap3, borderWidth: 1 }}>
-              {(['single', 'psa10'] as const).map((m) => (
-                <View key={m} style={{ paddingHorizontal: 9, paddingVertical: 4, backgroundColor: priceMode === m ? tc.ink : 'transparent' }}>
-                  <PixelText variant={txt} size={10} weight="bold" color={priceMode === m ? tc.paper : tc.ink3}>{m === 'single' ? '싱글' : 'PSA10'}</PixelText>
-                </View>
-              ))}
-            </Pressable>
-          ) : null}
-        </View>
-        <PixelText variant={txt} size={30} weight="bold" color={tc.ink} style={{ letterSpacing: -1 }}>{value}</PixelText>
-        {/* '어제 대비 등락' — 웹 내 자산 히어로와 동일 표기 (그래프 없이 라벨+등락값). */}
-        {deltaText ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10, marginBottom: 8, flexWrap: 'wrap' }}>
-            <PixelText variant={txt} size={11} color={tc.ink3}>{deltaLabel}</PixelText>
-            <PixelText variant={txt} size={13} weight="bold" color={upColor}>{deltaText}</PixelText>
-          </View>
-        ) : (
-          <View style={{ marginBottom: 8 }} />
-        )}
-      </View>
-      <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: tc.pap3 }}>
-        {([
-          ['보유', `${ownedLen}장`, tc.ink],
-          ['그레이딩', `${gradedLen}건`, tc.ink],
-          ['구매금액', investedText, tc.ink],
-          ['평가손익', profitText, profitColor],
-        ] as Array<[string, string, string]>).map(([l, v, col], i) => (
-          <View key={l} style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 4, alignItems: 'center', borderRightWidth: i < 3 ? 1 : 0, borderRightColor: tc.pap3 }}>
-            <PixelText variant={txt} size={15} weight="bold" color={col} numberOfLines={1} adjustsFontSizeToFit>{v}</PixelText>
-            <PixelText variant={txt} size={11} color={tc.ink3} style={{ marginTop: 4 }}>{l}</PixelText>
-          </View>
-        ))}
-      </View>
+    <View style={{ flex }}>
+      <PixelText variant="ko" size={10} color="rgba(255,255,255,0.5)">{label}</PixelText>
+      <PixelText variant="ko" size={12} weight="bold" color={color} numberOfLines={1} adjustsFontSizeToFit style={{ marginTop: 4 }}>
+        {value}
+      </PixelText>
     </View>
   );
 }

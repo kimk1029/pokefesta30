@@ -8,7 +8,6 @@ import { useMemo } from 'react';
 import { Image, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 import { PixelText } from '@/components/PixelText';
-import { PixelFrame } from '@/components/cv/PixelFrame';
 import { space } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import type { MyCardRow } from '@/lib/myApi';
@@ -71,7 +70,7 @@ export function CollectionComposition({ cards, format }: Props) {
       <PixelText variant="ko" size={15} weight="bold" color={tc.ink} style={{ marginBottom: 10 }}>
         자산 구성
       </PixelText>
-      <PixelFrame shadow={5} inner={3}>
+      <View style={{ backgroundColor: tc.white, borderColor: tc.pap3, borderWidth: 1, borderRadius: 14 }}>
         <View style={{ padding: 16 }}>
           <View style={{ alignItems: 'center', marginBottom: 16 }}>
             <Donut segments={segments} track={tc.pap3} />
@@ -135,7 +134,7 @@ export function CollectionComposition({ cards, format }: Props) {
             ) : null}
           </View>
         </View>
-      </PixelFrame>
+      </View>
     </View>
   );
 }

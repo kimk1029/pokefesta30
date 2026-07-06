@@ -7,7 +7,6 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
 import { PixelText } from '@/components/PixelText';
-import { PixelFrame } from '@/components/cv/PixelFrame';
 import { space } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import type { MyCardRow, PortfolioSummary } from '@/lib/myApi';
@@ -34,7 +33,6 @@ export function CollectionSummary({
 }) {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
-  const usePsa10 = priceMode === 'psa10';
 
   // 7일/30일 변화 — 서버 history 기준 (웹 over(days) 와 동일).
   const summary = useMemo(() => {
@@ -54,7 +52,7 @@ export function CollectionSummary({
     let invested = 0;
     let current = 0;
     for (const c of cards) {
-      const cur = usePsa10 && (c.pricePsa10Jpy ?? 0) > 0 ? (c.pricePsa10Jpy as number) : (c.priceSingleJpy ?? 0);
+      const cur = c.graded ? c.pricePsa10Jpy ?? 0 : c.priceSingleJpy ?? 0;
       const qty = Math.max(1, c.qty ?? 1);
       const basis =
         c.buyPrice != null && c.buyPrice > 0
@@ -70,7 +68,7 @@ export function CollectionSummary({
     const profit = current - invested;
     const pct = invested > 0 ? (profit / invested) * 100 : null;
     return { profit, pct };
-  }, [cards, usePsa10, rate]);
+  }, [cards, rate]);
 
   return (
     <>
@@ -95,7 +93,7 @@ export function CollectionSummary({
 
       {/* 가격 알림 배너 */}
       <View style={{ paddingHorizontal: space.gap, marginBottom: space.cg }}>
-        <PixelFrame bg={tc.white}>
+        <View style={{ backgroundColor: tc.white, borderColor: tc.pap3, borderWidth: 1, borderRadius: 14 }}>
           <View style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <PixelText variant={txt} size={22}>🎯</PixelText>
             <View style={{ flex: 1, minWidth: 0 }}>
@@ -108,7 +106,7 @@ export function CollectionSummary({
               <PixelText variant={txt} size={10} weight="bold" color={tc.orn}>{alertCount}개 설정 중</PixelText>
             ) : null}
           </View>
-        </PixelFrame>
+        </View>
       </View>
     </>
   );
@@ -140,7 +138,7 @@ function SummaryCell({
       : '—';
   const subText = delta && pct != null ? `(${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)` : sub;
   return (
-    <View style={{ flex: 1, borderColor: tc.pap3, borderWidth: 1, paddingVertical: 13, paddingHorizontal: 10, backgroundColor: tc.white, minHeight: 88 }}>
+    <View style={{ flex: 1, borderColor: tc.pap3, borderWidth: 1, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 10, backgroundColor: tc.white, minHeight: 88 }}>
       <PixelText variant={txt} size={10} color={tc.ink3} numberOfLines={1}>{label}</PixelText>
       <PixelText variant={txt} size={13} weight="bold" color={color} numberOfLines={1} adjustsFontSizeToFit style={{ marginTop: 7 }}>
         {main}

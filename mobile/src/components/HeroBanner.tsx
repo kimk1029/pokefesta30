@@ -128,7 +128,7 @@ export function HeroBanner({ slides }: { slides: HeroSlideData[] }) {
 
   const track = (
     <View
-      style={{ overflow: 'hidden', borderRadius: flat ? 16 : 0 }}
+      style={{ overflow: 'hidden' }}
       onLayout={(e) => {
         const w = e.nativeEvent.layout.width;
         if (w > 0 && Math.abs(w - width) > 1) setWidth(w);

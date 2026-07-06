@@ -1,34 +1,24 @@
 /**
- * /my/cards — 내 카드 컬렉션.
- *
- * 웹 MyCardsScreen 과 동일한 4 view (그리드/리스트/앨범/필름) + 등급 탭 + 정렬.
- * 서버에서 /api/me/cards/with-prices 로 enriched MyCardRow 가져와 표시.
+ * /my/cards — 내 자산 (웹 CollectionScreen 1:1).
+ * 히어로(총 자산) → 자산 요약 → 자산 구성 → 가격 알림 → 내 카드 목록.
+ * 목록: 뷰 2종(그리드 2열/리스트) + 정렬(가격순/등락순/등록일/이름순) +
+ * 카드 ⋯ 메뉴(시세 보기/컬렉션에서 제거). 시세는 등급 일치(그레이딩=PSA10,
+ * 비그레이딩=싱글) — 웹 allRows 와 동일 계산.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  type View as RNView,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { PortfolioHero } from '@/components/PortfolioHero';
 import { CollectionComposition } from '@/components/CollectionComposition';
 import { CollectionSummary } from '@/components/CollectionSummary';
 import { PixelText } from '@/components/PixelText';
-import { PixelFrame } from '@/components/cv/PixelFrame';
-import { PixelPress } from '@/components/cv/PixelPress';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useToast } from '@/components/ToastProvider';
 import { usePriceMode } from '@/lib/priceMode';
-import { colors, fonts, space } from '@/theme/tokens';
+import { space } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import {
   fetchMyCards,
@@ -40,115 +30,45 @@ import {
 } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 import { isAuthenticated, subscribeSession } from '@/lib/session';
-import {
-  detectRarity,
-  RARITY_ORDER,
-  RARITY_BG,
-  RARITY_FG,
-  type Rarity,
-} from '@/lib/cardRarity';
-import { localizeCardName } from '@/lib/cardNameKo';
-import {
-  CardSpotlightModal,
-  type CardSpotlightData,
-  type SpotlightOrigin,
-} from '@/components/CardSpotlightModal';
-import { autoPriceSize } from '../../../shared/util/autoPriceSize';
 
-type ViewMode = 'grid' | 'list' | 'album' | 'film';
-type SortBy = 'recent' | 'name' | 'price' | 'grade';
-type RarFilter = 'all' | Rarity;
+type SortKey = 'value' | 'change' | 'recent' | 'name';
+type ViewMode = 'grid' | 'list';
 
-const VIEW_TABS: Array<[ViewMode, string]> = [
-  ['grid', '바둑판'],
-  ['list', '리스트'],
-  ['album', '앨범'],
-  ['film', '필름'],
-];
-const SORT_TABS: Array<[SortBy, string]> = [
-  ['recent', '최근'],
-  ['name', '이름'],
-  ['price', '가격'],
-  ['grade', '등급'],
-];
+// KR 관례 — 상승 빨강 / 하락 파랑 (웹 UP/DOWN 동일).
+const UP = '#E5484D';
+const DOWN = '#2F6BFF';
+// 이미지 없는 카드 폴백 배경 — 웹 FALLBACK_GRADS 의 대표색(단색 근사).
+const FALLBACK_BG = ['#e0492f', '#f9b423', '#d799c4', '#7a69d6', '#2a2a30', '#25c485'];
 
-interface Display {
-  src: MyCardRow;
-  name: string;
-  imageUrl: string | null;
-  rar: Rarity;
-  gradeNum: number | null;
-  priceJpy: number;
-  /** 매입가(JPY 환산). 구매가 미입력이면 null. */
+function cardName(c: MyCardRow): string {
+  return c.snkrdunkName || c.nickname || '이름 미상';
+}
+function cardSub(c: MyCardRow): string {
+  if (c.graded) return `${c.gradeCompany ?? 'PSA'} ${c.gradeValue ?? ''}`.trim();
+  if (c.ocrSetCode) return [c.ocrSetCode.toUpperCase(), c.ocrCardNumber].filter(Boolean).join(' · ');
+  return c.selfPulled ? '직접뽑기' : '싱글카드';
+}
+/** 손익률 부호색 — 이득 빨강 / 손해 파랑 / 기준 없음 잉크 (웹 profitColor 동일). */
+function profitColor(pct: number | null, ink: string): string {
+  if (pct == null) return ink;
+  return pct >= 0 ? UP : DOWN;
+}
+function rankBadgeColor(rank: number, gold: string, ink: string): string {
+  if (rank === 1) return gold;
+  if (rank === 2) return '#9AA0A6';
+  if (rank === 3) return '#C8732B';
+  return ink;
+}
+
+interface Row {
+  c: MyCardRow;
+  curJpy: number;
+  qty: number;
   basisJpy: number | null;
-  /** 등록가 대비 손익률(%). 구매가 없으면 null. */
   profitPct: number | null;
-}
-
-function toDisplay(c: MyCardRow, mode: 'single' | 'psa10', rate: number): Display {
-  const raw =
-    c.nickname ||
-    c.snkrdunkName ||
-    c.cardId ||
-    (c.ocrSetCode || c.ocrCardNumber
-      ? `${c.ocrSetCode ?? '?'} ${c.ocrCardNumber ?? ''}`.trim()
-      : '미식별 카드');
-  const psa10 = c.pricePsa10Jpy ?? 0;
-  const single = c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0;
-  const priceJpy = mode === 'psa10' && psa10 > 0 ? psa10 : single;
-  // 등록가(매입가) → JPY 환산. KRW 입력분은 라이브 환율로 나눔(웹 CollectionScreen 동일).
-  const buy = c.buyPrice ?? 0;
-  const basisJpy = buy > 0 ? (c.buyCurrency === 'JPY' ? buy : buy / (rate || 1)) : null;
-  const profitPct = basisJpy && priceJpy > 0 ? ((priceJpy - basisJpy) / basisJpy) * 100 : null;
-  return {
-    src: c,
-    name: localizeCardName(raw),
-    imageUrl: c.photoUrl || c.snkrdunkImageUrl || null,
-    rar: detectRarity(c.nickname, c.snkrdunkName, c.cardId),
-    gradeNum: parsePsa(c.gradeEstimate),
-    priceJpy,
-    basisJpy,
-    profitPct,
-  };
-}
-
-/** 손익률 부호색 — 이득(≥0) 빨강 / 손해(<0) 파랑 / 구매가 없음(null) 기본 초록. */
-function priceColorOf(profitPct: number | null, tc: { red: string; blu: string; grnDk: string }): string {
-  if (profitPct == null) return tc.grnDk;
-  return profitPct >= 0 ? tc.red : tc.blu;
-}
-
-function parsePsa(label: string | null | undefined): number | null {
-  if (!label) return null;
-  const m = label.match(/PSA\s*(\d+)/i);
-  return m ? Number(m[1]) : null;
-}
-
-/* ── 등락률(change rate) — 웹 MyCardsScreen 과 동일 로직 ── */
-type Dir = 'up' | 'down' | 'flat';
-function changeFromTrend(trend: number[] | undefined): { pct: number; dir: Dir } | null {
-  if (!Array.isArray(trend) || trend.length < 2) return null;
-  const prev = trend[trend.length - 2];
-  const last = trend[trend.length - 1];
-  if (!(prev > 0)) return null;
-  const pct = ((last - prev) / prev) * 100;
-  const dir: Dir = pct > 0.05 ? 'up' : pct < -0.05 ? 'down' : 'flat';
-  return { pct, dir };
-}
-// 한국 관습: 상승=빨강, 하락=파랑.
-const CHANGE_COLOR: Record<Dir, string> = { up: colors.red, down: colors.blu, flat: colors.ink3 };
-const CHANGE_ARROW: Record<Dir, string> = { up: '▲', down: '▼', flat: '–' };
-
-/** 등록가 대비 손익률 배지 — 이득 빨강 ▲ / 손해 파랑 ▼ (웹 CollectionScreen 동일). */
-function ProfitBadge({ pct }: { pct: number }) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  const up = pct >= 0;
-  return (
-    <PixelText variant={txt} size={8} weight="bold" color={up ? tc.red : tc.blu} style={{ marginLeft: 5 }}>
-      {up ? '▲' : '▼'}{Math.abs(pct).toFixed(1)}%
-    </PixelText>
-  );
+  dayPct: number | null;
+  changePct: number | null;
+  value: number;
 }
 
 function useAuthed(): boolean {
@@ -165,14 +85,11 @@ export default function MyCardsScreen() {
   const { mode: priceMode } = usePriceMode();
   const toast = useToast();
 
-  const [view, setView] = useState<ViewMode>('list');
-  const [search, setSearch] = useState('');
-  const [rar, setRar] = useState<RarFilter>('all');
-  const [sort, setSort] = useState<SortBy>('recent');
+  const [view, setView] = useState<ViewMode>('grid');
+  const [sort, setSort] = useState<SortKey>('value');
 
   const { data, loading, error, refresh } = useAsync<MyCardRow[]>(fetchMyCards, [authed]);
 
-  // 자산 요약(7일/30일 history) · 가격 알림 개수 — 실데이터.
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [alertCount, setAlertCount] = useState(0);
   useEffect(() => {
@@ -183,96 +100,71 @@ export default function MyCardsScreen() {
     return () => { alive = false; };
   }, [authed]);
 
+  // 웹 allRows 동일 — 등급 일치 시세(그레이딩=PSA10, 비그레이딩=싱글) × 수량.
+  const allRows = useMemo<Row[]>(() => {
+    return (data ?? []).map((c) => {
+      const qty = Math.max(1, c.qty || 1);
+      const basisJpy =
+        c.buyPrice != null && c.buyPrice > 0
+          ? c.buyCurrency === 'JPY'
+            ? c.buyPrice
+            : c.buyPrice / (rate || 1)
+          : null;
+      const curJpy = c.graded ? c.pricePsa10Jpy ?? 0 : c.priceSingleJpy ?? 0;
+      const profitPct = basisJpy && curJpy > 0 ? ((curJpy - basisJpy) / basisJpy) * 100 : null;
+      const t = c.trend ?? [];
+      const dayPct =
+        t.length >= 2 && t[t.length - 2] > 0 ? ((t[t.length - 1] - t[t.length - 2]) / t[t.length - 2]) * 100 : null;
+      return { c, curJpy, qty, basisJpy, profitPct, dayPct, changePct: profitPct ?? dayPct, value: curJpy * qty };
+    });
+  }, [data, rate]);
+
+  const rows = useMemo(() => {
+    const arr = [...allRows];
+    if (sort === 'value') arr.sort((a, b) => b.value - a.value);
+    else if (sort === 'change') arr.sort((a, b) => (b.changePct ?? -Infinity) - (a.changePct ?? -Infinity));
+    else if (sort === 'name') arr.sort((a, b) => cardName(a.c).localeCompare(cardName(b.c), 'ko'));
+    else if (sort === 'recent') arr.sort((a, b) => (b.c.createdAt || '').localeCompare(a.c.createdAt || ''));
+    return arr;
+  }, [allRows, sort]);
+
+  const handleRemove = useCallback(
+    (id: number) => {
+      Alert.alert('카드 삭제', '이 카드를 컬렉션에서 제거할까요?', [
+        { text: '취소' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMyCard(id);
+              toast.success('카드가 삭제되었습니다');
+              refresh();
+            } catch {
+              toast.error('삭제 실패');
+            }
+          },
+        },
+      ]);
+    },
+    [toast, refresh],
+  );
+
   if (!authed) {
     return (
       <InlineLoginGate
-        title="내 컬렉션"
-        feature="내 컬렉션"
+        title="내 자산"
+        feature="내 자산"
         description="스캔·구매·거래한 카드와 시세를 한곳에서 관리하세요."
         icon="📦"
       />
     );
   }
 
-  const display: Display[] = (data ?? []).map((c) => toDisplay(c, priceMode, rate));
-
-  const presentRarities = useMemo(() => {
-    const set = new Set<Rarity>();
-    for (const d of display) set.add(d.rar);
-    return RARITY_ORDER.filter((r) => set.has(r));
-  }, [display]);
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    let out = display.filter((d) => {
-      if (rar !== 'all' && d.rar !== rar) return false;
-      if (!q) return true;
-      return d.name.toLowerCase().includes(q);
-    });
-    if (sort === 'name') out = [...out].sort((a, b) => a.name.localeCompare(b.name));
-    if (sort === 'price') out = [...out].sort((a, b) => b.priceJpy - a.priceJpy);
-    if (sort === 'grade') out = [...out].sort((a, b) => (b.gradeNum ?? 0) - (a.gradeNum ?? 0));
-    return out;
-  }, [display, search, rar, sort]);
-
-  const totalJpy = filtered.reduce((s, d) => s + d.priceJpy, 0);
-  const gradedN = filtered.filter((d) => d.gradeNum !== null).length;
-
-  const onDelete = (id: number) => {
-    Alert.alert('카드 삭제', '이 카드를 컬렉션에서 제거할까요?', [
-      { text: '취소' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteMyCard(id);
-            toast.success('카드가 삭제되었습니다');
-            refresh();
-          } catch {
-            toast.error('삭제 실패');
-          }
-        },
-      },
-    ]);
-  };
-
-  const openDetail = (d: Display) => {
-    if (d.src.snkrdunkApparelId) {
-      router.push(`/cards/snkrdunk/${d.src.snkrdunkApparelId}` as never);
-    }
-  };
-
-  // 🔍 카드 스포트라이트 — 컬렉션 카드 우상단 버튼을 누르면 풀스크린 회전 확대.
-  const [spotlight, setSpotlight] = useState<{ data: CardSpotlightData; origin: SpotlightOrigin | null } | null>(null);
-
-  const openSpotlight = useCallback(
-    (d: Display, origin: SpotlightOrigin | null) => {
-      const subtitleParts: string[] = [];
-      if (d.src.ocrSetCode) subtitleParts.push(d.src.ocrSetCode);
-      if (d.src.ocrCardNumber) subtitleParts.push(d.src.ocrCardNumber);
-      if (d.rar) subtitleParts.push(d.rar);
-      const trend = d.src.trend ?? [];
-      const data: CardSpotlightData = {
-        imageUrl: d.imageUrl,
-        emojiFallback: '🃏',
-        name: d.name,
-        subtitle: subtitleParts.join(' · ') || null,
-        gradeLabel: d.src.gradeEstimate ?? null,
-        priceLabel: d.priceJpy > 0 ? format(d.priceJpy) : null,
-        trend,
-        currencySymbol: '¥',
-      };
-      setSpotlight({ data, origin });
-    },
-    [format],
-  );
-
   return (
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
-        {/* 웹 CollectionScreen 과 동일 — "내 자산" 헤더(검색/알림/도움말) */}
-        <CollectionHeader tc={tc} txt={txt} />
+        <CollectionHeader tc={tc} />
         <PortfolioHero />
         {loading && !data ? (
           <View style={{ paddingTop: 30 }}><LoadingState /></View>
@@ -280,19 +172,19 @@ export default function MyCardsScreen() {
           <View style={{ marginHorizontal: 14, marginTop: 14 }}>
             <ErrorView error={error} onRetry={refresh} />
           </View>
-        ) : display.length === 0 ? (
+        ) : (data ?? []).length === 0 ? (
           <View style={{ marginHorizontal: 14, marginTop: 30 }}>
             <EmptyState
               icon="🃏"
-              title="저장된 카드가 없어요"
-              desc="시세 상세 페이지의 [내 컬렉션] 버튼으로 추가하세요."
-              ctaLabel="가격 탐색"
-              onCtaPress={() => router.push('/cards/packs' as never)}
+              title="아직 보유 카드가 없어요"
+              desc="카드를 추가하러 가볼까요?"
+              ctaLabel="카드 추가하러 가기"
+              onCtaPress={() => router.push('/cards/add' as never)}
             />
           </View>
         ) : (
           <>
-            {/* 자산 요약(7일/30일/누적) + 가격 알림 배너 — 실데이터 */}
+            <View style={{ height: 12 }} />
             <CollectionSummary
               port={portfolio}
               cards={data ?? []}
@@ -301,582 +193,237 @@ export default function MyCardsScreen() {
               format={format}
               rate={rate}
             />
-
-            {/* 자산 구성(지역별 도넛) + 시리즈 TOP5 — 웹 CollectionScreen 포팅 */}
             <CollectionComposition cards={data ?? []} priceMode={priceMode} format={format} />
 
-            {/* 검색 */}
-            <View style={{ paddingHorizontal: space.gap, marginBottom: 2 }}>
-              <PixelFrame shadow={5} inner={3}>
-                <View style={styles.searchRow}>
-                  <PixelText variant={txt} size={14}>🔍</PixelText>
-                  <TextInput
-                    value={search}
-                    onChangeText={setSearch}
-                    placeholder="카드명 검색..."
-                    placeholderTextColor={tc.ink3}
-                    style={styles.searchInput}
-                  />
+            {/* ── 내 카드 목록 (웹 동일: 헤더 + 그리드/리스트 토글 + 정렬 세그먼트) ── */}
+            <View style={{ paddingHorizontal: space.gap }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <PixelText variant="ko" size={15} weight="bold" color={tc.ink}>
+                  내 카드 목록 <PixelText variant="ko" size={15} weight="bold" color={tc.ink3}>({rows.length})</PixelText>
+                </PixelText>
+                <View style={{ flexDirection: 'row', gap: 4, backgroundColor: tc.pap2, borderRadius: 8, padding: 3 }}>
+                  {(['grid', 'list'] as ViewMode[]).map((v) => {
+                    const on = view === v;
+                    const stroke = on ? tc.ink : tc.ink3;
+                    return (
+                      <Pressable key={v} onPress={() => setView(v)} style={{ width: 30, height: 26, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? tc.white : 'transparent' }}>
+                        {v === 'grid' ? (
+                          <Svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={2}>
+                            <Rect x={3} y={3} width={7} height={7} rx={1.5} /><Rect x={14} y={3} width={7} height={7} rx={1.5} />
+                            <Rect x={3} y={14} width={7} height={7} rx={1.5} /><Rect x={14} y={14} width={7} height={7} rx={1.5} />
+                          </Svg>
+                        ) : (
+                          <Svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={2} strokeLinecap="round">
+                            <Path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                          </Svg>
+                        )}
+                      </Pressable>
+                    );
+                  })}
                 </View>
-              </PixelFrame>
-            </View>
+              </View>
 
-            {/* 등급 탭 (컬렉션에 존재하는 등급만) — 웹 .chip 3D */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipRow}
-            >
-              {(['all', ...presentRarities] as RarFilter[]).map((r) => (
-                <PixelPress
-                  key={r}
-                  onPress={() => setRar(r)}
-                  bg={rar === r ? tc.gold : tc.white}
-                  borderWidth={3}
-                  shadow={rar === r ? 2 : 4}
-                  inner={2}
-                >
-                  <View style={styles.chipInner}>
-                    <PixelText variant={txt} size={9} color={tc.ink}>
-                      {r === 'all' ? 'ALL' : r}
-                    </PixelText>
-                  </View>
-                </PixelPress>
-              ))}
-            </ScrollView>
-
-            {/* 정렬 — 웹 .chip 3D */}
-            <View style={styles.toolbar}>
-              {SORT_TABS.map(([k, lb]) => (
-                <PixelPress
-                  key={k}
-                  onPress={() => setSort(k)}
-                  bg={sort === k ? tc.ink : tc.white}
-                  borderWidth={3}
-                  shadow={sort === k ? 2 : 4}
-                  inner={2}
-                  hi={sort === k ? null : 'rgba(255,255,255,0.85)'}
-                >
-                  <View style={styles.sortInner}>
-                    <PixelText variant={txt} size={9} color={sort === k ? tc.gold : tc.ink}>
-                      {lb}
-                    </PixelText>
-                  </View>
-                </PixelPress>
-              ))}
-            </View>
-
-            {/* 뷰 탭 — 웹 .cv-subseg (ink 컨테이너 + 입체) */}
-            <View style={{ paddingHorizontal: space.gap, marginBottom: space.cg }}>
-              <PixelFrame bg={tc.ink} shadow={4} hi={null} lo={null} borderWidth={3}>
-                <View style={styles.subseg}>
-                  {VIEW_TABS.map(([k, lb]) => (
-                    <Pressable
-                      key={k}
-                      onPress={() => setView(k)}
-                      style={[styles.subsegBtn, view === k && styles.subsegBtnOn]}
-                    >
-                      <PixelText variant={txt} size={10} color={view === k ? tc.ink : tc.pap3}>
-                        {lb}
-                      </PixelText>
+              {/* 정렬 — 미니멀 세그먼트 (웹 동일) */}
+              <View style={{ alignSelf: 'flex-start', flexDirection: 'row', gap: 2, backgroundColor: tc.pap2, borderRadius: 8, padding: 2, marginBottom: 14 }}>
+                {(
+                  [
+                    { k: 'value', label: '가격순' },
+                    { k: 'change', label: '등락순' },
+                    { k: 'recent', label: '등록일' },
+                    { k: 'name', label: '이름순' },
+                  ] as Array<{ k: SortKey; label: string }>
+                ).map((s) => {
+                  const on = sort === s.k;
+                  return (
+                    <Pressable key={s.k} onPress={() => setSort(s.k)} style={{ paddingVertical: 5, paddingHorizontal: 10, borderRadius: 6, backgroundColor: on ? tc.white : 'transparent' }}>
+                      <PixelText variant="ko" size={10} weight="bold" color={on ? tc.ink : tc.ink3}>{s.label}</PixelText>
                     </Pressable>
+                  );
+                })}
+              </View>
+
+              {rows.length === 0 ? (
+                <PixelText variant="ko" size={11} color={tc.ink3} style={{ textAlign: 'center', paddingVertical: 30 }}>
+                  해당 조건의 카드가 없어요
+                </PixelText>
+              ) : view === 'grid' ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 24 }}>
+                  {rows.map((r, i) => (
+                    <CardGridItem key={r.c.id} row={r} rank={i + 1} format={format} onRemove={handleRemove} tc={tc} />
                   ))}
                 </View>
-              </PixelFrame>
+              ) : (
+                <View style={{ paddingBottom: 24 }}>
+                  {rows.map((r, i, arr) => (
+                    <CardListItem key={r.c.id} row={r} format={format} last={i === arr.length - 1} onRemove={handleRemove} tc={tc} />
+                  ))}
+                </View>
+              )}
             </View>
 
-            {/* 뷰 본문 */}
-            {filtered.length === 0 ? (
-              <View style={{ padding: 30, alignItems: 'center' }}>
-                <PixelText variant={txt} size={10} color={tc.ink3}>
-                  필터 결과가 없어요
-                </PixelText>
-              </View>
-            ) : view === 'grid' ? (
-              <GridView items={filtered} onPress={openDetail} onDelete={onDelete} format={format} onSpotlight={openSpotlight} />
-            ) : view === 'list' ? (
-              <ListView items={filtered} onPress={openDetail} onDelete={onDelete} format={format} onSpotlight={openSpotlight} />
-            ) : view === 'album' ? (
-              <AlbumView items={filtered} onPress={openDetail} onSpotlight={openSpotlight} />
-            ) : (
-              <FilmView items={filtered} onPress={openDetail} format={format} onSpotlight={openSpotlight} />
-            )}
+            <PixelText variant="ko" size={9} color={tc.ink3} style={{ textAlign: 'center', lineHeight: 15, paddingHorizontal: space.gap }}>
+              스니덩크 최근 체결 중앙값 기준 · 관심카드 제외 · 어제(KST 정각) 대비
+            </PixelText>
           </>
         )}
       </ScrollView>
-
-      <CardSpotlightModal
-        data={spotlight?.data ?? null}
-        origin={spotlight?.origin ?? null}
-        onClose={() => setSpotlight(null)}
-      />
     </View>
   );
 }
 
-/* ────────────── views ────────────── */
-
-function GridView({
-  items, onPress, onDelete, format, onSpotlight,
-}: {
-  items: Display[];
-  onPress: (d: Display) => void;
-  onDelete: (id: number) => void;
-  format: (jpy: number) => string;
-  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
-}) {
+/* ── 그리드 셀 — 웹 CardGridItem 동일 (2열, 정사각 썸네일, 랭크 배지, 그레이딩 라벨) ── */
+function CardGridItem({ row, rank, format, onRemove, tc }: { row: Row; rank: number; format: (j: number) => string; onRemove: (id: number) => void; tc: ReturnType<typeof useThemeColors> }) {
+  const { c, curJpy, qty, basisJpy, profitPct } = row;
+  const img = c.snkrdunkImageUrl || c.photoUrl || null;
+  const open = () => {
+    if (c.snkrdunkApparelId) router.push(`/cards/snkrdunk/${c.snkrdunkApparelId}` as never);
+  };
   return (
-    <View style={styles.grid}>
-      {items.map((d) => (
-        <GridCell key={d.src.id} d={d} onPress={onPress} onDelete={onDelete} format={format} onSpotlight={onSpotlight} />
-      ))}
-    </View>
-  );
-}
-
-function GridCell({
-  d, onPress, onDelete, format, onSpotlight,
-}: {
-  d: Display;
-  onPress: (d: Display) => void;
-  onDelete: (id: number) => void;
-  format: (jpy: number) => string;
-  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
-}) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  const thumbRef = useRef<RNView | null>(null);
-  return (
-    <PixelFrame shadow={5} inner={3} style={styles.gridCell}>
-      <View>
-        <Pressable onPress={() => onPress(d)}>
-          {/* 썸네일을 ref 로 잡아두고 🔍 누를 때 measureInWindow 로 origin 캡처 */}
-          <View ref={thumbRef} collapsable={false}>
-            <CardImage d={d} aspect />
+    <View style={{ width: '47.5%', position: 'relative' }}>
+      <Pressable onPress={open} style={{ backgroundColor: tc.white, borderColor: tc.pap3, borderWidth: 1, borderRadius: 12, overflow: 'hidden' }}>
+        <View style={{ width: '100%', aspectRatio: 1, backgroundColor: img ? tc.pap2 : FALLBACK_BG[rank % FALLBACK_BG.length], alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          {img ? (
+            <Image source={{ uri: img }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          ) : (
+            <Text style={{ fontSize: 42 }}>🃏</Text>
+          )}
+          <View style={{ position: 'absolute', top: 8, left: 8, width: 22, height: 22, borderRadius: 11, backgroundColor: rankBadgeColor(rank, tc.gold, tc.ink), alignItems: 'center', justifyContent: 'center' }}>
+            <PixelText variant="ko" size={11} weight="bold" color="#fff">{rank}</PixelText>
           </View>
-          <View style={{ padding: 7 }}>
-            <PixelText variant="ko" size={10} numberOfLines={2} weight="bold">
-              {d.name}
-            </PixelText>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
-              <RarBadgeMini rar={d.rar} />
-              {d.gradeNum != null && (
-                <PixelText variant={txt} size={8} color={tc.goldDk}>
-                  P{d.gradeNum}
-                </PixelText>
-              )}
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
-              <PixelText
-                variant={txt}
-                size={d.priceJpy > 0 ? autoPriceSize(format(d.priceJpy), 10, 7) : 10}
-                color={d.priceJpy > 0 ? priceColorOf(d.profitPct, tc) : tc.grnDk}
-                numberOfLines={1}
-              >
-                {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
-              </PixelText>
-              {d.priceJpy > 0 && d.profitPct != null ? <ProfitBadge pct={d.profitPct} /> : null}
-            </View>
-          </View>
-        </Pressable>
-        <SpotlightButton
-          targetRef={thumbRef}
-          onCaptured={(o) => onSpotlight(d, o)}
-        />
-        {/* 웹 .cv-lc-btn 처럼 거래 + 삭제 나란히. */}
-        <View style={styles.gridBtnRow}>
-          <Pressable
-            onPress={() => router.push(`/write/trade?userCardId=${d.src.id}&title=${encodeURIComponent(d.name)}` as never)}
-            style={[styles.gridBtn, { backgroundColor: tc.ink }]}
-          >
-            <PixelText variant={txt} size={8} color={tc.gold}>거래</PixelText>
-          </Pressable>
-          <Pressable
-            onPress={() => onDelete(d.src.id)}
-            style={[styles.gridBtn, { borderLeftWidth: 2, borderLeftColor: tc.ink }]}
-          >
-            <PixelText variant={txt} size={8} color={tc.red}>삭제</PixelText>
-          </Pressable>
+          {c.graded ? <GradedLabel gold={tc.gold} /> : null}
         </View>
+        <View style={{ paddingHorizontal: 9, paddingTop: 7, paddingBottom: 9 }}>
+          <PixelText variant="ko" size={11} weight="bold" color={tc.ink} numberOfLines={1}>{cardName(c)}</PixelText>
+          <PixelText variant="ko" size={9} color={tc.ink3} numberOfLines={1} style={{ marginTop: 1 }}>
+            {cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}
+          </PixelText>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 4, marginTop: 6 }}>
+            <PixelText variant="ko" size={12} weight="bold" color={profitColor(profitPct, tc.ink)} numberOfLines={1} style={{ flexShrink: 1 }}>
+              {curJpy > 0 ? format(curJpy) : '—'}
+            </PixelText>
+            <ProfitTag pct={profitPct} size={10} />
+          </View>
+          <PixelText variant="ko" size={9} color={tc.ink3} numberOfLines={1} style={{ marginTop: 2 }}>
+            등록 {basisJpy ? format(basisJpy) : '—'}
+          </PixelText>
+        </View>
+      </Pressable>
+      <View style={{ position: 'absolute', top: 6, right: 6, zIndex: 6 }}>
+        <CardMenu apparelId={c.snkrdunkApparelId} onRemove={() => onRemove(c.id)} tc={tc} />
       </View>
-    </PixelFrame>
-  );
-}
-
-/**
- * 🔍 스포트라이트 trigger — 카드 우상단에 floating 으로 얹는다.
- * 클릭하면 targetRef (= 썸네일 View) 의 화면 좌표를 measureInWindow 로 잡아
- * onCaptured 로 넘긴다. 그 좌표가 모달 FLIP 애니메이션의 origin 이 됨.
- */
-function SpotlightButton({
-  targetRef,
-  onCaptured,
-}: {
-  targetRef: React.RefObject<RNView | null>;
-  onCaptured: (origin: SpotlightOrigin | null) => void;
-}) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  return (
-    <Pressable
-      onPress={() => {
-        const node = targetRef.current;
-        if (!node) {
-          onCaptured(null);
-          return;
-        }
-        // measureInWindow 는 비동기 — 콜백으로 윈도우 좌표(absolute) 반환.
-        node.measureInWindow((x, y, width, height) => {
-          if (!Number.isFinite(x) || !Number.isFinite(y) || width <= 0 || height <= 0) {
-            onCaptured(null);
-          } else {
-            onCaptured({ x, y, width, height });
-          }
-        });
-      }}
-      accessibilityLabel="카드 자세히 보기"
-      style={spotBtnStyles.btn}
-    >
-      <PixelText variant={txt} size={11} color={tc.gold}>🔍</PixelText>
-    </Pressable>
-  );
-}
-
-const spotBtnStyles = StyleSheet.create({
-  btn: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 28,
-    height: 28,
-    backgroundColor: colors.ink,
-    borderWidth: 2,
-    borderColor: colors.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-});
-
-function ListView({
-  items, onPress, onDelete, format, onSpotlight,
-}: {
-  items: Display[];
-  onPress: (d: Display) => void;
-  onDelete: (id: number) => void;
-  format: (jpy: number) => string;
-  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
-}) {
-  return (
-    <View style={{ paddingHorizontal: space.gap }}>
-      {items.map((d) => (
-        <ListRow key={d.src.id} d={d} onPress={onPress} onDelete={onDelete} format={format} onSpotlight={onSpotlight} />
-      ))}
     </View>
   );
 }
 
-function ListRow({
-  d, onPress, onDelete, format, onSpotlight,
-}: {
-  d: Display;
-  onPress: (d: Display) => void;
-  onDelete: (id: number) => void;
-  format: (jpy: number) => string;
-  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
-}) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  const thumbRef = useRef<RNView | null>(null);
-  const trend = d.src.trend;
+/* ── 리스트 행 — 웹 CardListItem 동일 ── */
+function CardListItem({ row, format, last, onRemove, tc }: { row: Row; format: (j: number) => string; last: boolean; onRemove: (id: number) => void; tc: ReturnType<typeof useThemeColors> }) {
+  const { c, curJpy, qty, basisJpy, profitPct } = row;
+  const img = c.snkrdunkImageUrl || c.photoUrl || null;
+  const open = () => {
+    if (c.snkrdunkApparelId) router.push(`/cards/snkrdunk/${c.snkrdunkApparelId}` as never);
+  };
   return (
-        <PixelFrame shadow={6} style={{ marginBottom: space.cg }}>
-            <View style={styles.listInner}>
-              {/* 썸네일 + 본문 (탭하면 상세) */}
-              <Pressable onPress={() => onPress(d)} style={styles.listMain}>
-                <View ref={thumbRef} collapsable={false}>
-                  <CardImage d={d} thumb />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <PixelText variant="ko" size={11} weight="bold" numberOfLines={1}>
-                    {d.name}
-                  </PixelText>
-                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 5 }}>
-                    <RarBadgeMini rar={d.rar} />
-                    {d.gradeNum != null && (
-                      <PixelText variant={txt} size={8} color={tc.goldDk}>
-                        PSA {d.gradeNum}
-                      </PixelText>
-                    )}
-                  </View>
-                  {/* 시세 + 등록가 대비 손익률(구매가 없으면 시세 등락률) */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'nowrap' }}>
-                    <PixelText
-                      variant={txt}
-                      size={d.priceJpy > 0 ? autoPriceSize(format(d.priceJpy), 10, 7) : 10}
-                      color={d.priceJpy > 0 ? priceColorOf(d.profitPct, tc) : tc.grnDk}
-                      numberOfLines={1}
-                    >
-                      {d.priceJpy > 0 ? format(d.priceJpy) : '시세 없음'}
-                    </PixelText>
-                    {d.priceJpy > 0 && d.profitPct != null ? <ProfitBadge pct={d.profitPct} /> : <ChangeBadge trend={trend} />}
-                  </View>
-                </View>
-              </Pressable>
-
-              {/* 우측: 미니 차트 + 거래/삭제 */}
-              <View style={styles.listSide}>
-                {trend && trend.length >= 2 ? (
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <MiniSparkline points={trend} />
-                    <PixelText variant={txt} size={7} color={tc.ink3} style={{ marginTop: 2 }}>
-                      최근 추이
-                    </PixelText>
-                  </View>
-                ) : null}
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-                  <PixelPress
-                    onPress={() => {
-                      const node = thumbRef.current;
-                      if (!node) {
-                        onSpotlight(d, null);
-                        return;
-                      }
-                      node.measureInWindow((x, y, width, height) => {
-                        if (!Number.isFinite(x) || !Number.isFinite(y) || width <= 0 || height <= 0) {
-                          onSpotlight(d, null);
-                        } else {
-                          onSpotlight(d, { x, y, width, height });
-                        }
-                      });
-                    }}
-                    bg={tc.ink}
-                    borderWidth={2}
-                    shadow={2}
-                    inner={2}
-                    hi="rgba(255,255,255,0.25)"
-                    lo={null}
-                  >
-                    <View style={{ paddingHorizontal: 9, paddingVertical: 5 }}>
-                      <PixelText variant={txt} size={8} color={tc.gold}>🔍</PixelText>
-                    </View>
-                  </PixelPress>
-                  <PixelPress
-                    onPress={() => router.push(`/write/trade?userCardId=${d.src.id}&title=${encodeURIComponent(d.name)}` as never)}
-                    bg={tc.ink}
-                    borderWidth={2}
-                    shadow={2}
-                    inner={2}
-                    hi="rgba(255,255,255,0.25)"
-                    lo={null}
-                  >
-                    <View style={{ paddingHorizontal: 9, paddingVertical: 5 }}>
-                      <PixelText variant={txt} size={8} color={tc.gold}>거래</PixelText>
-                    </View>
-                  </PixelPress>
-                  <PixelPress
-                    onPress={() => onDelete(d.src.id)}
-                    bg={tc.white}
-                    borderWidth={2}
-                    shadow={2}
-                    inner={2}
-                    hi="rgba(255,255,255,0.25)"
-                    lo={null}
-                  >
-                    <View style={{ paddingHorizontal: 9, paddingVertical: 5 }}>
-                      <PixelText variant={txt} size={8} color={tc.red}>삭제</PixelText>
-                    </View>
-                  </PixelPress>
-                </View>
-              </View>
-            </View>
-          </PixelFrame>
+    <View style={{ position: 'relative', borderBottomWidth: last ? 0 : 1, borderBottomColor: tc.pap3 }}>
+      <Pressable onPress={open} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingRight: 20, paddingLeft: 2 }}>
+        <View style={{ width: 48, height: 48, borderRadius: 8, overflow: 'hidden', backgroundColor: tc.pap2, alignItems: 'center', justifyContent: 'center' }}>
+          {img ? (
+            <Image source={{ uri: img }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          ) : (
+            <Text style={{ fontSize: 22 }}>🃏</Text>
+          )}
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <PixelText variant="ko" size={13} weight="bold" color={tc.ink} numberOfLines={1}>{cardName(c)}</PixelText>
+          <PixelText variant="ko" size={10} color={tc.ink3} numberOfLines={1} style={{ marginTop: 2 }}>
+            {cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}
+          </PixelText>
+          <PixelText variant="ko" size={9} color={tc.ink3} numberOfLines={1} style={{ marginTop: 4 }}>
+            등록 {basisJpy ? format(basisJpy) : '—'}
+          </PixelText>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <PixelText variant="ko" size={13} weight="bold" color={profitColor(profitPct, tc.ink)}>
+            {curJpy > 0 ? format(curJpy) : '—'}
+          </PixelText>
+          <View style={{ marginTop: 3 }}>
+            <ProfitTag pct={profitPct} size={11} />
+          </View>
+        </View>
+      </Pressable>
+      <View style={{ position: 'absolute', top: '50%', right: -2, transform: [{ translateY: -13 }], zIndex: 6 }}>
+        <CardMenu apparelId={c.snkrdunkApparelId} onRemove={() => onRemove(c.id)} tc={tc} plain />
+      </View>
+      {c.graded ? <GradedLabel gold={tc.gold} /> : null}
+    </View>
   );
 }
 
-function ChangeBadge({ trend }: { trend: number[] | undefined }) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  const ch = changeFromTrend(trend);
-  if (!ch) return null;
+/** 현재가 옆 손익률 태그 — 부호색 ▲/▼ X% (웹 ProfitTag 동일, 매입가 없으면 미렌더). */
+function ProfitTag({ pct, size = 11 }: { pct: number | null; size?: number }) {
+  if (pct == null) return null;
+  const up = pct >= 0;
   return (
-    <PixelText variant={txt} size={8} color={CHANGE_COLOR[ch.dir]} style={{ marginLeft: 6 }}>
-      {CHANGE_ARROW[ch.dir]} {Math.abs(ch.pct).toFixed(1)}%
+    <PixelText variant="ko" size={size} weight="bold" color={up ? UP : DOWN}>
+      {up ? '▲' : '▼'}{Math.abs(pct).toFixed(1)}%
     </PixelText>
   );
 }
 
-function MiniSparkline({ points }: { points: number[] }) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  const w = 60;
-  const h = 26;
-  if (!Array.isArray(points) || points.length < 2) return null;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = max - min || 1;
-  const stepX = w / (points.length - 1);
-  const yOf = (v: number) => h - ((v - min) / range) * (h - 4) - 2;
-  const d = points
-    .map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * stepX).toFixed(1)},${yOf(v).toFixed(1)}`)
-    .join(' ');
-  const up = points[points.length - 1] >= points[0];
-  const color = up ? tc.red : tc.blu;
-  const lastX = (points.length - 1) * stepX;
-  const lastY = yOf(points[points.length - 1]);
+/** 그레이딩 표식 — 우하단 골드 라벨 (웹 GradedLabel 동일). */
+function GradedLabel({ gold }: { gold: string }) {
   return (
-    <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <Path d={d} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      <Circle cx={lastX} cy={lastY} r={2} fill={color} />
-    </Svg>
-  );
-}
-
-function AlbumView({
-  items, onPress, onSpotlight,
-}: {
-  items: Display[];
-  onPress: (d: Display) => void;
-  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
-}) {
-  return (
-    <View style={[styles.grid, { gap: 3 }]}>
-      {items.map((d) => (
-        <AlbumCell key={d.src.id} d={d} onPress={onPress} onSpotlight={onSpotlight} />
-      ))}
+    <View pointerEvents="none" style={{ position: 'absolute', bottom: 5, right: 5, zIndex: 4, backgroundColor: gold, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+      <PixelText variant="ko" size={8} weight="bold" color="#fff">그레이딩</PixelText>
     </View>
   );
 }
 
-function AlbumCell({
-  d, onPress, onSpotlight,
-}: {
-  d: Display;
-  onPress: (d: Display) => void;
-  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
-}) {
-  const thumbRef = useRef<RNView | null>(null);
+/** 카드 ⋯ 메뉴 — 시세 보기 / 컬렉션에서 제거 (웹 CardMenu 동일). */
+function CardMenu({ apparelId, onRemove, tc, plain = false }: { apparelId: number | null; onRemove: () => void; tc: ReturnType<typeof useThemeColors>; plain?: boolean }) {
+  const [open, setOpen] = useState(false);
   return (
-    <View style={[styles.gridItem, { width: '32%' }]}>
-      <Pressable onPress={() => onPress(d)}>
-        <View ref={thumbRef} collapsable={false}>
-          <CardImage d={d} aspect />
-        </View>
+    <View style={{ position: 'relative' }}>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        hitSlop={6}
+        style={
+          plain
+            ? { width: 20, height: 26, alignItems: 'center', justifyContent: 'center' }
+            : { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }
+        }
+      >
+        <Text style={{ color: plain ? tc.ink3 : '#fff', fontSize: plain ? 17 : 15, fontWeight: '900', lineHeight: plain ? 18 : 16 }}>⋯</Text>
       </Pressable>
-      <SpotlightButton targetRef={thumbRef} onCaptured={(o) => onSpotlight(d, o)} />
-    </View>
-  );
-}
-
-function FilmView({
-  items, onPress, format, onSpotlight,
-}: {
-  items: Display[];
-  onPress: (d: Display) => void;
-  format: (jpy: number) => string;
-  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
-}) {
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: space.gap, gap: 8 }}
-    >
-      {items.map((d) => (
-        <FilmTile key={d.src.id} d={d} onPress={onPress} format={format} onSpotlight={onSpotlight} />
-      ))}
-    </ScrollView>
-  );
-}
-
-function FilmTile({
-  d, onPress, format, onSpotlight,
-}: {
-  d: Display;
-  onPress: (d: Display) => void;
-  format: (jpy: number) => string;
-  onSpotlight: (d: Display, origin: SpotlightOrigin | null) => void;
-}) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  const thumbRef = useRef<RNView | null>(null);
-  return (
-    <View style={styles.filmTile}>
-      <Pressable onPress={() => onPress(d)}>
-        <View ref={thumbRef} collapsable={false}>
-          <CardImage d={d} aspect />
+      {open ? (
+        <View style={{ position: 'absolute', top: 28, right: 0, minWidth: 132, backgroundColor: tc.white, borderColor: tc.pap3, borderWidth: 1, borderRadius: 10, paddingVertical: 4, zIndex: 20, elevation: 6, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }}>
+          {apparelId ? (
+            <Pressable
+              onPress={() => {
+                setOpen(false);
+                router.push(`/cards/snkrdunk/${apparelId}` as never);
+              }}
+              style={{ paddingVertical: 9, paddingHorizontal: 13 }}
+            >
+              <PixelText variant="ko" size={11} weight="bold" color={tc.ink}>시세 보기</PixelText>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={() => {
+              setOpen(false);
+              onRemove();
+            }}
+            style={{ paddingVertical: 9, paddingHorizontal: 13 }}
+          >
+            <PixelText variant="ko" size={11} weight="bold" color={UP}>컬렉션에서 제거</PixelText>
+          </Pressable>
         </View>
-        <PixelText variant="ko" size={9} numberOfLines={1} style={{ marginTop: 6 }}>
-          {d.name}
-        </PixelText>
-        {d.priceJpy > 0 && (
-          <PixelText variant={txt} size={8} color={priceColorOf(d.profitPct, tc)} numberOfLines={1}>
-            {format(d.priceJpy)}{d.profitPct != null ? ` ${d.profitPct >= 0 ? '▲' : '▼'}${Math.abs(d.profitPct).toFixed(1)}%` : ''}
-          </PixelText>
-        )}
-      </Pressable>
-      <SpotlightButton targetRef={thumbRef} onCaptured={(o) => onSpotlight(d, o)} />
+      ) : null}
     </View>
   );
 }
 
-/* ────────────── atoms ────────────── */
-
-function CardImage({
-  d, aspect, thumb,
-}: {
-  d: Display;
-  aspect?: boolean;
-  thumb?: boolean;
-}) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  const sizeStyle = thumb
-    ? { width: 52, height: 72 }
-    : aspect
-      ? { width: '100%' as const, aspectRatio: 63 / 88 }
-      : { height: 110 };
-  const bg = tc.ink2;
-  if (d.imageUrl) {
-    return (
-      <Image
-        source={{ uri: d.imageUrl }}
-        style={[sizeStyle, { backgroundColor: bg, borderColor: tc.ink, borderWidth: thumb ? 2 : 0 }]}
-        resizeMode="cover"
-      />
-    );
-  }
-  return (
-    <View style={[sizeStyle, { backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderColor: tc.ink, borderWidth: thumb ? 2 : 0 }]}>
-      <PixelText variant={txt} size={thumb ? 22 : 28} color={tc.gold}>🃏</PixelText>
-    </View>
-  );
-}
-
-function RarBadgeMini({ rar }: { rar: Rarity }) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  return (
-    <View style={{ backgroundColor: RARITY_BG[rar], paddingHorizontal: 5, paddingVertical: 2 }}>
-      <PixelText variant={txt} size={7} color={RARITY_FG[rar]}>
-        {rar}
-      </PixelText>
-    </View>
-  );
-}
-
-function StripCell({ text, bg, fg }: { text: string; bg: string; fg: string }) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
-  return (
-    <View style={[styles.stripCell, { backgroundColor: bg }]}>
-      <PixelText variant={txt} size={9} color={fg}>{text}</PixelText>
-    </View>
-  );
-}
-
-/** 웹 CollectionScreen 헤더 — "내 자산" + 검색/알림/도움말 아이콘. */
-function CollectionHeader({ tc, txt }: { tc: ReturnType<typeof useThemeColors>; txt: 'pixel' | 'ko' }) {
+/** 웹 CollectionHeader 동일 — "내 자산" + 검색/알림/도움말 아이콘. */
+function CollectionHeader({ tc }: { tc: ReturnType<typeof useThemeColors> }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
       <PixelText variant="ko" size={22} weight="bold" color={tc.ink} style={{ letterSpacing: -0.5 }}>
@@ -906,66 +453,3 @@ function CollectionHeader({ tc, txt }: { tc: ReturnType<typeof useThemeColors>; 
     </View>
   );
 }
-
-/* ────────────── styles ────────────── */
-const styles = StyleSheet.create({
-  // 웹 .cv-strip — 셀 상/하단에만 3px ink 라인 (좌우/드롭 없음).
-  strip: {
-    flexDirection: 'row',
-    marginHorizontal: space.gap,
-    marginTop: 14,
-    marginBottom: space.cg,
-  },
-  stripCell: {
-    flex: 1,
-    paddingVertical: 9,
-    alignItems: 'center',
-    borderTopWidth: 3,
-    borderBottomWidth: 3,
-    borderColor: colors.ink,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  searchInput: { flex: 1, fontFamily: fonts.ko, fontSize: 14, color: colors.ink, paddingVertical: 10 },
-  chipRow: { paddingHorizontal: space.gap, gap: 8, alignItems: 'center', marginBottom: 10, paddingTop: 8 },
-  chipInner: { paddingHorizontal: 10, height: 26, alignItems: 'center', justifyContent: 'center' },
-  toolbar: { flexDirection: 'row', gap: 8, marginHorizontal: space.gap, marginBottom: space.cg },
-  sortInner: { paddingHorizontal: 10, paddingVertical: 6 },
-  subseg: {
-    flexDirection: 'row',
-    padding: 3,
-    gap: 3,
-  },
-  subsegBtn: {
-    flex: 1,
-    paddingVertical: 9,
-    alignItems: 'center',
-    backgroundColor: colors.ink2,
-  },
-  subsegBtnOn: { backgroundColor: colors.gold },
-  // flex-start + gap: 항목이 항상 좌→우 순서대로 채워진다(2개만 있어도 양끝으로 벌어지지 않음).
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', gap: 7, paddingHorizontal: space.gap },
-  gridCell: { width: '31%' },
-  gridItem: {
-    width: '32%',
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.ink,
-  },
-  gridBtnRow: { flexDirection: 'row', borderTopWidth: 2, borderTopColor: colors.ink },
-  gridBtn: { flex: 1, paddingVertical: 5, alignItems: 'center' },
-  listInner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  listMain: { flex: 1, flexDirection: 'row', gap: 12, minWidth: 0 },
-  listSide: { flexShrink: 0, alignItems: 'flex-end' },
-  filmTile: { width: 100 },
-});
