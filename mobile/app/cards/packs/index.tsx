@@ -19,10 +19,25 @@ import { PixelPress } from '@/components/cv/PixelPress';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { LoadingState, ErrorView } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
-import { CARD_PACKS, type CardPackMeta } from '@/data/cardPacks';
+import { CARD_PACKS, type CardPackMeta, type CardPackGame } from '@/data/cardPacks';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { fetchSnkrdunkApparelGroup } from '@/services/snkrdunk';
 import { localizeCardName } from '@/lib/cardNameKo';
+import { useTheme } from '@/components/ThemeProvider';
+
+const GAME_TABS: Array<{ key: CardPackGame; label: string }> = [
+  { key: 'pokemon', label: '포켓몬' },
+  { key: 'onepiece', label: '원피스' },
+  { key: 'yugioh', label: '유희왕' },
+  { key: 'sports', label: '스포츠' },
+];
+
+/** 테마 → 기본 게임 탭 (웹 PacksExplorer THEME_GAME 동일). */
+const THEME_GAME: Partial<Record<string, CardPackGame>> = {
+  onepiece: 'onepiece',
+  yugioh: 'yugioh',
+  sports: 'sports',
+};
 
 interface PackWithBox extends CardPackMeta {
   boxName: string;
@@ -91,6 +106,12 @@ export default function PackExplorerScreen() {
   const [data, setData] = useState<PackWithBox[] | null>(packsCache?.data ?? null);
   const [loading, setLoading] = useState<boolean>(!packsCache);
   const [error, setError] = useState<Error | null>(null);
+  const { theme } = useTheme();
+  // null = 사용자가 아직 탭을 안 만짐 → 테마가 정한 기본 게임 (웹 동일).
+  const [picked, setPicked] = useState<CardPackGame | null>(null);
+  const game = picked ?? THEME_GAME[theme] ?? 'pokemon';
+  const gameLabel = GAME_TABS.find((t) => t.key === game)?.label ?? '카드';
+  const list = (data ?? []).filter((pack) => (pack.game ?? 'pokemon') === game);
   const tick = useRef(0);
 
   const refresh = useCallback(() => {
@@ -137,6 +158,19 @@ export default function PackExplorerScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <AppBar onBack={() => router.back()} title="시세확인" />
+      {/* 게임 필터 탭 — 웹 PacksExplorer 동일 (테마 기본 게임 → 사용자가 탭하면 고정) */}
+      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 14, paddingTop: 10 }}>
+        {GAME_TABS.map((t) => {
+          const on = game === t.key;
+          return (
+            <PixelPress key={t.key} onPress={() => setPicked(t.key)} bg={on ? colors.gold : colors.white} borderWidth={3} shadow={on ? 2 : 4} inner={2}>
+              <View style={{ paddingHorizontal: 12, paddingVertical: 7 }}>
+                <PixelText variant="ko" size={10} weight="bold" color={colors.ink}>{t.label}</PixelText>
+              </View>
+            </PixelPress>
+          );
+        })}
+      </View>
       {loading && !data ? (
         <LoadingState />
       ) : error ? (
@@ -150,7 +184,7 @@ export default function PackExplorerScreen() {
             <PixelFrame bg={colors.white}>
               <View style={{ padding: 14 }}>
                 <PixelText variant="ko" size={14} weight="bold" color={colors.ink}>
-                  포켓몬 카드 박스
+                  {gameLabel} 카드 박스
                 </PixelText>
                 <PixelText
                   variant="ko"
@@ -166,7 +200,7 @@ export default function PackExplorerScreen() {
 
           {/* 박스 리스트 — 각 항목 입체 픽셀 버튼. 리스트 간 갭 축소(12→6→3). */}
           <View style={{ marginHorizontal: 14, gap: 3 }}>
-            {(data ?? []).map((pack) => (
+            {list.map((pack) => (
               <PixelPress
                 key={pack.code}
                 onPress={() => router.push(`/cards/packs/${pack.code}` as never)}

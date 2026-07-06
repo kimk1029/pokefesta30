@@ -14,7 +14,7 @@ import { fetchPackHits, type PackHitCard, type PackWithHits } from '@/lib/myApi'
 import { useAsync } from '@/lib/useAsync';
 import { useCurrency } from '@/components/CurrencyProvider';
 
-type SortMode = 'price' | 'listing' | 'name';
+type SortMode = 'price' | 'recent' | 'listing' | 'name';
 type ViewMode = 'grid' | 'list';
 
 export default function PackDetailScreen() {
@@ -29,7 +29,11 @@ export default function PackDetailScreen() {
     () => fetchPackHits(code, 200),
     [code],
   );
-  const cards = useMemo(() => sortHits(data?.hits ?? [], sort), [data?.hits, sort]);
+  // 웹 packs/[code]/page.tsx 동일 — itemKind 로 싱글/박스 분리.
+  const singles = useMemo(() => (data?.hits ?? []).filter((h) => h.itemKind !== 'box'), [data?.hits]);
+  const boxes = useMemo(() => (data?.hits ?? []).filter((h) => h.itemKind === 'box'), [data?.hits]);
+  const cards = useMemo(() => sortHits(singles, sort), [singles, sort]);
+  const sortedBoxes = useMemo(() => sortHits(boxes, 'price'), [boxes]);
 
   return (
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
@@ -135,6 +139,7 @@ export default function PackDetailScreen() {
           >
             {([
               ['price', '가격 높은순'],
+              ['recent', '최근 거래순'],
               ['listing', '매물 많은순'],
               ['name', '이름순'],
             ] as const).map(([key, label]) => {
@@ -241,6 +246,20 @@ export default function PackDetailScreen() {
                 ))}
               </View>
             )}
+
+            {/* 박스/팩 섹션 — 웹 PackMarketSections 동일(가격순 고정) */}
+            {sortedBoxes.length > 0 ? (
+              <View style={{ marginTop: 18 }}>
+                <PixelText variant="ko" size={13} weight="bold" color={tc.ink} style={{ marginBottom: 8 }}>
+                  📦 박스 · 팩 {sortedBoxes.length}
+                </PixelText>
+                <View style={{ gap: 8 }}>
+                  {sortedBoxes.map((hit) => (
+                    <ListRow key={hit.apparelId} hit={hit} accent={data.bg} />
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </View>
         </ScrollView>
       )}
@@ -298,10 +317,11 @@ function ListRow({ hit, accent }: { hit: PackHitCard; accent: string }) {
   );
 }
 
-function sortHits<T extends { minPrice: number; listingCount: number; koName?: string; shortName: string }>(
+function sortHits<T extends { minPrice: number; listingCount: number; koName?: string; shortName: string; lastSaleSort?: number }>(
   hits: T[],
   sort: SortMode,
 ): T[] {
+  if (sort === 'recent') return [...hits].sort((a, b) => (b.lastSaleSort ?? 0) - (a.lastSaleSort ?? 0) || (b.minPrice || 0) - (a.minPrice || 0));
   if (sort === 'listing') return [...hits].sort((a, b) => (b.listingCount || 0) - (a.listingCount || 0));
   if (sort === 'name') return [...hits].sort((a, b) => (a.koName || a.shortName).localeCompare(b.koName || b.shortName, 'ko'));
   return [...hits].sort((a, b) => (b.minPrice || 0) - (a.minPrice || 0));

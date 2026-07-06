@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
+import { TranslationTicker } from '@/components/TranslationTicker';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
@@ -221,6 +222,7 @@ export default function SnkrdunkSearchScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="카드 검색" />
+      <TranslationTicker />
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 14, paddingBottom: 110 }}
         scrollEventThrottle={200}
