@@ -4,7 +4,7 @@
  * 응답 타입은 웹 [[src/lib/queries.ts]] / [[src/lib/messages.ts]] 의 반환 모양과 1:1.
  * 모바일이 자체 mock 으로 폴백할 수 있도록 [[ApiError]] 를 그대로 던진다.
  */
-import { api } from './apiClient';
+import { api, getApiBaseUrl } from './apiClient';
 import { CARD_PACKS, getCardPack, type CardPackMeta } from '@/data/cardPacks';
 import { localizeCardName } from './cardNameKo';
 import {
@@ -188,12 +188,30 @@ export function fetchMyBookmarks(): Promise<MyBookmarks> {
   return api<{ data: MyBookmarks }>('/api/me/bookmarks').then((r) => r.data);
 }
 
+/**
+ * 서버가 주는 상대경로 이미지(/api/cdn/cards/*.webp — 자체 CDN 캐시)를 RN Image 가
+ * 로드할 수 있는 절대 URL 로. 웹은 same-origin 이라 상대경로가 그대로 동작하지만
+ * 앱은 베이스 URL 프리픽스가 필요하다.
+ */
+export function absApiUrl(u: string | null | undefined): string | null {
+  if (!u) return null;
+  return u.startsWith('/') ? `${getApiBaseUrl()}${u}` : u;
+}
+
 export function fetchMyCards(): Promise<MyCardRow[]> {
-  return api<{ data: MyCardRow[] }>('/api/me/cards/with-prices').then((r) => r.data);
+  return api<{ data: MyCardRow[] }>('/api/me/cards/with-prices').then((r) =>
+    r.data.map((c) => ({
+      ...c,
+      photoUrl: absApiUrl(c.photoUrl),
+      snkrdunkImageUrl: absApiUrl(c.snkrdunkImageUrl),
+    })),
+  );
 }
 
 export function fetchMyFavorites(): Promise<MyFavoriteRow[]> {
-  return api<{ data: MyFavoriteRow[] }>('/api/me/favorites/with-prices').then((r) => r.data);
+  return api<{ data: MyFavoriteRow[] }>('/api/me/favorites/with-prices').then((r) =>
+    r.data.map((f) => ({ ...f, imageUrl: absApiUrl((f as { imageUrl?: string | null }).imageUrl) }) as MyFavoriteRow),
+  );
 }
 
 /** 카드 등록 페이로드 — 서버 POST /api/me/cards 와 동일 형태. */
