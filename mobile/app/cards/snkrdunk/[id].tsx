@@ -190,6 +190,9 @@ export default function SnkrdunkDetail() {
     return (matched.length > 0 ? matched : historyList).slice(0, 20);
   }, [historyList, effectiveGrade]);
 
+  // 거래가 있는 등급만 — 거래내역 등급 토글 노출용(PSA10·RAW 등 전환, 웹 동일).
+  const tradeGrades = useMemo(() => grades.filter((g) => g.count > 0), [grades]);
+
   return (
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="시세 상세" />
@@ -355,10 +358,37 @@ export default function SnkrdunkDetail() {
               </PixelFrame>
             </View>
 
-            {/* ── 최근 거래 내역 (등급 필터) ── */}
+            {/* ── 최근 거래 내역 (등급 전환) ── */}
             <View style={{ marginHorizontal: 14 }}>
-              <SectHd title={`최근 거래 내역 (${effectiveGrade})`} more={`${filteredTrades.length}건`} />
+              <SectHd title="최근 거래 내역" more={`${filteredTrades.length}건`} />
             </View>
+            {/* 등급 토글 — 거래가 있는 등급(PSA10/RAW 등)만 노출, 바꿔서 볼 수 있게 (웹 동일). */}
+            {tradeGrades.length > 1 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, gap: 6, marginBottom: 10 }}>
+                {tradeGrades.map((g) => {
+                  const active = g.key === effectiveGrade;
+                  const gc = (GRADE_COLOR[g.key] ?? (() => tc.ink))(tc);
+                  return (
+                    <Pressable
+                      key={g.key}
+                      onPress={() => setGradeKey(g.key)}
+                      style={{
+                        paddingVertical: 6,
+                        paddingHorizontal: 13,
+                        borderRadius: 999,
+                        borderWidth: 1.5,
+                        borderColor: active ? gc : tc.pap3,
+                        backgroundColor: active ? gc : 'transparent',
+                      }}
+                    >
+                      <PixelText variant={txt} size={11} weight="bold" color={active ? tc.white : tc.ink3}>
+                        {g.key} · {g.count}건
+                      </PixelText>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
             <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
               <PixelFrame bg={flat ? tc.white : tc.ink2}>
                 <View style={{ paddingHorizontal: flat ? 14 : 10, paddingTop: 8, paddingBottom: 10, overflow: 'hidden' }}>

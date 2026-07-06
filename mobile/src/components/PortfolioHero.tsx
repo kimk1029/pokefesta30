@@ -1,12 +1,12 @@
 /**
  * 토탈 포트폴리오 hero (모바일) — 홈 메인과 내 컬렉션 상단에서 동일하게 재사용.
  * 클린/다크 = CleanDarkPortfolioHero, 그 외 = 픽셀 보드. 미로그인 시 잠금 오버레이.
- * 데이터(보유/평가액/등락/차트)는 usePortfolioHeroData 훅이 useCollection +
+ * 데이터(보유/평가액/등락)는 usePortfolioHeroData 훅이 useCollection +
  * /api/me/portfolio 로 계산한다(웹 lib/portfolioHero 와 동일 컨셉).
+ * 히어로 그래프는 웹 '내 자산'과 동일하게 제거 — 차트는 /my/portfolio 에서.
  */
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import Svg, { Circle, Path, Polyline } from 'react-native-svg';
 import { router } from 'expo-router';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
@@ -19,79 +19,6 @@ import { usePriceMode } from '@/lib/priceMode';
 import { useCollection } from '@/lib/collection';
 import { cardKrw, cardJpy, cardProfit } from '@/data/cardvault';
 import { fetchPortfolio, type PortfolioSummary } from '@/lib/myApi';
-
-type PortfolioChartMode = 'day' | 'week' | 'month';
-
-interface PortfolioPoint {
-  date: string;
-  totalJpy: number;
-}
-
-const PORTFOLIO_MODE_LABEL: Record<PortfolioChartMode, string> = {
-  day: '일',
-  week: '주',
-  month: '월',
-};
-
-const PORTFOLIO_MODE_HELP: Record<PortfolioChartMode, string> = {
-  day: '일별 평가액',
-  week: '주별 평가액',
-  month: '월별 평가액',
-};
-
-function computeDailyTotals(cards: Array<{ latestPrice?: number; trend?: number[] }>, days: number): number[] {
-  if (days <= 0) return [];
-  const out = new Array(days).fill(0);
-  for (const c of cards) {
-    const t = Array.isArray(c.trend) ? c.trend : [];
-    const latest = c.latestPrice ?? 0;
-    for (let i = 0; i < days; i++) {
-      const tIdxFromEnd = days - 1 - i;
-      const tIdx = t.length - 1 - tIdxFromEnd;
-      out[i] += tIdx >= 0 && tIdx < t.length ? t[tIdx] : latest;
-    }
-  }
-  return out;
-}
-
-function dateKeyShift(daysAgo: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().slice(0, 10);
-}
-
-function syntheticPortfolioHistory(values: number[]): PortfolioPoint[] {
-  return values.map((totalJpy, i) => ({
-    date: dateKeyShift(values.length - 1 - i),
-    totalJpy,
-  }));
-}
-
-function weekKey(date: string): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return date;
-  const day = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-}
-
-function aggregatePortfolioHistory(
-  history: PortfolioPoint[],
-  mode: PortfolioChartMode,
-): PortfolioPoint[] {
-  if (mode === 'day') return history.slice(-30);
-  const limit = mode === 'week' ? 26 : 12;
-  const keyOf = mode === 'week'
-    ? (point: PortfolioPoint) => weekKey(point.date)
-    : (point: PortfolioPoint) => point.date.slice(0, 7);
-  const grouped = new Map<string, PortfolioPoint>();
-  for (const point of history) {
-    grouped.set(keyOf(point), point);
-  }
-  return Array.from(grouped.values()).slice(-limit);
-}
 
 /** 로그인 상태를 반응형으로 구독. */
 function useAuthed(): boolean {
@@ -114,9 +41,6 @@ interface HeroData {
   hasAnyPsa10: boolean;
   priceMode: 'single' | 'psa10';
   togglePriceMode: () => void;
-  chartData: number[];
-  chartMode: PortfolioChartMode;
-  setChartMode: (m: PortfolioChartMode) => void;
   /** 보유 카드 현재 평가액 합계(JPY). 통화 토글 표시는 format() 으로. */
   totalJpy: number;
   /** @internal — changePct 계산용 로컬 KRW 합계. 표시엔 totalJpy 사용. */
@@ -166,22 +90,10 @@ function usePortfolioHeroData(): HeroData {
     { invested: 0, profit: 0 },
   );
 
-  const [chartMode, setChartMode] = useState<PortfolioChartMode>('day');
-  const ownedForChart = owned.map((c) => ({
-    latestPrice: cardKrw(c, priceMode, rate),
-    trend: Array.isArray(c.trend) ? c.trend : [],
-  }));
-  const realHistory = serverPortfolio?.history ?? [];
-  const chartPoints = aggregatePortfolioHistory(
-    realHistory.length >= 2 ? realHistory : syntheticPortfolioHistory(computeDailyTotals(ownedForChart, 30)),
-    chartMode,
-  );
-  const chartData = chartPoints.map((point) => point.totalJpy);
-
   return {
     authed, serverPortfolio, totalVal, totalJpy, changePct,
     ownedLen: owned.length, gradedLen: graded.length,
-    hasAnyPsa10, priceMode, togglePriceMode, chartData, chartMode, setChartMode,
+    hasAnyPsa10, priceMode, togglePriceMode,
     investedKrw: profitAgg.invested, profitKrw: profitAgg.profit,
   };
 }
@@ -194,7 +106,7 @@ export function PortfolioHero() {
   const { format: formatCurrency, rate } = useCurrency();
   const {
     authed, serverPortfolio, totalJpy, changePct, ownedLen, gradedLen,
-    hasAnyPsa10, priceMode, togglePriceMode, chartData, chartMode, setChartMode,
+    hasAnyPsa10, priceMode, togglePriceMode,
     investedKrw, profitKrw,
   } = usePortfolioHeroData();
 
@@ -209,6 +121,15 @@ export function PortfolioHero() {
   const realPct = serverPortfolio?.changePct ?? null;
   const heroPct = realPct != null ? Math.round(realPct) : changePct;
 
+  // '어제 대비 등락' — 웹 내 자산 히어로와 동일 표기: +금액 (+pct%) ▲.
+  const realAbsJpy = serverPortfolio?.changeAbsJpy ?? null;
+  const heroUp = (realPct ?? heroPct) >= 0;
+  const deltaLabel = realPct != null ? '어제 대비 등락' : '지난주 대비 등락';
+  const deltaText =
+    realPct != null && realAbsJpy != null
+      ? `${realPct >= 0 ? '+' : '-'}${formatCurrency(Math.abs(realAbsJpy))} (${realPct >= 0 ? '+' : ''}${realPct.toFixed(2)}%) ${realPct >= 0 ? '▲' : '▼'}`
+      : `${heroUp ? '+' : ''}${heroPct}% ${heroUp ? '▲' : '▼'}`;
+
   return (
     <View style={{ marginHorizontal: 14, marginBottom: 6, position: 'relative' }}>
       <View style={authed ? undefined : { opacity: 0.35 }} pointerEvents={authed ? 'auto' : 'none'}>
@@ -219,12 +140,11 @@ export function PortfolioHero() {
             txt={txt}
             value={valueText}
             changePct={heroPct}
+            deltaLabel={deltaLabel}
+            deltaText={deltaText}
             hasAnyPsa10={hasAnyPsa10}
             priceMode={priceMode}
             togglePriceMode={togglePriceMode}
-            chartData={chartData}
-            chartMode={chartMode}
-            setChartMode={setChartMode}
             ownedLen={ownedLen}
             gradedLen={gradedLen}
             investedText={hasInvested ? formatCurrency(investedJpy) : '—'}
@@ -285,66 +205,12 @@ export function PortfolioHero() {
                   {valueText}
                 </PixelText>
                 <View style={{ paddingBottom: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    {(() => {
-                      const up = heroPct >= 0;
-                      return (
-                        <>
-                          <View
-                            style={{
-                              width: 0,
-                              height: 0,
-                              borderLeftWidth: 5,
-                              borderRightWidth: 5,
-                              borderBottomWidth: up ? 8 : 0,
-                              borderTopWidth: up ? 0 : 8,
-                              borderLeftColor: 'transparent',
-                              borderRightColor: 'transparent',
-                              borderBottomColor: up ? '#22C55E' : 'transparent',
-                              borderTopColor: up ? 'transparent' : '#E63946',
-                            }}
-                          />
-                          <PixelText variant={txt} size={11} color={up ? '#22C55E' : '#E63946'}>
-                            {up ? '+' : ''}{heroPct}%
-                          </PixelText>
-                        </>
-                      );
-                    })()}
-                  </View>
-                  <PixelText variant={txt} size={9} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }}>
-                    {serverPortfolio?.changePct != null ? 'vs 어제 (KST 정각)' : 'vs 지난주'}
+                  <PixelText variant={txt} size={11} color={heroUp ? '#22C55E' : '#E63946'}>
+                    {deltaText}
                   </PixelText>
-                </View>
-              </View>
-
-              {/* Chart — 컬렉션 일별 종합 가격 꺾은선 */}
-              <PortfolioLineChart data={chartData} height={64} />
-
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <PixelText variant={txt} size={9} color="rgba(255,255,255,0.25)">
-                  {PORTFOLIO_MODE_HELP[chartMode]}
-                </PixelText>
-                <View style={{ flexDirection: 'row', gap: 5 }}>
-                  {(['day', 'week', 'month'] as const).map((mode) => {
-                    const on = chartMode === mode;
-                    return (
-                      <Pressable
-                        key={mode}
-                        onPress={() => setChartMode(mode)}
-                        style={{
-                          paddingHorizontal: 9,
-                          paddingVertical: 4,
-                          backgroundColor: on ? tc.gold : 'rgba(255,255,255,0.06)',
-                          borderColor: on ? tc.ink : 'rgba(255,255,255,0.12)',
-                          borderWidth: 1,
-                        }}
-                      >
-                        <PixelText variant={txt} size={9} color={on ? tc.ink : 'rgba(255,255,255,0.35)'}>
-                          {PORTFOLIO_MODE_LABEL[mode]}
-                        </PixelText>
-                      </Pressable>
-                    );
-                  })}
+                  <PixelText variant={txt} size={9} color="rgba(255,255,255,0.3)" style={{ marginTop: 4 }}>
+                    {deltaLabel}
+                  </PixelText>
                 </View>
               </View>
 
@@ -425,20 +291,19 @@ export function PortfolioHero() {
  * 클린(라이트) / 다크(사이버 주식창) 포트폴리오 히어로.
  */
 function CleanDarkPortfolioHero({
-  dark, tc, txt, value, changePct, hasAnyPsa10, priceMode, togglePriceMode,
-  chartData, chartMode, setChartMode, ownedLen, gradedLen, investedText, profitText, profitColor,
+  dark, tc, txt, value, changePct, deltaLabel, deltaText, hasAnyPsa10, priceMode, togglePriceMode,
+  ownedLen, gradedLen, investedText, profitText, profitColor,
 }: {
   dark: boolean;
   tc: typeof colors;
   txt: 'pixel' | 'ko';
   value: string;
   changePct: number;
+  deltaLabel: string;
+  deltaText: string;
   hasAnyPsa10: boolean;
   priceMode: 'single' | 'psa10';
   togglePriceMode: () => void;
-  chartData: number[];
-  chartMode: PortfolioChartMode;
-  setChartMode: (m: PortfolioChartMode) => void;
   ownedLen: number;
   gradedLen: number;
   investedText: string;
@@ -448,9 +313,6 @@ function CleanDarkPortfolioHero({
   const up = changePct >= 0;
   const upColor = up ? tc.red : tc.blu;
   const radius = dark ? 14 : 0;
-  const pillBg = up
-    ? dark ? 'rgba(255,77,109,0.16)' : 'rgba(242,54,69,0.12)'
-    : dark ? 'rgba(54,197,255,0.16)' : 'rgba(47,107,255,0.12)';
   return (
     <View style={{ backgroundColor: tc.paper, borderColor: tc.pap3, borderWidth: 1, borderRadius: radius, overflow: 'hidden' }}>
       <View style={{ padding: 16, paddingBottom: 8 }}>
@@ -467,26 +329,11 @@ function CleanDarkPortfolioHero({
           ) : null}
         </View>
         <PixelText variant={txt} size={30} weight="bold" color={tc.ink} style={{ letterSpacing: -1 }}>{value}</PixelText>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <PixelText variant={txt} size={14} weight="bold" color={upColor}>{up ? '▲' : '▼'} {Math.abs(changePct)}%</PixelText>
-          <View style={{ backgroundColor: pillBg, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <PixelText variant={txt} size={12} weight="bold" color={upColor}>{up ? '+' : ''}{changePct}%</PixelText>
-          </View>
-          <PixelText variant={txt} size={12} color={tc.ink3}>전체 수익률</PixelText>
+        {/* '어제 대비 등락' — 웹 내 자산 히어로와 동일 표기 (그래프 없이 라벨+등락값). */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+          <PixelText variant={txt} size={11} color={tc.ink3}>{deltaLabel}</PixelText>
+          <PixelText variant={txt} size={13} weight="bold" color={upColor}>{deltaText}</PixelText>
         </View>
-      </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 2 }}>
-        <PixelText variant={txt} size={12} weight="bold" color={tc.ink3}>평가액 추이</PixelText>
-        <View style={{ flexDirection: 'row', backgroundColor: tc.pap2, borderColor: tc.pap3, borderWidth: 1 }}>
-          {(['day', 'week', 'month'] as const).map((m) => (
-            <Pressable key={m} onPress={() => setChartMode(m)} style={{ paddingHorizontal: 12, paddingVertical: 4, backgroundColor: chartMode === m ? (dark ? tc.white : tc.ink) : 'transparent' }}>
-              <PixelText variant={txt} size={11} weight="bold" color={chartMode === m ? (dark ? tc.ink : tc.paper) : tc.ink3}>{PORTFOLIO_MODE_LABEL[m]}</PixelText>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-      <View style={{ paddingHorizontal: 8, paddingTop: 6, paddingBottom: 8 }}>
-        <PortfolioLineChart data={chartData} height={72} variant={dark ? 'dark' : 'clean'} showVolume={dark} />
       </View>
       <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: tc.pap3 }}>
         {([
@@ -501,104 +348,6 @@ function CleanDarkPortfolioHero({
           </View>
         ))}
       </View>
-    </View>
-  );
-}
-
-/** 모바일 포트폴리오 라인차트 — 컬렉션 일별 종합 가격 꺾은선. data: 오래된→최신. */
-function PortfolioLineChart({
-  data,
-  height = 60,
-  variant,
-  showVolume = false,
-}: {
-  data: number[];
-  height?: number;
-  variant?: 'clean' | 'dark';
-  showVolume?: boolean;
-}) {
-  const [width, setWidth] = useState(0);
-  const tc = useThemeColors();
-  const flat = variant === 'clean' || variant === 'dark';
-  const borderCol = flat ? tc.pap3 : 'rgba(255,255,255,0.1)';
-
-  if (data.length < 2) {
-    return (
-      <View style={{ height, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: borderCol }}>
-        <PixelText variant={flat ? 'ko' : 'pixel'} size={flat ? 11 : 9} color={flat ? tc.ink3 : 'rgba(255,255,255,0.35)'}>
-          시세 이력이 부족합니다
-        </PixelText>
-      </View>
-    );
-  }
-
-  const pad = 4;
-  const W = Math.max(width, 1);
-  const innerW = Math.max(W - pad * 2, 1);
-  const innerH = height - pad * 2;
-  const minV = Math.min(...data);
-  const maxV = Math.max(...data);
-  const range = maxV - minV || 1;
-  const stepX = innerW / (data.length - 1);
-  const xOf = (i: number) => pad + i * stepX;
-  const yOf = (v: number) => pad + innerH - ((v - minV) / range) * innerH;
-
-  const points = data.map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
-  const area = [
-    `M${pad},${pad + innerH}`,
-    ...data.map((v, i) => `L${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`),
-    `L${pad + innerW},${pad + innerH}`,
-    'Z',
-  ].join(' ');
-
-  const lastV = data[data.length - 1];
-  const lastX = xOf(data.length - 1);
-  const lastY = yOf(lastV);
-  const trendUp = lastV >= data[0];
-  const stroke =
-    variant === 'clean'
-      ? trendUp ? '#F23645' : '#2F6BFF'
-      : variant === 'dark'
-        ? trendUp ? '#FF4D6D' : '#36C5FF'
-        : trendUp ? colors.gold : colors.red;
-  const fill =
-    variant === 'clean'
-      ? trendUp ? 'rgba(242,54,69,0.14)' : 'rgba(47,107,255,0.12)'
-      : variant === 'dark'
-        ? trendUp ? 'rgba(255,77,109,0.20)' : 'rgba(54,197,255,0.18)'
-        : trendUp ? 'rgba(255,210,63,0.22)' : 'rgba(230,57,70,0.18)';
-  const dotStroke = flat ? '#FFFFFF' : colors.ink;
-
-  const vols = showVolume ? data.map((v, i) => (i === 0 ? 0 : Math.abs(v - data[i - 1]))) : [];
-  const vmax = Math.max(...vols, 1);
-
-  return (
-    <View
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      style={{ height: showVolume ? height + 26 : height, borderBottomWidth: 1, borderBottomColor: borderCol, marginBottom: 6 }}
-    >
-      {width > 0 ? (
-        <Svg width={width} height={height}>
-          <Path d={area} fill={fill} stroke="none" />
-          <Polyline points={points} fill="none" stroke={stroke} strokeWidth={2.2} strokeLinejoin="round" strokeLinecap="round" />
-          <Circle cx={lastX} cy={lastY} r={3.2} fill={stroke} stroke={dotStroke} strokeWidth={1} />
-        </Svg>
-      ) : null}
-      {showVolume && width > 0 ? (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 22, gap: 2, marginTop: 4 }}>
-          {vols.map((v, i) => (
-            <View
-              key={i}
-              style={{
-                flex: 1,
-                height: `${Math.max(8, (v / vmax) * 100)}%`,
-                backgroundColor: i === vols.length - 1 ? stroke : tc.pap3,
-                opacity: i === vols.length - 1 ? 0.9 : 0.55,
-              }}
-            />
-          ))}
-        </View>
-      ) : null}
     </View>
   );
 }

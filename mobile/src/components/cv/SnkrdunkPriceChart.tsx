@@ -1,5 +1,5 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useState } from 'react';
+import { View, type GestureResponderEvent } from 'react-native';
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { PixelText } from '@/components/PixelText';
 import { colors } from '@/theme/tokens';
@@ -82,6 +82,9 @@ export function SnkrdunkPriceChart({
 }: Props) {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
+  // 터치 툴팁 — 손가락 X 위치(0~1, 플롯 영역 기준). 웹 MiniChart 호버와 동일 컨셉.
+  const [layoutW, setLayoutW] = useState(0);
+  const [touchRel, setTouchRel] = useState<number | null>(null);
   // Normalize to a series list. Single-series API maps to one red trend.
   const allSeries: ChartSeries[] = series && series.length > 0
     ? series.filter((s) => s.points.length >= 1)
@@ -137,9 +140,39 @@ export function SnkrdunkPriceChart({
     };
   });
 
+  // 터치 위치 → 데이터 X → 시리즈별 최근접 포인트 (웹 MiniChart 호버 동일).
+  const touchDataX = touchRel != null ? minX + touchRel * rangeX : null;
+  const touchHits =
+    touchDataX != null
+      ? renderable.map((s) => {
+          let best = s.points[0];
+          for (const p of s.points) {
+            if (Math.abs(p[0] - touchDataX) < Math.abs(best[0] - touchDataX)) best = p;
+          }
+          return { label: s.label, color: s.color, point: best };
+        })
+      : [];
+  const anchor = touchHits[0]?.point ?? null; // 가이드선 기준 — 첫 시리즈 최근접점
+  const anchorVX = anchor ? xOf(anchor[0]) : 0;
+  const anchorLeftPx = layoutW > 0 ? (anchorVX / width) * layoutW : 0;
+  const tipFlip = layoutW > 0 && anchorLeftPx > layoutW * 0.58;
+
+  const pickTouch = (e: GestureResponderEvent) => {
+    if (layoutW <= 0) return;
+    const vx = (e.nativeEvent.locationX / layoutW) * width;
+    setTouchRel(Math.max(0, Math.min(1, (vx - PAD_L) / innerW)));
+  };
+
   return (
     <View>
-      <View style={{ width: '100%', backgroundColor: tc.pap2 }}>
+      <View
+        style={{ width: '100%', backgroundColor: tc.pap2 }}
+        onLayout={(e) => setLayoutW(e.nativeEvent.layout.width)}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={pickTouch}
+        onResponderMove={pickTouch}
+      >
         <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
           {yTicks.map((v) => {
             const y = yOf(v);
@@ -186,6 +219,16 @@ export function SnkrdunkPriceChart({
             </React.Fragment>
           ))}
 
+          {/* 터치 가이드선 + 데이터점 (웹 호버 동일) */}
+          {anchor ? (
+            <React.Fragment>
+              <Line x1={anchorVX} y1={PAD_T} x2={anchorVX} y2={PAD_T + innerH} stroke={tc.ink3} strokeWidth={1} opacity={0.45} />
+              {touchHits.map((h, i) => (
+                <Circle key={`t-${i}`} cx={xOf(h.point[0])} cy={yOf(h.point[1])} r={4} fill={h.color} stroke={tc.white} strokeWidth={1.5} />
+              ))}
+            </React.Fragment>
+          ) : null}
+
           <SvgText x={PAD_L} y={PAD_T - 4} textAnchor="start" fontSize={7} fill={tc.ink3}>
             가격 (JPY)
           </SvgText>
@@ -209,6 +252,31 @@ export function SnkrdunkPriceChart({
               })
             : null}
         </Svg>
+
+        {/* 터치 툴팁 — 날짜 + 가격 (웹 호버 툴팁 동일) */}
+        {anchor && layoutW > 0 ? (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: 2,
+              ...(tipFlip ? { right: layoutW - anchorLeftPx + 6 } : { left: anchorLeftPx + 6 }),
+              backgroundColor: tc.ink,
+              paddingHorizontal: 8,
+              paddingVertical: 5,
+              borderRadius: 6,
+            }}
+          >
+            <PixelText variant={txt} size={8} color={tc.white} style={{ opacity: 0.8, letterSpacing: 0.3 }}>
+              {fmtDateAxis(anchor[0], rangeX)}
+            </PixelText>
+            {touchHits.map((h, i) => (
+              <PixelText key={`tip-${i}`} variant={txt} size={10} weight="bold" color={tc.white} style={{ marginTop: 2 }}>
+                {touchHits.length > 1 ? `${h.label} ` : ''}¥{Math.round(h.point[1]).toLocaleString('ja-JP')}
+              </PixelText>
+            ))}
+          </View>
+        ) : null}
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
         <PixelText variant={txt} size={8} color={tc.ink3}>

@@ -87,14 +87,22 @@ export function KreamCompare({
       <View style={{ marginHorizontal: 14, marginBottom: 12 }}>
         <PixelFrame bg={tc.white}>
           <View style={{ padding: 16 }}>
+            {/* 비교 기준 — 양쪽 모두 RAW(비등급) 동일 기준 (웹 KreamCompare 동일). */}
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ backgroundColor: tc.pap2, paddingHorizontal: 11, paddingVertical: 4, borderRadius: 999 }}>
+                <PixelText variant={txt} size={9} weight="bold" color={tc.grn} style={{ letterSpacing: 0.3 }}>
+                  RAW · 비등급 기준 비교
+                </PixelText>
+              </View>
+            </View>
             <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 10 }}>
-              <Col tc={tc} txt={txt} name="SNKRDUNK" sub="최근 거래가(엔화 환산)" price={fmtKrw(snkrKrw)} highlight={cmp?.cheaper === 'snkr'} />
+              <Col tc={tc} txt={txt} name="SNKRDUNK" sub="RAW 최근거래가 · 엔화환산" price={fmtKrw(snkrKrw)} highlight={cmp?.cheaper === 'snkr'} />
               <View style={{ width: 1, backgroundColor: tc.pap3 }} />
               <Col
                 tc={tc}
                 txt={txt}
                 name="크림 KREAM"
-                sub="즉시판매가"
+                sub="RAW 즉시판매가"
                 price={state === 'loading' ? '조회 중…' : fmtKrw(kreamKrw)}
                 highlight={cmp?.cheaper === 'kream'}
                 onPress={item?.productUrl ? () => Linking.openURL(item.productUrl).catch(() => {}) : undefined}
