@@ -10,6 +10,8 @@ import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider'
 import { api, ApiError } from '@/lib/apiClient';
 import { useToast } from '@/components/ToastProvider';
 import { uploadTradeImages } from '@/lib/uploads';
+import { fetchInventory } from '@/lib/myApi';
+import { REWARDS } from '@/lib/rewards';
 
 const MAX_IMAGES = 5;
 type TradeType = 'sell' | 'buy';
@@ -17,13 +19,14 @@ type TradeType = 'sell' | 'buy';
 /**
  * 거래글 작성 — 웹 WriteScreen(trade) 과 동일 구성(유형/제목/가격/카카오/사진/내용).
  * 만남장소는 제거(웹과 동일). 백엔드가 placeId 필수라 첫 장소를 기본값으로 전송.
+ * userCardId 프리필·avatarId 전송·리워드 안내도 웹 동일.
  */
 export default function WriteTrade() {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
   const toast = useToast();
   // 내 컬렉션에서 카드 [거래] 로 들어오면 카드명이 title 로 넘어온다 → 제목 기본값.
-  const { title: titleParam } = useLocalSearchParams<{ title?: string }>();
+  const { title: titleParam, userCardId } = useLocalSearchParams<{ title?: string; userCardId?: string }>();
   const [ttype, setTtype] = useState<TradeType>('sell');
   const [title, setTitle] = useState(typeof titleParam === 'string' ? titleParam : '');
   const [price, setPrice] = useState('');
@@ -33,6 +36,7 @@ export default function WriteTrade() {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [placeId, setPlaceId] = useState('');
+  const [avatarId, setAvatarId] = useState('');
 
   // 만남장소 UI 없음 — 백엔드 placeId 필수라 첫 장소를 기본값으로.
   useEffect(() => {
@@ -42,10 +46,32 @@ export default function WriteTrade() {
         if (alive) setPlaceId(r?.data?.[0]?.id ?? '');
       })
       .catch(() => undefined);
+    fetchInventory()
+      .then((r) => alive && setAvatarId(r.inventory.avatar))
+      .catch(() => undefined);
     return () => {
       alive = false;
     };
   }, []);
+
+  // userCardId 프리필 — 웹 resolvePrefill 동일: 제목 "[판매] {이름} · {등급}" + 본문 memo.
+  useEffect(() => {
+    const id = Number(typeof userCardId === 'string' ? userCardId : '');
+    if (!Number.isFinite(id) || id <= 0) return;
+    let alive = true;
+    api<{ data: { nickname: string | null; snkrdunkName?: string | null; gradeEstimate: string | null; memo: string | null } }>(`/api/me/cards/${id}`)
+      .then((r) => {
+        if (!alive || !r.data) return;
+        const name = r.data.nickname || r.data.snkrdunkName || '내 카드';
+        const grade = r.data.gradeEstimate ? ` · ${r.data.gradeEstimate}` : '';
+        setTitle((prev) => prev || `[판매] ${name}${grade}`);
+        if (r.data.memo) setNote((prev) => prev || r.data.memo || '');
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [userCardId]);
 
   const pickImages = useCallback(async () => {
     if (uploading || images.length >= MAX_IMAGES) return;
@@ -86,6 +112,7 @@ export default function WriteTrade() {
           body: note.trim(),
           price: price.trim(),
           kakaoId: kakaoId.trim() || undefined,
+          avatarId: avatarId || undefined,
           images: images.length > 0 ? images : undefined,
         },
       });
@@ -206,6 +233,13 @@ export default function WriteTrade() {
           placeholderTextColor={tc.ink3}
           style={[styles.input, { minHeight: 120, textAlignVertical: 'top' }]}
         />
+
+        {/* 리워드 안내 — 웹 동일 */}
+        <View style={{ backgroundColor: tc.pap2, borderColor: tc.ink, borderWidth: 2, paddingVertical: 8, paddingHorizontal: 12, alignItems: 'center' }}>
+          <PixelText variant={txt} size={9} color={tc.ink2} style={{ letterSpacing: 0.3 }}>
+            🪙 작성 시 +{REWARDS.trade_post}P 지급 · 거래 완료 시 +{REWARDS.trade_done}P
+          </PixelText>
+        </View>
 
         {/* 등록 */}
         <View style={{ marginTop: 4 }}>

@@ -1,0 +1,16 @@
+/** 활동별 포인트 보상 — 웹 src/lib/rewards.ts 와 1:1 동기화. 값 변경 시 양쪽 함께. */
+
+export const REWARDS = {
+  /** 커뮤니티 글 작성 */
+  feed_general: 10,
+  /** 거래글 등록 */
+  trade_post: 10,
+  /** 거래 완료 처리 (판매자 기준) */
+  trade_done: 50,
+  /** 오리파 뽑기 실패 위로금 (S/A 외) */
+  oripa_consol: 0,
+  /** 하루 1회 출석 보상 (KST 기준 일자 변경 시) */
+  login_daily: 10,
+  /** 3일 연속 출석마다 추가 보너스 (3,6,9,...일 차) */
+  login_streak3_bonus: 50,
+} as const;

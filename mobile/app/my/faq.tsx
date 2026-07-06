@@ -7,15 +7,7 @@ import { PixelFrame } from '@/components/cv/PixelFrame';
 import { SectHd } from '@/components/cv/SectHd';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
-
-/** 활동별 포인트 — 웹 src/lib/rewards.ts 와 동기화 */
-const REWARDS = {
-  feed_general: 10,
-  trade_post: 10,
-  trade_done: 50,
-  login_daily: 10,
-  login_streak3_bonus: 50,
-} as const;
+import { REWARDS } from '@/lib/rewards';
 
 interface QA { q: string; a: string }
 interface Section { title: string; items: QA[] }
