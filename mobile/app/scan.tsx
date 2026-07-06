@@ -117,6 +117,25 @@ function ScanScreenInner() {
   const [gradeCompany, setGradeCompany] = useState('PSA');
   const [gradeValue, setGradeValue] = useState('');
 
+  /** 스캔/직접입력 카드 확정 → 시세상세(카드정보)로 — 등록은 상세의 '내 컬렉션에
+   *  추가'에서(웹과 통일). 스니덩크 매칭 없으면 코드+번호 검색 목록으로,
+   *  둘 다 없으면 기존 등록 시트 폴백. */
+  const goCardInfo = (card: CardItem, from: 'scan' | 'manual') => {
+    if (card.snkrdunkApparelId) {
+      router.push(`/cards/snkrdunk/${card.snkrdunkApparelId}` as never);
+      return;
+    }
+    const q = [card.set && card.set !== '-' ? card.set : '', card.num && card.num !== '-' ? card.num.split('/')[0] : '']
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (q) {
+      router.push(`/cards/snkrdunk/search?q=${encodeURIComponent(q)}` as never);
+      return;
+    }
+    openRegister(card, from);
+  };
+
   /** 확정된 카드를 받아 구매정보 입력 단계로. 입력값은 매번 초기화. */
   const openRegister = (card: CardItem, from: 'scan' | 'manual') => {
     setPendingCard(card);
@@ -375,7 +394,7 @@ function ScanScreenInner() {
           useAi={useAi}
           language={scanLang}
           onRetake={() => setMode('camera')}
-          onConfirm={(card) => openRegister(card, 'scan')}
+          onConfirm={(card) => goCardInfo(card, 'scan')}
         />
       ) : mode === 'batch' ? (
         <BatchScanPreview
@@ -687,7 +706,7 @@ function ScanScreenInner() {
                   검색 결과 {manResults.length}건
                 </PixelText>
                 {manResults.map((c) => (
-                  <PixelPress key={c.id} onPress={() => openRegister(c, 'manual')} borderWidth={3} shadow={4}>
+                  <PixelPress key={c.id} onPress={() => goCardInfo(c, 'manual')} borderWidth={3} shadow={4}>
                     <View style={{ flexDirection: 'row', gap: 10, padding: 10, alignItems: 'center' }}>
                       <View style={{ width: 44, height: 60, borderColor: tc.ink, borderWidth: 2 }}>
                         <CardThumb card={c} height={56} emojiSize={20} showLabel={false} />

@@ -22,6 +22,9 @@ import {
 } from '@/services/snkrdunk';
 import { CARD_PACKS } from '@/data/cardPacks';
 import { jaToKoBatch, jaToKoCached } from '@/lib/cardLang';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadScanImage, CardScanError } from '@/services/cardScanApi';
+import { useToast } from '@/components/ToastProvider';
 import { api } from '@/lib/apiClient';
 
 /**
@@ -270,6 +273,7 @@ export function CleanHomeScreen() {
   const { format } = useCurrency();
   const { theme } = useTheme();
   const tc = useThemeColors();
+  const toast = useToast();
   const flat = isFlatTheme(theme);
   const pixel = !flat; // 픽셀 테마(pokemon·onepiece·yugioh·sports) — 직각/하드섀도 크롬.
   const isClean = theme === 'clean';
@@ -308,6 +312,45 @@ export function CleanHomeScreen() {
   const submitSearch = () => {
     const q = homeQuery.trim();
     if (q) router.push(`/cards/snkrdunk/search?q=${encodeURIComponent(q)}` as never);
+  };
+
+  // 홈 카메라 = 웹 HomeKoSearchBar 동일: 촬영 → OCR(세트코드+번호) → 검색 목록으로.
+  // 목록에서 카드 선택 → 시세상세 → '내 컬렉션에 추가'로 등록하는 흐름.
+  const [scanBusy, setScanBusy] = useState(false);
+  const scanToSearch = async () => {
+    if (scanBusy) return;
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    const result = perm.granted
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.85 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
+    if (result.canceled || !result.assets?.[0]) return;
+    const a = result.assets[0];
+    setScanBusy(true);
+    try {
+      const r = await uploadScanImage({
+        uri: a.uri,
+        guideRect: { x: 0, y: 0, w: a.width ?? 0, h: a.height ?? 0 },
+        imageWidth: a.width ?? 0,
+        imageHeight: a.height ?? 0,
+        capturedAt: new Date().toISOString(),
+        useAi: true,
+        language: 'ko',
+      });
+      const setCode = (r.extracted?.setCode ?? '').trim();
+      const num = (r.extracted?.cardNumber ?? '').split('/')[0].trim();
+      const q = [setCode, num].filter(Boolean).join(' ');
+      if (q) router.push(`/cards/snkrdunk/search?q=${encodeURIComponent(q)}` as never);
+      else toast.error('카드 정보를 인식하지 못했어요. 하단이 잘 보이게 다시 찍어주세요.');
+    } catch (e) {
+      if (e instanceof CardScanError && e.code === 'AUTH') {
+        toast.error('로그인 후 이용할 수 있어요');
+        router.push('/login' as never);
+      } else {
+        toast.error(e instanceof Error ? e.message : '스캔 실패');
+      }
+    } finally {
+      setScanBusy(false);
+    }
   };
 
   const [snkrRows, setSnkrRows] = useState<SnkrRow[]>([]);
@@ -483,7 +526,7 @@ export function CleanHomeScreen() {
                   placeholderTextColor={P.ink3}
                   style={{ flex: 1, padding: 0, fontFamily: fontReg, fontSize: 13, color: P.ink }}
                 />
-                <Pressable onPress={() => router.push('/scan' as never)} hitSlop={6} style={{ width: 30, height: 30, backgroundColor: tc.ink, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="카드 사진 스캔">
+                <Pressable onPress={scanToSearch} disabled={scanBusy} hitSlop={6} style={{ width: 30, height: 30, backgroundColor: tc.ink, alignItems: 'center', justifyContent: 'center', opacity: scanBusy ? 0.5 : 1 }} accessibilityLabel="카드 사진 스캔">
                   <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={tc.gold} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
                     <Path d="M14.5 4h-5L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3l-2.5-3Z" />
                     <Circle cx={12} cy={13} r={3.2} />
@@ -506,7 +549,7 @@ export function CleanHomeScreen() {
                 placeholderTextColor={P.ink3}
                 style={{ flex: 1, padding: 0, fontFamily: fontReg, fontSize: 14.5, color: P.ink }}
               />
-              <Pressable onPress={() => router.push('/scan' as never)} hitSlop={6} accessibilityLabel="카드 사진 스캔">
+              <Pressable onPress={scanToSearch} disabled={scanBusy} hitSlop={6} style={{ opacity: scanBusy ? 0.5 : 1 }} accessibilityLabel="카드 사진 스캔">
                 <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M14.5 4h-5L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-3l-2.5-3Z" />
                   <Circle cx={12} cy={13} r={3.2} />

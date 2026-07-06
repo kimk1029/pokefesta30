@@ -320,6 +320,20 @@ export function CardGrader() {
       currentPriceJpy: cand.snkrdunk?.priceJpy ?? cand.priceSummary?.byRegion?.jpy ?? null,
       currentPriceKrw: cand.priceSummary?.byRegion?.krw ?? null,
     };
+    // 스캔 → 카드 선택 → 시세상세(카드정보)에서 '내 컬렉션에 추가'로 등록하는
+    // 통일 흐름: 스니덩크 매칭이 있으면 상세로 직행, 없으면 코드+번호 검색 목록으로.
+    const q = [payload.setCode ?? '', (payload.cardNumber ?? '').split('/')[0]].filter(Boolean).join(' ').trim();
+    if (payload.snkrdunkApparelId) {
+      startRouteTransition();
+      router.push(`/cards/snkrdunk/${payload.snkrdunkApparelId}`);
+      return;
+    }
+    if (q) {
+      startRouteTransition();
+      router.push(`/cards/snkrdunk/search?q=${encodeURIComponent(q)}`);
+      return;
+    }
+    // 코드 인식 실패 폴백 — 기존 등록 페이지로.
     try {
       sessionStorage.setItem(REGISTER_CARD_STORAGE_KEY, JSON.stringify(payload));
     } catch {
