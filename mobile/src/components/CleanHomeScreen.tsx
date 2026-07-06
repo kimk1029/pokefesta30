@@ -21,7 +21,7 @@ import {
   type SnkrdunkCardSeed,
 } from '@/services/snkrdunk';
 import { CARD_PACKS } from '@/data/cardPacks';
-import { localizeCardName } from '@/lib/cardNameKo';
+import { jaToKoBatch, jaToKoCached } from '@/lib/cardLang';
 import { api } from '@/lib/apiClient';
 
 /**
@@ -326,7 +326,7 @@ export function CleanHomeScreen() {
                   ? { apparelId: r.apparelId, shortName: curated.shortName, category: curated.category }
                   : {
                       apparelId: r.apparelId,
-                      shortName: shortenSnkrName(localizeCardName(r.name)),
+                      shortName: shortenSnkrName(jaToKoCached(r.name)),
                       category: inferSnkrCategory(r.name),
                     };
               })

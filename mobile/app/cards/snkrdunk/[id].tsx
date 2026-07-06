@@ -24,7 +24,7 @@ import {
   type SnkrdunkSalesChart,
   type SnkrdunkSalesHistory,
 } from '@/services/snkrdunk';
-import { localizeCardName } from '@/lib/cardNameKo';
+import { jaToKoCached, jaToKoServer } from '@/lib/cardLang';
 import { parseKreamHints } from '../../../../shared/util/kreamMatch';
 
 function fmtYen(n: number): string {
@@ -126,8 +126,20 @@ export default function SnkrdunkDetail() {
     };
   }, [apparelId]);
 
-  const displayNameKo = localizeCardName(seed?.shortName ?? apparel?.localizedName) ?? '카드 정보';
+  // 표시명 일→한 — 서버 공통 엔진(단건). 도착 전엔 캐시/로컬 폴백으로 즉시 표시.
   const originalJp = apparel?.localizedName ?? '';
+  const [koNameSrv, setKoNameSrv] = useState<string | null>(null);
+  useEffect(() => {
+    if (!originalJp) return;
+    let alive = true;
+    jaToKoServer(originalJp).then((ko) => alive && setKoNameSrv(ko)).catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [originalJp]);
+  const displayNameKo = seed?.shortName
+    ? jaToKoCached(seed.shortName)
+    : koNameSrv ?? (originalJp ? jaToKoCached(originalJp) : '카드 정보');
   // KREAM 매칭 정확도용 힌트 — 카드명(일/한)·상품번호에서 setCode/번호/등급 추출.
   const kreamHints = useMemo(
     () => parseKreamHints(originalJp, displayNameKo, apparel?.productNumber),

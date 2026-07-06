@@ -22,8 +22,7 @@ import {
   type BunjangItem,
   type KreamItem,
 } from '@/services/marketplace';
-import { localizeCardName } from '@/lib/cardNameKo';
-import { koToJaSearch } from '@/lib/cardSearchJa';
+import { jaToKoBatch, koToJaServer } from '@/lib/cardLang';
 import { api } from '@/lib/apiClient';
 
 type Category = 'snkrdunk' | 'bunjang' | 'kream';
@@ -48,7 +47,7 @@ async function hydrate(results: SnkrdunkSearchResult[]): Promise<Hit[]> {
       const jpName = apparel?.localizedName || apparel?.name || r.name;
       return {
         apparelId: r.apparelId,
-        koName: localizeCardName(jpName) || jpName,
+        koName: jpName, // 아래에서 서버 배치 번역으로 치환
         jpName,
         imageUrl: apparel?.imageUrl ?? r.imageUrl,
         minPrice: apparel?.minPrice ?? 0,
@@ -56,7 +55,9 @@ async function hydrate(results: SnkrdunkSearchResult[]): Promise<Hit[]> {
       };
     }),
   );
-  return rows;
+  // 일→한 표시명 — 서버 공통 엔진(/api/card-lang/ja-ko) 배치, 실패 시 로컬 폴백.
+  const koMap = await jaToKoBatch(rows.map((r) => r.jpName));
+  return rows.map((r) => ({ ...r, koName: koMap.get(r.jpName) || r.jpName }));
 }
 
 function fmtYen(n: number): string {
@@ -91,7 +92,20 @@ export default function SnkrdunkSearchScreen() {
   const [kreamLoading, setKreamLoading] = useState(false);
   const [kreamLoaded, setKreamLoaded] = useState(false);
 
-  const jaQuery = useMemo(() => koToJaSearch(initialQuery), [initialQuery]);
+  // 한→일 검색어 — 서버 공통 엔진(/api/card-lang/ko-ja). 도착 전엔 null 로 검색 보류.
+  const [jaQuery, setJaQuery] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!initialQuery) {
+      setJaQuery('');
+      return;
+    }
+    setJaQuery(null);
+    koToJaServer(initialQuery).then((ja) => alive && setJaQuery(ja));
+    return () => {
+      alive = false;
+    };
+  }, [initialQuery]);
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -107,6 +121,7 @@ export default function SnkrdunkSearchScreen() {
       setHits([]);
       return;
     }
+    if (jaQuery == null) return; // 서버 번역 대기
     setLoading(true);
     setError(null);
     searchSnkrdunkByQuery(jaQuery, 1)

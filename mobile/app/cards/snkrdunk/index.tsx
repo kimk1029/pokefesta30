@@ -24,7 +24,7 @@ import {
   type SnkrdunkSalesChart,
   type SnkrdunkSearchResult,
 } from '@/services/snkrdunk';
-import { localizeCardName } from '@/lib/cardNameKo';
+import { jaToKoBatch, jaToKoCached } from '@/lib/cardLang';
 
 type Category = 'SAR' | '프로모' | 'SR' | '원피스';
 
@@ -70,7 +70,7 @@ function searchToSeed(r: SnkrdunkSearchResult): DisplaySeed {
   }
   return {
     apparelId: r.apparelId,
-    shortName: shortenName(localizeCardName(r.name) ?? r.name),
+    shortName: shortenName(jaToKoCached(r.name)),
     localizedName: jp,
     category: inferCategory(r.name),
   };
@@ -94,6 +94,8 @@ export default function SnkrdunkLanding() {
       let seeds: DisplaySeed[];
       try {
         const pool = await fetchSnkrdunkBrowse(1);
+        // 일→한 표시명 — 서버 공통 엔진 배치 선번역(캐시).
+        await jaToKoBatch(pool.slice(0, 6).map((r) => r.name)).catch(() => undefined);
         seeds =
           pool.length > 0
             ? pool.slice(0, 6).map(searchToSeed)

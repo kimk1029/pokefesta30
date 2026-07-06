@@ -7,7 +7,7 @@ import { Chip } from '@/components/cv/Chip';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchSnkrdunkBrowse, type SnkrdunkSearchResult } from '@/services/snkrdunk';
-import { localizeCardName } from '@/lib/cardNameKo';
+import { jaToKoBatch, jaToKoCached } from '@/lib/cardLang';
 
 type SortKey = 'default' | 'priceDesc' | 'priceAsc' | 'name';
 
@@ -47,6 +47,8 @@ export default function SnkrdunkAll() {
     setError(null);
     try {
       const results = await fetchSnkrdunkBrowse(p);
+      // 표시명 일→한 — 서버 공통 엔진 배치 선번역(캐시), 렌더는 jaToKoCached 조회.
+      await jaToKoBatch(results.map((r) => r.name)).catch(() => undefined);
       const fresh = results.filter((r) => !seenRef.current.has(r.apparelId));
       fresh.forEach((r) => seenRef.current.add(r.apparelId));
       if (fresh.length === 0) {
@@ -213,7 +215,7 @@ export default function SnkrdunkAll() {
                 numberOfLines={2}
                 style={{ lineHeight: 13 }}
               >
-                {shortenName(localizeCardName(item.name))}
+                {shortenName(jaToKoCached(item.name))}
               </PixelText>
               <PixelText
                 variant={txt}

@@ -50,6 +50,7 @@ import eventsRouter from './routes/events.ts';
 import placesRouter from './routes/places.ts';
 import usersRouter from './routes/users.ts';
 import searchLogRouter from './routes/searchLog.ts';
+import cardLangRouter from './routes/cardLang.ts';
 import { startPriceAlertScheduler } from './lib/priceAlerts.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -69,6 +70,7 @@ app.use('/api/snkrdunk', snkrdunkRouter);
 app.use('/api/kream', kreamRouter);
 app.use('/api/korea-price', koreaPriceRouter);
 app.use('/api/search-log', searchLogRouter);
+app.use('/api/card-lang', cardLangRouter);
 app.use('/api/feeds', feedsRouter);
 app.use('/api/trades', tradesRouter);
 app.use('/api/me', meRouter);

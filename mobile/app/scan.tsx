@@ -22,7 +22,7 @@ import { lookupCardInfo } from '@/services/cardScanApi';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { useAuthed } from '@/lib/useAuthed';
 import { searchSnkrdunkByQuery } from '@/services/snkrdunk';
-import { koToJaSearch } from '@/lib/cardSearchJa';
+import { koToJaServer } from '@/lib/cardLang';
 import { createMyCard } from '@/lib/myApi';
 
 /** "¥2,000" → 2000. 못 읽으면 0. */
@@ -291,7 +291,7 @@ function ScanScreenInner() {
       // 2) snkrdunk 보강 — 코드+번호로, 이름이 있으면 한→일 번역해서도 검색.
       const seen = new Set<number>();
       const queries = [`${manSet.trim()} ${manNum.trim()}`.trim()];
-      if (manName.trim()) queries.push(koToJaSearch(manName.trim()) || manName.trim());
+      if (manName.trim()) queries.push((await koToJaServer(manName.trim())) || manName.trim());
       for (const q of queries) {
         if (!q) continue;
         const rows = await searchSnkrdunkByQuery(q).catch(() => []);
