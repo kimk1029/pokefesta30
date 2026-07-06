@@ -1,10 +1,11 @@
 /**
- * 자산 구성(지역별 도넛) + 시리즈별 비중 TOP5 — 내 컬렉션 상단 분석 섹션.
- * 웹 CollectionScreen 의 composition / seriesTop 로직을 그대로 옮긴 모바일 버전.
- * 평가액 = 현재가(싱글|PSA10) × 수량 기준 비중.
+ * 자산 구성 — 카드별 금액 비중(합계 100%) 도넛 + 리스트.
+ * 웹 CollectionScreen cardWeights/donutSegments 와 동일 로직:
+ * 평가액 = 등급 일치 시세(그레이딩=PSA10, 비그레이딩=싱글) × 수량,
+ * 상위 8장 + 기타. 색 팔레트(SLICE)도 웹과 동일.
  */
 import { useMemo } from 'react';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
@@ -18,81 +19,52 @@ interface Props {
   format: (jpy: number) => string;
 }
 
-interface Seg {
-  key: string;
-  label: string;
-  color: string;
-  val: number;
+// 카드별 비중 도넛·막대 색 팔레트 — 웹 SLICE 동일.
+const SLICE = ['#7C5CFC', '#3B82F6', '#F59E0B', '#10B981', '#EF4444', '#06B6D4', '#EC4899', '#F97316'];
+
+function cardName(c: MyCardRow): string {
+  return c.snkrdunkName || c.nickname || '이름 미상';
+}
+
+/** 카드 한 장의 평가액(엔) — 웹 allRows.value 동일: 등급 일치 시세 × 수량. */
+function rowValue(c: MyCardRow): number {
+  const gradePrice = c.graded ? c.pricePsa10Jpy ?? 0 : c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0;
+  const qty = Math.max(1, c.qty ?? 1);
+  return gradePrice > 0 ? gradePrice * qty : 0;
+}
+
+interface Item {
+  c: MyCardRow;
+  value: number;
+  qty: number;
   pct: number;
 }
 
-/** 카드 한 장의 현재 평가액(엔). 웹 allRows.value 와 동일. */
-function rowValue(c: MyCardRow, usePsa10: boolean): number {
-  const psa10 = c.pricePsa10Jpy ?? 0;
-  const single = c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0;
-  const cur = usePsa10 && psa10 > 0 ? psa10 : single;
-  const qty = Math.max(1, c.qty ?? 1);
-  return cur > 0 ? cur * qty : 0;
-}
-
-export function CollectionComposition({ cards, priceMode, format }: Props) {
+export function CollectionComposition({ cards, format }: Props) {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
-  const usePsa10 = priceMode === 'psa10';
 
-  // 자산 구성 — 지역(에디션)별 평가액 비중.
-  const composition = useMemo<Seg[]>(() => {
-    const REGIONS: Array<{ key: string; label: string; color: string }> = [
-      { key: 'jp', label: '일본판', color: tc.pur },
-      { key: 'kr', label: '한국판', color: tc.blu },
-      { key: 'en', label: '영문판', color: tc.gold },
-      { key: 'etc', label: '미지정', color: tc.ink3 },
-    ];
-    const sums = new Map<string, number>();
-    let total = 0;
-    for (const c of cards) {
-      const val = rowValue(c, usePsa10);
-      if (val <= 0) continue;
-      // 명시 지역 우선. 미지정이라도 스니덩크(일본 마켓) 출처면 일본판으로 간주.
-      const key =
-        c.region === 'jp' || c.region === 'kr' || c.region === 'en'
-          ? c.region
-          : c.snkrdunkApparelId
-            ? 'jp'
-            : 'etc';
-      sums.set(key, (sums.get(key) ?? 0) + val);
-      total += val;
-    }
-    if (total <= 0) return [];
-    return REGIONS.map((reg) => ({
-      ...reg,
-      val: sums.get(reg.key) ?? 0,
-      pct: ((sums.get(reg.key) ?? 0) / total) * 100,
-    }))
-      .filter((x) => x.val > 0)
-      .sort((a, b) => b.val - a.val);
-  }, [cards, usePsa10, tc]);
+  // 가격 비중(카드별) — 웹 cardWeights 동일: TOP8 + 기타.
+  const weights = useMemo(() => {
+    const priced = cards
+      .map((c) => ({ c, value: rowValue(c), qty: Math.max(1, c.qty ?? 1) }))
+      .filter((r) => r.value > 0);
+    const total = priced.reduce((s, r) => s + r.value, 0);
+    if (total <= 0) return { items: [] as Item[], restVal: 0, restCount: 0, restPct: 0 };
+    const sorted = [...priced].sort((a, b) => b.value - a.value);
+    const TOP = 8;
+    const items: Item[] = sorted.slice(0, TOP).map((r) => ({ ...r, pct: (r.value / total) * 100 }));
+    const rest = sorted.slice(TOP);
+    const restVal = rest.reduce((s, r) => s + r.value, 0);
+    return { items, restVal, restCount: rest.length, restPct: (restVal / total) * 100 };
+  }, [cards]);
 
-  // 시리즈별 비중 TOP 5 — 카탈로그 시리즈명 기준 평가액 비중.
-  const seriesTop = useMemo(() => {
-    const sums = new Map<string, number>();
-    let total = 0;
-    for (const c of cards) {
-      const val = rowValue(c, usePsa10);
-      if (val <= 0) continue;
-      const name = c.series || '기타';
-      sums.set(name, (sums.get(name) ?? 0) + val);
-      total += val;
-    }
-    if (total <= 0) return [];
-    const arr = [...sums.entries()].map(([name, val]) => ({ name, val, pct: (val / total) * 100 }));
-    arr.sort((a, b) => b.val - a.val);
-    return arr.slice(0, 5);
-  }, [cards, usePsa10]);
+  if (weights.items.length === 0) return null;
 
-  if (composition.length === 0 && seriesTop.length === 0) return null;
-
-  const rankColors = [tc.pur, tc.blu, tc.gold, tc.purLt, tc.bluLt];
+  const segments = [
+    ...weights.items.map((it, i) => ({ key: String(it.c.id), color: SLICE[i] ?? tc.ink3, pct: it.pct })),
+    ...(weights.restCount > 0 ? [{ key: '_rest', color: tc.ink3, pct: weights.restPct }] : []),
+  ];
 
   return (
     <View style={{ paddingHorizontal: space.gap, marginBottom: space.cg }}>
@@ -101,67 +73,67 @@ export function CollectionComposition({ cards, priceMode, format }: Props) {
       </PixelText>
       <PixelFrame shadow={5} inner={3}>
         <View style={{ padding: 16 }}>
-          {composition.length > 0 && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-              <Donut segments={composition} track={tc.pap3} />
-              <View style={{ flex: 1, gap: 11 }}>
-                {composition.map((c) => (
-                  <View key={c.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                    <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: c.color }} />
-                    <PixelText variant="ko" size={12} weight="bold" color={tc.ink}>
-                      {c.label}
-                    </PixelText>
-                    <PixelText variant={txt} size={12} weight="bold" color={tc.ink}>
-                      {c.pct.toFixed(1)}%
-                    </PixelText>
-                    <PixelText variant={txt} size={10} color={tc.ink3} style={{ marginLeft: 'auto' }}>
-                      {format(c.val)}
-                    </PixelText>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+          <View style={{ alignItems: 'center', marginBottom: 16 }}>
+            <Donut segments={segments} track={tc.pap3} />
+          </View>
 
-          {seriesTop.length > 0 && (
-            <>
-              <PixelText
-                variant="ko"
-                size={12}
-                weight="bold"
-                color={tc.ink}
-                style={{ marginTop: composition.length > 0 ? 20 : 0, marginBottom: 12 }}
-              >
-                시리즈별 비중 TOP {seriesTop.length}
-              </PixelText>
-              <View style={{ gap: 12 }}>
-                {seriesTop.map((s, i) => (
-                  <View key={s.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
-                    <View
-                      style={{
-                        width: 21,
-                        height: 21,
-                        borderRadius: 11,
-                        backgroundColor: rankColors[i] ?? tc.ink3,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <PixelText variant={txt} size={10} weight="bold" color={tc.white}>
-                        {i + 1}
+          <PixelText variant="ko" size={12} weight="bold" color={tc.ink} style={{ marginBottom: 12 }}>
+            카드별 비중
+          </PixelText>
+          <View style={{ gap: 12 }}>
+            {weights.items.map((it, i) => {
+              const img = it.c.snkrdunkImageUrl || it.c.photoUrl || null;
+              const color = SLICE[i] ?? tc.ink3;
+              return (
+                <View key={it.c.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 5, overflow: 'hidden', backgroundColor: tc.pap2, alignItems: 'center', justifyContent: 'center' }}>
+                    {img ? (
+                      <Image source={{ uri: img }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <PixelText variant={txt} size={14}>🃏</PixelText>
+                    )}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                      <PixelText variant="ko" size={11} weight="bold" color={tc.ink} numberOfLines={1} style={{ flex: 1 }}>
+                        {cardName(it.c)}
+                      </PixelText>
+                      <PixelText variant={txt} size={11} weight="bold" color={tc.ink}>
+                        {it.pct.toFixed(1)}%
                       </PixelText>
                     </View>
-                    <PixelText variant="ko" size={12} weight="bold" color={tc.ink} numberOfLines={1} style={{ flex: 1 }}>
-                      {s.name}
-                    </PixelText>
-                    <PixelText variant={txt} size={12} weight="bold" color={tc.ink}>
-                      {s.pct.toFixed(1)}%
+                    {/* 비중 막대 */}
+                    <View style={{ height: 6, borderRadius: 3, backgroundColor: tc.pap3, overflow: 'hidden', marginTop: 5 }}>
+                      <View style={{ width: `${Math.max(2, it.pct)}%`, height: '100%', backgroundColor: color, borderRadius: 3 }} />
+                    </View>
+                    <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 4 }}>
+                      {format(it.value)}{it.qty > 1 ? ` · ${it.qty}장` : ''}
                     </PixelText>
                   </View>
-                ))}
+                </View>
+              );
+            })}
+            {weights.restCount > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 34, height: 34, borderRadius: 5, backgroundColor: tc.pap2, alignItems: 'center', justifyContent: 'center' }}>
+                  <PixelText variant={txt} size={12} color={tc.ink3}>＋</PixelText>
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                    <PixelText variant="ko" size={11} weight="bold" color={tc.ink3} style={{ flex: 1 }}>
+                      기타 {weights.restCount}장
+                    </PixelText>
+                    <PixelText variant={txt} size={11} weight="bold" color={tc.ink3}>
+                      {weights.restPct.toFixed(1)}%
+                    </PixelText>
+                  </View>
+                  <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 4 }}>
+                    {format(weights.restVal)}
+                  </PixelText>
+                </View>
               </View>
-            </>
-          )}
+            ) : null}
+          </View>
         </View>
       </PixelFrame>
     </View>
@@ -169,7 +141,7 @@ export function CollectionComposition({ cards, priceMode, format }: Props) {
 }
 
 /** 자산 구성 도넛 — segments[].pct 합이 100 가정(아니어도 비율대로). */
-function Donut({ segments, track }: { segments: Seg[]; track: string }) {
+function Donut({ segments, track }: { segments: Array<{ key: string; color: string; pct: number }>; track: string }) {
   const R = 42;
   const C = 2 * Math.PI * R;
   let acc = 0;
