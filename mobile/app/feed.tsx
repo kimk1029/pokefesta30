@@ -1,18 +1,19 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ScrollView, View, Pressable, Text, TextInput, Animated, Easing } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ScrollView, View, Pressable, Text, TextInput, Animated, Easing, Image, Modal, RefreshControl } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { router } from 'expo-router';
 import { useTheme, useThemeColors } from '@/components/ThemeProvider';
 import { isFlatTheme } from '@/lib/theme';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { fonts } from '@/theme/tokens';
-import { MARKET, CARDS, fmt } from '@/data/cardvault';
+import { api } from '@/lib/apiClient';
 
 /**
  * 커뮤니티 — Claude Design 'POKE30 커뮤니티' 프로토타입 레이아웃 (네이티브).
  * 모든 테마가 같은 레이아웃을 쓰고 색/폰트만 테마별로 달라진다 — 클린은 프로토타입
  * 퍼플 팔레트 그대로, 그 외 테마는 테마 토큰(tc). 인기글·HOT키워드·공지는 정적 편집
- * 콘텐츠, '거래/나눔' 탭은 실제 마켓 데이터.
+ * 콘텐츠(웹과 동일), 글 목록·거래/나눔·댓글·북마크는 실데이터(웹 CommunityScreen 동일):
+ * GET /api/feeds?limit=20 · GET /api/trades?limit=30 · /api/feeds/{id}/comments · /api/bookmarks.
  */
 
 const PURPLE = '#6a3aff';
@@ -105,28 +106,45 @@ const NOTICES: NoticeItem[] = [
   { badge: '필독', red: true, title: '시세 정보 글 작성 가이드 (필독)', author: '관리자', date: '2024.05.18', comments: 67, likes: 482 },
 ];
 
-interface PostItemUI {
+/* ---------------- 실데이터 타입 (웹 src/lib/types.ts 동일) ---------------- */
+
+interface FeedPost {
   id: number;
-  avatar: string;
-  avBg: string;
-  online?: boolean;
-  tag: CatId;
-  author: string;
+  text: string;
   time: string;
-  body: string;
-  thumbEmoji?: string;
-  thumbBg?: string;
-  comments: number;
-  likes: string;
-  likedHot?: boolean;
+  createdAt: string;
+  user: string; // authorEmoji (아바타 id or 이모지)
+  authorName?: string | null;
+  authorBgId?: string;
+  authorFrameId?: string;
+  images?: string[];
+  commentCount?: number;
+  likeCount?: number;
 }
-const POSTS: PostItemUI[] = [
-  { id: 1, avatar: '🐹', avBg: '#ffd98a', online: true, tag: '자유', author: '포케사랑', time: '1시간 전', body: '흑염의 지배자 리자몽 ex SAR PSA 10가 100만원 돌파했네요 ㄷㄷ 어디까지 갈까요?', thumbEmoji: '🔥', thumbBg: '#ff5a2b', comments: 123, likes: '1,234', likedHot: true },
-  { id: 2, avatar: '🌸', avBg: '#f3a6c4', tag: '질문', author: '뮤츠좋아', time: '3시간 전', body: 'budget 50인데 이거 사도 괜찮을까요? 나중에 오를 가능성 있을까요?', comments: 67, likes: '523' },
-  { id: 3, avatar: '👾', avBg: '#7b5bc4', tag: '자랑', author: '겟데이', time: '5시간 전', body: '원하던 카드 저렴하게 구매 성공! 역시 기다리길 잘했네요 😎', thumbEmoji: '✨', thumbBg: '#c98ce0', comments: 32, likes: '412' },
-  { id: 4, avatar: '🦎', avBg: '#ff9a3c', tag: '꿀팁', author: '파이리', time: '7시간 전', body: '슬리브, 탑로더, 하드케이스 다 사긴 했는데 보관 방법이 헷갈리네요 ㅠㅠ', comments: 45, likes: '287' },
-  { id: 5, avatar: '🌿', avBg: '#3fd07f', tag: '거래/나눔', author: '코이킹', time: '9시간 전', body: '잉어킹 프로모 보유 중이고 피카츄 프로모랑 교환 희망합니다. 쪽지 주세요!', thumbEmoji: '🐟', thumbBg: '#3a8fd0', comments: 18, likes: '156' },
-];
+
+interface Trade {
+  id: number;
+  type: 'sell' | 'buy';
+  title: string;
+  place: string;
+  time: string;
+  price: string;
+  bumpCount?: number;
+  authorName?: string;
+  images?: string[];
+}
+
+/** 글의 카테고리 추정 — 웹 postCat 동일: 사진 유무로 자랑/자유 구분. */
+function postCat(p: FeedPost): CatId {
+  return (p.images?.length ?? 0) > 0 ? '자랑' : '자유';
+}
+
+function formatAbs(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
 /* ---------------- 아이콘 ---------------- */
 
@@ -231,25 +249,44 @@ export default function CommunityScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [keywords, setKeywords] = useState<string[]>(KEYWORDS);
-  const [liked, setLiked] = useState<Record<number, boolean>>({});
+
+  // 실데이터 — 웹 feed/page.tsx 와 동일한 두 요청.
+  const [feed, setFeed] = useState<FeedPost[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => {
+    const [f, t] = await Promise.all([
+      api<{ items: FeedPost[] }>('/api/feeds?limit=20', { auth: false }).catch(() => ({ items: [] as FeedPost[] })),
+      api<{ data: Trade[] }>('/api/trades?limit=30', { auth: false }).catch(() => ({ data: [] as Trade[] })),
+    ]);
+    setFeed(f.items ?? []);
+    setTrades(t.data ?? []);
+    setLoading(false);
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const isMarket = cat === '거래/나눔';
   const featureItems = feature === 'hot' ? FEATURE_HOT : FEATURE_BEST;
 
-  // 검색 + 카테고리 필터 + 정렬을 실제 목록에 적용.
+  // 검색 + 카테고리 필터 + 정렬을 실제 목록에 적용 (웹 CommunityScreen 동일).
   const visiblePosts = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = q
-      ? POSTS.filter((p) => p.body.toLowerCase().includes(q) || p.author.toLowerCase().includes(q))
-      : POSTS;
-    if (cat !== '전체') list = list.filter((p) => p.tag === cat);
-    const num = (s: string) => Number(s.replace(/[^0-9]/g, '')) || 0;
+      ? feed.filter(
+          (p) =>
+            (p.text ?? '').toLowerCase().includes(q) ||
+            (p.authorName ?? '').toLowerCase().includes(q),
+        )
+      : feed;
+    if (cat !== '전체') list = list.filter((p) => postCat(p) === cat);
     const sorted = [...list];
-    if (sort === '추천순') sorted.sort((a, b) => num(b.likes) - num(a.likes));
-    else if (sort === '댓글순') sorted.sort((a, b) => b.comments - a.comments);
-    else sorted.sort((a, b) => b.id - a.id);
+    if (sort === '추천순') sorted.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0));
+    else if (sort === '댓글순') sorted.sort((a, b) => (b.commentCount ?? 0) - (a.commentCount ?? 0));
+    else sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return sorted;
-  }, [cat, sort, query]);
+  }, [feed, cat, sort, query]);
 
   // 새로고침 — HOT 키워드 순서 셔플.
   const shuffleKeywords = () =>
@@ -389,7 +426,12 @@ export default function CommunityScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={load} />}
+      >
         {/* 전체 탭에서만 인기글 + HOT 키워드 노출. 그 외 카테고리는 목록만. */}
         {cat === '전체' ? (
           <>
@@ -498,70 +540,64 @@ export default function CommunityScreen() {
                 </View>
               ))}
 
-              {isMarket
-                ? MARKET.map((m) => {
-                    const card = CARDS.find((c) => c.id === m.cardId) ?? CARDS[0];
-                    const tg = m.type === 'sell' ? { fg: '#fff', bg: P.red, label: '팝니다' } : m.type === 'buy' ? { fg: '#fff', bg: isClean ? '#2563EB' : tc.blu, label: '삽니다' } : { fg: '#fff', bg: isClean ? '#7C3AED' : tc.teal, label: '교환' };
+              {loading ? (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <Text style={ts(13, '600', P.ink3)}>불러오는 중...</Text>
+                </View>
+              ) : isMarket ? (
+                trades.length === 0 ? (
+                  <EmptyRow
+                    label={'거래/나눔 글이 없어요.'}
+                    cta="＋ 거래글 작성"
+                    onPress={() => router.push('/write/trade' as never)}
+                    P={P}
+                    ts={ts}
+                  />
+                ) : (
+                  trades.map((t) => {
+                    const isSell = t.type === 'sell';
                     return (
-                      <Pressable key={m.id} onPress={() => router.push(`/cards/${card.id}` as never)} style={{ flexDirection: 'row', gap: 12, paddingVertical: 16, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: P.line }}>
-                        <View style={{ width: 62, height: 84, borderRadius: 8, backgroundColor: P.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 28 }}>{card.emoji}</Text>
+                      <Pressable key={t.id} onPress={() => router.push(`/trade/${t.id}` as never)} style={{ flexDirection: 'row', gap: 12, paddingVertical: 16, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: P.line }}>
+                        <View style={{ width: 62, height: 84, borderRadius: 8, backgroundColor: P.accentSoft, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                          {t.images && t.images.length > 0 ? (
+                            <Image source={{ uri: t.images[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                          ) : (
+                            <Text style={{ fontSize: 26 }}>{isSell ? '🏷' : '🛒'}</Text>
+                          )}
                         </View>
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text numberOfLines={2} style={ts(15, '800', P.ink)}>{card.name}</Text>
-                          <Text numberOfLines={1} style={[ts(12, '500', P.ink3), { marginTop: 4 }]}>{card.set}</Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 7 }}>
-                            <View style={{ backgroundColor: tg.bg, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 6 }}>
-                              <Text style={ts(11, '800', tg.fg)}>{tg.label}</Text>
+                          <Text numberOfLines={2} style={ts(15, '800', P.ink)}>{t.title}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 7, flexWrap: 'wrap' }}>
+                            <View style={{ backgroundColor: isSell ? P.red : isClean ? '#2563EB' : tc.blu, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 6 }}>
+                              <Text style={ts(11, '800', '#fff')}>{isSell ? '팝니다' : '삽니다'}</Text>
                             </View>
-                            <Text style={ts(12, '500', P.ink3)}>{m.condition}</Text>
+                            {t.place ? <Text style={ts(12, '600', P.ink3)}>📍 {t.place}</Text> : null}
+                            <Text style={ts(12, '500', P.ink3)}>{t.time}</Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                            <Text style={ts(14.5, '900', isClean ? '#0A7A56' : tc.grn)}>{m.price ? `₩${fmt(m.price)}` : '협의'}</Text>
-                            <Text style={ts(11.5, '600', P.ink3)}>{m.time} · {m.seller}</Text>
+                            <Text style={ts(14.5, '900', isClean ? '#0A7A56' : tc.grn)}>{t.price}</Text>
+                            <Text style={ts(11.5, '600', P.ink3)}>
+                              {typeof t.bumpCount === 'number' && t.bumpCount > 0 ? `↑ ${t.bumpCount} · ` : ''}{t.authorName ?? '익명'}
+                            </Text>
                           </View>
                         </View>
                       </Pressable>
                     );
                   })
-                : visiblePosts.map((p) => {
-                    const tgs = tagStyle(p.tag);
-                    const isLiked = liked[p.id] ?? p.likedHot ?? false;
-                    return (
-                      <Pressable key={p.id} onPress={() => router.push('/feed' as never)} style={{ flexDirection: 'row', gap: 12, paddingVertical: 16, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: P.line }}>
-                        <View style={{ position: 'relative' }}>
-                          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: p.avBg, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ fontSize: 21 }}>{p.avatar}</Text>
-                          </View>
-                          {p.online ? <View style={{ position: 'absolute', bottom: -1, right: -1, width: 14, height: 14, borderRadius: 7, backgroundColor: '#2BB673', borderWidth: 2, borderColor: P.cardBg }} /> : null}
-                        </View>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                            <View style={{ backgroundColor: tgs.bg, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 6 }}>
-                              <Text style={ts(11, '800', tgs.fg)}>{p.tag}</Text>
-                            </View>
-                            <Text style={ts(12, '700', P.ink)}>{p.author}</Text>
-                            <Text style={ts(12, '500', P.ink3)}>{p.time}</Text>
-                          </View>
-                          <View style={{ flexDirection: 'row', gap: 11, marginTop: 9 }}>
-                            <Text numberOfLines={2} style={[ts(13.5, '400', P.ink2), { flex: 1 }]}>{p.body}</Text>
-                            {p.thumbEmoji ? (
-                              <View style={{ width: 62, height: 84, borderRadius: 8, backgroundColor: p.thumbBg, alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ fontSize: 30 }}>{p.thumbEmoji}</Text>
-                              </View>
-                            ) : null}
-                          </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 11 }}>
-                            <Meta icon={<Chat c={P.chev} s={15} />} label={String(p.comments)} P={P} ts={ts} />
-                            <Pressable onPress={() => setLiked((l) => ({ ...l, [p.id]: !isLiked }))} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <Like stroke={isLiked ? P.red : P.chev} fill={isLiked ? P.red : 'none'} s={15} />
-                              <Text style={ts(12.5, '700', isLiked ? P.red : P.ink3)}>{p.likes}</Text>
-                            </Pressable>
-                          </View>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
+                )
+              ) : visiblePosts.length === 0 ? (
+                <EmptyRow
+                  label={'아직 글이 없어요.'}
+                  cta="＋ 첫 번째가 되어보세요"
+                  onPress={() => router.push('/write/feed' as never)}
+                  P={P}
+                  ts={ts}
+                />
+              ) : (
+                visiblePosts.map((p) => (
+                  <PostRow key={p.id} post={p} P={P} ts={ts} tagStyle={tagStyle} />
+                ))
+              )}
             </View>
           </Card>
         </View>
@@ -570,12 +606,227 @@ export default function CommunityScreen() {
   );
 }
 
-function Meta({ icon, label, P, ts }: { icon: ReactNode; label: string; P: Palette; ts: (s: number, w: '400' | '500' | '600' | '700' | '800' | '900', c: string) => object }) {
+type TsFn = (s: number, w: '400' | '500' | '600' | '700' | '800' | '900', c: string) => object;
+
+function Meta({ icon, label, P, ts }: { icon: ReactNode; label: string; P: Palette; ts: TsFn }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
       {icon}
       <Text style={ts(11.5, '700', P.ink3)}>{label}</Text>
     </View>
+  );
+}
+
+function EmptyRow({ label, cta, onPress, P, ts }: { label: string; cta: string; onPress: () => void; P: Palette; ts: TsFn }) {
+  return (
+    <View style={{ alignItems: 'center', paddingVertical: 46, paddingHorizontal: 20, gap: 8 }}>
+      <Text style={ts(14, '500', P.ink3)}>{label}</Text>
+      <Pressable onPress={onPress}>
+        <Text style={ts(14, '700', P.accent)}>{cta}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/* ---------------- 글 행 (펼침: 사진 + 댓글) — 웹 PostRow 동일 로직 ---------------- */
+
+function PostRow({ post, P, ts, tagStyle }: { post: FeedPost; P: Palette; ts: TsFn; tagStyle: (label: string) => { fg: string; bg: string } }) {
+  const [open, setOpen] = useState(false);
+  const [opened, setOpened] = useState(false);
+  const [lightbox, setLightbox] = useState<number | null>(null);
+  const images = post.images ?? [];
+  const hasThumb = images.length > 0;
+  const cat = hasThumb ? '자랑' : '자유';
+  const tgs = tagStyle(cat);
+
+  const toggle = () =>
+    setOpen((v) => {
+      if (!v) setOpened(true);
+      return !v;
+    });
+
+  return (
+    <Pressable onPress={toggle} style={{ flexDirection: 'row', gap: 12, paddingVertical: 16, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: P.line }}>
+      {/* avatar — 앱은 아바타 에셋 합성이 없어 이모지 폴백 */}
+      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: P.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 21 }}>{emojiOf(post.user)}</Text>
+      </View>
+
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+          <View style={{ backgroundColor: tgs.bg, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 6 }}>
+            <Text style={ts(11, '800', tgs.fg)}>{cat}</Text>
+          </View>
+          <Text numberOfLines={1} style={[ts(12, '700', P.ink), { flexShrink: 1 }]}>{post.authorName ?? '익명'}</Text>
+          <Text style={ts(12, '500', P.ink3)}>{post.time}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 11, marginTop: 9 }}>
+          <Text numberOfLines={open ? undefined : 2} style={[ts(13.5, '400', P.ink2), { flex: 1 }]}>{post.text}</Text>
+          {hasThumb && !open ? (
+            <View style={{ width: 62, height: 84, borderRadius: 8, backgroundColor: P.accentSoft, overflow: 'hidden' }}>
+              <Image source={{ uri: images[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+            </View>
+          ) : null}
+        </View>
+
+        {/* expand: images + comments */}
+        {opened && open ? (
+          <View>
+            {hasThumb ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 11 }}>
+                {images.map((url, i) => (
+                  <Pressable key={url} onPress={() => setLightbox(i)} style={{ width: `${images.length === 1 ? 100 : images.length === 2 ? 48 : 31}%`, aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: P.accentSoft }}>
+                    <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            <FeedComments feedId={post.id} dateLabel={formatAbs(post.createdAt)} P={P} ts={ts} />
+          </View>
+        ) : null}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 11 }}>
+          <Pressable onPress={toggle} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Chat c={P.chev} s={15} />
+            <Text style={ts(12.5, '700', P.ink3)}>댓글{post.commentCount ? ` ${post.commentCount}` : ''}</Text>
+          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+            <BookmarkHeart feedId={post.id} />
+            {(post.likeCount ?? 0) > 0 ? <Text style={ts(12.5, '700', P.ink3)}>{post.likeCount}</Text> : null}
+          </View>
+          {hasThumb ? <Text style={ts(12.5, '700', P.ink3)}>📷 {images.length}</Text> : null}
+        </View>
+      </View>
+
+      {lightbox !== null ? <Lightbox urls={images} startIdx={lightbox} onClose={() => setLightbox(null)} /> : null}
+    </Pressable>
+  );
+}
+
+function emojiOf(v: string | null | undefined): string {
+  if (!v) return '🙂';
+  if (/^[\p{Emoji}\p{Extended_Pictographic}]/u.test(v)) return v;
+  return '🙂';
+}
+
+/* ---------------- 북마크(추천) — 웹 BookmarkButton 동일: POST /api/bookmarks 토글 ---------------- */
+
+function BookmarkHeart({ feedId, tradeId }: { feedId?: number; tradeId?: number }) {
+  const [bookmarked, setBookmarked] = useState(false);
+  const pendingRef = useRef(false);
+  const toggle = async () => {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    try {
+      const data = await api<{ bookmarked: boolean }>('/api/bookmarks', { method: 'POST', body: { feedId, tradeId } });
+      setBookmarked(data.bookmarked);
+    } catch {
+      // 미로그인(401) 포함 — 웹과 동일하게 조용히 무시
+    } finally {
+      pendingRef.current = false;
+    }
+  };
+  return (
+    <Pressable onPress={toggle} hitSlop={6} style={{ padding: 4 }}>
+      <Text style={{ fontSize: 18, lineHeight: 20 }}>{bookmarked ? '💛' : '🤍'}</Text>
+    </Pressable>
+  );
+}
+
+/* ---------------- 댓글 — 웹 FeedComments 동일: 펼침 시 lazy 로드 ---------------- */
+
+interface FeedComment {
+  id: number;
+  text: string;
+  authorName: string;
+  createdAt: string;
+}
+
+function FeedComments({ feedId, dateLabel, P, ts }: { feedId: number; dateLabel: string; P: Palette; ts: TsFn }) {
+  const [comments, setComments] = useState<FeedComment[] | null>(null);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api<{ data?: FeedComment[] }>(`/api/feeds/${feedId}/comments`, { auth: false })
+      .then((j) => alive && setComments(j.data ?? []))
+      .catch(() => alive && setComments([]));
+    return () => {
+      alive = false;
+    };
+  }, [feedId]);
+
+  const submit = async () => {
+    const t = text.trim();
+    if (!t || sending) return;
+    setSending(true);
+    setHint(null);
+    try {
+      const j = await api<{ data: FeedComment }>(`/api/feeds/${feedId}/comments`, { method: 'POST', body: { text: t } });
+      setComments((prev) => [...(prev ?? []), j.data]);
+      setText('');
+    } catch (e) {
+      const status = e && typeof e === 'object' && 'status' in e ? (e as { status: number }).status : 0;
+      setHint(status === 401 ? '댓글을 쓰려면 로그인이 필요해요' : '등록에 실패했어요. 잠시 후 다시 시도해주세요');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <View style={{ marginTop: 12 }}>
+      <Text style={ts(11.5, '700', P.ink3)}>
+        댓글 {comments?.length ?? 0} · {dateLabel}
+      </Text>
+      {(comments ?? []).map((c) => (
+        <View key={c.id} style={{ flexDirection: 'row', gap: 7, marginTop: 9, alignItems: 'flex-start' }}>
+          <Text style={[ts(12, '800', P.ink), { flexShrink: 0 }]}>{c.authorName}</Text>
+          <Text style={[ts(12.5, '400', P.ink2), { flex: 1 }]}>{c.text}</Text>
+        </View>
+      ))}
+      {hint ? <Text style={[ts(11.5, '600', P.red), { marginTop: 8 }]}>{hint}</Text> : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, backgroundColor: P.chip, borderRadius: 18, paddingHorizontal: 12 }}>
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder="댓글 달기..."
+          placeholderTextColor={P.ink3}
+          style={[ts(12.5, '500', P.ink), { flex: 1, paddingVertical: 8 }]}
+          maxLength={300}
+          onSubmitEditing={submit}
+          returnKeyType="send"
+        />
+        <Pressable onPress={submit} disabled={sending || !text.trim()} hitSlop={6}>
+          <Text style={ts(12.5, '800', sending || !text.trim() ? P.ink3 : P.accent)}>등록</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/* ---------------- 라이트박스 — 웹 Lightbox 대응(풀스크린 모달) ---------------- */
+
+function Lightbox({ urls, startIdx, onClose }: { urls: string[]; startIdx: number; onClose: () => void }) {
+  const [idx, setIdx] = useState(startIdx);
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' }}>
+        <Image source={{ uri: urls[idx] }} style={{ width: '94%', height: '76%' }} resizeMode="contain" />
+        {urls.length > 1 ? (
+          <View style={{ flexDirection: 'row', gap: 14, marginTop: 14 }}>
+            <Pressable onPress={(e) => { e.stopPropagation(); setIdx((i) => (i - 1 + urls.length) % urls.length); }} hitSlop={10}>
+              <Text style={{ color: '#fff', fontSize: 22 }}>‹</Text>
+            </Pressable>
+            <Text style={{ color: '#fff', fontSize: 13, alignSelf: 'center' }}>{idx + 1} / {urls.length}</Text>
+            <Pressable onPress={(e) => { e.stopPropagation(); setIdx((i) => (i + 1) % urls.length); }} hitSlop={10}>
+              <Text style={{ color: '#fff', fontSize: 22 }}>›</Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </Pressable>
+    </Modal>
   );
 }
 
