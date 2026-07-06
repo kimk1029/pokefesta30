@@ -1,7 +1,8 @@
 /**
  * 시세 비교 — SNKRDUNK(엔화) vs KREAM(원화)를 원화로 환산해 나란히 보여준다.
  * 웹 src/components/cards/KreamCompare.tsx 의 모바일 포팅.
- * KREAM 은 이름으로 검색(NAS 스크래핑·캐시)해 최적 매칭의 즉시판매가만 비교. 실패 시 폴백 링크.
+ * KREAM 은 코드(세트코드+번호) 우선 검색 → 빈결과면 카드명 폴백(웹 동일).
+ * 코드 결과는 pickKreamByCode, 이름 결과는 bestKreamMatch 로 선별.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
@@ -11,7 +12,12 @@ import { SectHd } from '@/components/cv/SectHd';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { api } from '@/lib/apiClient';
-import { bestKreamMatch, type KreamItemLite } from '../../../../shared/util/kreamMatch';
+import {
+  bestKreamMatch,
+  kreamSearchQuery,
+  pickKreamByCode,
+  type KreamItemLite,
+} from '../../../../shared/util/kreamMatch';
 
 type KreamItem = KreamItemLite; // { id, name, price(KRW), imageUrl, productUrl }
 
@@ -38,36 +44,56 @@ export function KreamCompare({
   const { rate } = useCurrency();
   const [state, setState] = useState<'loading' | 'done'>('loading');
   const [items, setItems] = useState<KreamItem[]>([]);
+  // 코드(setCode+번호) 검색으로 받은 결과인지 — 선별 로직이 갈린다(웹 동일).
+  const [viaCode, setViaCode] = useState(false);
+
+  // 코드 우선 검색 → 빈결과면 카드명으로 폴백.
+  const { q: searchKw, byCode } = useMemo(
+    () => kreamSearchQuery({ cardNumber, setCode, rarity }, query),
+    [cardNumber, setCode, rarity, query],
+  );
 
   useEffect(() => {
-    if (!query) {
+    if (!searchKw) {
       setState('done');
       return;
     }
     let alive = true;
     setState('loading');
-    (async () => {
+    const getItems = async (kw: string): Promise<KreamItem[]> => {
       try {
-        const j = await api<{ items?: KreamItem[] }>(`/api/kream/search?q=${encodeURIComponent(query)}`, { auth: false });
-        if (!alive) return;
-        setItems(j.items ?? []);
+        const j = await api<{ items?: KreamItem[] }>(`/api/kream/search?q=${encodeURIComponent(kw)}`, { auth: false });
+        return j.items ?? [];
       } catch {
-        if (alive) setItems([]);
-      } finally {
-        if (alive) setState('done');
+        return [];
       }
+    };
+    (async () => {
+      let its = await getItems(searchKw);
+      let code = byCode;
+      if (byCode && its.length === 0) {
+        its = await getItems(query); // 코드 검색 빈결과 → 이름 폴백
+        code = false;
+      }
+      if (!alive) return;
+      setItems(its);
+      setViaCode(code);
+      setState('done');
     })();
     return () => {
       alive = false;
     };
-  }, [query]);
+  }, [searchKw, byCode, query]);
 
   const item = useMemo(
-    () => bestKreamMatch(items, query, { cardNumber, setCode, rarity }),
-    [items, query, cardNumber, setCode, rarity],
+    () =>
+      viaCode
+        ? pickKreamByCode(items, { cardNumber, setCode, rarity })
+        : bestKreamMatch(items, query, { cardNumber, setCode, rarity }),
+    [items, viaCode, query, cardNumber, setCode, rarity],
   );
 
-  const searchUrl = `https://kream.co.kr/search?keyword=${encodeURIComponent(query)}`;
+  const searchUrl = `https://kream.co.kr/search?keyword=${encodeURIComponent(searchKw || query)}`;
   const snkrKrw = snkrPriceJpy > 0 ? snkrPriceJpy * rate : 0;
   const kreamKrw = item?.price ?? 0;
 
