@@ -325,7 +325,7 @@ export default function MvcAuctionScreen() {
         <Text style={[ts(24, '900', P.ink), { flex: 1 }]}>경매</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
           <Pressable onPress={() => router.push('/cards/snkrdunk/search' as never)} hitSlop={8}><Search c={P.ink} /></Pressable>
-          <Pressable onPress={() => router.push('/messages' as never)} hitSlop={8}><Bell c={P.ink} /></Pressable>
+          <Pressable onPress={() => router.push('/my/messages' as never)} hitSlop={8}><Bell c={P.ink} /></Pressable>
           <Pressable onPress={() => setTab('fav')} style={{ flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: P.chipBd, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7 }}>
             <Receipt c={P.ink} />
             <Text style={ts(12.5, '700', P.ink)}>경매 내역</Text>

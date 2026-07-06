@@ -454,7 +454,7 @@ export function CleanHomeScreen() {
             <Text style={ts(24, '900', P.ink)}>POKE</Text>
             <Text style={ts(24, '900', ACCENT30)}>30</Text>
           </Text>
-          <Pressable onPress={() => router.push('/messages' as never)} hitSlop={8}>
+          <Pressable onPress={() => router.push('/my/messages' as never)} hitSlop={8}>
             <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke={P.ink} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
               <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <Path d="M13.7 21a2 2 0 0 1-3.4 0" />

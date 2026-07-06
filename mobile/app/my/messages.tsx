@@ -1,7 +1,7 @@
 /**
  * /my/messages — 쪽지함.
  * GET /api/messages 로 쓰레드 목록을 가져와 표시.
- * 행 탭 시 /messages/[peerId] 로 이동 (기존 mock UI 와 연결).
+ * 행 탭 시 /messages/[peerId] 스레드(실 API)로 이동.
  */
 import { ScrollView, View, Text } from 'react-native';
 import { router } from 'expo-router';

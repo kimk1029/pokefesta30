@@ -326,7 +326,7 @@ export default function CommunityScreen() {
           <Pressable onPress={() => router.push('/my/feeds' as never)} hitSlop={6}><Text style={ts(14, '700', P.ink3)}>내 게시글</Text></Pressable>
           <View style={{ flex: 1 }} />
           <Pressable onPress={() => setSearchOpen((v) => !v)} hitSlop={8}><Search c={searchOpen ? P.accent : P.ink} /></Pressable>
-          <Pressable onPress={() => router.push('/messages' as never)} hitSlop={8} style={{ position: 'relative' }}>
+          <Pressable onPress={() => router.push('/my/messages' as never)} hitSlop={8} style={{ position: 'relative' }}>
             <Bell c={P.ink} />
             <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 15, height: 15, paddingHorizontal: 3, backgroundColor: P.red, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: P.cardBg }}>
               <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>3</Text>
