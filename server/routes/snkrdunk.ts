@@ -22,6 +22,8 @@ router.get('/browse', async (req: Request, res: Response) => {
   const page = Math.max(1, Math.min(50, Number.isFinite(pageRaw) ? pageRaw : 1));
   const results = await fetchSnkrdunkBrowse(page);
   res.json({ page, results });
+  // 목록에 노출된 카드의 정적 정보도 카탈로그에 적재 (검색과 동일, 응답 후 실패 무시).
+  void upsertSearchResults(results);
 });
 
 router.get('/search', async (req: Request, res: Response) => {
