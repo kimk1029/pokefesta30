@@ -41,6 +41,36 @@ function underQuota(): boolean {
   return quotaUsed < DAILY_LIMIT;
 }
 
+/**
+ * PSA 의 Cloudflare 가 한국 홈 IP(NAS 회선)를 하드 차단해 직접 호출이 403 —
+ * Vercel 웹앱의 /api/psa-relay(미국 egress) 를 경유하는 폴백.
+ * PSA_RELAY_ORIGIN 기본값은 운영 웹 도메인. 빈 문자열로 두면 폴백 비활성.
+ */
+const RELAY_ORIGIN = (process.env.PSA_RELAY_ORIGIN ?? 'https://www.poke-30.com').trim();
+/** 직접 호출이 차단으로 판명되면 이후 호출은 곧장 릴레이로 (프로세스 생존 동안). */
+let directBlocked = false;
+
+async function fetchViaRelay(path: string, tok: string): Promise<unknown | null> {
+  if (!RELAY_ORIGIN) return null;
+  try {
+    const headers: Record<string, string> = { 'x-psa-token': tok, Accept: 'application/json' };
+    const relayKey = process.env.PSA_RELAY_KEY;
+    if (relayKey) headers['x-relay-key'] = relayKey;
+    const res = await fetch(`${RELAY_ORIGIN}/api/psa-relay?path=${encodeURIComponent(path)}`, {
+      headers,
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) {
+      console.error('[psa] relay non-OK', res.status, path);
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    console.error('[psa] relay fetch failed', path, err);
+    return null;
+  }
+}
+
 async function fetchPsaJson(path: string): Promise<unknown | null> {
   const tok = apiToken();
   if (!tok) return null;
@@ -49,20 +79,22 @@ async function fetchPsaJson(path: string): Promise<unknown | null> {
     return null;
   }
   quotaUsed += 1;
-  try {
-    const res = await fetch(`${PSA_ORIGIN}${path}`, {
-      headers: { Authorization: `bearer ${tok}`, Accept: 'application/json' },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) {
+  if (!directBlocked) {
+    try {
+      const res = await fetch(`${PSA_ORIGIN}${path}`, {
+        headers: { Authorization: `bearer ${tok}`, Accept: 'application/json' },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (res.ok) return await res.json();
       console.error('[psa] non-OK', res.status, path);
-      return null;
+      // 403 = Cloudflare IP 차단 가능성 — 릴레이로 전환. 그 외(401 등)는 토큰 문제라 그대로 실패.
+      if (res.status !== 403) return null;
+      directBlocked = true;
+    } catch (err) {
+      console.error('[psa] direct fetch failed — trying relay', path, err);
     }
-    return await res.json();
-  } catch (err) {
-    console.error('[psa] fetch failed', path, err);
-    return null;
   }
+  return fetchViaRelay(path, tok);
 }
 
 /* ── 매핑 키 ─────────────────────────────────────────────────────── */
