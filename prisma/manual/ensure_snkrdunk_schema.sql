@@ -105,7 +105,29 @@ CREATE TABLE IF NOT EXISTS "snkrdunk_price_snapshots" (
 CREATE INDEX IF NOT EXISTS "snkrdunk_price_snapshots_apparelId_fetchedAt_idx"
   ON "snkrdunk_price_snapshots" ("apparelId", "fetchedAt" DESC);
 
--- 6) ActionLog — 회원/비회원 모든 행동(클릭·페이지이동) 원시 로그 (중복제거 없음).
+-- 6) PsaSpec — PSA 인구 리포트 매핑+캐시 (setCode+번호 ↔ SpecID, 등급별 pop).
+CREATE TABLE IF NOT EXISTS "psa_specs" (
+  "id"           SERIAL PRIMARY KEY,
+  "cardKey"      TEXT NOT NULL,
+  "setCode"      TEXT NOT NULL,
+  "cardNumber"   TEXT NOT NULL,
+  "specId"       INTEGER NOT NULL,
+  "certNumber"   TEXT NOT NULL DEFAULT '',
+  "subject"      TEXT NOT NULL DEFAULT '',
+  "variety"      TEXT NOT NULL DEFAULT '',
+  "brand"        TEXT NOT NULL DEFAULT '',
+  "year"         TEXT NOT NULL DEFAULT '',
+  "grades"       JSONB,
+  "popTotal"     INTEGER NOT NULL DEFAULT 0,
+  "popRaw"       JSONB,
+  "popFetchedAt" TIMESTAMP(3),
+  "createdAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "psa_specs_cardKey_key" ON "psa_specs" ("cardKey");
+
+-- 7) ActionLog — 회원/비회원 모든 행동(클릭·페이지이동) 원시 로그 (중복제거 없음).
 CREATE TABLE IF NOT EXISTS "action_logs" (
   "id"        SERIAL PRIMARY KEY,
   "type"      TEXT NOT NULL,

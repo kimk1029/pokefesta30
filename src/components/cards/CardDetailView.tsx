@@ -8,6 +8,7 @@ import { SnkrdunkImageZoom } from '@/components/SnkrdunkImageZoom';
 import { CardActions } from '@/components/CardActions';
 import { KreamCompare } from '@/components/cards/KreamCompare';
 import { MultiSourceKoPrice } from '@/components/cards/MultiSourceKoPrice';
+import { PsaPopPanel } from '@/components/cards/PsaPopPanel';
 import { downsamplePricePoints, isGradedSnkrdunkBadge } from '@/lib/snkrdunk';
 
 /**
@@ -321,6 +322,9 @@ export function CardDetailView({
           );
         })}
       </div>
+
+      {/* ── PSA 인구 리포트 (등급별 pop — cert 1회 등록 후 공유) ── */}
+      <PsaPopPanel setCode={kreamSetCode} cardNumber={kreamCardNumber} />
 
       {/* ── 시세 비교 (SNKRDUNK vs 크림) ────────────────────── */}
       <KreamCompare

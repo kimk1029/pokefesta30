@@ -5,6 +5,7 @@ import { AppBar } from '@/components/AppBar';
 import { CardActions } from '@/components/CardActions';
 import { KreamCompare } from '@/components/cards/KreamCompare';
 import { MultiSourceKoPrice } from '@/components/cards/MultiSourceKoPrice';
+import { PsaPopPanel } from '@/components/cards/PsaPopPanel';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { SectHd } from '@/components/cv/SectHd';
@@ -351,6 +352,9 @@ export default function SnkrdunkDetail() {
                 );
               })}
             </ScrollView>
+
+            {/* ── PSA 인구 리포트 (등급별 pop — cert 1회 등록 후 공유, 웹 동일) ── */}
+            <PsaPopPanel setCode={kreamHints.setCode} cardNumber={kreamHints.cardNumber} />
 
             {/* ── 시세 비교 (SNKRDUNK vs 크림) ── */}
             <KreamCompare
