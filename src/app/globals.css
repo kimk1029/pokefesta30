@@ -4392,7 +4392,9 @@ a{color:inherit;text-decoration:none;}
 .tabbar.tabbar--floating{
   position:absolute;left:0;right:0;bottom:0;z-index:30;
   height:auto;min-height:0;
-  margin:0 14px calc(12px + env(safe-area-inset-bottom,0px));
+  /* Android 브라우저는 env(safe-area-inset-bottom)=0 이라 제스처 pill 과 겹침 —
+     max() 로 최소 16px 하단 여백을 보장 (iOS 는 env 값이 더 커서 그대로). */
+  margin:0 14px calc(12px + max(env(safe-area-inset-bottom,0px), 16px));
   padding:8px 10px;
   border-top:none;
   border-radius:26px;
@@ -4415,4 +4417,4 @@ a{color:inherit;text-decoration:none;}
   box-shadow:0 3px 8px rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.25);
 }
 /* 플로팅이면 탭바가 absolute 라 콘텐츠가 그 아래로 지나가도록 screen 하단 여백 확보. */
-.screen--floatnav{padding-bottom:84px;}
+.screen--floatnav{padding-bottom:100px;}
