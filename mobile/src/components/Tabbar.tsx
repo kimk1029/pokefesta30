@@ -52,11 +52,15 @@ export function Tabbar() {
   const barBg = flat ? c.paper : theme === 'onepiece' ? c.bluDk : c.ink;
 
   // ── 분리형(플로팅) ── 아이콘만(라벨 숨김) + 가운데 강조 버튼을 바 안으로(돌출 X).
+  // 웹 .tabbar--floating 과 동일하게 전 테마 공통 '어두운 잉크 반투명' 바 —
+  // 클린 테마에서 흰 바가 흰 콘텐츠·시스템 네비게이션과 한 덩어리로 보이던 문제 해결.
+  // (RN 은 backdrop blur 미지원이라 웹 60%+blur 대신 가독성 있는 88% 불투명.)
   if (floating) {
-    const iconOn = flat ? (theme === 'dark' ? c.blu : c.ink) : c.gold;
-    const iconOff = flat ? c.ink3 : c.pap3;
+    const iconOn = flat ? c.white : c.gold;
+    const iconOff = 'rgba(255,255,255,0.55)';
+    const floatBg = theme === 'onepiece' ? c.bluDk : flat ? '#16161acc' : c.ink;
     return (
-      <View style={[styles.bar, styles.barFloating, { backgroundColor: barBg, shadowColor: c.ink }]}>
+      <View style={[styles.bar, styles.barFloating, { backgroundColor: floatBg, shadowColor: '#000' }]}>
         {TABS.map((t) => {
           const isOn = active === t.id;
           return (
@@ -358,7 +362,7 @@ const styles = StyleSheet.create({
   // 분리형(플로팅) — 양옆/아래 여백 + 둥근 모서리 + 그림자. 컴팩트(아이콘만).
   barFloating: {
     marginHorizontal: 12,
-    marginBottom: 10,
+    marginBottom: 12,
     borderRadius: 26,
     borderTopWidth: 0,
     minHeight: 0,
