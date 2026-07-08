@@ -19,7 +19,7 @@
   --gap:14px; --cg:12px;
 }
 
-*{box-sizing:border-box;image-rendering:pixelated;}
+*{box-sizing:border-box;image-rendering:pixelated;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;font-family:var(--f2);background:var(--pap2);
   color:var(--ink);-webkit-font-smoothing:none;font-smooth:never;letter-spacing:0;
   /* 한글은 어절(공백) 단위로만 줄바꿈 — 글자 중간 깨짐 방지 */
