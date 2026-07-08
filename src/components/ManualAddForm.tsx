@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CardRegisterSheet, type RegisterCardInput } from '@/components/cards/CardRegisterSheet';
 import { translate, translateKnownCardNameToKo } from '@/lib/cardTranslate';
 
@@ -60,6 +60,47 @@ export function ManualAddForm(_props: Props) {
   const [searched, setSearched] = useState(false);
   const [results, setResults] = useState<RegisterCardInput[]>([]);
   const [selected, setSelected] = useState<RegisterCardInput | null>(null);
+  // "더보기" 페이지네이션 상태 — 검색 쿼리/중복셋/다음 페이지를 유지해 이어서 로드.
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const pagingRef = useRef<{ queries: string[]; seen: Set<number>; nextPage: number }>({
+    queries: [],
+    seen: new Set(),
+    nextPage: 1,
+  });
+
+  /** snkrdunk 한 페이지 로드 — 새 항목만 반환. 반환 null 이면 해당 페이지 실패/빈 결과. */
+  const fetchSnkPage = async (queries: string[], page: number, seen: Set<number>) => {
+    const items: RegisterCardInput[] = [];
+    let anyRows = false;
+    for (const q of queries) {
+      if (!q) continue;
+      try {
+        const sr = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(q)}&page=${page}`, {
+          cache: 'no-store',
+        });
+        const sj = (await sr.json().catch(() => null)) as { results?: SnkSearchRow[] } | null;
+        const rows = sj?.results ?? [];
+        if (rows.length > 0) anyRows = true;
+        for (const row of rows) {
+          if (!row?.apparelId || seen.has(row.apparelId)) continue;
+          seen.add(row.apparelId);
+          items.push({
+            snkrdunkApparelId: row.apparelId,
+            // 일본어 원문 → 한국어(사전+음역) — 결과 리스트/등록 별칭 모두 한글로.
+            name: translateKnownCardNameToKo(row.name) || row.name,
+            imageUrl: row.imageUrl ?? null,
+            currentPriceJpy: parseYen(row.priceText),
+            setCode: setCode.trim() || null,
+            cardNumber: cardNumber.trim() || null,
+          });
+        }
+      } catch {
+        // snkrdunk 실패는 무시 — lookup/다른 쿼리 결과만으로도 진행
+      }
+    }
+    return { items, anyRows };
+  };
 
   const runSearch = async () => {
     if (searching) return;
@@ -75,6 +116,7 @@ export function ManualAddForm(_props: Props) {
     setSearched(false);
     setResults([]);
     setSelected(null);
+    setHasMore(false);
     try {
       const list: RegisterCardInput[] = [];
 
@@ -91,51 +133,19 @@ export function ManualAddForm(_props: Props) {
         }
       }
 
-      // 2) snkrdunk 검색 — 코드+번호로, 그리고 이름이 있으면 한→일 번역해서 검색.
-      //    (이름만 입력 시 이 경로가 메인 검색이 된다)
-      const seen = new Set<number>();
+      // 2) snkrdunk 검색(1페이지) — 코드+번호로, 이름이 있으면 한→일 번역해서 검색.
+      //    (이름만 입력 시 이 경로가 메인 검색. 다음 페이지는 "더보기"로 이어서.)
       const queries: string[] = [];
       if (hasCode) queries.push(`${setCode.trim()} ${cardNumber.trim()}`.trim());
       if (hasName) {
         const ja = translate(name.trim(), 'ja');
         queries.push(ja || name.trim());
       }
-      // 쿼리당 최대 2페이지(페이지당 보통 ~40건), 전체 상한 80건.
-      const MAX_RESULTS = 80;
-      for (const q of queries) {
-        if (!q) continue;
-        for (let page = 1; page <= 2 && list.length < MAX_RESULTS; page++) {
-          try {
-            const sr = await fetch(
-              `/api/snkrdunk/search?q=${encodeURIComponent(q)}&page=${page}`,
-              { cache: 'no-store' },
-            );
-            const sj = (await sr.json().catch(() => null)) as { results?: SnkSearchRow[] } | null;
-            const rows = sj?.results ?? [];
-            let added = 0;
-            for (const row of rows) {
-              if (list.length >= MAX_RESULTS) break;
-              if (!row?.apparelId || seen.has(row.apparelId)) continue;
-              seen.add(row.apparelId);
-              added++;
-              list.push({
-                snkrdunkApparelId: row.apparelId,
-                // 일본어 원문 → 한국어(사전+음역) — 결과 리스트/등록 별칭 모두 한글로.
-                name: translateKnownCardNameToKo(row.name) || row.name,
-                imageUrl: row.imageUrl ?? null,
-                currentPriceJpy: parseYen(row.priceText),
-                setCode: setCode.trim() || null,
-                cardNumber: cardNumber.trim() || null,
-              });
-            }
-            // 새 항목이 없으면 다음 페이지 중단.
-            if (rows.length === 0 || added === 0) break;
-          } catch {
-            // snkrdunk 실패는 무시 — lookup 결과만으로도 진행
-            break;
-          }
-        }
-      }
+      const seen = new Set<number>();
+      const { items, anyRows } = await fetchSnkPage(queries, 1, seen);
+      list.push(...items);
+      pagingRef.current = { queries, seen, nextPage: 2 };
+      setHasMore(anyRows);
 
       setResults(list);
       setSearched(true);
@@ -143,6 +153,22 @@ export function ManualAddForm(_props: Props) {
       setErr(e instanceof Error ? e.message : '검색 실패');
     } finally {
       setSearching(false);
+    }
+  };
+
+  /** "더보기" — 다음 페이지를 이어서 로드해 append. 새 항목이 없으면 버튼 숨김. */
+  const loadMore = async () => {
+    if (loadingMore || searching) return;
+    setLoadingMore(true);
+    try {
+      const { queries, seen, nextPage } = pagingRef.current;
+      const { items, anyRows } = await fetchSnkPage(queries, nextPage, seen);
+      pagingRef.current.nextPage = nextPage + 1;
+      if (items.length > 0) setResults((prev) => [...prev, ...items]);
+      // 서버 page 상한(50) 또는 빈 페이지/새 항목 없음 → 더보기 종료.
+      setHasMore(anyRows && items.length > 0 && nextPage < 50);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -230,6 +256,13 @@ export function ManualAddForm(_props: Props) {
               <span className="cv-reg-pick">선택 ▶</span>
             </button>
           ))}
+
+          {/* 더보기 — 다음 페이지 이어서 로드 */}
+          {hasMore && (
+            <button type="button" className="cv-manual-submit" style={{ marginBottom: 8 }} disabled={loadingMore} onClick={loadMore}>
+              {loadingMore ? '불러오는 중...' : '↓ 결과 더보기'}
+            </button>
+          )}
 
           {/* 맨 아래 고정 — 검색에 안 잡혀도 입력한 정보로 직접 등록 */}
           <button type="button" className="cv-reg-result cv-reg-result-manual" onClick={() => setSelected(fallbackCard)}>

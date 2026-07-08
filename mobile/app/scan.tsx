@@ -102,6 +102,14 @@ function ScanScreenInner() {
   const [manSearched, setManSearched] = useState(false);
   const [manErr, setManErr] = useState<string | null>(null);
   const [manResults, setManResults] = useState<CardItem[]>([]);
+  // "더보기" 페이지네이션 — 검색 쿼리/중복셋/다음 페이지를 유지해 이어서 로드.
+  const [manHasMore, setManHasMore] = useState(false);
+  const [manLoadingMore, setManLoadingMore] = useState(false);
+  const manPagingRef = useRef<{ queries: string[]; seen: Set<number>; nextPage: number }>({
+    queries: [],
+    seen: new Set(),
+    nextPage: 1,
+  });
 
   // 5단계 — 구매정보 입력 시트 상태. 카드 확인 직후 이 카드를 받아 띄운다.
   const [pendingCard, setPendingCard] = useState<CardItem | null>(null);
@@ -269,7 +277,43 @@ function ScanScreenInner() {
     ...over,
   });
 
-  /** 세트코드+카드번호 또는 카드 이름으로 검색 → 결과 리스트. */
+  /** snkrdunk 한 페이지 로드 → 한글 번역까지 마친 CardItem 목록. (더보기 공용) */
+  const fetchManPage = async (
+    queries: string[],
+    page: number,
+    seen: Set<number>,
+  ): Promise<{ items: CardItem[]; anyRows: boolean }> => {
+    const matched: Array<{ apparelId: number; name: string; imageUrl?: string | null; priceText?: string }> = [];
+    let anyRows = false;
+    for (const q of queries) {
+      if (!q) continue;
+      const rows = await searchSnkrdunkByQuery(q, page).catch(() => []);
+      if (rows.length > 0) anyRows = true;
+      for (const row of rows) {
+        if (!row?.apparelId || seen.has(row.apparelId)) continue;
+        seen.add(row.apparelId);
+        matched.push(row);
+      }
+    }
+    // 일본어 카드명 → 한국어 일괄 번역(서버 공통 엔진, 실패 시 로컬 캐시 폴백).
+    const koNames = await jaToKoBatch(matched.map((r) => r.name)).catch(() => new Map<string, string>());
+    const items = matched.map((row) => {
+      const price = parseYen(row.priceText);
+      return buildManualCard({
+        name: koNames.get(row.name) || jaToKoCached(row.name) || row.name,
+        set: manSet || '-',
+        num: manNum || '-',
+        price,
+        priceSingle: price > 0 ? price : undefined,
+        priceCurrency: 'JPY',
+        snkrdunkApparelId: row.apparelId,
+        imageUrl: row.imageUrl ?? undefined,
+      });
+    });
+    return { items, anyRows };
+  };
+
+  /** 세트코드+카드번호 또는 카드 이름으로 검색 → 결과 리스트. 다음 페이지는 "더보기". */
   const runManualSearch = async () => {
     if (manSearching) return;
     setManErr(null);
@@ -283,6 +327,7 @@ function ScanScreenInner() {
     setManSearching(true);
     setManSearched(false);
     setManResults([]);
+    setManHasMore(false);
     try {
       const list: CardItem[] = [];
       // 1) TCGdex 정확 매칭 + 로컬 DB — 코드+번호가 있을 때만.
@@ -312,48 +357,16 @@ function ScanScreenInner() {
         }
       }
 
-      // 2) snkrdunk 검색 — 코드+번호로, 이름이 있으면 한→일 번역해서도 검색.
+      // 2) snkrdunk 검색(1페이지) — 코드+번호로, 이름이 있으면 한→일 번역해서도 검색.
       //    (이름만 입력 시 이 경로가 메인 검색이 된다)
       const seen = new Set<number>();
       const queries: string[] = [];
       if (hasCode) queries.push(`${manSet.trim()} ${manNum.trim()}`.trim());
       if (hasName) queries.push((await koToJaServer(manName.trim())) || manName.trim());
-      // 쿼리당 최대 2페이지(페이지당 보통 ~40건), 전체 상한 80건.
-      const MAX_RESULTS = 80;
-      const matched: Array<{ apparelId: number; name: string; imageUrl?: string | null; priceText?: string }> = [];
-      for (const q of queries) {
-        if (!q) continue;
-        for (let page = 1; page <= 2 && matched.length < MAX_RESULTS; page++) {
-          const rows = await searchSnkrdunkByQuery(q, page).catch(() => []);
-          let added = 0;
-          for (const row of rows) {
-            if (matched.length >= MAX_RESULTS) break;
-            if (!row?.apparelId || seen.has(row.apparelId)) continue;
-            seen.add(row.apparelId);
-            added++;
-            matched.push(row);
-          }
-          // 새 항목이 없으면 다음 페이지 중단.
-          if (rows.length === 0 || added === 0) break;
-        }
-      }
-      // 일본어 카드명 → 한국어 일괄 번역(서버 공통 엔진, 실패 시 로컬 캐시 폴백).
-      const koNames = await jaToKoBatch(matched.map((r) => r.name)).catch(() => new Map<string, string>());
-      for (const row of matched) {
-        const price = parseYen(row.priceText);
-        list.push(
-          buildManualCard({
-            name: koNames.get(row.name) || jaToKoCached(row.name) || row.name,
-            set: manSet || '-',
-            num: manNum || '-',
-            price,
-            priceSingle: price > 0 ? price : undefined,
-            priceCurrency: 'JPY',
-            snkrdunkApparelId: row.apparelId,
-            imageUrl: row.imageUrl ?? undefined,
-          }),
-        );
-      }
+      const { items, anyRows } = await fetchManPage(queries, 1, seen);
+      list.push(...items);
+      manPagingRef.current = { queries, seen, nextPage: 2 };
+      setManHasMore(anyRows);
 
       setManResults(list);
       setManSearched(true);
@@ -361,6 +374,22 @@ function ScanScreenInner() {
       setManErr(e instanceof Error ? e.message : '검색 실패');
     } finally {
       setManSearching(false);
+    }
+  };
+
+  /** "더보기" — 다음 페이지를 이어서 로드해 append. 새 항목이 없으면 버튼 숨김. */
+  const loadMoreManual = async () => {
+    if (manLoadingMore || manSearching) return;
+    setManLoadingMore(true);
+    try {
+      const { queries, seen, nextPage } = manPagingRef.current;
+      const { items, anyRows } = await fetchManPage(queries, nextPage, seen);
+      manPagingRef.current.nextPage = nextPage + 1;
+      if (items.length > 0) setManResults((prev) => [...prev, ...items]);
+      // 빈 페이지/새 항목 없음 또는 서버 page 상한(50) → 더보기 종료.
+      setManHasMore(anyRows && items.length > 0 && nextPage < 50);
+    } finally {
+      setManLoadingMore(false);
     }
   };
 
@@ -748,6 +777,16 @@ function ScanScreenInner() {
                     </View>
                   </PixelPress>
                 ))}
+                {/* 더보기 — 다음 페이지 이어서 로드 */}
+                {manHasMore && (
+                  <PixelPress onPress={loadMoreManual} disabled={manLoadingMore} borderWidth={3} shadow={4}>
+                    <View style={{ paddingVertical: 11, alignItems: 'center' }}>
+                      <PixelText variant={txt} size={10}>
+                        {manLoadingMore ? '불러오는 중...' : '↓ 결과 더보기'}
+                      </PixelText>
+                    </View>
+                  </PixelPress>
+                )}
                 {/* 맨 아래 고정 — 검색에 안 잡혀도 입력한 정보로 직접 등록 */}
                 <PixelPress onPress={() => openRegister(buildManualCard(), 'manual')} bg={tc.pap2} borderWidth={3} shadow={4}>
                   <View style={{ flexDirection: 'row', gap: 10, padding: 4, paddingRight: 8, alignItems: 'center' }}>
