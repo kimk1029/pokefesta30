@@ -33,6 +33,10 @@ interface CardRow {
   snkrdunkImageUrl: string | null;
   priceSingleJpy: number;
   pricePsa10Jpy: number;
+  /** 등급 기준 현재시세(JPY) — 서버가 등록가와 같은 규칙(PSA10/9/8→등급가, 타사→PSA10, 싱글→raw)으로 산정. */
+  currentPriceJpy: number;
+  /** 등록 시점 시세(JPY) — "등록가격". 구매가 미입력 카드의 손익 기준. */
+  registerPriceJpy: number | null;
   trend: number[];
   buyPrice: number | null;
   buyCurrency: string | null;
@@ -133,15 +137,19 @@ export function CollectionScreen() {
     if (!cards) return [];
     return cards.map((c) => {
       const qty = Math.max(1, c.qty || 1);
-      const basisJpy =
+      const buyJpy =
         c.buyPrice != null && c.buyPrice > 0
           ? c.buyCurrency === 'JPY'
             ? c.buyPrice
             : c.buyPrice / (rate || 1)
           : null;
-      // ★ 등급 일치 시세 — 그레이딩 체크 카드는 PSA10 시세, 비그레이딩은 싱글 시세.
+      // 손익 기준가 — 구매가 우선, 없으면 등록가(등록 시점 등급 기준 시세 스냅).
+      const basisJpy =
+        buyJpy ?? (c.registerPriceJpy != null && c.registerPriceJpy > 0 ? c.registerPriceJpy : null);
+      // ★ 등급 일치 시세 — 서버 currentPriceJpy(PSA10/9/8→등급가, 타사→PSA10, 싱글→raw).
       //   등록가↔현재가를 항상 같은 등급끼리만 비교한다(전역 토글과 무관).
-      const gradePriceJpy = c.graded ? c.pricePsa10Jpy : c.priceSingleJpy;
+      const gradePriceJpy =
+        c.currentPriceJpy > 0 ? c.currentPriceJpy : c.graded ? c.pricePsa10Jpy : c.priceSingleJpy;
       const curJpy = gradePriceJpy;
       // 등록(매입)가 대비 손익률 — 같은 등급 시세 기준(단가).
       const profitPct = basisJpy && gradePriceJpy > 0 ? ((gradePriceJpy - basisJpy) / basisJpy) * 100 : null;
