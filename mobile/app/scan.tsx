@@ -22,7 +22,7 @@ import { lookupCardInfo } from '@/services/cardScanApi';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { useAuthed } from '@/lib/useAuthed';
 import { searchSnkrdunkByQuery } from '@/services/snkrdunk';
-import { koToJaServer } from '@/lib/cardLang';
+import { koToJaServer, jaToKoBatch, jaToKoCached } from '@/lib/cardLang';
 import { createMyCard } from '@/lib/myApi';
 
 /** "¥2,000" → 2000. 못 읽으면 0. */
@@ -318,26 +318,32 @@ function ScanScreenInner() {
       const queries: string[] = [];
       if (hasCode) queries.push(`${manSet.trim()} ${manNum.trim()}`.trim());
       if (hasName) queries.push((await koToJaServer(manName.trim())) || manName.trim());
+      const matched: Array<{ apparelId: number; name: string; imageUrl?: string | null; priceText?: string }> = [];
       for (const q of queries) {
         if (!q) continue;
         const rows = await searchSnkrdunkByQuery(q).catch(() => []);
         for (const row of rows.slice(0, 20)) {
           if (!row?.apparelId || seen.has(row.apparelId)) continue;
           seen.add(row.apparelId);
-          const price = parseYen(row.priceText);
-          list.push(
-            buildManualCard({
-              name: row.name,
-              set: manSet || '-',
-              num: manNum || '-',
-              price,
-              priceSingle: price > 0 ? price : undefined,
-              priceCurrency: 'JPY',
-              snkrdunkApparelId: row.apparelId,
-              imageUrl: row.imageUrl ?? undefined,
-            }),
-          );
+          matched.push(row);
         }
+      }
+      // 일본어 카드명 → 한국어 일괄 번역(서버 공통 엔진, 실패 시 로컬 캐시 폴백).
+      const koNames = await jaToKoBatch(matched.map((r) => r.name)).catch(() => new Map<string, string>());
+      for (const row of matched) {
+        const price = parseYen(row.priceText);
+        list.push(
+          buildManualCard({
+            name: koNames.get(row.name) || jaToKoCached(row.name) || row.name,
+            set: manSet || '-',
+            num: manNum || '-',
+            price,
+            priceSingle: price > 0 ? price : undefined,
+            priceCurrency: 'JPY',
+            snkrdunkApparelId: row.apparelId,
+            imageUrl: row.imageUrl ?? undefined,
+          }),
+        );
       }
 
       setManResults(list);
@@ -715,9 +721,10 @@ function ScanScreenInner() {
                 </PixelText>
                 {manResults.map((c) => (
                   <PixelPress key={c.id} onPress={() => goCardInfo(c, 'manual')} borderWidth={3} shadow={4}>
-                    <View style={{ flexDirection: 'row', gap: 10, padding: 10, alignItems: 'center' }}>
-                      <View style={{ width: 44, height: 60, borderColor: tc.ink, borderWidth: 2 }}>
-                        <CardThumb card={c} height={56} emojiSize={20} showLabel={false} />
+                    {/* 썸네일 크게(카드 실물비 63:88), 컨테이너 여백 최소화. */}
+                    <View style={{ flexDirection: 'row', gap: 10, padding: 4, paddingRight: 8, alignItems: 'center' }}>
+                      <View style={{ width: 76, height: 106, borderColor: tc.ink, borderWidth: 2 }}>
+                        <CardThumb card={c} height={102} emojiSize={30} showLabel={false} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <PixelText variant="ko" size={11} weight="bold">{displayCardName(c.name)}</PixelText>
@@ -734,9 +741,9 @@ function ScanScreenInner() {
                 ))}
                 {/* 검색에 안 잡혀도 입력값 그대로 등록 */}
                 <PixelPress onPress={() => openRegister(buildManualCard(), 'manual')} bg={tc.pap2} borderWidth={3} shadow={4}>
-                  <View style={{ flexDirection: 'row', gap: 10, padding: 10, alignItems: 'center' }}>
-                    <View style={{ width: 44, height: 60, borderColor: tc.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 20 }}>✍️</Text>
+                  <View style={{ flexDirection: 'row', gap: 10, padding: 4, paddingRight: 8, alignItems: 'center' }}>
+                    <View style={{ width: 76, height: 106, borderColor: tc.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 26 }}>✍️</Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <PixelText variant={txt} size={11}>입력한 정보 그대로 등록</PixelText>

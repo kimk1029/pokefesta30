@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { CardRegisterSheet, type RegisterCardInput } from '@/components/cards/CardRegisterSheet';
-import { translate } from '@/lib/cardTranslate';
+import { translate, translateKnownCardNameToKo } from '@/lib/cardTranslate';
 
 /** snkrdunk 검색 결과 한 건. */
 interface SnkSearchRow {
@@ -110,7 +110,8 @@ export function ManualAddForm(_props: Props) {
             seen.add(row.apparelId);
             list.push({
               snkrdunkApparelId: row.apparelId,
-              name: row.name,
+              // 일본어 원문 → 한국어(사전+음역) — 결과 리스트/등록 별칭 모두 한글로.
+              name: translateKnownCardNameToKo(row.name) || row.name,
               imageUrl: row.imageUrl ?? null,
               currentPriceJpy: parseYen(row.priceText),
               setCode: setCode.trim() || null,

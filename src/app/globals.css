@@ -2386,9 +2386,11 @@ a{color:inherit;text-decoration:none;}
   background:var(--pap2);box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink);}
 .cv-reg-companies{display:flex;gap:4px;flex-wrap:wrap;}
 .cv-reg-results{margin-top:14px;border-top:2px dashed var(--pap3);padding-top:12px;}
-.cv-reg-result{width:100%;display:flex;gap:10px;align-items:center;padding:8px;margin-bottom:8px;text-align:left;
+.cv-reg-result{width:100%;display:flex;gap:10px;align-items:center;padding:4px 8px 4px 4px;margin-bottom:8px;text-align:left;
   background:var(--white);border:none;cursor:pointer;
   box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink);}
+/* 검색 결과 썸네일 — 카드 실물비(63:88)로 크게, 컨테이너 여백 최소화. */
+.cv-reg-result .cv-reg-thumb{width:76px;height:106px;}
 .cv-reg-result:active{transform:translate(2px,2px);
   box-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink);}
 .cv-reg-result-manual{background:var(--pap2);}
