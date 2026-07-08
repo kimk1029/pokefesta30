@@ -269,48 +269,55 @@ function ScanScreenInner() {
     ...over,
   });
 
-  /** 세트코드 + 카드번호로 검색 → 결과 리스트. */
+  /** 세트코드+카드번호 또는 카드 이름으로 검색 → 결과 리스트. */
   const runManualSearch = async () => {
     if (manSearching) return;
     setManErr(null);
-    if (!manSet.trim() || !manNum.trim()) {
-      setManErr('세트 코드와 카드 번호를 입력해 주세요');
+    const hasCode = !!manSet.trim() && !!manNum.trim();
+    const hasName = !!manName.trim();
+    // 세트코드+번호 또는 이름 중 하나만 있으면 검색 가능 (웹 ManualAddForm 동일).
+    if (!hasCode && !hasName) {
+      setManErr('세트 코드+카드 번호 또는 카드 이름을 입력해 주세요');
       return;
     }
     setManSearching(true);
     setManSearched(false);
     setManResults([]);
     try {
-      const res = await lookupCardInfo({
-        setCode: manSet.trim(),
-        cardNumber: manNum.trim().split('/')[0],
-        name: manName.trim() || undefined,
-      });
       const list: CardItem[] = [];
-      // 1) TCGdex 정확 매칭 + 로컬 DB
-      if (res.found && res.card) {
-        const c = res.card;
-        const jpy = c.priceSummary?.byRegion?.jpy ?? null;
-        const krw = c.priceSummary?.byRegion?.krw ?? null;
-        const priceCur: PriceCurrency = jpy != null ? 'JPY' : 'KRW';
-        const priceVal = jpy != null ? jpy : krw ?? 0;
-        list.push(
-          buildManualCard({
-            name: c.localName || c.name || manName || '무제 카드',
-            set: c.setCode || manSet || '-',
-            num: c.number || manNum || '-',
-            price: Math.round(priceVal),
-            priceSingle: Math.round(priceVal),
-            priceCurrency: priceCur,
-            imageUrl: c.imageLarge || c.imageSmall || undefined,
-          }),
-        );
+      // 1) TCGdex 정확 매칭 + 로컬 DB — 코드+번호가 있을 때만.
+      if (hasCode) {
+        const res = await lookupCardInfo({
+          setCode: manSet.trim(),
+          cardNumber: manNum.trim().split('/')[0],
+          name: manName.trim() || undefined,
+        });
+        if (res.found && res.card) {
+          const c = res.card;
+          const jpy = c.priceSummary?.byRegion?.jpy ?? null;
+          const krw = c.priceSummary?.byRegion?.krw ?? null;
+          const priceCur: PriceCurrency = jpy != null ? 'JPY' : 'KRW';
+          const priceVal = jpy != null ? jpy : krw ?? 0;
+          list.push(
+            buildManualCard({
+              name: c.localName || c.name || manName || '무제 카드',
+              set: c.setCode || manSet || '-',
+              num: c.number || manNum || '-',
+              price: Math.round(priceVal),
+              priceSingle: Math.round(priceVal),
+              priceCurrency: priceCur,
+              imageUrl: c.imageLarge || c.imageSmall || undefined,
+            }),
+          );
+        }
       }
 
-      // 2) snkrdunk 보강 — 코드+번호로, 이름이 있으면 한→일 번역해서도 검색.
+      // 2) snkrdunk 검색 — 코드+번호로, 이름이 있으면 한→일 번역해서도 검색.
+      //    (이름만 입력 시 이 경로가 메인 검색이 된다)
       const seen = new Set<number>();
-      const queries = [`${manSet.trim()} ${manNum.trim()}`.trim()];
-      if (manName.trim()) queries.push((await koToJaServer(manName.trim())) || manName.trim());
+      const queries: string[] = [];
+      if (hasCode) queries.push(`${manSet.trim()} ${manNum.trim()}`.trim());
+      if (hasName) queries.push((await koToJaServer(manName.trim())) || manName.trim());
       for (const q of queries) {
         if (!q) continue;
         const rows = await searchSnkrdunkByQuery(q).catch(() => []);
@@ -617,7 +624,7 @@ function ScanScreenInner() {
 
             <View>
               <PixelText variant={txt} size={11} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                📛 카드명 <Text style={{ color: tc.ink3 }}>(선택)</Text>
+                📛 카드명 <Text style={{ color: tc.ink3 }}>(이름만으로도 검색 가능)</Text>
               </PixelText>
               <TextInput
                 value={manName}
@@ -631,7 +638,7 @@ function ScanScreenInner() {
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <PixelText variant={txt} size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                  세트 코드 <Text style={{ color: tc.red }}>*</Text>
+                  세트 코드 <Text style={{ color: tc.ink3 }}>(선택)</Text>
                 </PixelText>
                 <TextInput
                   value={manSet}
@@ -644,7 +651,7 @@ function ScanScreenInner() {
               </View>
               <View style={{ flex: 1 }}>
                 <PixelText variant={txt} size={10} style={{ marginBottom: 8, letterSpacing: 1 }}>
-                  카드 번호 <Text style={{ color: tc.red }}>*</Text>
+                  카드 번호 <Text style={{ color: tc.ink3 }}>(선택)</Text>
                 </PixelText>
                 <TextInput
                   value={manNum}
@@ -683,13 +690,14 @@ function ScanScreenInner() {
                   </PixelText>
                 </View>
               </PixelPress>
+              {/* 세트+번호 또는 카드명 중 하나만 있으면 검색 가능. */}
               <PixelPress
                 wrapStyle={{ flex: 2 }}
                 onPress={runManualSearch}
-                disabled={manSearching || !manSet || !manNum}
-                bg={!manSearching && manSet && manNum ? tc.gold : tc.pap3}
-                hi={!manSearching && manSet && manNum ? tc.goldLt : null}
-                lo={!manSearching && manSet && manNum ? tc.goldDk : null}
+                disabled={manSearching || !((manSet && manNum) || manName.trim())}
+                bg={!manSearching && ((manSet && manNum) || manName.trim()) ? tc.gold : tc.pap3}
+                hi={!manSearching && ((manSet && manNum) || manName.trim()) ? tc.goldLt : null}
+                lo={!manSearching && ((manSet && manNum) || manName.trim()) ? tc.goldDk : null}
               >
                 <View style={{ paddingVertical: 11, alignItems: 'center' }}>
                   <PixelText variant={txt} size={11}>

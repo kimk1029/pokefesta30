@@ -64,8 +64,11 @@ export function ManualAddForm(_props: Props) {
   const runSearch = async () => {
     if (searching) return;
     setErr(null);
-    if (!setCode.trim() || !cardNumber.trim()) {
-      setErr('세트 코드와 카드 번호를 입력해 주세요');
+    const hasCode = !!setCode.trim() && !!cardNumber.trim();
+    const hasName = !!name.trim();
+    // 세트코드+번호 또는 카드 이름 중 하나만 있으면 검색 가능.
+    if (!hasCode && !hasName) {
+      setErr('세트 코드+카드 번호 또는 카드 이름을 입력해 주세요');
       return;
     }
     setSearching(true);
@@ -75,22 +78,25 @@ export function ManualAddForm(_props: Props) {
     try {
       const list: RegisterCardInput[] = [];
 
-      // 1) TCGdex 정확 매칭 (setCode-번호) + 로컬 DB
-      const qs = new URLSearchParams({ setCode: setCode.trim(), number: cardNumber.trim() });
-      if (name.trim()) qs.set('name', name.trim());
-      const r = await fetch(`/api/cards/lookup?${qs.toString()}`, { cache: 'no-store' });
-      const data = (await r.json().catch(() => null)) as
-        | { ok?: boolean; found?: boolean; card?: LookupCard | null }
-        | null;
-      if (data?.found && data.card) {
-        list.push(lookupToRegister(data.card));
+      // 1) TCGdex 정확 매칭 (setCode-번호) + 로컬 DB — 코드+번호가 있을 때만.
+      if (hasCode) {
+        const qs = new URLSearchParams({ setCode: setCode.trim(), number: cardNumber.trim() });
+        if (name.trim()) qs.set('name', name.trim());
+        const r = await fetch(`/api/cards/lookup?${qs.toString()}`, { cache: 'no-store' });
+        const data = (await r.json().catch(() => null)) as
+          | { ok?: boolean; found?: boolean; card?: LookupCard | null }
+          | null;
+        if (data?.found && data.card) {
+          list.push(lookupToRegister(data.card));
+        }
       }
 
-      // 2) snkrdunk 보강 — 코드+번호로, 그리고 이름이 있으면 한→일 번역해서 검색.
-      //    (lookup 이 못 찾는 일본판/프로모/변형 카드를 이미지·시세·apparelId 와 함께 보강)
+      // 2) snkrdunk 검색 — 코드+번호로, 그리고 이름이 있으면 한→일 번역해서 검색.
+      //    (이름만 입력 시 이 경로가 메인 검색이 된다)
       const seen = new Set<number>();
-      const queries = [`${setCode.trim()} ${cardNumber.trim()}`.trim()];
-      if (name.trim()) {
+      const queries: string[] = [];
+      if (hasCode) queries.push(`${setCode.trim()} ${cardNumber.trim()}`.trim());
+      if (hasName) {
         const ja = translate(name.trim(), 'ja');
         queries.push(ja || name.trim());
       }
@@ -166,7 +172,7 @@ export function ManualAddForm(_props: Props) {
           />
         </Field>
       </div>
-      <Field label="카드 이름 (선택)" hint="검색 정확도를 높여줘요.">
+      <Field label="카드 이름" hint="이름만 입력해도 검색돼요. (세트/번호는 정확도를 높여줘요)">
         <input
           className="cv-manual-input"
           maxLength={60}
