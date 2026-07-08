@@ -24,7 +24,8 @@ import {
   getMyTrades,
 } from '../lib/queries.js';
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
-import { ensureCatalogCard } from '../lib/snkrdunkCatalog.js';
+import { computeApparelPrices, registerBasisJpy } from '@/lib/snkrdunkPrice';
+import { ensureCatalogCard, recordPriceSnapshot, upsertCatalogCard } from '../lib/snkrdunkCatalog.js';
 import { getJpyKrwRate } from '../lib/fxRate.js';
 import { runDailyCheckIn } from '../lib/checkIn.js';
 
@@ -127,15 +128,43 @@ router.post('/cards', async (req: Request, res: Response) => {
   const gradeValue =
     graded && typeof body.gradeValue === 'string' ? body.gradeValue.trim().slice(0, 8) || null : null;
 
-  // 등록가(JPY) — 등록 단계에서 확정 저장.
-  //  · 직접뽑기(selfPulled): 클라이언트가 buyPrice 에 등록 시점 현재시세를 담아 보냄.
-  //  · 구매: 사용자가 적은 buyPrice(통화 buyCurrency).
-  // 두 경우 모두 buyPrice 를 JPY 로 환산해 baseline 으로 저장. buyPrice 없으면
-  // null → 최초 조회 시 현재 시세로 보조 백필(getMyCardsWithPrices).
+  // 등록가(JPY) — 등록 단계에서 확정 저장. 컬렉션의 "등록가격" + 등락률 기준값.
+  //  · 구매가 입력: 사용자가 적은 buyPrice(통화 buyCurrency)를 JPY 환산.
+  //    (직접뽑기(selfPulled)도 클라이언트가 buyPrice 에 현재시세를 담아 보냄.)
+  //  · 구매가 미입력: 등록 당시 시세를 등급 기준으로 스냅 —
+  //    PSA10/9/8 → 해당 등급 최근 체결가, 타사(BGS/CGC 등) → PSA10 기준,
+  //    싱글(비등급) → raw 싱글가. (registerBasisJpy 규칙)
+  // 그래도 산정 불가면 null → 최초 조회 시 보조 백필(getMyCardsWithPrices).
   let registerPriceJpy: number | null = null;
   if (buyPrice != null && buyPrice > 0) {
     const rate = buyCurrency === 'JPY' ? 1 : (await getJpyKrwRate().catch(() => null))?.rate ?? 0;
     registerPriceJpy = deriveRegisterPriceJpy(buyPrice, buyCurrency, 0, rate);
+  } else if (snkrdunkApparelId) {
+    try {
+      const [a, hist, chart] = await Promise.all([
+        fetchSnkrdunkApparel(snkrdunkApparelId),
+        fetchSnkrdunkSalesHistory(snkrdunkApparelId).catch(() => null),
+        fetchSnkrdunkSalesChart(snkrdunkApparelId).catch(() => null),
+      ]);
+      const prices = computeApparelPrices(hist?.history ?? [], chart?.points ?? [], a?.minPrice ?? 0);
+      const basis = registerBasisJpy(prices, { graded, gradeCompany, gradeValue });
+      registerPriceJpy = basis.price > 0 ? Math.round(basis.price) : null;
+      // 이왕 받아온 시세는 스냅샷/카탈로그에 재적재 (응답 경로 밖, 실패 무시).
+      if (a) {
+        void upsertCatalogCard(a);
+        void recordPriceSnapshot(snkrdunkApparelId, {
+          minPrice: a.minPrice ?? 0,
+          listingCount: a.listingCount,
+          priceSingle: prices.single,
+          pricePsa10: prices.psa10,
+          pricePsa9: prices.psa9,
+          pricePsa8: prices.psa8,
+          trend: prices.trendJpy,
+        });
+      }
+    } catch (err) {
+      console.warn('[me.cards.POST] 등록가 시세 조회 실패', snkrdunkApparelId, err);
+    }
   }
 
   try {

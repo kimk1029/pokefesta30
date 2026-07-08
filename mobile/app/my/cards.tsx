@@ -100,17 +100,25 @@ export default function MyCardsScreen() {
     return () => { alive = false; };
   }, [authed]);
 
-  // 웹 allRows 동일 — 등급 일치 시세(그레이딩=PSA10, 비그레이딩=싱글) × 수량.
+  // 웹 allRows 동일 — 등급 일치 시세(서버 currentPriceJpy: PSA10/9/8→등급가,
+  // 타사→PSA10, 싱글=raw) × 수량. 기준가는 구매가 → 등록가(registerPriceJpy) 순.
   const allRows = useMemo<Row[]>(() => {
     return (data ?? []).map((c) => {
       const qty = Math.max(1, c.qty || 1);
-      const basisJpy =
+      const buyJpy =
         c.buyPrice != null && c.buyPrice > 0
           ? c.buyCurrency === 'JPY'
             ? c.buyPrice
             : c.buyPrice / (rate || 1)
           : null;
-      const curJpy = c.graded ? c.pricePsa10Jpy ?? 0 : c.priceSingleJpy ?? 0;
+      const basisJpy =
+        buyJpy ?? (c.registerPriceJpy != null && c.registerPriceJpy > 0 ? c.registerPriceJpy : null);
+      const curJpy =
+        (c.currentPriceJpy ?? 0) > 0
+          ? (c.currentPriceJpy as number)
+          : c.graded
+            ? c.pricePsa10Jpy ?? 0
+            : c.priceSingleJpy ?? 0;
       const profitPct = basisJpy && curJpy > 0 ? ((curJpy - basisJpy) / basisJpy) * 100 : null;
       const t = c.trend ?? [];
       const dayPct =

@@ -138,6 +138,16 @@ export function CardDetailView({
   const rawGrade = grades.find((g) => g.key === 'RAW');
   const rawRecent = rawGrade?.recent || rawGrade?.avg || minPrice || 0;
 
+  // 등록 팝업의 등급별 등록가 미리보기용 — PSA10/9는 집계 재사용, PSA8은 거래내역에서.
+  const gradePrices = useMemo(() => {
+    const pick = (key: string) => {
+      const g = grades.find((x) => x.key === key);
+      return g?.recent || g?.avg || 0;
+    };
+    const psa8 = trades.find((t) => /PSA\s*8\b/i.test(t.badge))?.price ?? 0;
+    return { single: rawRecent, psa10: pick('PSA 10'), psa9: pick('PSA 9'), psa8 };
+  }, [grades, trades, rawRecent]);
+
   // 전일/주간 변동 — 전체 차트 기준.
   const change = useMemo(() => {
     const pts = [...chartPoints].sort((a, b) => a[0] - b[0]);
@@ -246,7 +256,13 @@ export function CardDetailView({
 
       {/* ── 액션 ───────────────────────────────────────────── */}
       <div style={{ height: 12 }} />
-      <CardActions apparelId={apparelId} cardName={koName} imageUrl={imageUrl} currentPriceJpy={minPrice || null} />
+      <CardActions
+        apparelId={apparelId}
+        cardName={koName}
+        imageUrl={imageUrl}
+        currentPriceJpy={rawRecent || minPrice || null}
+        gradePrices={gradePrices}
+      />
 
       {/* ── 지역 탭 (일본판 실데이터 / 그 외 준비 중) ───────────── */}
       <div style={{ display: 'flex', gap: 8, padding: '6px var(--gap) 0', borderBottom: '1px solid var(--pap3)' }}>

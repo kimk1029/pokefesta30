@@ -459,6 +459,10 @@ model SnkrdunkPriceSnapshot {
   priceSingle  Int      @default(0)
   /// computeApparelPrices 의 PSA10 가 (JPY). 0 = 미계산.
   pricePsa10   Int      @default(0)
+  /// computeApparelPrices 의 PSA9 가 (JPY). 0 = 미계산. 등급카드 등록가/등락률용.
+  pricePsa9    Int      @default(0)
+  /// computeApparelPrices 의 PSA8 가 (JPY). 0 = 미계산.
+  pricePsa8    Int      @default(0)
   /// sales-chart 일별 시세 시리즈 (number[], 오래된→최신). 컬렉션 스파크라인용.
   trend        Json?
   fetchedAt    DateTime @default(now())

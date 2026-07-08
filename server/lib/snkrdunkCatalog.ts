@@ -127,6 +127,8 @@ export async function recordPriceSnapshot(
     listingCount?: number;
     priceSingle?: number;
     pricePsa10?: number;
+    pricePsa9?: number;
+    pricePsa8?: number;
     trend?: number[];
   },
 ): Promise<void> {
@@ -138,6 +140,8 @@ export async function recordPriceSnapshot(
         listingCount: price.listingCount ?? 0,
         priceSingle: Math.max(0, Math.round(price.priceSingle ?? 0)),
         pricePsa10: Math.max(0, Math.round(price.pricePsa10 ?? 0)),
+        pricePsa9: Math.max(0, Math.round(price.pricePsa9 ?? 0)),
+        pricePsa8: Math.max(0, Math.round(price.pricePsa8 ?? 0)),
         trend: price.trend && price.trend.length > 0 ? price.trend : Prisma.JsonNull,
       },
     });
@@ -184,6 +188,8 @@ export interface CatalogEntry {
     listingCount: number;
     priceSingle: number;
     pricePsa10: number;
+    pricePsa9: number;
+    pricePsa8: number;
     trend: number[];
     fetchedAt: Date;
   } | null;
@@ -203,12 +209,14 @@ export async function loadCatalogEntries(ids: number[]): Promise<Map<number, Cat
           listingCount: number;
           priceSingle: number;
           pricePsa10: number;
+          pricePsa9: number;
+          pricePsa8: number;
           trend: unknown;
           fetchedAt: Date;
         }>
       >`
         SELECT DISTINCT ON ("apparelId")
-          "apparelId", "minPrice", "listingCount", "priceSingle", "pricePsa10", "trend", "fetchedAt"
+          "apparelId", "minPrice", "listingCount", "priceSingle", "pricePsa10", "pricePsa9", "pricePsa8", "trend", "fetchedAt"
         FROM "snkrdunk_price_snapshots"
         WHERE "apparelId" IN (${Prisma.join(ids)})
         ORDER BY "apparelId", "fetchedAt" DESC
@@ -232,6 +240,8 @@ export async function loadCatalogEntries(ids: number[]): Promise<Map<number, Cat
               listingCount: Number(s.listingCount),
               priceSingle: Number(s.priceSingle),
               pricePsa10: Number(s.pricePsa10),
+              pricePsa9: Number(s.pricePsa9 ?? 0),
+              pricePsa8: Number(s.pricePsa8 ?? 0),
               trend: Array.isArray(s.trend) ? (s.trend as number[]) : [],
               fetchedAt: s.fetchedAt,
             }

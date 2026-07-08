@@ -145,13 +145,17 @@ export function MyCardsScreen({ cards: initial, isLoggedIn = true }: Props) {
           ),
           game: catalog || fromSnk ? '포켓몬' : '기타',
           rar: detectRarity(c.nickname, c.snkrdunkName, catalog?.name),
-          gradeNum: parsePsa(c.gradeEstimate),
+          // 사용자가 등록한 실제 등급 우선, 없으면 모의 그레이딩 라벨에서 추출.
+          gradeNum:
+            (c.graded && c.gradeValue ? parseInt(c.gradeValue, 10) || null : null) ??
+            parsePsa(c.gradeEstimate),
           price: priceMode === 'psa10' ? 0 : c.latestPrice,
-          // PSA10 모드: PSA10 시세만 사용(없으면 '-'). 싱글 모드: single/USD.
+          // PSA10 모드: PSA10 시세만 사용(없으면 '-').
+          // 싱글 모드: 등급 기준 현재시세(currentPriceJpy — 등급카드는 등급가, 싱글은 raw).
           priceJpy:
             priceMode === 'psa10'
               ? (c.pricePsa10Jpy > 0 ? c.pricePsa10Jpy : 0)
-              : c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0,
+              : (c.currentPriceJpy > 0 ? c.currentPriceJpy : c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0),
           psa10Missing: priceMode === 'psa10' && !(c.pricePsa10Jpy > 0),
           registerJpy: c.registerPriceJpy != null && c.registerPriceJpy > 0 ? c.registerPriceJpy : null,
           imageUrl: c.photoUrl || c.snkrdunkImageUrl || null,
@@ -1336,7 +1340,7 @@ const CHANGE_COLOR: Record<'up' | 'down' | 'flat', string> = {
 };
 const CHANGE_ARROW: Record<'up' | 'down' | 'flat', string> = { up: '▲', down: '▼', flat: '–' };
 
-/** 등록가(registerJpy) 대비 현재 싱글 시세(priceJpy) 등락율. 기준/현재가 없으면 null. */
+/** 등록가(registerJpy) 대비 현재시세(priceJpy — 등급카드는 등급 기준) 등락율. 기준/현재가 없으면 null. */
 function registerChange(c: DisplayCard): { pct: number; dir: 'up' | 'down' | 'flat' } | null {
   const reg = c.registerJpy;
   const cur = c.priceJpy;

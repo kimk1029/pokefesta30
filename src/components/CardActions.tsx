@@ -14,6 +14,8 @@ interface Props {
   imageUrl?: string | null;
   /** 현재시세 (JPY) — 시트의 자동 표시/직접뽑기 기준가. */
   currentPriceJpy?: number | null;
+  /** 등급별 현재시세 (JPY) — 등록 시트의 등록가 미리보기용. */
+  gradePrices?: { single: number; psa10: number; psa9: number; psa8: number } | null;
 }
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
@@ -24,7 +26,7 @@ type Status = 'idle' | 'loading' | 'done' | 'error';
  * 마운트 시 둘 다 fetch 해서 이미 추가된 카드면 ✓ 표시.
  * 미로그인 시 클릭하면 `/login` 으로 이동.
  */
-export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: Props) {
+export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy, gradePrices }: Props) {
   const [favStatus, setFavStatus] = useState<Status>('idle');
   const [isFav, setIsFav] = useState<boolean>(false);
   const [isCollected, setIsCollected] = useState<boolean>(false);
@@ -131,6 +133,7 @@ export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: 
               name: cardName ?? null,
               imageUrl: imageUrl ?? null,
               currentPriceJpy: currentPriceJpy ?? null,
+              gradePrices: gradePrices ?? null,
             }}
             redirectOnSave={false}
             onSaved={() => {

@@ -22,7 +22,13 @@ import {
 
 const PSA10_RE = /PSA\s*10\b/i;
 const PSA9_RE = /PSA\s*9\b/i;
+const PSA8_RE = /PSA\s*8\b/i;
 const PSA_ANY_RE = /PSA\s*\d+/i;
+
+/** PSA 등급 숫자(10/9/8…)에 해당하는 배지 정규식. */
+export function psaGradeRe(n: number): RegExp {
+  return new RegExp(`PSA\\s*${n}\\b`, 'i');
+}
 
 function median(arr: number[]): number {
   if (arr.length === 0) return 0;
@@ -35,6 +41,10 @@ export interface ApparelPrices {
   single: number;
   /** PSA10 최근 체결 중앙값. 없으면 0. */
   psa10: number;
+  /** PSA9 최근 체결 중앙값. 없으면 0. */
+  psa9: number;
+  /** PSA8 최근 체결 중앙값. 없으면 0. */
+  psa8: number;
   /** 차트 일별 시세 시리즈(오래된→최신), 등급 오염 포인트 제외. */
   trendJpy: number[];
 }
@@ -53,6 +63,8 @@ export function computeApparelPrices(
       .slice(0, 7);
 
   const psa10Prices = pickPrices((b) => PSA10_RE.test(b));
+  const psa9Prices = pickPrices((b) => PSA9_RE.test(b));
+  const psa8Prices = pickPrices((b) => PSA8_RE.test(b));
   const rawMedian = median(pickPrices((b) => !PSA_ANY_RE.test(b)));
   const rawCeil = rawMedian > 0 ? rawMedian * 2.5 : Infinity;
   const trendJpy = (chartPoints ?? [])
@@ -67,7 +79,65 @@ export function computeApparelPrices(
       single = minPrice;
     }
   }
-  return { single, psa10: median(psa10Prices), trendJpy };
+  return {
+    single,
+    psa10: median(psa10Prices),
+    psa9: median(psa9Prices),
+    psa8: median(psa8Prices),
+    trendJpy,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* 등록가(registerPriceJpy) 산정 — 컬렉션 등록 팝업의 "등록가격" 규칙      */
+/* ------------------------------------------------------------------ */
+
+/** 등록가 산정에 쓰이는 카드 형태 정보 (등록 팝업 입력값). */
+export interface RegisterGradeInput {
+  graded: boolean;
+  /** 'PSA' | 'BGS' | 'CGC' | ... (graded 일 때만 의미). */
+  gradeCompany?: string | null;
+  /** '10' | '9' | '8' ... (graded 일 때만 의미). */
+  gradeValue?: string | null;
+}
+
+export interface RegisterBasis {
+  /** 등록가(JPY). 산정 불가 시 0. */
+  price: number;
+  /** 어떤 시세를 썼는지 — 'PSA 10' | 'PSA 9' | 'PSA 8' | 'RAW'. 표시/디버깅용. */
+  basis: string;
+}
+
+/**
+ * 구매가 미입력 카드의 등록가(JPY) 결정 — 등록 당시 시세 스냅.
+ *  · 등급카드(PSA): 해당 등급(10/9/8) 최근 체결 중앙값. 그 등급 데이터가 없으면
+ *    PSA10 → 싱글 순 폴백.
+ *  · 등급카드(타사 BGS/CGC 등): 자체 시세 데이터가 없으므로 PSA10 기준.
+ *  · 싱글(비등급)/직접뽑기: raw 싱글가.
+ * prices 는 computeApparelPrices 결과.
+ */
+export function registerBasisJpy(prices: ApparelPrices, grade: RegisterGradeInput): RegisterBasis {
+  if (!grade.graded) {
+    return { price: prices.single, basis: 'RAW' };
+  }
+  const company = (grade.gradeCompany ?? 'PSA').trim().toUpperCase();
+  const n = parseInt(String(grade.gradeValue ?? '').replace(/[^0-9]/g, ''), 10);
+  if (company === 'PSA') {
+    if (n === 9 && prices.psa9 > 0) return { price: prices.psa9, basis: 'PSA 9' };
+    if (n === 8 && prices.psa8 > 0) return { price: prices.psa8, basis: 'PSA 8' };
+    if (n === 10 && prices.psa10 > 0) return { price: prices.psa10, basis: 'PSA 10' };
+  }
+  // 타사 등급 or 해당 PSA 등급 체결 없음 → PSA10 기준, 그것도 없으면 싱글.
+  if (prices.psa10 > 0) return { price: prices.psa10, basis: 'PSA 10' };
+  return { price: prices.single, basis: 'RAW' };
+}
+
+/**
+ * 컬렉션 카드의 "현재시세" 기준값 — 등록가와 같은 등급 기준으로 비교해야
+ * 등락률이 의미가 있다. 등급 시세가 없으면 PSA10 → 싱글 순 폴백 (등록가와 동일 규칙).
+ */
+export function currentBasisJpy(prices: ApparelPrices, grade: RegisterGradeInput): number {
+  return registerBasisJpy(prices, grade).price;
 }
 
 /** 한 등급의 최근가/평균/최저/건수 집계. (history 는 최신순 전제) — 시세상세와 공유. */

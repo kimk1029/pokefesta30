@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { startRouteTransition } from '@/components/RouteProgress';
+import { registerBasisJpy } from '@/lib/snkrdunkPrice';
 
 /** 등록 시트에 채워질 카드 정보 — 스캔/직접입력 양쪽에서 동일 형태로 넘겨준다. */
 export interface RegisterCardInput {
@@ -22,6 +23,8 @@ export interface RegisterCardInput {
   /** 현재시세 — 자동 채움/직접뽑기 기준가. */
   currentPriceJpy?: number | null;
   currentPriceKrw?: number | null;
+  /** 등급별 현재시세 (JPY) — 등급카드 등록가 미리보기용. 시세상세에서 전달. */
+  gradePrices?: { single: number; psa10: number; psa9: number; psa8: number } | null;
 }
 
 const GRADE_COMPANIES = ['PSA', 'BGS', 'CGC', 'SGC', 'ARS'];
@@ -78,12 +81,26 @@ export function CardRegisterSheet({
   const hasCurrentPrice = card.currentPriceJpy != null || card.currentPriceKrw != null;
 
   // 직접뽑기면 현재시세를 기준가로. (JPY 우선, 없으면 KRW)
+  // 단, 등급카드는 서버가 등급 시세로 등록가를 산정하므로 여기선 제외.
   const effectiveBasis = useMemo(() => {
-    if (!selfPulled) return null;
+    if (!selfPulled || graded) return null;
     if (card.currentPriceJpy != null) return { price: Math.round(card.currentPriceJpy), cur: 'JPY' as const };
     if (card.currentPriceKrw != null) return { price: Math.round(card.currentPriceKrw), cur: 'KRW' as const };
     return null;
-  }, [selfPulled, card.currentPriceJpy, card.currentPriceKrw]);
+  }, [selfPulled, graded, card.currentPriceJpy, card.currentPriceKrw]);
+
+  // 구매가 미입력 시 적용될 등록가 미리보기 — 서버 registerBasisJpy 와 동일 규칙.
+  //  · 등급카드: PSA10/9/8 → 해당 등급 시세, 타사(BGS 등)·데이터 없음 → PSA10 → 싱글.
+  //  · 싱글/직접뽑기: 현재 싱글 시세.
+  const registerPreview = useMemo(() => {
+    const gp = card.gradePrices;
+    if (!gp) return null;
+    const b = registerBasisJpy(
+      { single: gp.single, psa10: gp.psa10, psa9: gp.psa9, psa8: gp.psa8, trendJpy: [] },
+      { graded, gradeCompany, gradeValue },
+    );
+    return b.price > 0 ? b : null;
+  }, [card.gradePrices, graded, gradeCompany, gradeValue]);
 
   const onSave = async () => {
     if (saving || saved) return;
@@ -209,7 +226,9 @@ export function CardRegisterSheet({
           <div className="cv-reg-selfprice">
             {effectiveBasis
               ? `현재시세 ${effectiveBasis.cur === 'JPY' ? fmtJpy(effectiveBasis.price) : fmtKrw(effectiveBasis.price)} 적용`
-              : '현재시세 정보가 없어 기준가는 비워둡니다'}
+              : graded && registerPreview
+                ? `${registerPreview.basis} 시세 ${fmtJpy(registerPreview.price)} 적용`
+                : '현재시세 정보가 없어 기준가는 비워둡니다'}
           </div>
         ) : (
           <div className="cv-price-wrap">
@@ -295,14 +314,37 @@ export function CardRegisterSheet({
           </div>
           <div className="cv-reg-field">
             <div className="cv-reg-label">등급</div>
+            <div className="cv-reg-companies">
+              {['10', '9', '8'].map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className={`cv-manual-cat-btn${gradeValue === v ? ' on' : ''}`}
+                  onClick={() => setGradeValue(v)}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
             <input
               className="cv-manual-input"
               maxLength={6}
               value={gradeValue}
               onChange={(e) => setGradeValue(e.target.value)}
               placeholder="예) 10"
+              style={{ marginTop: 6 }}
             />
           </div>
+        </div>
+      )}
+      {/* 구매가 미입력 시 적용될 등록가 안내 — 등급카드는 등급 시세, 싱글은 싱글 시세. */}
+      {!selfPulled && !buyPrice.trim() && (
+        <div className="cv-reg-selfprice">
+          {registerPreview
+            ? `구매가 미입력 시 ${registerPreview.basis} 시세 ${fmtJpy(registerPreview.price)}(등록 시점 기준)로 등록돼요`
+            : graded
+              ? '구매가 미입력 시 등급 시세(타사 등급은 PSA10 기준)로 등록돼요'
+              : '구매가 미입력 시 현재 싱글 시세로 등록돼요'}
         </div>
       )}
 

@@ -11,8 +11,12 @@ export interface MyCardRow {
   gradeEstimate: string | null;
   centeringScore: number | null;
   photoUrl: string | null;
-  /** 등록 시점 싱글 시세(JPY) 기준값 — 리스트 등락률용. 없으면 null. */
+  /** 등록 시점 시세(JPY) 기준값(등급카드는 등급 시세) — 리스트 등락률용. 없으면 null. */
   registerPriceJpy: number | null;
+  /** 등급(그레이딩) 카드 여부 + 등급사/등급 — 등록 팝업 입력값. */
+  graded: boolean;
+  gradeCompany: string | null;
+  gradeValue: string | null;
   createdAt: string;
 }
 
@@ -29,6 +33,15 @@ export interface MyCardWithPrice extends MyCardRow {
   priceSingleJpy: number;
   /** PSA10 중앙값 시세. 데이터 없으면 0. */
   pricePsa10Jpy: number;
+  /** PSA9 중앙값 시세. 데이터 없으면 0. */
+  pricePsa9Jpy: number;
+  /** PSA8 중앙값 시세. 데이터 없으면 0. */
+  pricePsa8Jpy: number;
+  /**
+   * 등급 기준 현재시세(JPY) — 등록가와 같은 규칙(PSA10/9/8→등급가, 타사→PSA10,
+   * 싱글→raw)으로 산정. 등락률은 이 값과 registerPriceJpy 를 비교한다. 없으면 0.
+   */
+  currentPriceJpy: number;
 }
 
 export interface MyFavoriteRow {

@@ -66,6 +66,16 @@ export interface MyCardRow {
   priceSingleJpy?: number;
   /** PSA10 중앙값 시세 (있으면). */
   pricePsa10Jpy?: number;
+  /** PSA9/PSA8 중앙값 시세 (있으면). */
+  pricePsa9Jpy?: number;
+  pricePsa8Jpy?: number;
+  /**
+   * 등급 기준 현재시세(JPY) — 서버가 등록가와 같은 규칙(PSA10/9/8→등급가,
+   * 타사→PSA10, 싱글→raw)으로 산정. 등락률은 registerPriceJpy 와 이 값을 비교.
+   */
+  currentPriceJpy?: number;
+  /** 등록 시점 시세(JPY) 기준값 — "등록가격". 등급카드는 등급 시세로 스냅. */
+  registerPriceJpy?: number | null;
   /** 구매 정보 / 등급 정보. */
   buyPrice?: number | null;
   buyCurrency?: string | null;

@@ -5,6 +5,7 @@ import { api, ApiError } from '@/lib/apiClient';
 import { useToast } from '@/components/ToastProvider';
 import { PixelText } from '@/components/PixelText';
 import { PixelPress } from '@/components/cv/PixelPress';
+import { CardRegisterSheet, type GradePrices } from '@/components/CardRegisterSheet';
 import { useThemeColors, useTheme, useThemeTextVariant } from '@/components/ThemeProvider';
 import { isFlatTheme } from '@/lib/theme';
 import { colors, fonts } from '@/theme/tokens';
@@ -17,6 +18,8 @@ interface Props {
   imageUrl?: string | null;
   /** 현재시세 (JPY) — 등록 시트 자동 표시/직접뽑기 기준가. */
   currentPriceJpy?: number | null;
+  /** 등급별 현재시세 (JPY) — 등록 팝업의 등록가 미리보기용. */
+  gradePrices?: GradePrices | null;
 }
 
 type Status = 'idle' | 'loading' | 'error';
@@ -27,10 +30,11 @@ type Status = 'idle' | 'loading' | 'error';
  * - 성공/실패 시 토스트
  * - 미로그인 (401) 이면 login 라우트로 이동
  */
-export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: Props) {
+export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy, gradePrices }: Props) {
   const [favStatus, setFavStatus] = useState<Status>('idle');
   const [isCollected, setIsCollected] = useState(false);
   const [isFav, setIsFav] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [authed, setAuthed] = useState(true);
   const toast = useToast();
   const router = useRouter();
@@ -61,21 +65,13 @@ export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: 
 
   const goLogin = () => router.push('/login');
 
-  // 바로 추가하지 않고 scan 의 "카드 등록" 시트로 이동 — 구매가/직접뽑기/등급 입력.
+  // 바로 추가하지 않고 "카드 등록" 팝업을 띄운다 — 구매가/직접뽑기/등급 입력 (웹 패리티).
   const openRegisterSheet = () => {
     if (!authed) {
       goLogin();
       return;
     }
-    router.push({
-      pathname: '/scan',
-      params: {
-        regApparelId: String(apparelId),
-        regName: cardName ?? '',
-        regImage: imageUrl ?? '',
-        regPrice: currentPriceJpy != null ? String(Math.round(currentPriceJpy)) : '',
-      },
-    } as never);
+    setSheetOpen(true);
   };
 
   const toggleFavorite = async () => {
@@ -113,10 +109,27 @@ export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: 
   const collectBg = isCollected ? tc.grn : tc.ink;
   const collectLabel = isCollected ? '내 컬렉션에 담김' : '내 컬렉션에 추가';
 
+  // 등록 팝업 — 웹 cv-sheet-modal 패리티. 저장되면 ✓ 표시로 전환.
+  const registerSheet = sheetOpen ? (
+    <CardRegisterSheet
+      visible={sheetOpen}
+      card={{
+        apparelId,
+        name: cardName ?? '카드',
+        imageUrl: imageUrl ?? null,
+        currentPriceJpy: currentPriceJpy ?? null,
+        gradePrices: gradePrices ?? null,
+      }}
+      onClose={() => setSheetOpen(false)}
+      onSaved={() => setIsCollected(true)}
+    />
+  ) : null;
+
   if (flat) {
     // 클린·다크: 라운드 + 라인보더 (웹 그대로).
     return (
       <View style={styles.row}>
+        {registerSheet}
         <Pressable onPress={openRegisterSheet} style={[styles.flatWide, { backgroundColor: collectBg }]}>
           <PixelText variant={txt} size={14} weight="bold" color={tc.white}>{isCollected ? '✓' : '＋'}</PixelText>
           <PixelText variant="ko" size={13} weight="bold" color={tc.white} numberOfLines={1}>{collectLabel}</PixelText>
@@ -138,6 +151,7 @@ export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy }: 
   // 픽셀: 3D PixelPress 박스 — 동일 레이아웃(넓은 버튼 + 정사각 2개).
   return (
     <View style={styles.row}>
+      {registerSheet}
       <View style={styles.flex}>
         <PixelPress onPress={openRegisterSheet} bg={collectBg} borderWidth={3} shadow={4} hi="rgba(255,255,255,0.25)" lo="rgba(0,0,0,0.3)" wrapStyle={styles.flex} innerStyle={styles.wideFace}>
           <Text style={[styles.icon, { color: colors.white }]}>{isCollected ? '✓' : '＋'}</Text>

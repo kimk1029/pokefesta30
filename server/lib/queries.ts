@@ -22,7 +22,7 @@ import type {
   TradeType,
 } from '@/lib/types';
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
-import { computeApparelPrices } from '@/lib/snkrdunkPrice';
+import { computeApparelPrices, currentBasisJpy } from '@/lib/snkrdunkPrice';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { getCardPackMeta } from '@/lib/cardPacks';
 import { getCachedJpyKrw } from './fxRate.js';
@@ -376,6 +376,16 @@ export interface MyCardWithPrice extends MyCardRow {
   priceSingleJpy: number;
   /** PSA10 라벨이 붙은 최근 7건 매출 중앙값. 데이터 없으면 0. */
   pricePsa10Jpy: number;
+  /** PSA9 최근 체결 중앙값. 데이터 없으면 0. */
+  pricePsa9Jpy: number;
+  /** PSA8 최근 체결 중앙값. 데이터 없으면 0. */
+  pricePsa8Jpy: number;
+  /**
+   * 이 카드의 등급 기준 "현재시세"(JPY) — 등록가(registerPriceJpy)와 같은 규칙으로
+   * 산정해 등락률 비교가 성립한다. PSA10/9/8→해당 등급가, 타사→PSA10, 싱글→raw.
+   * 데이터 없으면 0.
+   */
+  currentPriceJpy: number;
   /** 소속 시리즈(박스) 한국어명 — 카탈로그 packCode→CARD_PACKS, 폴백 setCode. 없으면 null. */
   series: string | null;
 }
@@ -404,6 +414,8 @@ export async function getMyCardsWithPrices(
       imageUrl: string | null;
       priceSingleJpy: number;
       pricePsa10Jpy: number;
+      pricePsa9Jpy: number;
+      pricePsa8Jpy: number;
       /** sales-chart 일별 시세 시리즈(오래된→최신). 차트/등락 통일용. */
       trendJpy: number[];
     }
@@ -431,7 +443,7 @@ export async function getMyCardsWithPrices(
             fetchSnkrdunkSalesChart(id).catch(() => null),
           ]);
           if (!a) return;
-          const { single, psa10, trendJpy } = computeApparelPrices(
+          const { single, psa10, psa9, psa8, trendJpy } = computeApparelPrices(
             hist?.history ?? [],
             chart?.points ?? [],
             a.minPrice ?? 0,
@@ -441,6 +453,8 @@ export async function getMyCardsWithPrices(
             imageUrl: a.imageUrl,
             priceSingleJpy: single,
             pricePsa10Jpy: psa10,
+            pricePsa9Jpy: psa9,
+            pricePsa8Jpy: psa8,
             trendJpy,
           });
           // 정적 정보 + 풀 시세 스냅샷 적재 (응답 경로 밖, 실패 무시).
@@ -450,6 +464,8 @@ export async function getMyCardsWithPrices(
             listingCount: a.listingCount,
             priceSingle: single,
             pricePsa10: psa10,
+            pricePsa9: psa9,
+            pricePsa8: psa8,
             trend: trendJpy,
           });
         } catch (err) {
@@ -468,6 +484,8 @@ export async function getMyCardsWithPrices(
         imageUrl: e.imageUrl,
         priceSingleJpy: e.snapshot.priceSingle || e.snapshot.minPrice,
         pricePsa10Jpy: e.snapshot.pricePsa10,
+        pricePsa9Jpy: e.snapshot.pricePsa9,
+        pricePsa8Jpy: e.snapshot.pricePsa8,
         trendJpy: e.snapshot.trend,
       });
     }
@@ -481,10 +499,26 @@ export async function getMyCardsWithPrices(
         snkrdunkMinPriceJpy: 0,
         priceSingleJpy: 0,
         pricePsa10Jpy: 0,
+        pricePsa9Jpy: 0,
+        pricePsa8Jpy: 0,
+        currentPriceJpy: 0,
         series: null,
       };
     }
     const info = apparelInfo.get(c.snkrdunkApparelId);
+    // 등급 기준 현재시세 — 등록가와 같은 규칙(currentBasisJpy)으로 산정해 등락률 비교 성립.
+    const current = info
+      ? currentBasisJpy(
+          {
+            single: info.priceSingleJpy,
+            psa10: info.pricePsa10Jpy,
+            psa9: info.pricePsa9Jpy,
+            psa8: info.pricePsa8Jpy,
+            trendJpy: [],
+          },
+          { graded: c.graded, gradeCompany: c.gradeCompany, gradeValue: c.gradeValue },
+        )
+      : 0;
     return {
       // 컬렉션/포트폴리오의 메인 타이틀 — 일본어 원문을 한국어(사전+음역)로.
       snkrdunkName: info?.name ? translateKnownCardNameToKo(info.name) : null,
@@ -492,6 +526,9 @@ export async function getMyCardsWithPrices(
       snkrdunkMinPriceJpy: info?.priceSingleJpy ?? 0, // 호환용 별칭
       priceSingleJpy: info?.priceSingleJpy ?? 0,
       pricePsa10Jpy: info?.pricePsa10Jpy ?? 0,
+      pricePsa9Jpy: info?.pricePsa9Jpy ?? 0,
+      pricePsa8Jpy: info?.pricePsa8Jpy ?? 0,
+      currentPriceJpy: current,
       series: seriesById.get(c.snkrdunkApparelId) ?? null,
     };
   };
@@ -539,12 +576,20 @@ export async function getMyCardsWithPrices(
   });
 
   // 등록가(registerPriceJpy) 백필 — 등록 단계에서 못 채운 기존/예외 카드 보조.
-  // buyPrice 가 있으면 그 값(JPY 환산)을, 없으면 현재 싱글시세를 한 번만 저장.
-  // 응답에도 즉시 반영하고, 쓰기는 fire-and-forget.
+  // buyPrice 가 있으면 그 값(JPY 환산)을, 없으면 등급 기준 현재시세(currentPriceJpy,
+  // 없으면 싱글가)를 한 번만 저장. 응답에도 즉시 반영하고, 쓰기는 fire-and-forget.
   const jpyKrw = getCachedJpyKrw();
   const toBackfill = result
     .filter((r) => r.registerPriceJpy == null)
-    .map((r) => ({ r, desired: deriveRegisterPriceJpy(r.buyPrice, r.buyCurrency, r.priceSingleJpy, jpyKrw) }))
+    .map((r) => ({
+      r,
+      desired: deriveRegisterPriceJpy(
+        r.buyPrice,
+        r.buyCurrency,
+        r.currentPriceJpy > 0 ? r.currentPriceJpy : r.priceSingleJpy,
+        jpyKrw,
+      ),
+    }))
     .filter((x): x is { r: (typeof result)[number]; desired: number } => x.desired != null);
   if (toBackfill.length > 0) {
     for (const { r, desired } of toBackfill) r.registerPriceJpy = desired;
