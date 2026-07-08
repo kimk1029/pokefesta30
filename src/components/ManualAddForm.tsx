@@ -100,26 +100,40 @@ export function ManualAddForm(_props: Props) {
         const ja = translate(name.trim(), 'ja');
         queries.push(ja || name.trim());
       }
+      // 쿼리당 최대 2페이지(페이지당 보통 ~40건), 전체 상한 80건.
+      const MAX_RESULTS = 80;
       for (const q of queries) {
         if (!q) continue;
-        try {
-          const sr = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
-          const sj = (await sr.json().catch(() => null)) as { results?: SnkSearchRow[] } | null;
-          for (const row of (sj?.results ?? []).slice(0, 20)) {
-            if (!row?.apparelId || seen.has(row.apparelId)) continue;
-            seen.add(row.apparelId);
-            list.push({
-              snkrdunkApparelId: row.apparelId,
-              // 일본어 원문 → 한국어(사전+음역) — 결과 리스트/등록 별칭 모두 한글로.
-              name: translateKnownCardNameToKo(row.name) || row.name,
-              imageUrl: row.imageUrl ?? null,
-              currentPriceJpy: parseYen(row.priceText),
-              setCode: setCode.trim() || null,
-              cardNumber: cardNumber.trim() || null,
-            });
+        for (let page = 1; page <= 2 && list.length < MAX_RESULTS; page++) {
+          try {
+            const sr = await fetch(
+              `/api/snkrdunk/search?q=${encodeURIComponent(q)}&page=${page}`,
+              { cache: 'no-store' },
+            );
+            const sj = (await sr.json().catch(() => null)) as { results?: SnkSearchRow[] } | null;
+            const rows = sj?.results ?? [];
+            let added = 0;
+            for (const row of rows) {
+              if (list.length >= MAX_RESULTS) break;
+              if (!row?.apparelId || seen.has(row.apparelId)) continue;
+              seen.add(row.apparelId);
+              added++;
+              list.push({
+                snkrdunkApparelId: row.apparelId,
+                // 일본어 원문 → 한국어(사전+음역) — 결과 리스트/등록 별칭 모두 한글로.
+                name: translateKnownCardNameToKo(row.name) || row.name,
+                imageUrl: row.imageUrl ?? null,
+                currentPriceJpy: parseYen(row.priceText),
+                setCode: setCode.trim() || null,
+                cardNumber: cardNumber.trim() || null,
+              });
+            }
+            // 새 항목이 없으면 다음 페이지 중단.
+            if (rows.length === 0 || added === 0) break;
+          } catch {
+            // snkrdunk 실패는 무시 — lookup 결과만으로도 진행
+            break;
           }
-        } catch {
-          // snkrdunk 실패는 무시 — lookup 결과만으로도 진행
         }
       }
 
@@ -217,15 +231,15 @@ export function ManualAddForm(_props: Props) {
             </button>
           ))}
 
-          {/* 검색에 안 잡혀도 입력값 그대로 등록 */}
+          {/* 맨 아래 고정 — 검색에 안 잡혀도 입력한 정보로 직접 등록 */}
           <button type="button" className="cv-reg-result cv-reg-result-manual" onClick={() => setSelected(fallbackCard)}>
             <div className="cv-reg-thumb">
               <span style={{ fontSize: 24 }}>✍️</span>
             </div>
             <div className="cv-reg-meta">
-              <div className="cv-reg-name">입력한 정보 그대로 등록</div>
+              <div className="cv-reg-name">카드정보 직접 입력</div>
               <div className="cv-reg-sub">
-                {[setCode.toUpperCase(), cardNumber].filter(Boolean).join(' · ') || '세트/번호'}
+                찾는 카드가 없나요? 입력한 정보({[name.trim(), setCode.toUpperCase(), cardNumber].filter(Boolean).join(' · ') || '직접 작성'})로 바로 등록
               </div>
             </div>
             <span className="cv-reg-pick">선택 ▶</span>

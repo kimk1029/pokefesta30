@@ -318,14 +318,23 @@ function ScanScreenInner() {
       const queries: string[] = [];
       if (hasCode) queries.push(`${manSet.trim()} ${manNum.trim()}`.trim());
       if (hasName) queries.push((await koToJaServer(manName.trim())) || manName.trim());
+      // 쿼리당 최대 2페이지(페이지당 보통 ~40건), 전체 상한 80건.
+      const MAX_RESULTS = 80;
       const matched: Array<{ apparelId: number; name: string; imageUrl?: string | null; priceText?: string }> = [];
       for (const q of queries) {
         if (!q) continue;
-        const rows = await searchSnkrdunkByQuery(q).catch(() => []);
-        for (const row of rows.slice(0, 20)) {
-          if (!row?.apparelId || seen.has(row.apparelId)) continue;
-          seen.add(row.apparelId);
-          matched.push(row);
+        for (let page = 1; page <= 2 && matched.length < MAX_RESULTS; page++) {
+          const rows = await searchSnkrdunkByQuery(q, page).catch(() => []);
+          let added = 0;
+          for (const row of rows) {
+            if (matched.length >= MAX_RESULTS) break;
+            if (!row?.apparelId || seen.has(row.apparelId)) continue;
+            seen.add(row.apparelId);
+            added++;
+            matched.push(row);
+          }
+          // 새 항목이 없으면 다음 페이지 중단.
+          if (rows.length === 0 || added === 0) break;
         }
       }
       // 일본어 카드명 → 한국어 일괄 번역(서버 공통 엔진, 실패 시 로컬 캐시 폴백).
@@ -739,14 +748,17 @@ function ScanScreenInner() {
                     </View>
                   </PixelPress>
                 ))}
-                {/* 검색에 안 잡혀도 입력값 그대로 등록 */}
+                {/* 맨 아래 고정 — 검색에 안 잡혀도 입력한 정보로 직접 등록 */}
                 <PixelPress onPress={() => openRegister(buildManualCard(), 'manual')} bg={tc.pap2} borderWidth={3} shadow={4}>
                   <View style={{ flexDirection: 'row', gap: 10, padding: 4, paddingRight: 8, alignItems: 'center' }}>
                     <View style={{ width: 76, height: 106, borderColor: tc.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ fontSize: 26 }}>✍️</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <PixelText variant={txt} size={11}>입력한 정보 그대로 등록</PixelText>
+                      <PixelText variant="ko" size={11} weight="bold">카드정보 직접 입력</PixelText>
+                      <PixelText variant="ko" size={9} color={tc.ink3} style={{ marginTop: 3 }}>
+                        찾는 카드가 없나요? 입력한 정보로 바로 등록
+                      </PixelText>
                       <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 3 }}>
                         {manName || '무제 카드'} · {manSet || '-'} · {manNum || '-'}
                       </PixelText>
