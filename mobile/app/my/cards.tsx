@@ -378,34 +378,46 @@ function ProfitTag({ pct, size = 11 }: { pct: number | null; size?: number }) {
 }
 
 /**
- * 그레이딩사별 마크 배색 — 실제 슬랩 라벨 컬러 재현 (웹 GradedLabel 동일).
- * PSA=빨강/흰, BGS(Beckett)=검정/금, CGC=파랑/흰, SGC=검정/흰(금테), ARS=흰/검정(빨강테).
+ * 그레이딩사 로고 이미지 (assets/grading/*.webp) — PSA·CGC 는 Wikipedia,
+ * SGC 는 공식 트위터, BGS(Beckett)·ARS 는 각 공식 사이트에서 수집한 실제 마크.
  */
-const GRADE_MARKS: Record<string, { bg: string; fg: string; border?: string }> = {
-  PSA: { bg: '#E4002B', fg: '#fff' },
-  BGS: { bg: '#111111', fg: '#D4AF37' },
-  CGC: { bg: '#1F5CA9', fg: '#fff' },
-  SGC: { bg: '#101010', fg: '#fff', border: '#C9A34A' },
-  ARS: { bg: '#ffffff', fg: '#111', border: '#E4002B' },
+const GRADE_LOGOS: Record<string, ReturnType<typeof require>> = {
+  PSA: require('../../assets/grading/psa.webp'),
+  BGS: require('../../assets/grading/bgs.webp'),
+  CGC: require('../../assets/grading/cgc.webp'),
+  SGC: require('../../assets/grading/sgc.webp'),
+  ARS: require('../../assets/grading/ars.webp'),
 };
+// 로고 원본 종횡비 (width/height) — 배지 높이에 맞춰 폭 계산.
+const GRADE_LOGO_AR: Record<string, number> = { PSA: 256 / 96, BGS: 88 / 96, CGC: 1, SGC: 1, ARS: 73 / 96 };
 
-/** 그레이딩 표식 — 우하단 그레이딩사 마크 (미지정 회사는 골드 '그레이딩' 폴백). */
+/** 그레이딩 표식 — 우하단 흰 필 배지에 그레이딩사 로고 + 등급 숫자 (웹 동일). */
 function GradedLabel({ gold, company, grade }: { gold: string; company?: string | null; grade?: string | null }) {
   const key = (company ?? '').trim().toUpperCase();
-  const mark = GRADE_MARKS[key];
-  const label = mark ? `${key}${grade?.trim() ? ` ${grade.trim()}` : ''}` : '그레이딩';
+  const logo = GRADE_LOGOS[key];
+  if (!logo) {
+    // 미등록 회사 폴백 — 기존 골드 라벨.
+    return (
+      <View pointerEvents="none" style={{ position: 'absolute', bottom: 5, right: 5, zIndex: 4, backgroundColor: gold, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+        <PixelText variant="ko" size={8} weight="bold" color="#fff">그레이딩</PixelText>
+      </View>
+    );
+  }
+  const h = 12;
   return (
     <View
       pointerEvents="none"
       style={{
         position: 'absolute', bottom: 5, right: 5, zIndex: 4,
-        backgroundColor: mark?.bg ?? gold,
-        paddingHorizontal: 6, paddingVertical: 2.5, borderRadius: 6,
-        borderWidth: mark?.border ? 1.5 : 0,
-        borderColor: mark?.border ?? 'transparent',
+        flexDirection: 'row', alignItems: 'center', gap: 3,
+        backgroundColor: '#fff', paddingHorizontal: 5, paddingVertical: 2.5, borderRadius: 6,
+        shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2,
       }}
     >
-      <PixelText variant="ko" size={8} weight="bold" color={mark?.fg ?? '#fff'}>{label}</PixelText>
+      <Image source={logo} style={{ height: h, width: h * (GRADE_LOGO_AR[key] ?? 1) }} resizeMode="contain" />
+      {!!grade?.trim() && (
+        <PixelText variant="ko" size={9} weight="bold" color="#111">{grade.trim()}</PixelText>
+      )}
     </View>
   );
 }
