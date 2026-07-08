@@ -298,7 +298,7 @@ function CardGridItem({ row, rank, format, onRemove, tc }: { row: Row; rank: num
           <View style={{ position: 'absolute', top: 8, left: 8, width: 22, height: 22, borderRadius: 11, backgroundColor: rankBadgeColor(rank, tc.gold, tc.ink), alignItems: 'center', justifyContent: 'center' }}>
             <PixelText variant="ko" size={11} weight="bold" color="#fff">{rank}</PixelText>
           </View>
-          {c.graded ? <GradedLabel gold={tc.gold} /> : null}
+          {c.graded ? <GradedLabel gold={tc.gold} company={c.gradeCompany} grade={c.gradeValue} /> : null}
         </View>
         <View style={{ paddingHorizontal: 9, paddingTop: 7, paddingBottom: 9 }}>
           <PixelText variant="ko" size={11} weight="bold" color={tc.ink} numberOfLines={1}>{cardName(c)}</PixelText>
@@ -361,7 +361,7 @@ function CardListItem({ row, format, last, onRemove, tc }: { row: Row; format: (
       <View style={{ position: 'absolute', top: '50%', right: -2, transform: [{ translateY: -13 }], zIndex: 6 }}>
         <CardMenu apparelId={c.snkrdunkApparelId} onRemove={() => onRemove(c.id)} tc={tc} plain />
       </View>
-      {c.graded ? <GradedLabel gold={tc.gold} /> : null}
+      {c.graded ? <GradedLabel gold={tc.gold} company={c.gradeCompany} grade={c.gradeValue} /> : null}
     </View>
   );
 }
@@ -377,11 +377,35 @@ function ProfitTag({ pct, size = 11 }: { pct: number | null; size?: number }) {
   );
 }
 
-/** 그레이딩 표식 — 우하단 골드 라벨 (웹 GradedLabel 동일). */
-function GradedLabel({ gold }: { gold: string }) {
+/**
+ * 그레이딩사별 마크 배색 — 실제 슬랩 라벨 컬러 재현 (웹 GradedLabel 동일).
+ * PSA=빨강/흰, BGS(Beckett)=검정/금, CGC=파랑/흰, SGC=검정/흰(금테), ARS=흰/검정(빨강테).
+ */
+const GRADE_MARKS: Record<string, { bg: string; fg: string; border?: string }> = {
+  PSA: { bg: '#E4002B', fg: '#fff' },
+  BGS: { bg: '#111111', fg: '#D4AF37' },
+  CGC: { bg: '#1F5CA9', fg: '#fff' },
+  SGC: { bg: '#101010', fg: '#fff', border: '#C9A34A' },
+  ARS: { bg: '#ffffff', fg: '#111', border: '#E4002B' },
+};
+
+/** 그레이딩 표식 — 우하단 그레이딩사 마크 (미지정 회사는 골드 '그레이딩' 폴백). */
+function GradedLabel({ gold, company, grade }: { gold: string; company?: string | null; grade?: string | null }) {
+  const key = (company ?? '').trim().toUpperCase();
+  const mark = GRADE_MARKS[key];
+  const label = mark ? `${key}${grade?.trim() ? ` ${grade.trim()}` : ''}` : '그레이딩';
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', bottom: 5, right: 5, zIndex: 4, backgroundColor: gold, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-      <PixelText variant="ko" size={8} weight="bold" color="#fff">그레이딩</PixelText>
+    <View
+      pointerEvents="none"
+      style={{
+        position: 'absolute', bottom: 5, right: 5, zIndex: 4,
+        backgroundColor: mark?.bg ?? gold,
+        paddingHorizontal: 6, paddingVertical: 2.5, borderRadius: 6,
+        borderWidth: mark?.border ? 1.5 : 0,
+        borderColor: mark?.border ?? 'transparent',
+      }}
+    >
+      <PixelText variant="ko" size={8} weight="bold" color={mark?.fg ?? '#fff'}>{label}</PixelText>
     </View>
   );
 }

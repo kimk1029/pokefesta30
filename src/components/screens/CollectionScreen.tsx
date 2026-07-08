@@ -558,17 +558,35 @@ function ProfitTag({ pct, size = 12 }: { pct: number | null; size?: number }) {
 }
 
 /** 그레이딩 카드 표식 — 부모(position:relative) 우하단에 작게 플로팅. */
-function GradedLabel() {
+/**
+ * 그레이딩사별 마크 배색 — 실제 슬랩 라벨 컬러 재현.
+ * PSA=빨강/흰, BGS(Beckett)=검정/금, CGC=파랑/흰, SGC=검정/흰(금테), ARS=흰/검정(빨강테).
+ * 로고 이미지 대신 브랜드 배색 배지로 — 외부 이미지 의존 없이 즉시 식별.
+ */
+const GRADE_MARKS: Record<string, { bg: string; fg: string; border?: string }> = {
+  PSA: { bg: '#E4002B', fg: '#fff' },
+  BGS: { bg: '#111111', fg: '#D4AF37' },
+  CGC: { bg: '#1F5CA9', fg: '#fff' },
+  SGC: { bg: '#101010', fg: '#fff', border: '#C9A34A' },
+  ARS: { bg: '#ffffff', fg: '#111', border: '#E4002B' },
+};
+
+function GradedLabel({ company, grade }: { company?: string | null; grade?: string | null }) {
+  const key = (company ?? '').trim().toUpperCase();
+  const mark = GRADE_MARKS[key];
+  const label = mark ? `${key}${grade?.trim() ? ` ${grade.trim()}` : ''}` : '그레이딩';
   return (
     <span
       style={{
         position: 'absolute', bottom: 5, right: 5, zIndex: 4, pointerEvents: 'none',
-        fontFamily: 'var(--f1)', fontSize: 8.5, fontWeight: 800, lineHeight: 1, letterSpacing: 0.3,
-        color: '#fff', background: 'var(--gold)', padding: '2px 6px', borderRadius: 6,
+        fontFamily: 'var(--f1)', fontSize: 8.5, fontWeight: 900, lineHeight: 1, letterSpacing: 0.5,
+        color: mark?.fg ?? '#fff', background: mark?.bg ?? 'var(--gold)',
+        padding: '3px 6px', borderRadius: 6,
+        border: mark?.border ? `1.5px solid ${mark.border}` : 'none',
         boxShadow: '0 1px 3px rgba(0,0,0,.3)',
       }}
     >
-      그레이딩
+      {label}
     </span>
   );
 }
@@ -673,7 +691,7 @@ function CardGridItem({ row, rank, format, onRemove }: { row: Row; rank: number;
         <div style={{ position: 'absolute', top: 8, left: 8, width: 22, height: 22, borderRadius: '50%', background: rankBadgeColor(rank), color: '#fff', fontSize: 12, fontWeight: 800, display: 'grid', placeItems: 'center', boxShadow: '0 2px 5px rgba(0,0,0,.25)' }}>
           {rank}
         </div>
-        {c.graded && <GradedLabel />}
+        {c.graded && <GradedLabel company={c.gradeCompany} grade={c.gradeValue} />}
       </div>
       <div style={{ padding: '7px 9px 9px' }}>
         <div style={{ fontFamily: 'var(--f1)', fontSize: 12, fontWeight: 800, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -747,7 +765,7 @@ function CardListItem({ row, format, last, onRemove }: { row: Row; format: (j: n
       <div style={{ position: 'absolute', top: '50%', right: -2, transform: 'translateY(-50%)', zIndex: 6 }}>
         <CardMenu apparelId={c.snkrdunkApparelId} onRemove={() => onRemove(c.id)} plain />
       </div>
-      {c.graded && <GradedLabel />}
+      {c.graded && <GradedLabel company={c.gradeCompany} grade={c.gradeValue} />}
     </div>
   );
 }
