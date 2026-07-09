@@ -1,6 +1,5 @@
 import { LoginRequired } from '@/components/LoginRequired';
 import { ManualAddForm } from '@/components/ManualAddForm';
-import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { getServerUser } from '@/lib/apiServer';
 import { CARDS_CATALOG } from '@/lib/cardsCatalog';
@@ -34,10 +33,7 @@ export default async function Page() {
   return (
     <>
       <StatusBar />
-      <AppBar title="카드 직접 입력" showBack backHref="/my/cards" />
-      <div style={{ height: 14 }} />
       <ManualAddForm catalog={catalog} />
-      <div className="bggap" />
     </>
   );
 }

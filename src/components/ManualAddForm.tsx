@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { CardRegisterSheet, type RegisterCardInput } from '@/components/cards/CardRegisterSheet';
+import { useTheme } from '@/components/ThemeProvider';
 import { translate, translateKnownCardNameToKo } from '@/lib/cardTranslate';
 
 /** snkrdunk 검색 결과 한 건. */
@@ -46,11 +48,116 @@ interface LookupCard {
   } | null;
 }
 
+/* ── 팔레트: Claude Design 'POKE30 카드추가' 프로토타입.
+   클린 = 프로토타입 색 그대로, 그 외 테마 = CSS 변수 토큰. ── */
+interface Palette {
+  pageBg: string;
+  ink: string;
+  ink2: string; // 라벨 (#8E8E93)
+  ink3: string; // 보조 텍스트 (#9A9AA0)
+  accent: string; // 오렌지 포인트
+  accentSoft: string; // 선택 행 배경
+  line: string; // 구분선 (#F0F0F2)
+  fieldBg: string; // 입력 필드 배경 (#F7F7F9)
+  fieldBd: string; // 입력 필드 테두리 (#E5E5EA)
+  nameBg: string; // 카드이름 필드 배경 (#F2F2F4)
+  radioBd: string; // 미선택 라디오 테두리 (#D2D2D8)
+  btnBg: string; // 검정 버튼
+  btnFg: string;
+  disBg: string; // 비활성 버튼 배경
+  disFg: string;
+  barBg: string; // 하단 바 배경
+}
+
+const CLEAN_P: Palette = {
+  pageBg: '#ffffff',
+  ink: '#16161a',
+  ink2: '#8E8E93',
+  ink3: '#9A9AA0',
+  accent: '#FF7A00',
+  accentSoft: '#FFF6EE',
+  line: '#F0F0F2',
+  fieldBg: '#F7F7F9',
+  fieldBd: '#E5E5EA',
+  nameBg: '#F2F2F4',
+  radioBd: '#D2D2D8',
+  btnBg: '#16161a',
+  btnFg: '#ffffff',
+  disBg: '#F2F2F4',
+  disFg: '#B0B0B6',
+  barBg: 'rgba(255,255,255,.97)',
+};
+
+const VAR_P: Palette = {
+  pageBg: 'var(--paper)',
+  ink: 'var(--ink)',
+  ink2: 'var(--ink2)',
+  ink3: 'var(--ink3)',
+  accent: 'var(--gold)',
+  accentSoft: 'var(--pap2)',
+  line: 'var(--pap3)',
+  fieldBg: 'var(--pap2)',
+  fieldBd: 'var(--pap3)',
+  nameBg: 'var(--pap2)',
+  radioBd: 'var(--ink3)',
+  btnBg: 'var(--ink)',
+  btnFg: 'var(--paper)',
+  disBg: 'var(--pap2)',
+  disFg: 'var(--ink3)',
+  barBg: 'var(--paper)',
+};
+
+/* ── 아이콘 (프로토타입 SVG) ── */
+function IcBack({ c }: { c: string }) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 12H5" />
+      <path d="m12 19-7-7 7-7" />
+    </svg>
+  );
+}
+function IcScan({ c }: { c: string }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v3M21 15v3a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-3" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+function IcSearch({ c, size = 18, w = 2.2 }: { c: string; size?: number; w?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={w} strokeLinecap="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+function IcFilter({ c }: { c: string }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+    </svg>
+  );
+}
+function IcCaret({ c, size = 14 }: { c: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 /**
- * 직접입력 플로우: 세트코드 + 카드번호로 검색 → 결과 카드 리스트 → 선택 →
- * 스캔과 동일한 "카드 등록" 시트로 진입.
+ * 카드 추가(직접입력) — Claude Design 'POKE30 카드추가' 프로토타입 레이아웃.
+ *  헤더(뒤로가기·스캔 버튼) + 세트코드/카드번호/카드이름 입력 + 카드 검색 →
+ *  필터 칩 · 결과 리스트(단일 선택 라디오) · 하단 고정 "내 컬렉션에 추가" 바 →
+ *  스캔과 동일한 "카드 등록" 시트로 진입.
  */
 export function ManualAddForm(_props: Props) {
+  const { theme } = useTheme();
+  const clean = theme === 'clean';
+  const P = clean ? CLEAN_P : VAR_P;
+
   const [setCode, setSetCode] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [name, setName] = useState('');
@@ -59,7 +166,8 @@ export function ManualAddForm(_props: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const [results, setResults] = useState<RegisterCardInput[]>([]);
-  const [selected, setSelected] = useState<RegisterCardInput | null>(null);
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [registering, setRegistering] = useState<RegisterCardInput | null>(null);
   // "더보기" 페이지네이션 상태 — 검색 쿼리/중복셋/다음 페이지를 유지해 이어서 로드.
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -69,7 +177,7 @@ export function ManualAddForm(_props: Props) {
     nextPage: 1,
   });
 
-  /** snkrdunk 한 페이지 로드 — 새 항목만 반환. 반환 null 이면 해당 페이지 실패/빈 결과. */
+  /** snkrdunk 한 페이지 로드 — 새 항목만 반환. */
   const fetchSnkPage = async (queries: string[], page: number, seen: Set<number>) => {
     const items: RegisterCardInput[] = [];
     let anyRows = false;
@@ -109,13 +217,13 @@ export function ManualAddForm(_props: Props) {
     const hasName = !!name.trim();
     // 세트코드+번호 또는 카드 이름 중 하나만 있으면 검색 가능.
     if (!hasCode && !hasName) {
-      setErr('세트 코드+카드 번호 또는 카드 이름을 입력해 주세요');
+      setErr('세트코드+카드번호 또는 카드이름을 입력해 주세요');
       return;
     }
     setSearching(true);
     setSearched(false);
     setResults([]);
-    setSelected(null);
+    setSelectedIdx(null);
     setHasMore(false);
     try {
       const list: RegisterCardInput[] = [];
@@ -134,7 +242,6 @@ export function ManualAddForm(_props: Props) {
       }
 
       // 2) snkrdunk 검색(1페이지) — 코드+번호로, 이름이 있으면 한→일 번역해서 검색.
-      //    (이름만 입력 시 이 경로가 메인 검색. 다음 페이지는 "더보기"로 이어서.)
       const queries: string[] = [];
       if (hasCode) queries.push(`${setCode.trim()} ${cardNumber.trim()}`.trim());
       if (hasName) {
@@ -180,105 +287,401 @@ export function ManualAddForm(_props: Props) {
     imageUrl: null,
   };
 
-  if (selected) {
+  const selected = selectedIdx != null ? (results[selectedIdx] ?? null) : null;
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') runSearch();
+  };
+
+  /* ── 등록 시트 단계 ── */
+  if (registering) {
     return (
-      <div className="cv-manual-form">
-        <button type="button" className="cv-reg-back" onClick={() => setSelected(null)}>
-          ← 다른 카드 선택
-        </button>
-        <CardRegisterSheet card={selected} />
+      <div style={{ background: P.pageBg, minHeight: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: `1px solid ${P.line}` }}>
+          <button
+            type="button"
+            onClick={() => setRegistering(null)}
+            style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', margin: -8, padding: 8, cursor: 'pointer' }}
+            aria-label="다른 카드 선택"
+          >
+            <IcBack c={clean ? '#16161a' : 'var(--ink)'} />
+          </button>
+          <div style={{ flex: 1, fontSize: 17, fontWeight: 800, color: P.ink, letterSpacing: -0.3 }}>카드 등록</div>
+        </div>
+        <div className="cv-manual-form">
+          <CardRegisterSheet card={registering} />
+        </div>
       </div>
     );
   }
 
+  const labelSt: React.CSSProperties = {
+    fontSize: 11.5,
+    fontWeight: 700,
+    color: P.ink2,
+    marginBottom: 5,
+    paddingLeft: 2,
+  };
+  const inputSt: React.CSSProperties = {
+    width: '100%',
+    background: 'transparent',
+    border: 'none',
+    outline: 'none',
+    fontSize: 14,
+    fontWeight: 700,
+    color: P.ink,
+    padding: 0,
+    fontFamily: 'inherit',
+  };
+
   return (
-    <div className="cv-manual-form">
-      <div className="cv-manual-row">
-        <Field label="세트 코드">
-          <input
-            className="cv-manual-input"
-            maxLength={16}
-            value={setCode}
-            onChange={(e) => setSetCode(e.target.value.toUpperCase())}
-            placeholder="예) SV1"
-          />
-        </Field>
-        <Field label="카드 번호">
-          <input
-            className="cv-manual-input"
-            maxLength={16}
-            value={cardNumber}
-            onChange={(e) => setCardNumber(e.target.value)}
-            placeholder="예) 045"
-          />
-        </Field>
-      </div>
-      <Field label="카드 이름" hint="이름만 입력해도 검색돼요. (세트/번호는 정확도를 높여줘요)">
-        <input
-          className="cv-manual-input"
-          maxLength={60}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="예) 리자몽 ex"
-        />
-      </Field>
+    <div style={{ background: P.pageBg, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* ── 헤더 + 입력 폼 (스크롤 시 상단 고정) ── */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: P.pageBg, borderBottom: `1px solid ${P.line}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px 8px' }}>
+          <Link href="/my/cards" aria-label="뒤로가기" style={{ display: 'flex', alignItems: 'center', margin: -8, padding: 8 }}>
+            <IcBack c={clean ? '#16161a' : 'var(--ink)'} />
+          </Link>
+          <div style={{ flex: 1, fontSize: 17, fontWeight: 800, color: P.ink, letterSpacing: -0.3 }}>카드 추가</div>
+          <Link
+            href="/cards/grading"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              background: P.btnBg,
+              padding: '7px 12px',
+              borderRadius: 20,
+              textDecoration: 'none',
+            }}
+          >
+            <IcScan c={clean ? '#fff' : 'var(--paper)'} />
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: P.btnFg, whiteSpace: 'nowrap' }}>스캔</span>
+          </Link>
+        </div>
 
-      {err && <div className="cv-manual-err">⚠ {err}</div>}
-
-      <button type="button" className="cv-manual-submit" disabled={searching} onClick={runSearch}>
-        {searching ? '검색 중...' : '🔍 카드 검색'}
-      </button>
-
-      {searched && (
-        <div className="cv-reg-results">
-          <div className="cv-manual-label" style={{ marginBottom: 8 }}>
-            검색 결과 {results.length}건
+        <div style={{ padding: '2px 16px 12px' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={labelSt}>세트코드</div>
+              <div style={{ display: 'flex', alignItems: 'center', background: P.fieldBg, border: `1.5px solid ${P.fieldBd}`, borderRadius: 11, padding: '10px 12px' }}>
+                <input
+                  style={inputSt}
+                  maxLength={16}
+                  value={setCode}
+                  onChange={(e) => setSetCode(e.target.value.toUpperCase())}
+                  onKeyDown={onKeyDown}
+                  placeholder="예) SV4a"
+                />
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={labelSt}>카드번호</div>
+              <div style={{ display: 'flex', alignItems: 'center', background: P.fieldBg, border: `1.5px solid ${P.fieldBd}`, borderRadius: 11, padding: '10px 12px' }}>
+                <input
+                  style={inputSt}
+                  maxLength={16}
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  placeholder="예) 201/165"
+                />
+              </div>
+            </div>
           </div>
-          {results.map((c, i) => (
-            <button key={i} type="button" className="cv-reg-result" onClick={() => setSelected(c)}>
-              <div className="cv-reg-thumb">
-                {c.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.imageUrl} alt={c.name ?? '카드'} />
-                ) : (
-                  <span style={{ fontSize: 24 }}>🃏</span>
-                )}
-              </div>
-              <div className="cv-reg-meta">
-                <div className="cv-reg-name">{c.name ?? '이름 미상'}</div>
-                <div className="cv-reg-sub">
-                  {[c.setCode?.toUpperCase(), c.cardNumber].filter(Boolean).join(' · ')}
-                </div>
-                {c.currentPriceJpy != null && (
-                  <div className="cv-reg-price">현재시세 ¥{Math.round(c.currentPriceJpy).toLocaleString()}</div>
-                )}
-              </div>
-              <span className="cv-reg-pick">선택 ▶</span>
-            </button>
-          ))}
-
-          {/* 더보기 — 다음 페이지 이어서 로드 */}
-          {hasMore && (
-            <button type="button" className="cv-manual-submit" style={{ marginBottom: 8 }} disabled={loadingMore} onClick={loadMore}>
-              {loadingMore ? '불러오는 중...' : '↓ 결과 더보기'}
-            </button>
+          <div style={{ marginTop: 9 }}>
+            <div style={labelSt}>카드이름</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: P.nameBg, border: `1.5px solid ${P.accent}`, borderRadius: 11, padding: '11px 13px' }}>
+              <IcSearch c={clean ? '#16161a' : 'var(--ink)'} />
+              <input
+                style={{ ...inputSt, fontSize: 14.5 }}
+                maxLength={60}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="예) 리자몽 ex"
+              />
+              {name && (
+                <button
+                  type="button"
+                  onClick={() => setName('')}
+                  aria-label="이름 지우기"
+                  style={{ display: 'flex', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill={clean ? '#C7C7CC' : 'var(--ink3)'}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M15 9l-6 6M9 9l6 6" stroke={clean ? '#fff' : 'var(--paper)'} strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+          {err && (
+            <div style={{ marginTop: 8, fontSize: 12.5, fontWeight: 700, color: clean ? '#F5333F' : 'var(--red)' }}>⚠ {err}</div>
           )}
+          <button
+            type="button"
+            disabled={searching}
+            onClick={runSearch}
+            style={{
+              marginTop: 11,
+              width: '100%',
+              height: 44,
+              borderRadius: 12,
+              border: 'none',
+              background: P.btnBg,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              cursor: 'pointer',
+              opacity: searching ? 0.6 : 1,
+              fontFamily: 'inherit',
+            }}
+          >
+            <IcSearch c={clean ? '#fff' : 'var(--paper)'} size={17} w={2.4} />
+            <span style={{ fontSize: 14.5, fontWeight: 800, color: P.btnFg, whiteSpace: 'nowrap' }}>
+              {searching ? '검색 중...' : '카드 검색'}
+            </span>
+          </button>
+        </div>
+      </div>
 
-          {/* 맨 아래 고정 — 검색에 안 잡혀도 입력한 정보로 직접 등록 */}
-          <button type="button" className="cv-reg-result cv-reg-result-manual" onClick={() => setSelected(fallbackCard)}>
-            <div className="cv-reg-thumb">
-              <span style={{ fontSize: 24 }}>✍️</span>
+      {/* ── 검색 결과 영역 ── */}
+      <div style={{ flex: 1 }}>
+        {!searched && !searching && (
+          <div style={{ textAlign: 'center', padding: '46px 24px', fontSize: 13, fontWeight: 600, color: P.ink3, lineHeight: 1.6 }}>
+            세트코드+카드번호 또는 카드이름으로 검색해 보세요.
+            <br />
+            이름만 입력해도 검색돼요.
+          </div>
+        )}
+
+        {searched && (
+          <>
+            {/* 필터 칩 */}
+            <div
+              style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '14px 16px 12px', scrollbarWidth: 'none' }}
+            >
+              <Chip P={P}>
+                <IcFilter c={P.ink} />
+                필터
+              </Chip>
+              <Chip P={P} active>
+                전체
+              </Chip>
+              <Chip P={P}>
+                세트
+                <IcCaret c={P.ink} size={12} />
+              </Chip>
+              <Chip P={P}>
+                레어도
+                <IcCaret c={P.ink} size={12} />
+              </Chip>
+              <Chip P={P}>일본판</Chip>
             </div>
-            <div className="cv-reg-meta">
-              <div className="cv-reg-name">카드정보 직접 입력</div>
-              <div className="cv-reg-sub">
-                찾는 카드가 없나요? 입력한 정보({[name.trim(), setCode.toUpperCase(), cardNumber].filter(Boolean).join(' · ') || '직접 작성'})로 바로 등록
+
+            {/* 결과 수 + 정렬 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px 8px' }}>
+              <div style={{ fontSize: 13.5, color: P.ink3, fontWeight: 600 }}>
+                검색 결과 <span style={{ color: P.ink, fontWeight: 800 }}>{results.length}</span>개
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 700, color: P.ink }}>
+                관련도순 <IcCaret c={P.ink} />
               </div>
             </div>
-            <span className="cv-reg-pick">선택 ▶</span>
+
+            {/* 결과 리스트 */}
+            <div style={{ padding: '0 16px 10px' }}>
+              {results.map((c, i) => {
+                const sel = selectedIdx === i;
+                const sub = [c.setCode?.toUpperCase(), c.cardNumber].filter(Boolean).join(' · ');
+                return (
+                  <div
+                    key={i}
+                    onClick={() => setSelectedIdx(sel ? null : i)}
+                    role="radio"
+                    aria-checked={sel}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 13,
+                      padding: 12,
+                      borderRadius: 14,
+                      marginBottom: 8,
+                      cursor: 'pointer',
+                      background: sel ? P.accentSoft : P.pageBg,
+                      border: `1.5px solid ${sel ? P.accent : P.line}`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: 'relative',
+                        width: 52,
+                        height: 72,
+                        borderRadius: 8,
+                        background: P.fieldBg,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 26,
+                        flex: 'none',
+                        overflow: 'hidden',
+                        boxShadow: '0 3px 8px rgba(0,0,0,.14)',
+                      }}
+                    >
+                      {c.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={c.imageUrl} alt={c.name ?? '카드'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <span>🃏</span>
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14.5, fontWeight: 800, color: P.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {c.name ?? '이름 미상'}
+                      </div>
+                      {sub && (
+                        <div style={{ fontSize: 12, color: P.ink3, fontWeight: 600, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {sub}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: P.ink2, border: `1px solid ${P.fieldBd}`, padding: '2px 7px', borderRadius: 6 }}>
+                          일본판
+                        </span>
+                        {c.currentPriceJpy != null && (
+                          <span style={{ fontSize: 11.5, fontWeight: 800, color: P.ink, marginLeft: 2 }}>
+                            ¥{Math.round(c.currentPriceJpy).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        flex: 'none',
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: `2px solid ${sel ? P.accent : P.radioBd}`,
+                        background: P.pageBg,
+                      }}
+                    >
+                      {sel && <div style={{ width: 12, height: 12, borderRadius: '50%', background: P.accent }} />}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* 더보기 — 다음 페이지 이어서 로드 */}
+              {hasMore && (
+                <button
+                  type="button"
+                  disabled={loadingMore}
+                  onClick={loadMore}
+                  style={{
+                    width: '100%',
+                    padding: '11px 0',
+                    borderRadius: 12,
+                    border: `1.5px solid ${P.fieldBd}`,
+                    background: P.pageBg,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: P.ink,
+                    cursor: 'pointer',
+                    marginBottom: 4,
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {loadingMore ? '불러오는 중...' : '↓ 결과 더보기'}
+                </button>
+              )}
+
+              {/* 검색에 안 잡혀도 입력한 정보로 직접 등록 */}
+              <div style={{ textAlign: 'center', padding: '12px 0 8px', fontSize: 13, fontWeight: 700, color: P.ink3 }}>
+                찾는 카드가 없나요?{' '}
+                <span onClick={() => setRegistering(fallbackCard)} style={{ color: P.accent, cursor: 'pointer' }}>
+                  직접 입력하기
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── 하단 고정 추가 바 ── */}
+      {searched && (
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 20,
+            background: P.barBg,
+            backdropFilter: 'blur(12px)',
+            borderTop: `1px solid ${P.line}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 18px',
+          }}
+        >
+          <div style={{ flex: 'none', maxWidth: 120 }}>
+            <div style={{ fontSize: 11.5, color: P.ink3, fontWeight: 600 }}>선택한 카드</div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: P.ink, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {selected?.name ?? '선택 안 됨'}
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={!selected}
+            onClick={() => selected && setRegistering(selected)}
+            style={{
+              flex: 1,
+              height: 50,
+              borderRadius: 14,
+              border: 'none',
+              background: selected ? P.btnBg : P.disBg,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              cursor: selected ? 'pointer' : 'default',
+              boxShadow: selected ? '0 6px 16px rgba(0,0,0,.18)' : 'none',
+              fontFamily: 'inherit',
+            }}
+          >
+            <span style={{ fontSize: 15.5, fontWeight: 800, color: selected ? P.btnFg : P.disFg }}>
+              {selected ? '내 컬렉션에 추가' : '카드를 선택하세요'}
+            </span>
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function Chip({ P, active, children }: { P: Palette; active?: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        flex: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 5,
+        whiteSpace: 'nowrap',
+        fontSize: 13,
+        fontWeight: 700,
+        padding: '8px 14px',
+        borderRadius: 11,
+        background: active ? P.btnBg : P.pageBg,
+        color: active ? P.btnFg : P.ink,
+        border: `1px solid ${active ? P.btnBg : P.fieldBd}`,
+      }}
+    >
+      {children}
     </div>
   );
 }
@@ -293,14 +696,4 @@ function lookupToRegister(card: LookupCard): RegisterCardInput {
     currentPriceJpy: card.priceSummary?.byRegion?.jpy ?? null,
     currentPriceKrw: card.priceSummary?.byRegion?.krw ?? null,
   };
-}
-
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="cv-manual-field">
-      <div className="cv-manual-label">{label}</div>
-      {hint && <div className="cv-manual-hint">{hint}</div>}
-      {children}
-    </div>
-  );
 }
