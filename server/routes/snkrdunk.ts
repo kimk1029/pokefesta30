@@ -8,6 +8,7 @@ import {
   fetchSnkrdunkApparelGroup,
 } from '@/lib/snkrdunk';
 import {
+  loadCatalogEntries,
   recordPriceSnapshot,
   upsertCatalogCard,
   upsertSearchResults,
@@ -37,6 +38,23 @@ router.get('/search', async (req: Request, res: Response) => {
   res.json({ page, results, hasMore: results.length > 0 });
   // 검색에 노출된 카드의 정적 정보를 카탈로그에 적재 (응답 후, 실패 무시).
   void upsertSearchResults(results);
+});
+
+// 검색 결과 배치 메타 — apparelId 별 카탈로그 스냅샷(출품수=거래 활성도 proxy)·세트코드.
+// 직접입력 검색의 "거래량많은순" 정렬용. 카탈로그에 없는 카드는 응답에서 빠진다.
+router.get('/catalog-entries', async (req: Request, res: Response) => {
+  const ids = String(req.query.ids ?? '')
+    .split(',')
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .slice(0, 300);
+  if (ids.length === 0) return res.json({ entries: {} });
+  const map = await loadCatalogEntries(ids);
+  const entries: Record<number, { listingCount: number | null; setCode: string | null }> = {};
+  for (const [id, e] of map) {
+    entries[id] = { listingCount: e.snapshot?.listingCount ?? null, setCode: e.setCode };
+  }
+  res.json({ entries });
 });
 
 function parseApparelId(raw: unknown, res: Response): number | null {

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CardRegisterSheet, type RegisterCardInput } from '@/components/cards/CardRegisterSheet';
 import { useTheme } from '@/components/ThemeProvider';
 import { translate, translateKnownCardNameToKo } from '@/lib/cardTranslate';
@@ -46,6 +46,59 @@ interface LookupCard {
   priceSummary?: {
     byRegion?: { jpy?: number | null; krw?: number | null } | null;
   } | null;
+}
+
+/* ── 정렬/필터 ─────────────────────────────────────────────── */
+
+type SortKey = 'rel' | 'rarity' | 'price' | 'volume';
+
+const SORT_LABEL: Record<SortKey, string> = {
+  rel: '관련도순',
+  rarity: '레어도순',
+  price: '비싼순',
+  volume: '거래량많은순',
+};
+
+/** 레어도 랭크 — 낮을수록 위. PROMO > UR > SAR > SR > AR > … */
+const RARITY_RANK: Record<string, number> = {
+  PROMO: 0,
+  UR: 1,
+  SAR: 2,
+  SR: 3,
+  AR: 4,
+  HR: 5,
+  SSR: 6,
+  CSR: 7,
+  CHR: 8,
+  RRR: 9,
+  RR: 10,
+};
+
+/** 카드명에서 레어도 토큰 추출. 프로모(프로모/PROMO/세트코드 -P)는 PROMO 로. */
+function rarityOf(c: RegisterCardInput): string | null {
+  const raw = c.name ?? '';
+  const up = `${raw} ${c.setCode ?? ''}`.toUpperCase();
+  if (/프로모|PROMO/.test(raw) || /-P[\s\]\)]|-P$/.test(up)) return 'PROMO';
+  const m = up.match(/(?:^|[^A-Z0-9])(SAR|SSR|CSR|CHR|RRR|RR|UR|HR|AR|SR)(?![A-Z0-9])/);
+  return m ? m[1] : null;
+}
+
+/** 레어도 배지 색 (프로토타입 팔레트) — 데이터 색이라 테마 무관 고정. */
+const RARITY_BADGE: Record<string, { fg: string; bg: string }> = {
+  PROMO: { fg: '#F5333F', bg: '#FFECEC' },
+  UR: { fg: '#2563EB', bg: '#E0EDFF' },
+  SAR: { fg: '#7C5CFC', bg: '#F4F1FF' },
+  SR: { fg: '#C2410C', bg: '#FFEDD5' },
+  AR: { fg: '#1E8E5A', bg: '#E3F6EC' },
+  HR: { fg: '#B8860B', bg: '#FBF3DA' },
+  RR: { fg: '#8E44AD', bg: '#F3EAFB' },
+};
+
+/** 세트 키 — 입력한 세트코드 우선, 없으면 이름의 "[SV4a 201/165]" 대괄호에서 추출. */
+function setKeyOf(c: RegisterCardInput): string | null {
+  if (c.setCode?.trim()) return c.setCode.trim().toUpperCase();
+  const m = (c.name ?? '').toUpperCase().match(/\[([A-Z0-9\-]{2,10})[\s\]]/);
+  return m ? m[1] : null;
 }
 
 /* ── 팔레트: Claude Design 'POKE30 카드추가' 프로토타입.
@@ -168,6 +221,14 @@ export function ManualAddForm(_props: Props) {
   const [results, setResults] = useState<RegisterCardInput[]>([]);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [registering, setRegistering] = useState<RegisterCardInput | null>(null);
+  // 정렬/필터 — 관련도순 = 검색 API가 준 순서 그대로.
+  const [sort, setSort] = useState<SortKey>('rel');
+  const [rarityFilter, setRarityFilter] = useState<string | null>(null);
+  const [setFilter, setSetFilter] = useState<string | null>(null);
+  const [menu, setMenu] = useState<'set' | 'rarity' | 'sort' | null>(null);
+  // 거래량많은순 — 카탈로그 스냅샷의 출품수(listingCount). apparelId → count.
+  const [volumes, setVolumes] = useState<Record<number, number>>({});
+  const volFetchedRef = useRef<Set<number>>(new Set());
   // "더보기" 페이지네이션 상태 — 검색 쿼리/중복셋/다음 페이지를 유지해 이어서 로드.
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -225,6 +286,9 @@ export function ManualAddForm(_props: Props) {
     setResults([]);
     setSelectedIdx(null);
     setHasMore(false);
+    setRarityFilter(null);
+    setSetFilter(null);
+    setMenu(null);
     try {
       const list: RegisterCardInput[] = [];
 
@@ -292,6 +356,72 @@ export function ManualAddForm(_props: Props) {
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') runSearch();
   };
+
+  // 거래량많은순 선택 시 — 현재 결과의 카탈로그 스냅샷(출품수)을 배치로 로드.
+  useEffect(() => {
+    if (sort !== 'volume') return;
+    const ids = results
+      .map((c) => c.snkrdunkApparelId)
+      .filter((n): n is number => typeof n === 'number' && n > 0)
+      .filter((n) => !volFetchedRef.current.has(n));
+    if (ids.length === 0) return;
+    ids.forEach((n) => volFetchedRef.current.add(n));
+    fetch(`/api/snkrdunk/catalog-entries?ids=${ids.join(',')}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j: { entries?: Record<string, { listingCount: number | null }> }) => {
+        const add: Record<number, number> = {};
+        for (const [id, e] of Object.entries(j?.entries ?? {})) {
+          if (e?.listingCount != null) add[Number(id)] = e.listingCount;
+        }
+        if (Object.keys(add).length > 0) setVolumes((prev) => ({ ...prev, ...add }));
+      })
+      .catch(() => {
+        // 카탈로그 미조회 실패 — 거래량 데이터 없이 원래 순서 유지
+      });
+  }, [sort, results]);
+
+  // 필터 옵션 — 현재 결과에서 발견된 세트/레어도만 노출.
+  const setOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of results) {
+      const k = setKeyOf(c);
+      if (k) s.add(k);
+    }
+    return [...s].sort();
+  }, [results]);
+  const rarityOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of results) {
+      const k = rarityOf(c);
+      if (k) s.add(k);
+    }
+    return [...s].sort((a, b) => (RARITY_RANK[a] ?? 99) - (RARITY_RANK[b] ?? 99));
+  }, [results]);
+
+  // 표시 리스트 — 필터 → 정렬. idx 는 results 원본 인덱스(선택 상태 유지용).
+  const displayed = useMemo(() => {
+    let rows = results.map((c, idx) => ({ c, idx }));
+    if (setFilter) rows = rows.filter((r) => setKeyOf(r.c) === setFilter);
+    if (rarityFilter) rows = rows.filter((r) => rarityOf(r.c) === rarityFilter);
+    if (sort === 'rarity') {
+      rows = [...rows].sort((a, b) => {
+        const ra = RARITY_RANK[rarityOf(a.c) ?? ''] ?? 99;
+        const rb = RARITY_RANK[rarityOf(b.c) ?? ''] ?? 99;
+        return ra - rb || a.idx - b.idx;
+      });
+    } else if (sort === 'price') {
+      rows = [...rows].sort(
+        (a, b) => (b.c.currentPriceJpy ?? -1) - (a.c.currentPriceJpy ?? -1) || a.idx - b.idx,
+      );
+    } else if (sort === 'volume') {
+      rows = [...rows].sort((a, b) => {
+        const va = a.c.snkrdunkApparelId != null ? (volumes[a.c.snkrdunkApparelId] ?? -1) : -1;
+        const vb = b.c.snkrdunkApparelId != null ? (volumes[b.c.snkrdunkApparelId] ?? -1) : -1;
+        return vb - va || a.idx - b.idx;
+      });
+    }
+    return rows;
+  }, [results, setFilter, rarityFilter, sort, volumes]);
 
   /* ── 등록 시트 단계 ── */
   if (registering) {
@@ -459,47 +589,112 @@ export function ManualAddForm(_props: Props) {
 
         {searched && (
           <>
+            {/* 메뉴 열림 시 바깥 클릭으로 닫기 */}
+            {menu && (
+              <div onClick={() => setMenu(null)} style={{ position: 'fixed', inset: 0, zIndex: 30 }} />
+            )}
+
             {/* 필터 칩 */}
-            <div
-              style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '14px 16px 12px', scrollbarWidth: 'none' }}
-            >
-              <Chip P={P}>
-                <IcFilter c={P.ink} />
-                필터
-              </Chip>
-              <Chip P={P} active>
-                전체
-              </Chip>
-              <Chip P={P}>
-                세트
-                <IcCaret c={P.ink} size={12} />
-              </Chip>
-              <Chip P={P}>
-                레어도
-                <IcCaret c={P.ink} size={12} />
-              </Chip>
-              <Chip P={P}>일본판</Chip>
-            </div>
+            {results.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '14px 16px 12px' }}>
+                <Chip P={P} active={!setFilter && !rarityFilter} onClick={() => { setSetFilter(null); setRarityFilter(null); setMenu(null); }}>
+                  <IcFilter c={!setFilter && !rarityFilter ? P.btnFg : P.ink} />
+                  전체
+                </Chip>
+                {setOptions.length > 0 && (
+                  <div style={{ position: 'relative' }}>
+                    <Chip P={P} active={!!setFilter} onClick={() => setMenu(menu === 'set' ? null : 'set')}>
+                      {setFilter ?? '세트'}
+                      <IcCaret c={setFilter ? P.btnFg : P.ink} size={12} />
+                    </Chip>
+                    {menu === 'set' && (
+                      <Menu P={P}>
+                        <MenuItem P={P} active={!setFilter} onClick={() => { setSetFilter(null); setMenu(null); }}>
+                          전체 세트
+                        </MenuItem>
+                        {setOptions.map((s) => (
+                          <MenuItem key={s} P={P} active={setFilter === s} onClick={() => { setSetFilter(s); setMenu(null); }}>
+                            {s}
+                          </MenuItem>
+                        ))}
+                      </Menu>
+                    )}
+                  </div>
+                )}
+                {rarityOptions.length > 0 && (
+                  <div style={{ position: 'relative' }}>
+                    <Chip P={P} active={!!rarityFilter} onClick={() => setMenu(menu === 'rarity' ? null : 'rarity')}>
+                      {rarityFilter ?? '레어도'}
+                      <IcCaret c={rarityFilter ? P.btnFg : P.ink} size={12} />
+                    </Chip>
+                    {menu === 'rarity' && (
+                      <Menu P={P}>
+                        <MenuItem P={P} active={!rarityFilter} onClick={() => { setRarityFilter(null); setMenu(null); }}>
+                          전체 레어도
+                        </MenuItem>
+                        {rarityOptions.map((r) => (
+                          <MenuItem key={r} P={P} active={rarityFilter === r} onClick={() => { setRarityFilter(r); setMenu(null); }}>
+                            {r === 'PROMO' ? '프로모' : r}
+                          </MenuItem>
+                        ))}
+                      </Menu>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 결과 수 + 정렬 */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px 8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: results.length > 0 ? '0 18px 8px' : '14px 18px 8px' }}>
               <div style={{ fontSize: 13.5, color: P.ink3, fontWeight: 600 }}>
-                검색 결과 <span style={{ color: P.ink, fontWeight: 800 }}>{results.length}</span>개
+                검색 결과 <span style={{ color: P.ink, fontWeight: 800 }}>{displayed.length}</span>개
+                {displayed.length !== results.length && (
+                  <span> (전체 {results.length})</span>
+                )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 700, color: P.ink }}>
-                관련도순 <IcCaret c={P.ink} />
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setMenu(menu === 'sort' ? null : 'sort')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: P.ink,
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {SORT_LABEL[sort]} <IcCaret c={P.ink} />
+                </button>
+                {menu === 'sort' && (
+                  <Menu P={P} right>
+                    {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+                      <MenuItem key={k} P={P} active={sort === k} onClick={() => { setSort(k); setMenu(null); }}>
+                        {SORT_LABEL[k]}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                )}
               </div>
             </div>
 
             {/* 결과 리스트 */}
             <div style={{ padding: '0 16px 10px' }}>
-              {results.map((c, i) => {
-                const sel = selectedIdx === i;
+              {displayed.map(({ c, idx }) => {
+                const sel = selectedIdx === idx;
                 const sub = [c.setCode?.toUpperCase(), c.cardNumber].filter(Boolean).join(' · ');
+                const rar = rarityOf(c);
+                const rarC = rar ? (RARITY_BADGE[rar] ?? { fg: '#8E8E93', bg: '#F2F2F4' }) : null;
                 return (
                   <div
-                    key={i}
-                    onClick={() => setSelectedIdx(sel ? null : i)}
+                    key={idx}
+                    onClick={() => setSelectedIdx(sel ? null : idx)}
                     role="radio"
                     aria-checked={sel}
                     style={{
@@ -547,6 +742,11 @@ export function ManualAddForm(_props: Props) {
                         </div>
                       )}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7 }}>
+                        {rar && rarC && (
+                          <span style={{ fontSize: 10.5, fontWeight: 800, color: rarC.fg, background: rarC.bg, padding: '2px 7px', borderRadius: 6 }}>
+                            {rar === 'PROMO' ? '프로모' : rar}
+                          </span>
+                        )}
                         <span style={{ fontSize: 10.5, fontWeight: 700, color: P.ink2, border: `1px solid ${P.fieldBd}`, padding: '2px 7px', borderRadius: 6 }}>
                           일본판
                         </span>
@@ -663,9 +863,21 @@ export function ManualAddForm(_props: Props) {
   );
 }
 
-function Chip({ P, active, children }: { P: Palette; active?: boolean; children: React.ReactNode }) {
+function Chip({
+  P,
+  active,
+  onClick,
+  children,
+}: {
+  P: Palette;
+  active?: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       style={{
         flex: 'none',
         display: 'flex',
@@ -679,10 +891,71 @@ function Chip({ P, active, children }: { P: Palette; active?: boolean; children:
         background: active ? P.btnBg : P.pageBg,
         color: active ? P.btnFg : P.ink,
         border: `1px solid ${active ? P.btnBg : P.fieldBd}`,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** 칩/정렬 드롭다운 패널. 부모는 position:relative 여야 한다. */
+function Menu({ P, right, children }: { P: Palette; right?: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 'calc(100% + 6px)',
+        ...(right ? { right: 0 } : { left: 0 }),
+        zIndex: 40,
+        minWidth: 130,
+        maxHeight: 260,
+        overflowY: 'auto',
+        background: P.pageBg,
+        border: `1px solid ${P.fieldBd}`,
+        borderRadius: 12,
+        boxShadow: '0 8px 24px rgba(0,0,0,.14)',
+        padding: '5px 0',
       }}
     >
       {children}
     </div>
+  );
+}
+
+function MenuItem({
+  P,
+  active,
+  onClick,
+  children,
+}: {
+  P: Palette;
+  active?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'block',
+        width: '100%',
+        textAlign: 'left',
+        padding: '9px 16px',
+        fontSize: 13,
+        fontWeight: active ? 800 : 700,
+        color: active ? P.accent : P.ink,
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        fontFamily: 'inherit',
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
