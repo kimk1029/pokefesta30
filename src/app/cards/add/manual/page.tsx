@@ -34,7 +34,7 @@ export default async function Page() {
   return (
     <>
       <StatusBar />
-      <AppBar title="카드 직접 입력" showBack backHref="/cards/add" />
+      <AppBar title="카드 직접 입력" showBack backHref="/my/cards" />
       <div style={{ height: 14 }} />
       <ManualAddForm catalog={catalog} />
       <div className="bggap" />
