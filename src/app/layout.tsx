@@ -91,7 +91,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&family=Noto+Serif+KR:wght@400;600;700;900&family=Do+Hyeon&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&family=Do+Hyeon&display=swap"
           rel="stylesheet"
         />
         {/* Pretendard — 클린(ARVOTCG) 테마 본문 폰트 */}

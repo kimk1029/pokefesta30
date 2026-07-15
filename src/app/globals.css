@@ -2632,7 +2632,7 @@ a{color:inherit;text-decoration:none;}
 /* onepiece — 클래식(해적 깃발+양피지) 테마. 디픽셀 공유 블록(:is(clean,dark,yugioh,onepiece))을
    타고, 팔레트/프레임/바 스타일은 파일 하단 "ONEPIECE — 클래식" 섹션에서 덮어쓴다. */
 
-/* yugioh — 클래식(세리프+골드 프레임) 테마. 디픽셀 공유 블록을 타고,
+/* yugioh — 클래식(고딕+골드 프레임) 테마. 디픽셀 공유 블록을 타고,
    팔레트/프레임/바 스타일은 파일 하단 "YUGIOH — 클래식" 섹션에서 덮어쓴다. */
 
 /* sports — 스코어보드/잔디/스타디움 톤. 폰트는 한글 고딕 픽셀을 우선해 읽기 좋게. */
@@ -3966,9 +3966,9 @@ a{color:inherit;text-decoration:none;}
 :is([data-theme="clean"],[data-theme="dark"],[data-theme="yugioh"],[data-theme="onepiece"]) .login-btn-google{background:#FFFFFF;color:#1F1F1F;}
 
 /* ════════════════════════════════════════════════════════════════
-   YUGIOH — 클래식 (세리프 + 골드 프레임)
+   YUGIOH — 클래식 (고딕 + 골드 프레임)
    픽셀 중화는 :is(clean,dark,yugioh) 공유 블록이 처리하고, 여기서
-   팔레트(양피지+다크퍼플+황금)·세리프 폰트·이중 금테 프레임을 입힌다.
+   팔레트(양피지+다크퍼플+황금)·고딕 폰트·이중 금테 프레임을 입힌다.
    소스 순서상 공유 블록보다 뒤 → 동률 특이도에서 항상 이긴다.
    ════════════════════════════════════════════════════════════════ */
 [data-theme="yugioh"]{
@@ -3993,9 +3993,9 @@ a{color:inherit;text-decoration:none;}
   --c-e:#3E7C45; --c-n:#C9971C; --c-b:#C06A1F; --c-f:#A32638;
   /* 다크 패널(히어로 등) — 딥 퍼플 */
   --dark:#1C0F33; --dark2:#2A1745; --dark3:#3A2358;
-  /* 폰트 — 클래식 세리프(명조) */
-  --f1:'Noto Serif KR','Nanum Myeongjo','Apple SD Gothic Neo',Georgia,'Times New Roman',serif;
-  --f2:'Noto Serif KR','Nanum Myeongjo','Apple SD Gothic Neo',Georgia,'Times New Roman',serif;
+  /* 폰트 — 깔끔한 고딕: 제목 도현(f1) + 본문 Pretendard(f2) */
+  --f1:'Do Hyeon','Pretendard','Apple SD Gothic Neo',sans-serif;
+  --f2:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
   /* 라운드 — 클래식 액자: 거의 직각에 가까운 미세 라운드 */
   --r:6px; --r-sm:4px; --r-pill:999px; --r-xl:10px;
   --sh-sm:0 1px 2px rgba(43,26,6,.08);
