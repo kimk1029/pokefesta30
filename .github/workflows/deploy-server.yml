@@ -102,15 +102,18 @@ jobs:
             pm2 start ecosystem.config.cjs --only pokefesta30-server
             pm2 save
 
-            # 헬스 체크 — /health 엔드포인트가 {ok:true,...} 반환 (최대 30초).
-            for i in $(seq 1 30); do
+            # 헬스 체크 — /health 엔드포인트가 {ok:true,...} 반환 (최대 120초).
+            # delete→start + npm ci 직후엔 tsx 콜드 스타트가 30초를 훌쩍 넘길
+            # 수 있어(2026-07-15 실사례: 40초+에 정상 기동) 넉넉히 기다린다.
+            for i in $(seq 1 120); do
               if curl -sf http://127.0.0.1:3030/health >/dev/null 2>&1; then
-                echo "✓ server is up on :3030"
+                echo "✓ server is up on :3030 (${i}s)"
                 exit 0
               fi
+              [ $((i % 15)) -eq 0 ] && echo "…waiting for :3030/health (${i}s)"
               sleep 1
             done
-            echo "::error::server did not respond on :3030/health within 30s"
+            echo "::error::server did not respond on :3030/health within 120s"
             pm2 logs pokefesta30-server --lines 80 --nostream || true
             pm2 describe pokefesta30-server || true
             exit 1
