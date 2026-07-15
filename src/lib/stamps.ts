@@ -1,4 +1,4 @@
-/** 포케페스타30 x 잉어킹 프로모 — 스탬프 랠리 스펙. */
+/** 아르보TCG x 잉어킹 프로모 — 스탬프 랠리 스펙. */
 
 export interface StampSpot {
   no: number;
@@ -115,7 +115,7 @@ export const STAMP_REWARDS: StampReward[] = [
 ];
 
 export const EVENT_META = {
-  title: '포케페스타30 × 잉어킹 프로모',
+  title: '아르보TCG × 잉어킹 프로모',
   period: '2026.05.01 – 05.31',
   location: '서울 성수 일대',
   how: '포켓몬 GO 앱에서 6곳의 포켓스탑 방문 → 스탬프 수집 → 보상 센터 방문하여 교환',

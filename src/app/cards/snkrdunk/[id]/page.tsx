@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description,
     alternates: { canonical },
     openGraph: {
-      title: `${title} · 포케페스타30`,
+      title: `${title} · 아르보TCG`,
       description,
       url: canonical,
       images: [{ url: ogImage }],

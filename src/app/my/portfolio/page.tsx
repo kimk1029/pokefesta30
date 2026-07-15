@@ -7,7 +7,7 @@ import { getServerUser } from '@/lib/apiServer';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '포트폴리오 · CardVault',
+  title: '포트폴리오 · ARVOTCG',
   description: '내 컬렉션을 주식처럼 — 평가액·등락률·일별 차트로 봅니다.',
 };
 

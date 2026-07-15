@@ -6,7 +6,7 @@ import type { MyFavoriteRow } from '@/lib/queries';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '관심카드 · CardVault',
+  title: '관심카드 · ARVOTCG',
   description: '내가 관심 표시한 카드 목록. 포트폴리오 자산 합계에는 포함되지 않습니다.',
 };
 

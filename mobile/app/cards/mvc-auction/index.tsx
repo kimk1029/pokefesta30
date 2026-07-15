@@ -16,7 +16,7 @@ import {
 import { useListingFavorites, type ListingFavorite } from '@/lib/useListingFavorites';
 
 /**
- * 경매(MVC) — Claude Design 'POKE30 경매' 프로토타입 레이아웃 (네이티브).
+ * 경매(MVC) — Claude Design 'ARVOTCG 경매' 프로토타입 레이아웃 (네이티브).
  * 모든 테마가 같은 레이아웃, 색/폰트만 테마별(클린=레드 포인트, 그 외=테마토큰).
  * 데이터/입찰갱신/관심 로직은 유지하고 표현만 새 디자인으로.
  */

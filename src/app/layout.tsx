@@ -25,8 +25,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.poke-30.com';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: '포케페스타30 — 포켓몬 TCG 커뮤니티',
-    template: '%s · 포케페스타30',
+    default: '아르보TCG — 포켓몬 TCG 커뮤니티',
+    template: '%s · 아르보TCG',
   },
   description:
     '포켓몬 TCG 카드 거래·시세 확인 + 30주년 행사 현장 상황 공유. 트레이너들을 위한 커뮤니티.',
@@ -34,8 +34,8 @@ export const metadata: Metadata = {
     '포켓몬 TCG', '포켓몬 카드 거래', '포켓몬 카드 시세',
     '포켓몬 30주년', '포켓몬 페스타', '카드 시세 검색',
   ],
-  applicationName: '포케페스타30',
-  authors: [{ name: 'pokefesta30' }],
+  applicationName: '아르보TCG',
+  authors: [{ name: 'ARVOTCG' }],
   alternates: { canonical: '/' },
   manifest: '/manifest.webmanifest',
   icons: {
@@ -50,15 +50,15 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'ko_KR',
     url: SITE_URL,
-    siteName: '포케페스타30 — 포켓몬 TCG 커뮤니티',
-    title: '포케페스타30 — 포켓몬 TCG 커뮤니티',
+    siteName: '아르보TCG — 포켓몬 TCG 커뮤니티',
+    title: '아르보TCG — 포켓몬 TCG 커뮤니티',
     description:
       'TCG 카드 거래 · 카드 시세 검색 · 행사 현장 정보 공유',
     images: [{ url: '/meta.png', width: 1672, height: 941 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '포케페스타30 — 포켓몬 TCG 커뮤니티',
+    title: '아르보TCG — 포켓몬 TCG 커뮤니티',
     description: 'TCG 카드 거래 · 시세 · 행사 정보 공유',
     images: ['/meta.png'],
   },
@@ -94,7 +94,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&family=Noto+Serif+KR:wght@400;600;700;900&family=Pirata+One&family=Gugi&family=Gowun+Batang:wght@400;700&display=swap"
           rel="stylesheet"
         />
-        {/* Pretendard — 클린(CardVault) 테마 본문 폰트 */}
+        {/* Pretendard — 클린(ARVOTCG) 테마 본문 폰트 */}
         <link
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
           rel="stylesheet"
@@ -112,7 +112,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {
               '@context': 'https://schema.org',
               '@type': 'Organization',
-              name: '포케페스타30',
+              name: '아르보TCG',
               url: SITE_URL,
               logo: `${SITE_URL}/app-icon.png`,
               description:
@@ -121,7 +121,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             {
               '@context': 'https://schema.org',
               '@type': 'WebSite',
-              name: '포케페스타30 — 포켓몬 TCG 커뮤니티',
+              name: '아르보TCG — 포켓몬 TCG 커뮤니티',
               url: SITE_URL,
               inLanguage: 'ko-KR',
               potentialAction: {

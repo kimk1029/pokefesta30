@@ -14,7 +14,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = { title: '이벤트 | 포케30' };
+export const metadata = { title: '이벤트 | 아르보TCG' };
 
 const STATUS_STYLE: Record<EventStatus, { background: string; color: string }> = {
   ongoing: { background: 'var(--accent)', color: '#fff' },

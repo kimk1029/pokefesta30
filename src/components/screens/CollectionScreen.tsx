@@ -788,7 +788,7 @@ function CardListItem({ row, format, last, onRemove }: { row: Row; format: (j: n
   );
 }
 
-/** 상단 헤더 — POKE30 내자산 디자인: 제목 + 검색/알림/도움말 아이콘. */
+/** 상단 헤더 — ARVOTCG 내자산 디자인: 제목 + 검색/알림/도움말 아이콘. */
 function CollectionHeader() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px var(--gap) 10px' }}>

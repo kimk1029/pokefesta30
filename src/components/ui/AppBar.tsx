@@ -17,7 +17,7 @@ export function AppBar({ title, backHref, showBack, right }: Props) {
       ) : (
         <div className="appbar-logo">
           <PixelBall size={22} />
-          <span>포케30</span>
+          <span>아르보TCG</span>
         </div>
       )}
       <div className="appbar-title">{title ?? ''}</div>

@@ -6,13 +6,13 @@ import { StatusBar } from '@/components/ui/StatusBar';
 export const metadata: Metadata = {
   title: '개인정보처리방침',
   description:
-    '포케페스타30 서비스의 개인정보 수집·이용·보관·파기 정책 안내',
+    '아르보TCG 서비스의 개인정보 수집·이용·보관·파기 정책 안내',
   alternates: { canonical: '/privacy' },
 };
 
 const UPDATED_AT = '2026.04.26';
 const CONTACT_EMAIL =
-  process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'pokefesta30@example.com';
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'arvotcg@example.com';
 
 export default function PrivacyPage() {
   return (
@@ -30,7 +30,7 @@ export default function PrivacyPage() {
 
         <Doc>
           <P>
-            「포케페스타30」(이하 “서비스”)은 이용자의 개인정보를
+            「아르보TCG」(이하 “서비스”)은 이용자의 개인정보를
             중요하게 생각하며, 「개인정보 보호법」을 비롯한 관련 법령을
             준수하기 위해 다음과 같은 처리방침을 두고 있습니다.
           </P>
@@ -198,7 +198,7 @@ export default function PrivacyPage() {
 
           <H>10. 개인정보 보호책임자 및 문의처</H>
           <Ul>
-            <Li>책임자: 포케페스타30 운영자</Li>
+            <Li>책임자: 아르보TCG 운영자</Li>
             <Li>
               연락처:{' '}
               <Link href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</Link>

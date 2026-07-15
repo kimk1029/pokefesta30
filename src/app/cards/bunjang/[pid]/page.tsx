@@ -6,7 +6,7 @@ import { fetchBunjangProduct } from '@/lib/bunjang';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '우리 장터 시세 | 포케30',
+  title: '우리 장터 시세 | 아르보TCG',
 };
 
 function fmtWon(n: number): string {

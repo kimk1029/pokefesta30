@@ -1,4 +1,4 @@
-# 포케페스타30
+# 아르보TCG
 
 포켓몬 30주년 메가페스타 잉어킹 프로모 실시간 현황 허브 (모바일 웹).
 Next.js 14 App Router + TypeScript + Supabase.

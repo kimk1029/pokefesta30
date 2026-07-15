@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     '포켓몬 TCG 카드 직거래·택배거래 장터 — 팝니다·삽니다 글을 실시간으로 확인하세요.',
   alternates: { canonical: '/trade' },
   openGraph: {
-    title: '카드 거래 · 포케페스타30',
+    title: '카드 거래 · 아르보TCG',
     description: '포켓몬 TCG 카드 직거래·택배거래 장터',
     url: '/trade',
   },

@@ -6,7 +6,7 @@ import { fetchBunjangSearch, BUNJANG_DEFAULT_KEYWORD } from '@/lib/bunjang';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '국내 시세 (번개장터) | 포케30',
+  title: '국내 시세 (번개장터) | 아르보TCG',
 };
 
 export default async function Page() {

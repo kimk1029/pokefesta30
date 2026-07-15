@@ -65,7 +65,7 @@ export function LoginScreen({ callbackUrl = '/', hideSkip, onSkip }: Props) {
       <div className="login-logo-wrap">
         <PixelBall size={72} />
         <div className="login-title">
-          포케페스타30
+          아르보TCG
           <br />
           잉어킹 프로모
         </div>

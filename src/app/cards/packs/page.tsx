@@ -14,7 +14,7 @@ interface SearchResp {
 }
 
 export const metadata = {
-  title: '시세확인 · CardVault',
+  title: '시세확인 · ARVOTCG',
   description: '포켓몬·원피스·유희왕·스포츠 카드 박스를 선택하고 박스별 싱글카드 시세를 확인하세요.',
 };
 

@@ -1,5 +1,5 @@
 /**
- * 포케페스타30 — 디자인 토큰 (CardVault 통합)
+ * 아르보TCG — 디자인 토큰 (ARVOTCG 통합)
  * 웹 globals.css :root 변수와 1:1 매핑.
  */
 
@@ -10,7 +10,7 @@ export const colors = {
   yel: '#FFD23F',
   yelLt: '#FFE987',
   yelDk: '#B88400',
-  /** CardVault gold (yel 별칭 — 의미 명확화용) */
+  /** ARVOTCG gold (yel 별칭 — 의미 명확화용) */
   gold: '#FFD23F',
   goldLt: '#FFE987',
   goldDk: '#B88400',

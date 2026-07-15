@@ -27,7 +27,7 @@ const TITLES = [
   '챔피언 트레이너',   // LV.7
   '잉어킹 마스터',     // LV.8
   '포켓몬 마스터',     // LV.9
-  '포케30 레전드',     // LV.10
+  '아르보TCG 레전드',     // LV.10
 ];
 
 export function levelFromPoints(points: number): LevelInfo {

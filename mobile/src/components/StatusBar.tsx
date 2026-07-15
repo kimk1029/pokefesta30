@@ -13,7 +13,7 @@ export function StatusBar() {
   return (
     <View style={[styles.bar, { backgroundColor: c.gold, borderBottomColor: c.ink }]}>
       <PixelText variant={textVariant} size={9} color={c.ink} style={{ letterSpacing: 1 }}>
-        {theme === 'onepiece' ? '☠ GRAND LINE' : theme === 'sports' ? 'SCORE BOARD' : '🃏 CARDVAULT'}
+        {theme === 'onepiece' ? '☠ GRAND LINE' : theme === 'sports' ? 'SCORE BOARD' : '🃏 ARVOTCG'}
       </PixelText>
       <PixelText variant={textVariant} size={9} color={c.ink} style={{ letterSpacing: 1 }}>
         {theme === 'onepiece' ? '☀×3   9:41' : theme === 'sports' ? 'Q4   9:41' : '♥×3   9:41'}

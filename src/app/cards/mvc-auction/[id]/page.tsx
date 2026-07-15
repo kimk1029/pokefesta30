@@ -7,7 +7,7 @@ import { fetchMvcArticle, mvcImgProxy, type MvcArticleDetail, type MvcCommentIte
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'MVC 경매 상세 | 포케30',
+  title: 'MVC 경매 상세 | 아르보TCG',
 };
 
 function fmtWon(n: number): string {

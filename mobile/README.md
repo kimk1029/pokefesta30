@@ -1,6 +1,6 @@
-# 포케페스타30 Mobile (React Native / Expo)
+# 아르보TCG Mobile (React Native / Expo)
 
-루트 Next.js 웹앱(`pokefesta30`)의 디자인을 React Native로 포팅한 모바일 앱.
+루트 Next.js 웹앱(`arvotcg`)의 디자인을 React Native로 포팅한 모바일 앱.
 
 ## 개발
 
@@ -51,5 +51,5 @@ mobile/
 
 ```bash
 cd mobile
-git init && git add . && git commit -m "init pokefesta30 mobile"
+git init && git add . && git commit -m "init arvotcg mobile"
 ```

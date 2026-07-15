@@ -1,4 +1,4 @@
-# CardVault 로드맵 — Collectr 한국 버전
+# ARVOTCG 로드맵 — Collectr 한국 버전
 
 > **포지션**: 한국 TCG 컬렉터를 위한 포트폴리오 관리·거래·그레이딩 통합 플랫폼.
 > **벤치마크**: [Collectr](https://getcollectr.com) (글로벌, 2M+ MAU, 25+ TCG)

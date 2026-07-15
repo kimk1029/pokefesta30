@@ -8,9 +8,9 @@
 import { prisma } from './prisma.js';
 import { fetchApparelPrices } from '@/lib/snkrdunkPrice';
 
-/** 시스템 발신자(알림 봇) — 알림함에 "포케30 가격알림" 스레드로 보이게 한다. */
+/** 시스템 발신자(알림 봇) — 알림함에 "아르보TCG 가격알림" 스레드로 보이게 한다. */
 const SYSTEM_SENDER_ID = 'system-price-alert';
-const SYSTEM_SENDER_NAME = '포케30 가격알림';
+const SYSTEM_SENDER_NAME = '아르보TCG 가격알림';
 
 /** 기본 점검 주기(ms). 시세 캐시(10분)와 맞춰 15분. */
 export const PRICE_ALERT_INTERVAL_MS = 15 * 60_000;

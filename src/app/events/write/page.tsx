@@ -6,7 +6,7 @@ import { getServerUser } from '@/lib/apiServer';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = { title: '이벤트 글쓰기 | 포케30' };
+export const metadata = { title: '이벤트 글쓰기 | 아르보TCG' };
 
 export default async function Page() {
   const user = await getServerUser();

@@ -7,7 +7,7 @@ import { getServerUser } from '@/lib/apiServer';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '카드 등록 · 포케페스타30',
+  title: '카드 등록 · 아르보TCG',
   description: '스캔에서 선택한 카드를 내 컬렉션에 등록합니다.',
 };
 

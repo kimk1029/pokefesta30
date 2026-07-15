@@ -7,7 +7,7 @@ import { getServerUser } from '@/lib/apiServer';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '카드 센터링 추정 · 포케페스타30',
+  title: '카드 센터링 추정 · 아르보TCG',
   description: '포켓몬 카드 사진을 올리면 센터링을 추정해서 PSA 예상 등급을 보여줍니다.',
 };
 

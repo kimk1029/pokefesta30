@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: '포케페스타30',
-    short_name: '포케30',
+    name: '아르보TCG',
+    short_name: '아르보TCG',
     description: '포켓몬 TCG 카드 거래, 시세 확인, 커뮤니티 앱',
     start_url: '/',
     scope: '/',

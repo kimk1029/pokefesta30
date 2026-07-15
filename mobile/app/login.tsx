@@ -49,7 +49,7 @@ export default function LoginScreen() {
             <PixelBall size={72} />
           </View>
           <PixelText variant={txt} size={17} color={tc.gold} style={{ letterSpacing: 2 }} numberOfLines={1}>
-            CardVault
+            ARVOTCG
           </PixelText>
           <PixelText
             variant="ko"

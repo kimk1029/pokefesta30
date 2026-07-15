@@ -22,7 +22,7 @@ OUT_MOBILE = ROOT / "mobile" / "src" / "lib" / "pokemonNamesKoJa.ts"
 TOTAL = 1025
 CONCURRENCY = 6
 RETRIES = 4
-UA = "Mozilla/5.0 (compatible; pokefesta30-build/1.0; +https://www.poke-30.com)"
+UA = "Mozilla/5.0 (compatible; arvotcg-build/1.0; +https://www.poke-30.com)"
 
 def fetch(species_id: int) -> tuple[int, str | None, str | None]:
     url = f"https://pokeapi.co/api/v2/pokemon-species/{species_id}/"

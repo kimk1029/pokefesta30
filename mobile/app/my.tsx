@@ -129,7 +129,7 @@ export default function MyScreen() {
     {
       title: '상점 바로가기',
       items: [
-        { icon: '🛒', iconBg: '#6B3FA0', label: '포케30 상점', desc: '아바타·배경·테두리', onPress: () => router.push('/my/shop' as never) },
+        { icon: '🛒', iconBg: '#6B3FA0', label: '아르보TCG 상점', desc: '아바타·배경·테두리', onPress: () => router.push('/my/shop' as never) },
         { icon: '🎲', iconBg: '#1B2E89', label: '오리파 · 뽑기', desc: '포인트로 박스 뽑기', onPress: () => router.push('/my/oripa' as never) },
       ],
     },

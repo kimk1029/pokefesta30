@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     '포켓몬 TCG 카드 전체 시세를 한 곳에서 — snkrdunk 기준 실시간 카드 가격 목록을 둘러보세요.',
   alternates: { canonical: '/cards/snkrdunk/all' },
   openGraph: {
-    title: '스니덩크 전체 시세 · 포케페스타30',
+    title: '스니덩크 전체 시세 · 아르보TCG',
     description: '포켓몬 TCG 카드 전체 시세 목록 (snkrdunk 기준)',
     url: '/cards/snkrdunk/all',
   },

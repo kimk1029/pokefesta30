@@ -89,7 +89,7 @@ export async function generateMetadata({ params }: Params) {
   const pack = await loadPack(code);
   if (!pack) return { title: '카드팩' };
   return {
-    title: `${pack.name} · 힛카드 시세 — CardVault`,
+    title: `${pack.name} · 힛카드 시세 — ARVOTCG`,
     description: `${pack.name} 팩에서 나오는 힛카드들의 실시간 시세 (스니다 기준).`,
     alternates: { canonical: `/cards/packs/${encodeURIComponent(code)}` },
   };

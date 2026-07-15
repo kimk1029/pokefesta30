@@ -3,7 +3,7 @@
 export const SITE_URL =
   process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.poke-30.com';
 
-export const SITE_NAME = '포케페스타30';
+export const SITE_NAME = '아르보TCG';
 
 /** 절대 URL 로 변환. (이미 절대면 그대로) */
 export function absUrl(path: string): string {

@@ -28,13 +28,13 @@ import { useToast } from '@/components/ToastProvider';
 import { api } from '@/lib/apiClient';
 
 /**
- * 메인화면 — Claude Design 'POKE30 App' 프로토타입 레이아웃 (네이티브).
+ * 메인화면 — Claude Design 'ARVOTCG App' 프로토타입 레이아웃 (네이티브).
  * 모든 테마가 같은 레이아웃을 쓰고 색/폰트만 테마별로 달라진다 — 클린은 프로토타입
  * 오렌지 팔레트 그대로, 그 외 테마는 테마 토큰(tc)/폰트. HOT·박스는 자동 슬라이딩하며,
  * 카드 아트는 컨테이너 없이 이미지만 떠 보인다.
  */
 
-const ACCENT30 = '#FF7A00'; // POKE'30' 브랜드 액센트 — 모든 테마 공통
+const ACCENT30 = '#FF7A00'; // ARVO'TCG' 브랜드 액센트 — 모든 테마 공통
 const RISE = '#F5333F';
 const FALL = '#2C8FFF';
 
@@ -494,8 +494,8 @@ export function CleanHomeScreen() {
         {/* header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 8 }}>
           <Text style={ts(24, '900', P.ink)}>
-            <Text style={ts(24, '900', P.ink)}>POKE</Text>
-            <Text style={ts(24, '900', ACCENT30)}>30</Text>
+            <Text style={ts(24, '900', P.ink)}>ARVO</Text>
+            <Text style={ts(24, '900', ACCENT30)}>TCG</Text>
           </Text>
           <Pressable onPress={() => router.push('/my/messages' as never)} hitSlop={8}>
             <Svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke={P.ink} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">

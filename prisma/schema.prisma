@@ -1,4 +1,4 @@
-// Prisma 스키마 — 포케페스타30
+// Prisma 스키마 — 아르보TCG
 // 런타임 URL 은 src/lib/prisma.ts 에서 APP_ENV 에 따라 주입됨.
 // CLI(migrate/generate) 는 env("DATABASE_URL") + env("DIRECT_URL") 사용.
 //

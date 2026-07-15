@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     '포켓몬 TCG 인기 카드 시세를 PSA 등급별로 한눈에 — 최근가·평균가·시세 추이 차트 제공.',
   alternates: { canonical: '/cards' },
   openGraph: {
-    title: '카드 시세 · 포케페스타30',
+    title: '카드 시세 · 아르보TCG',
     description: '포켓몬 TCG 인기 카드 시세를 등급별로 한눈에',
     url: '/cards',
   },

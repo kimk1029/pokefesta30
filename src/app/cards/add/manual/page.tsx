@@ -7,7 +7,7 @@ import { CARDS_CATALOG } from '@/lib/cardsCatalog';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: '카드 직접 입력 · CardVault',
+  title: '카드 직접 입력 · ARVOTCG',
   description: '카드명·세트·메모 등을 직접 입력해 컬렉션에 보관합니다.',
 };
 

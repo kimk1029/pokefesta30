@@ -5,13 +5,13 @@ import { StatusBar } from '@/components/ui/StatusBar';
 
 export const metadata: Metadata = {
   title: '이용약관',
-  description: '포케페스타30 서비스 이용약관',
+  description: '아르보TCG 서비스 이용약관',
   alternates: { canonical: '/terms' },
 };
 
 const UPDATED_AT = '2026.04.26';
 const CONTACT_EMAIL =
-  process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'pokefesta30@example.com';
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'arvotcg@example.com';
 
 export default function TermsPage() {
   return (
@@ -30,7 +30,7 @@ export default function TermsPage() {
         <Doc>
           <H>제1조 (목적)</H>
           <P>
-            본 약관은 「포케페스타30」(이하 “서비스”)이 제공하는
+            본 약관은 「아르보TCG」(이하 “서비스”)이 제공하는
             온라인 서비스의 이용과 관련하여 회사와 이용자의 권리·의무 및
             책임사항, 기타 필요한 사항을 규정함을 목적으로 합니다.
           </P>

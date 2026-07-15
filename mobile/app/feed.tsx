@@ -9,7 +9,7 @@ import { fonts } from '@/theme/tokens';
 import { api } from '@/lib/apiClient';
 
 /**
- * 커뮤니티 — Claude Design 'POKE30 커뮤니티' 프로토타입 레이아웃 (네이티브).
+ * 커뮤니티 — Claude Design 'ARVOTCG 커뮤니티' 프로토타입 레이아웃 (네이티브).
  * 모든 테마가 같은 레이아웃을 쓰고 색/폰트만 테마별로 달라진다 — 클린은 프로토타입
  * 퍼플 팔레트 그대로, 그 외 테마는 테마 토큰(tc). 인기글·HOT키워드·공지는 정적 편집
  * 콘텐츠(웹과 동일), 글 목록·거래/나눔·댓글·북마크는 실데이터(웹 CommunityScreen 동일):

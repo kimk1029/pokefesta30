@@ -5,7 +5,7 @@ import { fetchAllTodayAuctions } from '@/lib/navercafe';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'MVC 경매 | 포케30',
+  title: 'MVC 경매 | 아르보TCG',
 };
 
 export default async function Page() {

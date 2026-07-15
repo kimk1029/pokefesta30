@@ -12,13 +12,13 @@ import type { SnkrdunkRow } from '@/components/dashboard/DashboardScreen';
 import type { MvcAuctionItem } from '@/lib/navercafe';
 
 /**
- * 메인화면 — Claude Design 'POKE30 App' 프로토타입 레이아웃.
- *  헤더(POKE30+벨) · 검색 · 프로모 배너 · 빠른 스캔 · HOT 카드 · 박스 힛카드 · 실시간 급등.
+ * 메인화면 — Claude Design 'ARVOTCG App' 프로토타입 레이아웃.
+ *  헤더(ARVOTCG+벨) · 검색 · 프로모 배너 · 빠른 스캔 · HOT 카드 · 박스 힛카드 · 실시간 급등.
  * 모든 테마가 같은 레이아웃을 쓰고, 색/폰트만 테마별로 달라진다(클린은 프로토타입 오렌지
  * 팔레트 그대로, 그 외 테마는 CSS 변수 토큰). 카드 아트는 컨테이너 없이 이미지만 떠 보이게.
  */
 
-const ACCENT30 = '#FF7A00'; // POKE'30' 브랜드 액센트 — 모든 테마 공통
+const ACCENT30 = '#FF7A00'; // ARVO'TCG' 브랜드 액센트 — 모든 테마 공통
 const RISE = '#F5333F';
 
 export interface Palette {
@@ -325,8 +325,8 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px 8px' }}>
         <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-.5px' }}>
-          <span style={{ color: P.ink }}>POKE</span>
-          <span style={{ color: ACCENT30 }}>30</span>
+          <span style={{ color: P.ink }}>ARVO</span>
+          <span style={{ color: ACCENT30 }}>TCG</span>
         </div>
         <Link href="/my/messages" aria-label="알림" style={{ position: 'relative', display: 'block', color: P.ink }}>
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={P.ink} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

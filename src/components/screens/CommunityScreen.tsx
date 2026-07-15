@@ -11,7 +11,7 @@ import { isAvatarId } from '@/lib/avatars';
 import type { FeedPost, Trade } from '@/lib/types';
 
 /**
- * 커뮤니티 — Claude Design 'POKE30 커뮤니티' 프로토타입 레이아웃.
+ * 커뮤니티 — Claude Design 'ARVOTCG 커뮤니티' 프로토타입 레이아웃.
  *  헤더(커뮤니티+팔로잉/내게시글) · 카테고리 탭 · 인기글(불타는글/개념글) ·
  *  실시간 HOT 키워드 · 정렬 행 · 공지 · 글 목록('거래/나눔'=실제 마켓).
  * 모든 테마가 같은 레이아웃을 쓰고, 색/폰트만 테마별로 달라진다(클린은 프로토타입

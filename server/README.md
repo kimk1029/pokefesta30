@@ -1,4 +1,4 @@
-# pokefesta30 OCR server
+# ARVOTCG OCR server
 
 Standalone Express server that the mobile app posts card images to.
 Runs OCR (Tesseract by default; OpenAI Vision when `OPENAI_API_KEY` is set),

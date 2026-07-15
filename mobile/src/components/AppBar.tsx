@@ -50,7 +50,7 @@ export function AppBar({ title, right, left, onBack, style, ...rest }: Props) {
         ) : (
           <View style={styles.logoWrap}>
             <PixelText variant={textVariant} size={flat ? 17 : 13} weight={flat ? 'bold' : 'normal'} color={c.ink} style={{ letterSpacing: flat ? -0.3 : 1 }}>
-              🃏 CardVault
+              🃏 ARVOTCG
             </PixelText>
           </View>
         )}

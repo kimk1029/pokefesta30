@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = r.data?.data;
   if (!post) return { title: '이벤트' };
 
-  const description = plainExcerpt(post.body) || `${post.title} — 포케페스타30 이벤트`;
+  const description = plainExcerpt(post.body) || `${post.title} — 아르보TCG 이벤트`;
   const ogImage = post.imageUrl ?? '/meta.png';
   const canonical = `/events/${id}`;
   return {
@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: { canonical },
     openGraph: {
       type: 'article',
-      title: `${post.title} · 포케페스타30`,
+      title: `${post.title} · 아르보TCG`,
       description,
       url: canonical,
       images: [{ url: ogImage }],
@@ -77,7 +77,7 @@ export default async function Page({ params }: Props) {
           ...(post.imageUrl ? { image: [absUrl(post.imageUrl)] } : {}),
           ...(post.startsAt ? { startDate: post.startsAt } : {}),
           ...(post.endsAt ? { endDate: post.endsAt } : {}),
-          organizer: { '@type': 'Organization', name: '포케페스타30', url: absUrl('/') },
+          organizer: { '@type': 'Organization', name: '아르보TCG', url: absUrl('/') },
         }}
       />
       <StatusBar />

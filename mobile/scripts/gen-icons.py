@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-픽셀 포켓볼 + CardVault 로고를 PIL 로 그려서 app icon / splash 를 생성.
+픽셀 포켓볼 + ARVOTCG 로고를 PIL 로 그려서 app icon / splash 를 생성.
 출력:
   mobile/assets/icon.png          (1024x1024)
   mobile/assets/adaptive-icon.png (1024x1024, 안드로이드 적응형: 안전영역 중앙 ~66%)
@@ -92,9 +92,9 @@ d = ImageDraw.Draw(splash)
 # 중앙에 포켓볼
 draw_pokeball(d, 621, 1050, 300)
 
-# "CardVault" — Press Start 2P (영문 픽셀 폰트)
+# "ARVOTCG" — Press Start 2P (영문 픽셀 폰트)
 title_font = ImageFont.truetype(str(PIXEL_FONT_PATH), 92)
-title = 'CardVault'
+title = 'ARVOTCG'
 bbox = d.textbbox((0, 0), title, font=title_font)
 tw = bbox[2] - bbox[0]
 th = bbox[3] - bbox[1]

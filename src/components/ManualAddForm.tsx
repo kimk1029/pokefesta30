@@ -101,7 +101,7 @@ function setKeyOf(c: RegisterCardInput): string | null {
   return m ? m[1] : null;
 }
 
-/* ── 팔레트: Claude Design 'POKE30 카드추가' 프로토타입.
+/* ── 팔레트: Claude Design 'ARVOTCG 카드추가' 프로토타입.
    클린 = 프로토타입 색 그대로, 그 외 테마 = CSS 변수 토큰. ── */
 interface Palette {
   pageBg: string;
@@ -201,7 +201,7 @@ function IcCaret({ c, size = 14 }: { c: string; size?: number }) {
 }
 
 /**
- * 카드 추가(직접입력) — Claude Design 'POKE30 카드추가' 프로토타입 레이아웃.
+ * 카드 추가(직접입력) — Claude Design 'ARVOTCG 카드추가' 프로토타입 레이아웃.
  *  헤더(뒤로가기·스캔 버튼) + 세트코드/카드번호/카드이름 입력 + 카드 검색 →
  *  필터 칩 · 결과 리스트(단일 선택 라디오) · 하단 고정 "내 컬렉션에 추가" 바 →
  *  스캔과 동일한 "카드 등록" 시트로 진입.

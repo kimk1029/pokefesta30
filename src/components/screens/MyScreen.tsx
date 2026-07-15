@@ -33,7 +33,7 @@ const ACTIVITY: Array<{ em: string; bg: string; lb: string; href: string }> = [
 ];
 
 const SHOP_SHORTCUTS = [
-  { em: '🛒', bg: '#6B3FA0', lb: '포케30 상점', href: '/my/shop' },
+  { em: '🛒', bg: '#6B3FA0', lb: '아르보TCG 상점', href: '/my/shop' },
   { em: '🎲', bg: '#1B2E89', lb: '오리파 · 뽑기', href: '/my/oripa' },
 ];
 
@@ -62,7 +62,7 @@ export function MyScreen({ user, level, cardCount, tradeCount, savedCount, isGue
         }
       />
 
-      {/* CardVault portfolio hero */}
+      {/* ARVOTCG portfolio hero */}
       <div className="cv-profile-hero">
         <div className="cv-profile-top">
           <div className="cv-profile-avatar">

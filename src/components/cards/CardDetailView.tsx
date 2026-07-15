@@ -12,7 +12,7 @@ import { PsaPopPanel } from '@/components/cards/PsaPopPanel';
 import { downsamplePricePoints, isGradedSnkrdunkBadge } from '@/lib/snkrdunk';
 
 /**
- * 카드 시세 상세 — POKE30 '카드상세' 디자인 레이아웃.
+ * 카드 시세 상세 — ARVOTCG '카드상세' 디자인 레이아웃.
  * 모든 테마 공통(색/라운드는 CSS 변수, 박스는 Panel). 데이터가 연결된 섹션은 실데이터,
  * 미연결 섹션(지역/플랫폼 비교/ROI)은 '준비 중' 으로 레이아웃만 유지.
  */
@@ -484,7 +484,7 @@ export function CardDetailView({
               가격 알림은 앱에서 이용할 수 있어요
             </div>
             <div style={{ fontFamily: 'var(--f1)', fontSize: 10, color: 'var(--ink3)', marginTop: 5, lineHeight: 1.5, letterSpacing: 0.2 }}>
-              POKE30 앱에서 목표가를 설정하면 시세가 도달했을 때 알려드려요.
+              ARVOTCG 앱에서 목표가를 설정하면 시세가 도달했을 때 알려드려요.
             </div>
           </div>
         </Panel>

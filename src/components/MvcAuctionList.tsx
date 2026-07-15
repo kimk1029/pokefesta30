@@ -17,7 +17,7 @@ import { ListAdRow } from '@/components/ListAdRow';
 import { useListingFavorites, type ListingFavorite } from '@/lib/useListingFavorites';
 
 /**
- * 경매(MVC) — Claude Design 'POKE30 경매' 프로토타입 레이아웃.
+ * 경매(MVC) — Claude Design 'ARVOTCG 경매' 프로토타입 레이아웃.
  *  헤더(경매+검색·알림·경매내역) · 다크 히어로 · 상태 탭(진행중/예정/종료+관심) ·
  *  필터 칩 · 🔥 마감 임박(가로 카드) · 🔨 주목할 만한 경매(세로 리스트) · 출품 FAB.
  * 모든 테마가 같은 레이아웃을 쓰고 색/폰트만 테마별(클린=레드 포인트, 그 외=CSS변수).

@@ -1,5 +1,5 @@
 /* ============================================
-   Pokefesta30 — pixel 3D (prototype-faithful)
+   ARVOTCG — pixel 3D (prototype-faithful)
    ============================================ */
 :root {
   --red:#E63946; --red-lt:#FF6470; --red-dk:#8F1620;
@@ -1946,11 +1946,11 @@ a{color:inherit;text-decoration:none;}
 }
 
 /* ════════════════════════════════════════════
-   CardVault — 5탭 디자인 시스템 (Phase 3 추가)
+   ARVOTCG — 5탭 디자인 시스템 (Phase 3 추가)
    기존 픽셀 토큰(--ink/--yel/--red 등)과 호환
    ════════════════════════════════════════════ */
 :root {
-  /* CardVault 추가 팔레트 */
+  /* ARVOTCG 추가 팔레트 */
   --gold:#FFD23F;  --gold-lt:#FFE987; --gold-dk:#B88400;
   --pnk:#EC4899;   --pnk-lt:#F9A8D4;  --pnk-dk:#831843;
   --teal:#0D9488;
@@ -2831,7 +2831,7 @@ a{color:inherit;text-decoration:none;}
    라운드 + 소프트 섀도우로 바꾼다.
    ============================================================ */
 :is([data-theme="clean"],[data-theme="dark"],[data-theme="yugioh"],[data-theme="onepiece"]){
-  /* CardVault-clean 디자인셋 — 에메랄드 + 골드, 웜 오프화이트 */
+  /* ARVOTCG-clean 디자인셋 — 에메랄드 + 골드, 웜 오프화이트 */
   /* 면/배경 */
   --paper:#FFFFFF; --pap2:#F6F6F4; --pap3:#EAEBED; --papdk:#9AA0A8;
   --white:#FFFFFF;
@@ -3269,7 +3269,7 @@ a{color:inherit;text-decoration:none;}
 :is([data-theme="clean"],[data-theme="dark"],[data-theme="yugioh"],[data-theme="onepiece"]) .fab-circle:active{transform:scale(.92);
   box-shadow:0 4px 12px rgba(14,124,102,.4);}
 
-/* ── 다크 포트폴리오 히어로 (CardVault-clean dark card) ── */
+/* ── 다크 포트폴리오 히어로 (ARVOTCG-clean dark card) ── */
 :is([data-theme="clean"],[data-theme="dark"],[data-theme="yugioh"],[data-theme="onepiece"]) .cv-port{
   border-radius:var(--r-xl);padding:22px 20px 20px;
   background:linear-gradient(155deg,var(--dark),var(--dark2) 55%,var(--dark3));
@@ -3866,7 +3866,7 @@ a{color:inherit;text-decoration:none;}
 [data-theme="dark"] .empty *{color:var(--ink3);}
 
 /* ════════════════════════════════════════════════════════════════
-   CLEAN — "CardVault 시세·거래" 프로토타입 스타일 적용
+   CLEAN — "ARVOTCG 시세·거래" 프로토타입 스타일 적용
    (claude.ai/design · cardvault-trade.html). 레이아웃/마크업은 그대로 두고
    팔레트·라운드·섀도우·액센트만 프로토타입 토큰으로 교체.
    :is(clean,dark) 공유 블록을 clean 한정으로 덮어쓴다(소스순서 우선, dark 영향 없음).

@@ -145,7 +145,7 @@ export function CardActions({ apparelId, cardName, imageUrl, currentPriceJpy, gr
         </div>
       </div>
     )}
-    {/* POKE30 카드상세 디자인 — 넓은 컬렉션 버튼 + 정사각형 SNKR·관심 버튼. */}
+    {/* ARVOTCG 카드상세 디자인 — 넓은 컬렉션 버튼 + 정사각형 SNKR·관심 버튼. */}
     <div style={{ display: 'flex', gap: 8, margin: '0 var(--gap) var(--cg)' }}>
       <button
         type="button"
