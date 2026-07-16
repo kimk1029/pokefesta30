@@ -4,6 +4,7 @@ import { StatusBar } from '@/components/ui/StatusBar';
 import { CurrencySettingsItem } from '@/components/CurrencySettingsItem';
 import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { ShowPortfolioSettingsItem } from '@/components/ShowPortfolioSettingsItem';
+import { GameFilterSettingsItem } from '@/components/GameFilterSettingsItem';
 import { NavStyleSettingsItem } from '@/components/NavStyleSettingsItem';
 
 export const metadata = { title: '설정' };
@@ -20,6 +21,10 @@ export default function Page() {
         <ThemeSettingsItem />
         <ShowPortfolioSettingsItem />
         <NavStyleSettingsItem />
+      </div>
+      <div className="sect">
+        <SectionTitle title="카드 게임 표시" />
+        <GameFilterSettingsItem />
       </div>
       <div className="bggap" />
     </>

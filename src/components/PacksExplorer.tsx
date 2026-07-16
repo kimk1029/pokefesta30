@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Price } from '@/components/Price';
 import { ListAdRow } from '@/components/ListAdRow';
-import { useTheme } from '@/components/ThemeProvider';
+import { useGamePrefs } from '@/components/GamePrefsProvider';
 import type { CardPackGame } from '../../shared/data/cardPacks';
 
 /** 서버(page.tsx)에서 박스 시세까지 채워 내려주는 행. */
@@ -28,26 +28,36 @@ const GAME_TABS: Array<{ key: CardPackGame; label: string }> = [
   { key: 'sports', label: '스포츠' },
 ];
 
-/** 테마 → 기본 게임 탭. clean/dark/pokemon 은 포켓몬. */
-const THEME_GAME: Partial<Record<string, CardPackGame>> = {
-  onepiece: 'onepiece',
-  yugioh: 'yugioh',
-  sports: 'sports',
-};
-
 export function PacksExplorer({ packs }: { packs: PackListRow[] }) {
-  const { theme } = useTheme();
-  // null = 사용자가 아직 탭을 안 만짐 → 테마가 정한 기본 게임을 따라간다.
-  const [picked, setPicked] = useState<CardPackGame | null>(null);
-  const game = picked ?? THEME_GAME[theme] ?? 'pokemon';
-  const list = packs.filter((p) => p.game === game);
-  const label = GAME_TABS.find((t) => t.key === game)?.label ?? '카드';
+  // 설정의 "카드 게임 표시" 토글이 노출 게임을 정한다 (테마와 무관).
+  const { enabledGames } = useGamePrefs();
+  const tabs = GAME_TABS.filter((t) => enabledGames.includes(t.key));
+  const multi = tabs.length > 1;
+  // null = 사용자가 아직 탭을 안 만짐 → 여러 게임이 켜져 있으면 전체, 1개면 그 게임.
+  const [picked, setPicked] = useState<CardPackGame | 'all' | null>(null);
+  const pickedValid =
+    picked === 'all' ? multi : picked != null && enabledGames.includes(picked);
+  const game: CardPackGame | 'all' =
+    (pickedValid ? picked : null) ?? (multi ? 'all' : tabs[0]?.key ?? 'pokemon');
+  const list = packs.filter((p) =>
+    game === 'all' ? enabledGames.includes(p.game) : p.game === game,
+  );
+  const label = game === 'all' ? '전체' : GAME_TABS.find((t) => t.key === game)?.label ?? '카드';
 
   return (
     <>
       <div className="sect">
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {GAME_TABS.map((t) => (
+          {multi && (
+            <button
+              type="button"
+              className={`chip${game === 'all' ? ' on' : ''}`}
+              onClick={() => setPicked('all')}
+            >
+              전체
+            </button>
+          )}
+          {tabs.map((t) => (
             <button
               key={t.key}
               type="button"

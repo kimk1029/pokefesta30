@@ -23,7 +23,7 @@ import { CARD_PACKS, type CardPackMeta, type CardPackGame } from '@/data/cardPac
 import { useCurrency } from '@/components/CurrencyProvider';
 import { fetchSnkrdunkApparelGroup } from '@/services/snkrdunk';
 import { localizeCardName } from '@/lib/cardNameKo';
-import { useTheme } from '@/components/ThemeProvider';
+import { useGamePrefs } from '@/components/GamePrefsProvider';
 
 const GAME_TABS: Array<{ key: CardPackGame; label: string }> = [
   { key: 'pokemon', label: '포켓몬' },
@@ -31,13 +31,6 @@ const GAME_TABS: Array<{ key: CardPackGame; label: string }> = [
   { key: 'yugioh', label: '유희왕' },
   { key: 'sports', label: '스포츠' },
 ];
-
-/** 테마 → 기본 게임 탭 (웹 PacksExplorer THEME_GAME 동일). */
-const THEME_GAME: Partial<Record<string, CardPackGame>> = {
-  onepiece: 'onepiece',
-  yugioh: 'yugioh',
-  sports: 'sports',
-};
 
 interface PackWithBox extends CardPackMeta {
   boxName: string;
@@ -106,12 +99,21 @@ export default function PackExplorerScreen() {
   const [data, setData] = useState<PackWithBox[] | null>(packsCache?.data ?? null);
   const [loading, setLoading] = useState<boolean>(!packsCache);
   const [error, setError] = useState<Error | null>(null);
-  const { theme } = useTheme();
-  // null = 사용자가 아직 탭을 안 만짐 → 테마가 정한 기본 게임 (웹 동일).
-  const [picked, setPicked] = useState<CardPackGame | null>(null);
-  const game = picked ?? THEME_GAME[theme] ?? 'pokemon';
-  const gameLabel = GAME_TABS.find((t) => t.key === game)?.label ?? '카드';
-  const list = (data ?? []).filter((pack) => (pack.game ?? 'pokemon') === game);
+  // 설정의 "카드 게임 표시" 토글이 노출 게임을 정한다 (웹 PacksExplorer 동일).
+  const { enabledGames } = useGamePrefs();
+  const tabs = GAME_TABS.filter((t) => enabledGames.includes(t.key));
+  const multi = tabs.length > 1;
+  // null = 사용자가 아직 탭을 안 만짐 → 여러 게임이 켜져 있으면 전체, 1개면 그 게임.
+  const [picked, setPicked] = useState<CardPackGame | 'all' | null>(null);
+  const pickedValid =
+    picked === 'all' ? multi : picked != null && enabledGames.includes(picked);
+  const game: CardPackGame | 'all' =
+    (pickedValid ? picked : null) ?? (multi ? 'all' : tabs[0]?.key ?? 'pokemon');
+  const gameLabel = game === 'all' ? '전체' : GAME_TABS.find((t) => t.key === game)?.label ?? '카드';
+  const list = (data ?? []).filter((pack) => {
+    const g = pack.game ?? 'pokemon';
+    return game === 'all' ? enabledGames.includes(g) : g === game;
+  });
   const tick = useRef(0);
 
   const refresh = useCallback(() => {
@@ -158,9 +160,16 @@ export default function PackExplorerScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <AppBar onBack={() => router.back()} title="시세확인" />
-      {/* 게임 필터 탭 — 웹 PacksExplorer 동일 (테마 기본 게임 → 사용자가 탭하면 고정) */}
-      <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 14, paddingTop: 10 }}>
-        {GAME_TABS.map((t) => {
+      {/* 게임 필터 탭 — 웹 PacksExplorer 동일 (설정에서 켠 게임만, 여러 개면 '전체' 탭 추가) */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 14, paddingTop: 10 }}>
+        {multi && (
+          <PixelPress onPress={() => setPicked('all')} bg={game === 'all' ? colors.gold : colors.white} borderWidth={3} shadow={game === 'all' ? 2 : 4} inner={2}>
+            <View style={{ paddingHorizontal: 12, paddingVertical: 7 }}>
+              <PixelText variant="ko" size={10} weight="bold" color={colors.ink}>전체</PixelText>
+            </View>
+          </PixelPress>
+        )}
+        {tabs.map((t) => {
           const on = game === t.key;
           return (
             <PixelPress key={t.key} onPress={() => setPicked(t.key)} bg={on ? colors.gold : colors.white} borderWidth={3} shadow={on ? 2 : 4} inner={2}>

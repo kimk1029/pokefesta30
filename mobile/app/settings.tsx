@@ -11,6 +11,7 @@ import { useThemeColors } from '@/components/ThemeProvider';
 import { CurrencySettingsItem } from '@/components/CurrencySettingsItem';
 import { ThemeSettingsItem } from '@/components/ThemeSettingsItem';
 import { ShowPortfolioSettingsItem } from '@/components/ShowPortfolioSettingsItem';
+import { GameFilterSettingsItem } from '@/components/GameFilterSettingsItem';
 import { NavStyleSettingsItem } from '@/components/NavStyleSettingsItem';
 
 export default function SettingsScreen() {
@@ -33,6 +34,12 @@ export default function SettingsScreen() {
               {divider}
               <NavStyleSettingsItem />
             </View>
+          </PixelFrame>
+        </View>
+        <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
+          <SectHd title="카드 게임 표시" />
+          <PixelFrame>
+            <GameFilterSettingsItem />
           </PixelFrame>
         </View>
       </ScrollView>

@@ -16,10 +16,13 @@ import {
   fetchSnkrdunkSalesChart,
   fetchSnkrdunkSalesHistory,
   headlinePriceFromHistory,
+  searchSnkrdunkByQuery,
   SNKRDUNK_FEATURED_CARDS,
   type SnkrdunkApparel,
   type SnkrdunkCardSeed,
 } from '@/services/snkrdunk';
+import { useGamePrefs } from '@/components/GamePrefsProvider';
+import type { GameId } from '@/lib/gamePrefs';
 import { CARD_PACKS } from '@/data/cardPacks';
 import { jaToKoBatch, jaToKoCached } from '@/lib/cardLang';
 import * as ImagePicker from 'expo-image-picker';
@@ -138,6 +141,25 @@ function shuffle<T>(arr: T[]): T[] {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+// 설정에서 켠 게임별 인기 카드 검색 키워드 (웹 CleanHome 동일). 포켓몬은 browse 기본 풀.
+const GAME_POPULAR_KEYWORD: Partial<Record<GameId, string>> = {
+  onepiece: 'ワンピースカード',
+  yugioh: '遊戯王',
+  sports: 'Topps',
+};
+
+/** 게임별 목록을 라운드로빈으로 섞어 한 캐러셀에 고르게 배치. */
+function interleaveRows<T>(pools: T[][]): T[] {
+  const out: T[] = [];
+  const max = Math.max(0, ...pools.map((p) => p.length));
+  for (let i = 0; i < max; i++) {
+    for (const p of pools) {
+      if (i < p.length) out.push(p[i]);
+    }
+  }
+  return out;
 }
 function rankBadgeColor(rank: number): string {
   if (rank === 1) return RISE;
@@ -353,40 +375,53 @@ export function CleanHomeScreen() {
     }
   };
 
+  // 인기 카드 풀 — 설정에서 켠 게임별로 조회해 라운드로빈으로 섞는다 (웹 CleanHome 동일 컨셉).
+  // 포켓몬은 browse 기본 풀, 나머지 게임은 키워드 검색.
+  const { enabledGames } = useGamePrefs();
+  const gamesKey = enabledGames.join(',');
   const [snkrRows, setSnkrRows] = useState<SnkrRow[]>([]);
   useEffect(() => {
     let alive = true;
     (async () => {
       // 이름엔 박스 마커가 빠진 박스가 섞일 수 있어 넉넉히 뽑고(상세 itemKind로 한 번 더 거름).
-      const pool = (await fetchSnkrdunkBrowse(1)).filter((r) => !isBoxName(r.name));
+      const per = Math.max(3, Math.ceil(12 / enabledGames.length));
+      const pools = await Promise.all(
+        enabledGames.map(async (g) => {
+          const kw = GAME_POPULAR_KEYWORD[g];
+          const list = kw ? await searchSnkrdunkByQuery(kw) : await fetchSnkrdunkBrowse(1);
+          return shuffle(list.filter((r) => !isBoxName(r.name))).slice(0, per);
+        }),
+      );
+      const pool = interleaveRows(pools).slice(0, 12);
       const seeds: SnkrDisplaySeed[] =
         pool.length > 0
-          ? shuffle(pool)
-              .slice(0, 12)
-              .map((r) => {
-                const curated = FEATURED_BY_ID.get(r.apparelId);
-                return curated
-                  ? { apparelId: r.apparelId, shortName: curated.shortName, category: curated.category }
-                  : {
-                      apparelId: r.apparelId,
-                      shortName: shortenSnkrName(jaToKoCached(r.name)),
-                      category: inferSnkrCategory(r.name),
-                    };
-              })
+          ? pool.map((r) => {
+              const curated = FEATURED_BY_ID.get(r.apparelId);
+              return curated
+                ? { apparelId: r.apparelId, shortName: curated.shortName, category: curated.category }
+                : {
+                    apparelId: r.apparelId,
+                    shortName: shortenSnkrName(jaToKoCached(r.name)),
+                    category: inferSnkrCategory(r.name),
+                  };
+            })
           : shuffle(SNKRDUNK_FEATURED_CARDS)
               .slice(0, 12)
               .map((s) => ({ apparelId: s.apparelId, shortName: s.shortName, category: s.category }));
       const fetched = await Promise.all(
         seeds.map(async (seed) => ({ seed, data: await fetchSnkrdunkApparel(seed.apparelId) })),
       );
-      // 상세 itemKind 가 박스인 행을 확실히 제외한 뒤 6개만.
+      if (!alive) return;
+      // 상세 itemKind 가 박스인 행을 확실히 제외. 여러 게임이 섞였을 땐 게임 순서 유지를
+      // 위해 앞에서부터 6개(라운드로빈 결과라 게임별로 고르게 들어간다).
       const rows = fetched.filter((row) => row.data?.itemKind !== 'box').slice(0, 6);
-      if (alive) setSnkrRows(rows);
+      setSnkrRows(rows);
     })();
     return () => {
       alive = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gamesKey]);
 
   // 등락률 + 대표 시세 — 표시된 인기 카드의 판매 차트/거래내역을 받아 채움(렌더 후 점진).
   // 대표 시세 = 시세상세 헤드라인과 동일(거래 많은 등급의 최근 체결가). 없으면 minPrice 폴백.
@@ -419,10 +454,16 @@ export function CleanHomeScreen() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const pool = CARD_PACKS.filter((p) => (p.game ?? 'pokemon') === 'pokemon' && p.apparelGroupId > 0)
-        .sort((a, b) => (b.releasedAt ?? '').localeCompare(a.releasedAt ?? ''))
-        .slice(0, 12);
-      const picked = shuffle(pool).slice(0, 8);
+      // 설정에서 켠 게임의 최신 팩들을 게임별로 뽑아 라운드로빈으로 섞는다.
+      const perGame = Math.max(3, Math.ceil(12 / enabledGames.length));
+      const pools = enabledGames.map((g) =>
+        shuffle(
+          CARD_PACKS.filter((p) => (p.game ?? 'pokemon') === g && p.apparelGroupId > 0)
+            .sort((a, b) => (b.releasedAt ?? '').localeCompare(a.releasedAt ?? ''))
+            .slice(0, perGame),
+        ),
+      );
+      const picked = interleaveRows(pools).slice(0, 8);
       const rows = await Promise.all(
         picked.map(async (pack): Promise<SnkrRow | null> => {
           const page = await fetchSnkrdunkApparelGroup(pack.apparelGroupId, {
@@ -440,7 +481,8 @@ export function CleanHomeScreen() {
     return () => {
       alive = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gamesKey]);
 
   const [banners, setBanners] = useState<HeroSlideData[]>([]);
   useEffect(() => {

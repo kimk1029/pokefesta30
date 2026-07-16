@@ -15,6 +15,7 @@ import { ChromeProvider } from '@/components/ChromeContext';
 import { PriceModeProvider } from '@/lib/priceMode';
 import { CurrencyProvider } from '@/components/CurrencyProvider';
 import { HomePrefsProvider } from '@/components/HomePrefsProvider';
+import { GamePrefsProvider } from '@/components/GamePrefsProvider';
 import { NavPrefsProvider } from '@/components/NavPrefsProvider';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ToastProvider } from '@/components/ToastProvider';
@@ -100,6 +101,7 @@ export default function RootLayout() {
           <ToastProvider>
             <ChromeProvider>
               <HomePrefsProvider>
+              <GamePrefsProvider>
               <NavPrefsProvider>
               <PriceModeProvider>
                 <PhoneShell>
@@ -134,6 +136,7 @@ export default function RootLayout() {
                 </PhoneShell>
               </PriceModeProvider>
               </NavPrefsProvider>
+              </GamePrefsProvider>
               </HomePrefsProvider>
             </ChromeProvider>
           </ToastProvider>

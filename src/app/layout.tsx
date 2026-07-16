@@ -13,6 +13,7 @@ import { Providers } from '@/components/Providers';
 import { RouteProgress } from '@/components/RouteProgress';
 import { CurrencyProvider } from '@/components/CurrencyProvider';
 import { HomePrefsProvider } from '@/components/HomePrefsProvider';
+import { GamePrefsProvider } from '@/components/GamePrefsProvider';
 import { NavPrefsProvider } from '@/components/NavPrefsProvider';
 import { PriceModeProvider } from '@/components/PriceModeProvider';
 import { ToastProvider } from '@/components/ToastProvider';
@@ -141,6 +142,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <CurrencyProvider>
             <PriceModeProvider>
               <HomePrefsProvider>
+              <GamePrefsProvider>
               <NavPrefsProvider>
               <ToastProvider>
                 <InventoryProvider>
@@ -156,6 +158,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </InventoryProvider>
               </ToastProvider>
               </NavPrefsProvider>
+              </GamePrefsProvider>
               </HomePrefsProvider>
             </PriceModeProvider>
           </CurrencyProvider>

@@ -5,6 +5,8 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type R
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useUnread } from '@/components/UnreadProvider';
 import { useTheme } from '@/components/ThemeProvider';
+import { useGamePrefs } from '@/components/GamePrefsProvider';
+import type { GameId } from '@/lib/gamePrefs';
 import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
 import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
@@ -93,13 +95,13 @@ function rankBadgeColor(rank: number): string {
   return '#2B2B2B';
 }
 
-// 비포켓몬 카드게임 테마는 해당 게임 인기 카드/박스를 키워드로 교체 조회.
-const THEME_POPULAR_KEYWORD: Partial<Record<string, string>> = {
+// 설정에서 켠 게임별 인기 카드/박스 검색 키워드. 포켓몬은 서버 기본 rows 를 그대로 쓴다.
+const GAME_POPULAR_KEYWORD: Partial<Record<GameId, string>> = {
   onepiece: 'ワンピースカード',
   yugioh: '遊戯王',
   sports: 'Topps',
 };
-const THEME_BOX_KEYWORD: Partial<Record<string, string>> = {
+const GAME_BOX_KEYWORD: Partial<Record<GameId, string>> = {
   onepiece: 'ワンピースカード ボックス',
   yugioh: '遊戯王 ボックス',
   sports: 'Topps ボックス',
@@ -121,6 +123,18 @@ function shuffleRows<T>(arr: T[]): T[] {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+/** 게임별 목록을 라운드로빈으로 섞어 한 캐러셀에 고르게 배치. */
+function interleaveRows<T>(pools: T[][]): T[] {
+  const out: T[] = [];
+  const max = Math.max(0, ...pools.map((p) => p.length));
+  for (let i = 0; i < max; i++) {
+    for (const p of pools) {
+      if (i < p.length) out.push(p[i]);
+    }
+  }
+  return out;
 }
 
 function searchHitToRow(r: PopularSearchHit): SnkrdunkRow {
@@ -269,44 +283,63 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
 
   const fmtPrice = (jpy: number) => (jpy > 0 ? format(jpy) : '—');
 
-  // 비포켓몬 카드게임 테마는 해당 게임 인기 카드/박스로 교체 조회(폴백: 서버 포켓몬 rows).
-  const popularKeyword = THEME_POPULAR_KEYWORD[theme];
-  const boxKeyword = THEME_BOX_KEYWORD[theme];
-  const [themePopular, setThemePopular] = useState<Record<string, SnkrdunkRow[]>>({});
-  const [themeBox, setThemeBox] = useState<Record<string, SnkrdunkRow[]>>({});
+  // 설정에서 켠 게임들의 인기 카드/박스를 조회해 섞는다 (테마와 무관).
+  // 포켓몬은 서버 기본 rows 사용, 나머지 게임은 키워드 검색으로 조회.
+  // 포켓몬만 켜져 있으면 조회 없이 서버 rows 그대로 (기존 기본 동작과 동일).
+  const { enabledGames } = useGamePrefs();
+  const gamesKey = enabledGames.join(',');
+  const extraGames = enabledGames.filter((g) => GAME_POPULAR_KEYWORD[g]);
+  const needsMix = extraGames.length > 0;
+  const [mixPopular, setMixPopular] = useState<Record<string, SnkrdunkRow[]>>({});
+  const [mixBox, setMixBox] = useState<Record<string, SnkrdunkRow[]>>({});
   useEffect(() => {
-    if (!popularKeyword || themePopular[theme]) return;
+    if (!needsMix || (mixPopular[gamesKey] && mixBox[gamesKey])) return;
     let alive = true;
-    (async () => {
+    // 게임당 뽑는 개수 — 섞어도 캐러셀이 과하게 길어지지 않게 켠 게임 수로 나눔.
+    const per = Math.max(2, Math.ceil(8 / enabledGames.length));
+    const search = async (q: string): Promise<PopularSearchHit[]> => {
       try {
-        const r = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(popularKeyword)}`);
-        if (!alive || !r.ok) return;
+        const r = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(q)}`);
+        if (!r.ok) return [];
         const j = (await r.json()) as { results?: PopularSearchHit[] };
-        const hits = (j.results ?? []).filter((h) => !isBoxName(h.name));
-        const rows = shuffleRows(hits).slice(0, 6).map(searchHitToRow);
-        if (alive && rows.length > 0) setThemePopular((p) => ({ ...p, [theme]: rows }));
-      } catch { /* 폴백 유지 */ }
+        return j.results ?? [];
+      } catch {
+        return [];
+      }
+    };
+    (async () => {
+      const [popularLists, boxLists] = await Promise.all([
+        Promise.all(
+          extraGames.map(async (g) =>
+            shuffleRows((await search(GAME_POPULAR_KEYWORD[g]!)).filter((h) => !isBoxName(h.name)))
+              .slice(0, per)
+              .map(searchHitToRow),
+          ),
+        ),
+        Promise.all(
+          extraGames.map(async (g) =>
+            shuffleRows((await search(GAME_BOX_KEYWORD[g]!)).filter((h) => isBoxName(h.name)))
+              .slice(0, per)
+              .map(searchHitToRow),
+          ),
+        ),
+      ]);
+      if (!alive) return;
+      const withPokemon = (lists: SnkrdunkRow[][], pokemonRows: SnkrdunkRow[]) =>
+        interleaveRows(
+          enabledGames.includes('pokemon') ? [pokemonRows.slice(0, per), ...lists] : lists,
+        ).slice(0, 10);
+      const popRows = withPokemon(popularLists, snkrdunkRows);
+      const boxRows2 = withPokemon(boxLists, snkrdunkBoxRows);
+      if (popRows.length > 0) setMixPopular((p) => ({ ...p, [gamesKey]: popRows }));
+      if (boxRows2.length > 0) setMixBox((p) => ({ ...p, [gamesKey]: boxRows2 }));
     })();
     return () => { alive = false; };
-  }, [theme, popularKeyword, themePopular]);
-  useEffect(() => {
-    if (!boxKeyword || themeBox[theme]) return;
-    let alive = true;
-    (async () => {
-      try {
-        const r = await fetch(`/api/snkrdunk/search?q=${encodeURIComponent(boxKeyword)}`);
-        if (!alive || !r.ok) return;
-        const j = (await r.json()) as { results?: PopularSearchHit[] };
-        const boxes = (j.results ?? []).filter((h) => isBoxName(h.name));
-        const rows = shuffleRows(boxes).slice(0, 6).map(searchHitToRow);
-        if (alive && rows.length > 0) setThemeBox((p) => ({ ...p, [theme]: rows }));
-      } catch { /* 폴백 유지 */ }
-    })();
-    return () => { alive = false; };
-  }, [theme, boxKeyword, themeBox]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gamesKey, needsMix, snkrdunkRows, snkrdunkBoxRows]);
 
-  const hotRows = (popularKeyword && themePopular[theme]) || snkrdunkRows;
-  const boxRows = (boxKeyword && themeBox[theme]) || snkrdunkBoxRows;
+  const hotRows = (needsMix && mixPopular[gamesKey]) || snkrdunkRows;
+  const boxRows = (needsMix && mixBox[gamesKey]) || snkrdunkBoxRows;
   // 실시간 급등 = 등락률 내림차순(데이터 없는 행은 뒤로). 이름값이 '급등'이도록 정렬.
   const moverRows = [...hotRows].sort(
     (a, b) => (b.changePct ?? -Infinity) - (a.changePct ?? -Infinity),
