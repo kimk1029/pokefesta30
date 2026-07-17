@@ -13,7 +13,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { ensureCardImage } from './cardImageCache.js';
-import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
+import { translateKnownCardNameToKo } from '../../shared/cardTranslate';
 import { fetchSnkrdunkApparel, type SnkrdunkApparel } from '@/lib/snkrdunk';
 import { parseCardStatics } from '../../shared/cardStatics';
 

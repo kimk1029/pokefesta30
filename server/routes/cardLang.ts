@@ -6,7 +6,7 @@
  * 사전/엔진 수정은 src/lib/cardTranslate.ts 한 곳만 고치면 웹·앱 동시 반영.
  */
 import { Router, type Request, type Response } from 'express';
-import { translate, translateKnownCardNameToKo } from '@/lib/cardTranslate';
+import { translate, translateKnownCardNameToKo } from '../../shared/cardTranslate';
 
 const router = Router();
 

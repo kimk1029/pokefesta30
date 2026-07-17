@@ -11,7 +11,7 @@
  * 제한해 단일 요청에서 snkrdunk 서버를 과도하게 두드리지 않게 한다.
  */
 import { CARD_PACKS, type CardPackMeta, getCardPack } from '@/lib/cardPacks';
-import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
+import { translateKnownCardNameToKo } from '../../shared/cardTranslate';
 import {
   fetchAllSnkrdunkApparelGroup,
   fetchSnkrdunkApparel,
