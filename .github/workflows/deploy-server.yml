@@ -99,6 +99,13 @@ jobs:
             # 3) ecosystem.config.cjs 가 단일 진실 소스. exec_mode 같은 구조 변경은
             #    reload 로는 안 잡혀서, 항상 delete → start 로 깨끗하게 재기동.
             pm2 delete pokefesta30-server >/dev/null 2>&1 || true
+            # 고아 프로세스가 :3030 을 물고 있으면(과거 npm 래퍼 시절 pm2 delete 가
+            # tsx 자식을 못 죽여 EADDRINUSE 크래시 루프) 새 인스턴스가 영원히 못 뜬다
+            # — 시작 전에 포트 점유 프로세스를 정리.
+            fuser -k 3030/tcp 2>/dev/null || true
+            PORT_PIDS=$(netstat -tlnp 2>/dev/null | awk '$4 ~ /:3030$/ {split($NF,a,"/"); print a[1]}' | grep -E '^[0-9]+$' | sort -u || true)
+            [ -n "$PORT_PIDS" ] && kill -9 $PORT_PIDS 2>/dev/null || true
+            sleep 2
             pm2 start ecosystem.config.cjs --only pokefesta30-server
             pm2 save
 
@@ -114,6 +121,8 @@ jobs:
               sleep 1
             done
             echo "::error::server did not respond on :3030/health within 120s"
+            echo "--- :3030 port holders ---"
+            netstat -tlnp 2>/dev/null | grep 3030 || true
             pm2 logs pokefesta30-server --lines 80 --nostream || true
             pm2 describe pokefesta30-server || true
             exit 1

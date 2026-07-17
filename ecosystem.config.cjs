@@ -50,12 +50,15 @@ module.exports = {
     {
       // Express OCR / API 서버. mobile + web 의 백엔드.
       // exec_mode: 'fork' 명시 — pm2 는 `instances` 가 있으면 기본 cluster 모드를
-      // 쓰는데, cluster 모드는 Node IPC handshake 가 필요해 `npm` CLI 래퍼와
-      // 함께 쓰면 즉시 종료된다 (무한 재시작).
+      // 쓰는데, cluster 모드는 Node IPC handshake 가 필요해 즉시 종료된다 (무한 재시작).
+      // `npm run start` 래퍼 대신 node 를 직접 실행 — npm 래퍼를 쓰면 pm2 delete 가
+      // npm 만 죽이고 tsx 자식이 고아로 남아 :3030 을 점유(EADDRINUSE), 이후 모든
+      // 재기동이 크래시 루프에 빠진다 (2026-07-17 배포 3연속 실패 원인).
       name: 'pokefesta30-server',
       cwd: __dirname + '/server',
-      script: 'npm',
-      args: 'run start',
+      script: 'index.js',
+      interpreter: 'node',
+      interpreter_args: '--import tsx',
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,
