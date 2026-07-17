@@ -372,6 +372,45 @@ const CHARACTERS: Term[] = [
 ];
 
 /**
+ * 원피스 카드게임 등장인물 — 밀짚모자 일당(주인공들) + 카드 시장 인기 캐릭.
+ * 한국 정발 표기 ↔ 일본 표기(snkrdunk 검색용) ↔ 영문(eBay 검색용).
+ * 풀네임 키를 짧은 이름보다 위(길이 우선 매칭)에 두어 통째 변환을 보장.
+ * 주의: '로'(トラファルガー・ロー) 단독 키는 한 글자라 오매칭 폭탄 — 풀네임만 등록.
+ */
+const ONE_PIECE: Term[] = [
+  // 밀짚모자 일당 — 같은 ja 키는 *마지막* 항목이 JA→KO 역방향을 이기므로
+  // 별칭을 앞에, 공식/선호 표기를 뒤에 둔다 (게코우가/개굴닌자 패턴과 동일)
+  { ko: '몽키 D 루피',  ja: 'モンキー・D・ルフィ', en: 'Monkey D. Luffy' }, // 별칭
+  { ko: '몽키 D. 루피', ja: 'モンキー・D・ルフィ', en: 'Monkey D. Luffy' },
+  { ko: '루피',         ja: 'ルフィ',             en: 'Luffy' },
+  { ko: '롤로노아 조로', ja: 'ロロノア・ゾロ',     en: 'Roronoa Zoro' },
+  { ko: '조로',         ja: 'ゾロ',               en: 'Zoro' },   // 조로아/조로아크는 더 길어 우선 매칭
+  { ko: '나미',         ja: 'ナミ',               en: 'Nami' },
+  { ko: '우솝',         ja: 'ウソップ',           en: 'Usopp' },
+  { ko: '산지',         ja: 'サンジ',             en: 'Sanji' },  // 원작 표기 별칭
+  { ko: '상디',         ja: 'サンジ',             en: 'Sanji' },  // 공식 더빙 표기 — 역방향 우선
+  { ko: '토니토니 쵸파', ja: 'トニートニー・チョッパー', en: 'Tony Tony Chopper' },
+  { ko: '초파',         ja: 'チョッパー',         en: 'Chopper' }, // 별칭
+  { ko: '쵸파',         ja: 'チョッパー',         en: 'Chopper' }, // 공식 표기 — 역방향 우선
+  { ko: '니코 로빈',    ja: 'ニコ・ロビン',       en: 'Nico Robin' },
+  { ko: '로빈',         ja: 'ロビン',             en: 'Robin' },
+  { ko: '프랑키',       ja: 'フランキー',         en: 'Franky' },
+  { ko: '브룩',         ja: 'ブルック',           en: 'Brook' },
+  { ko: '징베',         ja: 'ジンベエ',           en: 'Jinbe' },
+  // 카드 시장 빈출 인기 캐릭
+  { ko: '에이스',       ja: 'エース',             en: 'Ace' },    // 에이스번(cinderace)은 더 길어 우선 매칭
+  { ko: '샹크스',       ja: 'シャンクス',         en: 'Shanks' },
+  { ko: '트라팔가로',   ja: 'トラファルガー・ロー', en: 'Trafalgar Law' }, // 별칭
+  { ko: '트라팔가 로',  ja: 'トラファルガー・ロー', en: 'Trafalgar Law' }, // 역방향 우선
+  { ko: '보아 한코크',  ja: 'ボア・ハンコック',   en: 'Boa Hancock' },
+  { ko: '한코크',       ja: 'ハンコック',         en: 'Hancock' },
+  { ko: '야마토',       ja: 'ヤマト',             en: 'Yamato' },
+  { ko: '우타',         ja: 'ウタ',               en: 'Uta' },
+  { ko: '카이도',       ja: 'カイドウ',           en: 'Kaido' },  // '홋카이도'(지명)는 더 길어 우선 매칭
+  { ko: '원피스',       ja: 'ワンピース',         en: 'One Piece' },
+];
+
+/**
  * 인기 서포터/트레이너 카드 *전체 이름* (이름+효과). longest-first 매칭 덕분에
  * 개별 이름보다 먼저 잡혀 한 번에 정확한 일본어 카드명으로 변환된다.
  *   ex) '릴리에의 전력' → 'リーリエの全力'
@@ -511,6 +550,7 @@ const SETS_PLACES: Term[] = [
   { ko: '타임게이저', ja: 'タイムゲイザー' },
   { ko: '스페이스 저글러', ja: 'スペースジャグラー' },
   // 일본 지명(한자) — 지역 한정/포켓몬센터 프로모 검색
+  { ko: '홋카이도', ja: '北海道', en: 'Hokkaido' }, // '카이도'(원피스 Kaido) 오매칭 방지 겸용 — 긴 키 우선
   { ko: '후쿠오카', ja: '福岡' },
   { ko: '토호쿠', ja: '東北' },
   { ko: '히로시마', ja: '広島' },
@@ -525,7 +565,7 @@ const SETS_PLACES: Term[] = [
   { ko: '오키나와', ja: '沖縄' },
 ];
 
-const ALL: Term[] = [...POKEMON, ...CARD_TERMS, ...CHARACTERS, ...TRAINERS_EXTRA, ...SUPPORTER_CARDS, ...SETS_PLACES];
+const ALL: Term[] = [...POKEMON, ...CARD_TERMS, ...CHARACTERS, ...ONE_PIECE, ...TRAINERS_EXTRA, ...SUPPORTER_CARDS, ...SETS_PLACES];
 
 /**
  * 사전을 lowercase key → value 로 빌드해서 대소문자 무시 매칭.
