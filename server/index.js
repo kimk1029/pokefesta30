@@ -53,6 +53,7 @@ import usersRouter from './routes/users.ts';
 import searchLogRouter from './routes/searchLog.ts';
 import cardLangRouter from './routes/cardLang.ts';
 import { startPriceAlertScheduler } from './lib/priceAlerts.ts';
+import { startDailyPriceSnapshotScheduler } from './lib/dailyPriceSnapshot.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEBUG_DIR = join(__dirname, 'debug');
@@ -741,6 +742,8 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   startPriceAlertScheduler();
   // 카드 이미지 자체 CDN 워밍 — 부팅 후 + 매일, 미캐싱 카드 점진 backfill.
   startCardImageWarmer();
+  // 일일 시세 스냅샷 — 매일 새벽 3시(KST) 카탈로그 전체 순회, 가격 통계용 히스토리 적재.
+  startDailyPriceSnapshotScheduler();
 });
 
 const exit = async () => {

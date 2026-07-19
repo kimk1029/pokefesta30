@@ -1,4 +1,6 @@
 import { Router, type Request, type Response } from 'express';
+import { prisma } from '../lib/prisma.js';
+import { DAILY_SNAPSHOT_STATE, kstDayStart } from '../lib/dailyPriceSnapshot.js';
 import {
   fetchSnkrdunkBrowse,
   fetchSnkrdunkSearch,
@@ -145,6 +147,79 @@ router.get('/apparel-groups/:groupId', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('[snkrdunk.apparel-group]', err);
     res.status(500).json({ data: null, error: 'internal' });
+  }
+});
+
+/** 일일 스냅샷 배치 진행 상태 — 배포 후 스모크/모니터링용 (읽기 전용). */
+router.get('/daily-snapshot-status', (_req: Request, res: Response) => {
+  res.json({ ...DAILY_SNAPSHOT_STATE });
+});
+
+/**
+ * 가격 통계 — 스냅샷을 KST 일 단위로 집계한 일별 시리즈 + 1일/7일/30일 평균.
+ * 일별 값 = 그날 스냅샷들의 평균(0 = 미계산 스냅샷은 제외). 기간 평균 = 일별 값의 평균
+ * (스냅샷 개수 가중이 아니라 "하루 1표" — 조회 많은 날에 통계가 쏠리지 않게).
+ * GET /api/snkrdunk/apparels/:id/price-stats?days=30 (기본 30, 최대 90)
+ */
+router.get('/apparels/:id/price-stats', async (req: Request, res: Response) => {
+  const apparelId = parseApparelId(req.params.id, res);
+  if (apparelId === null) return;
+  const daysRaw = Number(req.query.days ?? 30);
+  const days = Math.max(1, Math.min(90, Number.isFinite(daysRaw) ? Math.round(daysRaw) : 30));
+  try {
+    const since = new Date(kstDayStart().getTime() - (days - 1) * 86_400_000);
+    const rows = await prisma.$queryRaw<
+      Array<{
+        day: string;
+        single: number | null;
+        minPrice: number | null;
+        psa10: number | null;
+        samples: number;
+      }>
+    >`
+      SELECT
+        to_char("fetchedAt" AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS day,
+        AVG(NULLIF("priceSingle", 0))::float  AS single,
+        AVG(NULLIF("minPrice", 0))::float     AS "minPrice",
+        AVG(NULLIF("pricePsa10", 0))::float   AS psa10,
+        COUNT(*)::int                          AS samples
+      FROM "snkrdunk_price_snapshots"
+      WHERE "apparelId" = ${apparelId} AND "fetchedAt" >= ${since}
+      GROUP BY 1
+      ORDER BY 1
+    `;
+    const daily = rows.map((r) => ({
+      date: r.day,
+      single: r.single ? Math.round(r.single) : 0,
+      minPrice: r.minPrice ? Math.round(r.minPrice) : 0,
+      psa10: r.psa10 ? Math.round(r.psa10) : 0,
+      samples: Number(r.samples),
+    }));
+    // 기간 평균: 최근 N일(달력 기준, KST) 중 값이 있는 날들의 평균. 값이 하루도 없으면 0.
+    const kstDateStr = (ts: number) => new Date(ts + 9 * 3600_000).toISOString().slice(0, 10);
+    const avgOver = (n: number, pick: (d: (typeof daily)[number]) => number): number => {
+      const cutoff = kstDateStr(kstDayStart().getTime() - (n - 1) * 86_400_000);
+      const vals = daily.filter((d) => d.date >= cutoff).map(pick).filter((v) => v > 0);
+      return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+    };
+    const statsFor = (pick: (d: (typeof daily)[number]) => number) => ({
+      today: avgOver(1, pick),
+      avg7d: avgOver(7, pick),
+      avg30d: avgOver(30, pick),
+    });
+    res.json({
+      apparelId,
+      days,
+      daily,
+      stats: {
+        single: statsFor((d) => d.single),
+        minPrice: statsFor((d) => d.minPrice),
+        psa10: statsFor((d) => d.psa10),
+      },
+    });
+  } catch (err) {
+    console.error('[snkrdunk.price-stats]', apparelId, err);
+    res.status(500).json({ error: 'internal' });
   }
 });
 
