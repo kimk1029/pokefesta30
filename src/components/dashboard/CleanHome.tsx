@@ -15,7 +15,7 @@ import type { MvcAuctionItem } from '@/lib/navercafe';
 
 /**
  * 메인화면 — Claude Design 'ARVOTCG App' 프로토타입 레이아웃.
- *  헤더(ARVOTCG+벨) · 검색 · 프로모 배너 · 빠른 스캔 · HOT 카드 · 박스 힛카드 · 실시간 급등.
+ *  헤더(ARVOTCG+벨) · 검색 · 프로모 배너 · 빠른 스캔 · HOT 카드 · 인기 박스 · 실시간 급등.
  * 모든 테마가 같은 레이아웃을 쓰고, 색/폰트만 테마별로 달라진다(클린은 프로토타입 오렌지
  * 팔레트 그대로, 그 외 테마는 CSS 변수 토큰). 카드 아트는 컨테이너 없이 이미지만 떠 보이게.
  */
@@ -307,14 +307,32 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
         return [];
       }
     };
+    // 이름 휴리스틱은 박스 마커 없는 박스를 놓친다 — 상세 itemKind 로 확정 검증.
+    // (조회 실패 시엔 이름 필터를 통과한 후보를 그대로 둬 섹션이 비지 않게.)
+    const verifySingles = async (hits: PopularSearchHit[]): Promise<PopularSearchHit[]> => {
+      const checked = await Promise.all(
+        hits.map(async (h) => {
+          try {
+            const r = await fetch(`/api/snkrdunk/apparels/${h.apparelId}`);
+            if (!r.ok) return h;
+            const j = (await r.json()) as { data?: { itemKind?: string } };
+            return j.data?.itemKind === 'box' ? null : h;
+          } catch {
+            return h;
+          }
+        }),
+      );
+      return checked.filter((h): h is PopularSearchHit => h !== null);
+    };
     (async () => {
       const [popularLists, boxLists] = await Promise.all([
         Promise.all(
-          extraGames.map(async (g) =>
-            shuffleRows((await search(GAME_POPULAR_KEYWORD[g]!)).filter((h) => !isBoxName(h.name)))
-              .slice(0, per)
-              .map(searchHitToRow),
-          ),
+          extraGames.map(async (g) => {
+            const hits = shuffleRows(
+              (await search(GAME_POPULAR_KEYWORD[g]!)).filter((h) => !isBoxName(h.name)),
+            ).slice(0, per * 2);
+            return (await verifySingles(hits)).slice(0, per).map(searchHitToRow);
+          }),
         ),
         Promise.all(
           extraGames.map(async (g) =>
@@ -402,7 +420,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
             pixel={pixelTiles}
             href="/cards/packs"
             label="시세 확인"
-            desc="카드 시세를 바로 확인해요"
+            desc="박스별 힛카드 목록과 가격을 확인하세요"
             icon={
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={P.priceIcon} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
@@ -464,7 +482,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
       {/* box hot cards */}
       {boxRows.length > 0 && (
         <div style={{ padding: '0 0 26px' }}>
-          <SectionHead title="박스 힛카드" href="/cards/packs" P={P} />
+          <SectionHead title="인기 박스" href="/cards/packs" P={P} />
           <div ref={boxScrollRef} style={hrowStyle}>
             {boxDisplay.map((b, i) => (
               <Link

@@ -272,7 +272,8 @@ function LegacyHome() {
           data: await fetchSnkrdunkApparel(seed.apparelId),
         })),
       );
-      if (alive) setSnkrRows(rows);
+      // 이름 마커 없는 박스도 상세 itemKind 로 확정 제외 — 인기 카드는 싱글만.
+      if (alive) setSnkrRows(rows.filter((r) => r.data?.itemKind !== 'box'));
     })();
     return () => {
       alive = false;

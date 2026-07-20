@@ -625,7 +625,7 @@ export function CleanHomeScreen() {
                 <Chevron size={16} color={P.chev} w={2.4} />
               </View>
               <Text style={[ts(16, '800', P.ink), { marginTop: 14 }]}>시세 확인</Text>
-              <Text style={[ts(12, '400', P.ink2), { marginTop: 3 }]}>카드 시세를 바로 확인해요</Text>
+              <Text style={[ts(12, '400', P.ink2), { marginTop: 3 }]}>박스별 힛카드 목록과 가격을 확인하세요</Text>
             </ScanTile>
           </View>
         </View>
@@ -670,7 +670,7 @@ export function CleanHomeScreen() {
         {snkrBoxRows.length > 0 ? (
           <View style={{ paddingBottom: 26 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 13 }}>
-              <Text style={ts(18, '800', P.ink)}>박스 힛카드</Text>
+              <Text style={ts(18, '800', P.ink)}>인기 박스</Text>
               <MoreLink onPress={() => router.push('/cards/packs' as never)} />
             </View>
             <AutoCarousel

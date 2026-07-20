@@ -116,6 +116,8 @@ export interface SnkrdunkRow {
   shortName: string;
   /** 일본어 원문 (소제목 노출용). 비어 있으면 표시 생략. */
   localizedName?: string;
+  /** 상세 조회로 확정된 분류 — HOT 카드(싱글 전용) 섹션의 박스 제외에 사용. */
+  itemKind?: 'single' | 'box';
   category: SnkrdunkCategory | null;
   imageUrl: string | null;
   /** 최저 매물가(라이브 호가). */

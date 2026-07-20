@@ -24,6 +24,8 @@ interface ApparelDetail {
   name: string;
   /** snkrdunk 일본어 원문. (인기카드 카드 아래 작은 글씨 노출에 사용) */
   localizedName?: string;
+  /** 상세 분류 — 이름 휴리스틱보다 정확. HOT 카드 박스 제외에 사용. */
+  itemKind?: 'single' | 'box';
   imageUrl: string | null;
   minPrice: number;
   listingCountText: string;
@@ -150,6 +152,7 @@ async function seedToRow(seed: SnkrSeed): Promise<SnkrdunkRow> {
     apparelId: seed.apparelId,
     shortName: ko,
     localizedName: jp || undefined,
+    itemKind: apparel?.itemKind,
     category: seed.category,
     imageUrl: apparel?.imageUrl ?? null,
     minPrice: apparel?.minPrice ?? 0,
@@ -179,9 +182,10 @@ export default async function Page() {
   const cards = (cardsResp.data?.data ?? []) as never;
   const heroBanners = bannersResp.data?.data ?? [];
 
-  // 상세의 일본어 원문(localizedName)으로 박스를 한 번 더 거른 뒤 6개만. 검색 단계 이름엔
-  // 박스 마커가 없던 상품도 상세 원문엔 ボックス 등이 있어 여기서 확실히 제외된다.
+  // 상세 itemKind(정확) + 일본어 원문 이름으로 박스를 한 번 더 거른 뒤 6개만. 검색 단계
+  // 이름엔 박스 마커가 없던 상품도 상세 분류/원문에서 여기서 확실히 제외된다.
   const snkrdunkRows = (await Promise.all(cardSeeds.map(seedToRow)))
+    .filter((row) => row.itemKind !== 'box')
     .filter((row) => classifySnkrdunkName(row.localizedName ?? row.shortName) !== 'box')
     .slice(0, 6);
 
