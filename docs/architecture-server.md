@@ -34,6 +34,9 @@
 ## 규칙
 
 1. KST 날짜 계산은 `shared/kst.ts`만 사용 (재구현 금지).
+1. **shared 정본 심볼은 `/shared` 에서 직접 import** — `@/lib/*` shim 의 `export *` 를
+   거치면 tsx CJS interop(cjs-module-lexer)이 이름을 못 봐 NAS 부팅이 죽는다.
+   shim 에 로컬 선언된 fetcher(`fetchSnkrdunk*` 등)만 `@/lib/*` 로 가져올 것.
 2. DB 쓰기 실패는 삼키고 로깅 — 사용자 응답을 죽이지 않는다.
 3. 배포 후 스모크는 `https://www.poke-30.com/api/...` 프록시로 (poke-30.com은 www로 308).
 4. 이 개발 박스에는 DATABASE_URL 없음 — DB는 NAS/Vercel에만. 로컬 검증은 임시 Postgres로.

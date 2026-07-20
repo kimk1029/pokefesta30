@@ -1,5 +1,5 @@
 import { prisma } from './prisma.js';
-import { REWARDS } from '@/lib/rewards';
+import { REWARDS } from '../../shared/rewards';
 import { kstDayDiff, kstDayStart } from '../../shared/kst';
 
 export interface CheckInResult {

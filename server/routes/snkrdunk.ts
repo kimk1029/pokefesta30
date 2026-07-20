@@ -17,7 +17,7 @@ import {
   upsertSearchResults,
 } from '../lib/snkrdunkCatalog.js';
 import { getCachedCardImageUrl } from '../lib/cardImageCache.js';
-import { computeApparelPrices } from '@/lib/snkrdunkPrice';
+import { computeApparelPrices } from '../../shared/snkrdunkPrice';
 
 const router = Router();
 

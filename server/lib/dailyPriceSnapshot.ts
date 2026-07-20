@@ -26,7 +26,7 @@ import {
   fetchSnkrdunkSalesHistory,
   fetchSnkrdunkSalesChart,
 } from '@/lib/snkrdunk';
-import { computeApparelPrices } from '@/lib/snkrdunkPrice';
+import { computeApparelPrices } from '../../shared/snkrdunkPrice';
 
 /** 다음 KST `hour`시 정각까지 남은 ms. */
 function msUntilNextKstHour(hour: number, now = Date.now()): number {

@@ -24,7 +24,7 @@ import {
   getMyTrades,
 } from '../lib/queries.js';
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
-import { computeApparelPrices, registerBasisJpy } from '@/lib/snkrdunkPrice';
+import { computeApparelPrices, registerBasisJpy } from '../../shared/snkrdunkPrice';
 import { ensureCatalogCard, recordPriceSnapshot, upsertCatalogCard } from '../lib/snkrdunkCatalog.js';
 import { getJpyKrwRate } from '../lib/fxRate.js';
 import { runDailyCheckIn } from '../lib/checkIn.js';

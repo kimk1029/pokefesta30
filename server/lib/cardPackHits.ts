@@ -19,10 +19,14 @@ import {
   fetchSnkrdunkApparelGroup,
   fetchSnkrdunkSalesHistory,
   fetchSnkrdunkSearch,
+} from '@/lib/snkrdunk';
+// shared 정본 심볼은 shim 의 `export *` 를 거치면 tsx CJS interop 이 이름을 못 봐
+// 부팅이 죽는다(NAS) — 반드시 shared 에서 직접 import (89476c9 와 동일).
+import {
   localizeSnkrdunkText,
   type SnkrdunkApparel,
   type SnkrdunkItemKind,
-} from '@/lib/snkrdunk';
+} from '../../shared/snkrdunk';
 import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 

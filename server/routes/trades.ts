@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { defaultNameFor } from '../lib/defaultName.js';
 import { getTradeById, getTrades } from '../lib/queries.js';
-import { REWARDS } from '@/lib/rewards';
+import { REWARDS } from '../../shared/rewards';
 
 const MAX_LIMIT = 100;
 const MAX_BUMPS = 3;

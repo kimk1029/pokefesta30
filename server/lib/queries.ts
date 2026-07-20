@@ -22,7 +22,7 @@ import type {
   TradeType,
 } from '@/lib/types';
 import { fetchSnkrdunkApparel, fetchSnkrdunkSalesHistory, fetchSnkrdunkSalesChart } from '@/lib/snkrdunk';
-import { computeApparelPrices, currentBasisJpy } from '@/lib/snkrdunkPrice';
+import { computeApparelPrices, currentBasisJpy } from '../../shared/snkrdunkPrice';
 import { translateKnownCardNameToKo } from '../../shared/cardTranslate';
 import { getCardPackMeta } from '@/lib/cardPacks';
 import { getCachedJpyKrw } from './fxRate.js';
