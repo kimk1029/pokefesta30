@@ -1,7 +1,7 @@
 /**
  * 카드 게임(포켓몬/원피스/유희왕/스포츠) 표시 필터 설정.
  * 테마가 목록의 게임을 정하던 방식을 대체 — 설정에서 게임별로 켜고 끈다.
- * 기본은 전부 켜짐(모든 게임 카드 표시). 최소 1개는 켜져 있어야 한다.
+ * 기본은 포켓몬·원피스만 켜짐. 최소 1개는 켜져 있어야 한다.
  */
 export type GameId = 'pokemon' | 'onepiece' | 'yugioh' | 'sports';
 
@@ -15,7 +15,7 @@ export const GAME_OPTIONS: Array<{ id: GameId; label: string; emoji: string }> =
 export const GAME_IDS: GameId[] = GAME_OPTIONS.map((g) => g.id);
 
 export const ENABLED_GAMES_KEY = 'pf30:enabledGames';
-export const DEFAULT_ENABLED_GAMES: GameId[] = [...GAME_IDS];
+export const DEFAULT_ENABLED_GAMES: GameId[] = ['pokemon', 'onepiece'];
 
 function isGameId(v: unknown): v is GameId {
   return typeof v === 'string' && (GAME_IDS as string[]).includes(v);
