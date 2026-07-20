@@ -103,6 +103,8 @@ router.get('/apparels/:id', async (req: Request, res: Response) => {
           listingCount: data.listingCount,
           priceSingle: prices.single,
           pricePsa10: prices.psa10,
+          pricePsa9: prices.psa9,
+          pricePsa8: prices.psa8,
           trend: prices.trendJpy,
         });
       }
@@ -145,6 +147,13 @@ router.get('/apparel-groups/:groupId', async (req: Request, res: Response) => {
     });
     if (!data) return res.json({ data: null });
     res.json({ data });
+    // 그룹(팩/박스) 목록에 노출된 카드도 카탈로그에 적재 — 원피스 등 비포켓몬 게임 포함.
+    // 카탈로그에 들어가면 일일 스냅샷 배치가 매일 가격을 쌓는다. (응답 후, 실패 무시)
+    void (async () => {
+      for (const a of data.apparels) {
+        await upsertCatalogCard(a, { apparelGroupId: groupId });
+      }
+    })();
   } catch (err) {
     console.error('[snkrdunk.apparel-group]', err);
     res.status(500).json({ data: null, error: 'internal' });
