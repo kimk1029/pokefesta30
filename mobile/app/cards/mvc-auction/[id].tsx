@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, ScrollView, Text, View } from 'react-native';
+import { Image, Linking, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { SectHd } from '@/components/cv/SectHd';
+import { LoadingState } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchMvcArticle, mvcImgProxy, type MvcArticleDetail, type MvcCommentItem } from '@/services/marketplace';
@@ -160,9 +161,7 @@ export default function MvcArticleScreen() {
       <AppBar onBack={() => router.back()} title="MVC 경매" />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14, paddingBottom: 80 }}>
         {loading ? (
-          <View style={{ paddingVertical: 60, alignItems: 'center' }}>
-            <ActivityIndicator color={tc.ink} />
-          </View>
+          <LoadingState />
         ) : !article ? (
           <View style={{ paddingVertical: 60, alignItems: 'center' }}>
             <PixelText variant="ko" size={12} color={tc.ink3} style={{ textAlign: 'center', lineHeight: 20 }}>

@@ -1,20 +1,6 @@
 import { prisma } from './prisma.js';
 import { REWARDS } from '@/lib/rewards';
-
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
-/** UTC Date → KST 자정 (UTC 시각으로 표현) */
-function kstStartOfDay(d: Date): Date {
-  const kst = new Date(d.getTime() + KST_OFFSET_MS);
-  kst.setUTCHours(0, 0, 0, 0);
-  return new Date(kst.getTime() - KST_OFFSET_MS);
-}
-
-function kstDayDiff(a: Date, b: Date): number {
-  const aStart = kstStartOfDay(a).getTime();
-  const bStart = kstStartOfDay(b).getTime();
-  return Math.round((aStart - bStart) / (24 * 60 * 60 * 1000));
-}
+import { kstDayDiff, kstDayStart } from '../../shared/kst';
 
 export interface CheckInResult {
   granted: number;
@@ -32,7 +18,7 @@ export interface CheckInResult {
  */
 export async function runDailyCheckIn(userId: string): Promise<CheckInResult | null> {
   const now = new Date();
-  const todayStart = kstStartOfDay(now);
+  const todayStart = kstDayStart(now);
 
   return prisma.$transaction(async (tx) => {
     const u = await tx.user.findUnique({

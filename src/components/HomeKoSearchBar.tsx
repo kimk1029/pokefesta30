@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
+import { PIXEL_BORDER } from '@/components/pixelBorder';
 import { startRouteTransition } from '@/components/RouteProgress';
 import { useTheme } from '@/components/ThemeProvider';
 import { isFlatTheme } from '@/lib/theme';
@@ -169,8 +170,7 @@ export function HomeKoSearchBar() {
               ? { background: 'var(--accent)', color: 'var(--white)', borderRadius: 'var(--r-sm)', boxShadow: 'none' }
               : {
                   background: 'var(--ink)', color: 'var(--gold)',
-                  boxShadow:
-                    '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--yel-dk)',
+                  boxShadow: `${PIXEL_BORDER},2px 2px 0 var(--yel-dk)`,
                 }),
           }}
         >

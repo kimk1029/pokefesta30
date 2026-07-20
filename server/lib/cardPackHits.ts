@@ -12,6 +12,7 @@
  */
 import { CARD_PACKS, type CardPackMeta, getCardPack } from '@/lib/cardPacks';
 import { translateKnownCardNameToKo } from '../../shared/cardTranslate';
+import { shortenName } from '../../shared/util/shortenName';
 import {
   fetchAllSnkrdunkApparelGroup,
   fetchSnkrdunkApparel,
@@ -66,10 +67,6 @@ const CONCURRENCY = 6;
 const FETCH_LIMIT = 600;
 
 /** 일본 이름에서 너무 긴 부분 잘라 짧은 라벨로 변환. DashboardScreen 의 shortenName 과 동일 패턴. */
-function shortenName(name: string): string {
-  const cut = name.split(/[|｜]/)[0].trim();
-  return cut.length > 22 ? cut.slice(0, 21) + '…' : cut;
-}
 
 function toHitCard(a: SnkrdunkApparel, override?: string): PackHitCard {
   return {

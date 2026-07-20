@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PIXEL_BORDER } from '@/components/pixelBorder';
 import { useToast } from '@/components/ToastProvider';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -518,8 +519,7 @@ export function OripaPlayScreen({ packId, qty, initialTickets }: Props) {
                     fontSize: 9,
                     display: 'grid',
                     placeItems: 'center',
-                    boxShadow:
-                      '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                    boxShadow: PIXEL_BORDER,
                   }}
                 >
                   #{idx + 1}

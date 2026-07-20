@@ -14,6 +14,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { ensureCardImage } from './cardImageCache.js';
 import { translateKnownCardNameToKo } from '../../shared/cardTranslate';
+import { shortenName } from '../../shared/util/shortenName';
 import { fetchSnkrdunkApparel, type SnkrdunkApparel } from '@/lib/snkrdunk';
 import { parseCardStatics } from '../../shared/cardStatics';
 
@@ -23,10 +24,6 @@ export type { ParsedCardStatics, CardGame } from '../../shared/cardStatics';
 /** 컬렉션/즐겨찾기 시세 신선 기준 — 이 시간 이내 스냅샷이면 라이브 호출 생략. */
 export const CATALOG_PRICE_TTL_MS = 30 * 60 * 1000;
 
-function shorten(name: string): string {
-  const cut = name.split(/[|｜]/)[0].trim();
-  return cut.length > 22 ? cut.slice(0, 21) + '…' : cut;
-}
 
 /* ── 적재 (upsert / append) ──────────────────────────────────────── */
 
@@ -43,7 +40,7 @@ export async function upsertCatalogCard(
       localizedName: jp,
       koName: translateKnownCardNameToKo(jp),
       itemKind: a.itemKind,
-      shortName: shorten(jp),
+      shortName: shortenName(jp),
       imageUrl: a.imageUrl,
       productNumber: a.productNumber ?? '',
       releasedAt: a.releasedAt ? a.releasedAt.slice(0, 10) : undefined,
@@ -93,7 +90,7 @@ export async function upsertSearchResults(
           name: r.name,
           localizedName: r.name,
           koName: translateKnownCardNameToKo(r.name),
-          shortName: shorten(r.name),
+          shortName: shortenName(r.name),
           imageUrl: r.imageUrl,
           game: statics.game,
           setCode: statics.setCode,

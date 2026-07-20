@@ -2,12 +2,14 @@
  * /cards/packs/[code] — 팩별 힛카드 풀 그리드 + 리스트 뷰 전환.
  */
 import { useMemo, useState } from 'react';
-import { ScrollView, View, Pressable, Image, Text } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
+import { SnkrdunkCardTile } from '@/components/cv/SnkrdunkCardTile';
+import { ThumbImage } from '@/components/cv/ThumbImage';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchPackHits, type PackHitCard, type PackWithHits } from '@/lib/myApi';
@@ -64,28 +66,14 @@ export default function PackDetailScreen() {
               }}
             >
               {/* 박스 대표 이미지 */}
-              <View
-                style={{
-                  width: 110,
-                  height: 110,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: 'rgba(0,0,0,0.18)',
-                  borderColor: tc.ink,
-                  borderWidth: 2,
-                  overflow: 'hidden',
-                }}
-              >
-                {data.boxImageUrl ? (
-                  <Image
-                    source={{ uri: data.boxImageUrl }}
-                    style={{ width: '100%', height: '100%' }}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Text style={{ fontSize: 48 }}>{data.emoji}</Text>
-                )}
-              </View>
+              <ThumbImage
+                uri={data.boxImageUrl}
+                size={110}
+                bg="rgba(0,0,0,0.18)"
+                borderColor={tc.ink}
+                emoji={data.emoji}
+                emojiSize={48}
+              />
               {/* 정보 */}
               <View style={{ flex: 1, minWidth: 0, justifyContent: 'space-between', paddingVertical: 2 }}>
                 <View>
@@ -200,42 +188,18 @@ export default function PackDetailScreen() {
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
                 {cards.map((hit) => (
                   <View key={hit.apparelId} style={{ width: '32%' }}>
-                    <PixelPress
+                    <SnkrdunkCardTile
                       onPress={() => router.push(`/cards/snkrdunk/${hit.apparelId}` as never)}
-                      innerStyle={{ borderTopWidth: 4, borderTopColor: data.bg }}
-                    >
-                      <View>
-                        <View
-                          style={{
-                            height: 120,
-                            backgroundColor: tc.pap2,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {hit.imageUrl ? (
-                            <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" resizeMethod="resize" />
-                          ) : (
-                            <Text style={{ fontSize: 30 }}>🃏</Text>
-                          )}
-                        </View>
-                        <View style={{ padding: 5, borderTopColor: tc.ink, borderTopWidth: 3 }}>
-                          <PixelText variant="ko" size={11} weight="bold" numberOfLines={2} style={{ minHeight: 30, lineHeight: 15 }}>
-                            {hit.koName || hit.shortName}
-                          </PixelText>
-                          <PixelText variant={txt} size={7} color={tc.ink3} numberOfLines={1} style={{ marginTop: 2 }}>
-                            {hit.name}
-                          </PixelText>
-                          <PixelText variant={txt} size={10} color={tc.red} numberOfLines={1} style={{ marginTop: 6 }}>
-                            {hit.minPrice > 0 ? formatCurrency(hit.minPrice) : '시세 없음'}
-                          </PixelText>
-                          <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
-                            {hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
-                          </PixelText>
-                        </View>
-                      </View>
-                    </PixelPress>
+                      accentColor={data.bg}
+                      imageUrl={hit.imageUrl}
+                      koName={hit.koName || hit.shortName}
+                      subName={hit.name}
+                      priceText={hit.minPrice > 0 ? formatCurrency(hit.minPrice) : null}
+                      metaText={hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
+                      nameMinHeight={30}
+                      nameLineHeight={15}
+                      thumbResizeMethod="resize"
+                    />
                   </View>
                 ))}
               </View>
@@ -268,52 +232,19 @@ export default function PackDetailScreen() {
 }
 
 function ListRow({ hit, accent }: { hit: PackHitCard; accent: string }) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
   const { format: formatCurrency } = useCurrency();
   return (
-    <PixelPress
+    <SnkrdunkCardTile
+      variant="row"
       onPress={() => router.push(`/cards/snkrdunk/${hit.apparelId}` as never)}
-      innerStyle={{ borderLeftWidth: 4, borderLeftColor: accent }}
-    >
-      <View style={{ flexDirection: 'row', gap: 12, padding: 10, alignItems: 'center' }}>
-        <View
-          style={{
-            width: 64,
-            height: 88,
-            backgroundColor: tc.pap2,
-            borderColor: tc.ink,
-            borderWidth: 2,
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          {hit.imageUrl ? (
-            <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" resizeMethod="resize" />
-          ) : (
-            <Text style={{ fontSize: 24 }}>🃏</Text>
-          )}
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <PixelText variant="ko" size={12} weight="bold" numberOfLines={2}>
-            {hit.koName || hit.shortName}
-          </PixelText>
-          <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
-            {hit.name}
-          </PixelText>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
-            <PixelText variant={txt} size={11} color={tc.red}>
-              {hit.minPrice > 0 ? formatCurrency(hit.minPrice) : '시세 없음'}
-            </PixelText>
-            <PixelText variant={txt} size={8} color={tc.ink3}>
-              {hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
-            </PixelText>
-          </View>
-        </View>
-        <PixelText variant={txt} size={14} color={tc.ink3}>›</PixelText>
-      </View>
-    </PixelPress>
+      accentColor={accent}
+      imageUrl={hit.imageUrl}
+      koName={hit.koName || hit.shortName}
+      subName={hit.name}
+      priceText={hit.minPrice > 0 ? formatCurrency(hit.minPrice) : null}
+      metaText={hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
+      thumbResizeMethod="resize"
+    />
   );
 }
 

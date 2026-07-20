@@ -103,32 +103,9 @@ export function mvcImgProxy(url: string | null | undefined): string {
   return `/api/navercafe/img?u=${encodeURIComponent(url)}`;
 }
 
-/** KST(Asia/Seoul) 기준 연·월·일. */
-export function kstDateParts(now = Date.now()): { y: number; m: number; d: number } {
-  const s = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(now));
-  const [y, m, d] = s.split('-').map(Number);
-  return { y, m, d };
-}
-
-/** KST 기준 ts 와 now 가 같은 날짜인지. */
-export function isSameKstDay(ts: number, now = Date.now()): boolean {
-  if (!ts) return false;
-  const a = kstDateParts(ts);
-  const b = kstDateParts(now);
-  return a.y === b.y && a.m === b.m && a.d === b.d;
-}
-
-/** KST 기준 now 가 속한 날의 00:00 (epoch ms). */
-export function kstDayStartMs(now = Date.now()): number {
-  const { y, m, d } = kstDateParts(now);
-  // Date.UTC = 해당 달력일의 UTC 자정. KST 자정은 그보다 9시간 빠름.
-  return Date.UTC(y, m - 1, d) - 9 * 3_600_000;
-}
+// KST 날짜 유틸 정본은 /shared/kst.ts — 기존 import 경로 호환 re-export.
+import { kstDateParts, isSameKstDay, kstDayStartMs } from '../../shared/kst';
+export { kstDateParts, isSameKstDay, kstDayStartMs };
 
 // 제목 속 "5/24", "5.24", "05/24", "5월24일", "5월 24일" 형태의 날짜.
 const DEADLINE_DATE_RE = /(\d{1,2})\s*[\/.월]\s*(\d{1,2})/g;

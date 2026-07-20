@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PIXEL_BORDER } from '@/components/pixelBorder';
 
 /**
  * in-app 브라우저(카카오톡/네이버앱/인스타/페이스북/라인 등) 에서 접속 시 배너 노출.
@@ -122,7 +123,7 @@ export function InAppBrowserNotice() {
           fontSize: 9,
           letterSpacing: 0.5,
           cursor: 'pointer',
-          boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
+          boxShadow: `${PIXEL_BORDER},2px 2px 0 var(--ink)`,
         }}
       >
         외부에서 열기

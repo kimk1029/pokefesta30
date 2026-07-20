@@ -7,6 +7,7 @@
 import { api, getApiBaseUrl } from './apiClient';
 import { CARD_PACKS, getCardPack, type CardPackMeta } from '@/data/cardPacks';
 import { localizeCardName } from './cardNameKo';
+import { shortenName } from '../../../shared/util/shortenName';
 import {
   fetchAllSnkrdunkApparelGroup,
   fetchSnkrdunkApparelGroup,
@@ -419,7 +420,3 @@ function toHitCard(a: SnkrdunkApparel): PackHitCard {
   };
 }
 
-function shortenName(name: string): string {
-  const cut = name.split(/[|｜]/)[0].trim();
-  return cut.length > 22 ? `${cut.slice(0, 21)}…` : cut;
-}

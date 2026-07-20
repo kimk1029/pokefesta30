@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CardThumb } from '@/components/CardThumb';
 import { ListAdRow } from '@/components/ListAdRow';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
@@ -90,21 +91,13 @@ export function BrowseList({ initialItems }: { initialItems: BrowseItem[] }) {
             className="shop-card"
             style={{ textDecoration: 'none', color: 'inherit' }}
           >
-            <div
+            <CardThumb
               className="sh-icon"
               style={{ background: 'var(--pap2)', color: 'var(--white)', overflow: 'hidden' }}
-            >
-              {it.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={it.imageUrl}
-                  alt={it.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <span style={{ fontSize: 23 }}>🃏</span>
-              )}
-            </div>
+              src={it.imageUrl}
+              alt={it.name}
+              emojiSize={23}
+            />
             <div className="sh-main">
               {(() => {
                 const jp = shortenName(it.name);

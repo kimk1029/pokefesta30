@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { Chip } from '@/components/cv/Chip';
+import { ThumbImage } from '@/components/cv/ThumbImage';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { useToast } from '@/components/ToastProvider';
 import { addCards } from '@/lib/collection';
@@ -216,13 +217,14 @@ export function CardRegisterSheet({
               {/* 카드 미리보기 */}
               <PixelFrame borderWidth={3} shadow={4}>
                 <View style={{ flexDirection: 'row', gap: 12, padding: 12, alignItems: 'center' }}>
-                  <View style={{ width: 52, height: 72, borderColor: tc.ink, borderWidth: 2, backgroundColor: tc.white, alignItems: 'center', justifyContent: 'center' }}>
-                    {card.imageUrl ? (
-                      <Image source={{ uri: card.imageUrl }} style={{ width: 48, height: 68 }} resizeMode="contain" />
-                    ) : (
-                      <PixelText size={24}>🃏</PixelText>
-                    )}
-                  </View>
+                  <ThumbImage
+                    uri={card.imageUrl}
+                    style={{ width: 52, height: 72 }}
+                    borderColor={tc.ink}
+                    bg={tc.white}
+                    resizeMode="contain"
+                    emojiSize={25}
+                  />
                   <View style={{ flex: 1 }}>
                     <PixelText variant="ko" size={12} weight="bold" numberOfLines={2} style={{ lineHeight: 17 }}>
                       {card.name || '이름 미상'}

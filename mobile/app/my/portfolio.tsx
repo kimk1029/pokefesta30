@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View, Image, Pressable, ActivityIndicator } from 'react-native';
+import { ScrollView, View, Image, Pressable } from 'react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
+import { LoadingState } from '@/components/cv/ListState';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/lib/priceMode';
 import { fetchPortfolio, fetchMyCards, type PortfolioSummary, type MyCardRow } from '@/lib/myApi';
@@ -113,9 +114,7 @@ export default function PortfolioPage() {
           <PixelText variant={txt} size={11} color={tc.red}>⚠ {err}</PixelText>
         </View>
       ) : !port || !cards ? (
-        <View style={{ padding: 40, alignItems: 'center' }}>
-          <ActivityIndicator color={tc.gold} />
-        </View>
+        <LoadingState />
       ) : port.totalCount === 0 ? (
         <View style={{ padding: 30, alignItems: 'center', gap: 12 }}>
           <PixelText variant={txt} size={11} color={tc.ink3}>아직 보유 카드가 없어요</PixelText>

@@ -14,6 +14,7 @@ import { CollectionComposition } from '@/components/CollectionComposition';
 import { CollectionSummary } from '@/components/CollectionSummary';
 import { PixelText } from '@/components/PixelText';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
+import { ThumbImage } from '@/components/cv/ThumbImage';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useToast } from '@/components/ToastProvider';
@@ -289,17 +290,12 @@ function CardGridItem({ row, rank, format, onRemove, tc }: { row: Row; rank: num
   return (
     <View style={{ width: '47.5%', position: 'relative' }}>
       <Pressable onPress={open} style={{ backgroundColor: tc.white, borderColor: tc.pap3, borderWidth: 1, borderRadius: 12, overflow: 'hidden' }}>
-        <View style={{ width: '100%', aspectRatio: 1, backgroundColor: img ? tc.pap2 : FALLBACK_BG[rank % FALLBACK_BG.length], alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-          {img ? (
-            <Image source={{ uri: img }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-          ) : (
-            <Text style={{ fontSize: 42 }}>🃏</Text>
-          )}
+        <ThumbImage uri={img} bg={img ? tc.pap2 : FALLBACK_BG[rank % FALLBACK_BG.length]} emojiSize={42} style={{ width: '100%', aspectRatio: 1 }}>
           <View style={{ position: 'absolute', top: 8, left: 8, width: 22, height: 22, borderRadius: 11, backgroundColor: rankBadgeColor(rank, tc.gold, tc.ink), alignItems: 'center', justifyContent: 'center' }}>
             <PixelText variant="ko" size={11} weight="bold" color="#fff">{rank}</PixelText>
           </View>
           {c.graded ? <GradedLabel gold={tc.gold} company={c.gradeCompany} grade={c.gradeValue} /> : null}
-        </View>
+        </ThumbImage>
         <View style={{ paddingHorizontal: 9, paddingTop: 7, paddingBottom: 9 }}>
           <PixelText variant="ko" size={11} weight="bold" color={tc.ink} numberOfLines={1}>{cardName(c)}</PixelText>
           <PixelText variant="ko" size={9} color={tc.ink3} numberOfLines={1} style={{ marginTop: 1 }}>
@@ -333,13 +329,7 @@ function CardListItem({ row, format, last, onRemove, tc }: { row: Row; format: (
   return (
     <View style={{ position: 'relative', borderBottomWidth: last ? 0 : 1, borderBottomColor: tc.pap3 }}>
       <Pressable onPress={open} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingRight: 20, paddingLeft: 2 }}>
-        <View style={{ width: 48, height: 48, borderRadius: 8, overflow: 'hidden', backgroundColor: tc.pap2, alignItems: 'center', justifyContent: 'center' }}>
-          {img ? (
-            <Image source={{ uri: img }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-          ) : (
-            <Text style={{ fontSize: 22 }}>🃏</Text>
-          )}
-        </View>
+        <ThumbImage uri={img} size={48} emojiSize={22} style={{ borderRadius: 8 }} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <PixelText variant="ko" size={13} weight="bold" color={tc.ink} numberOfLines={1}>{cardName(c)}</PixelText>
           <PixelText variant="ko" size={10} color={tc.ink3} numberOfLines={1} style={{ marginTop: 2 }}>

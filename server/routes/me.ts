@@ -28,6 +28,7 @@ import { computeApparelPrices, registerBasisJpy } from '@/lib/snkrdunkPrice';
 import { ensureCatalogCard, recordPriceSnapshot, upsertCatalogCard } from '../lib/snkrdunkCatalog.js';
 import { getJpyKrwRate } from '../lib/fxRate.js';
 import { runDailyCheckIn } from '../lib/checkIn.js';
+import { kstDateKey, kstDateKeyShifted } from '../../shared/kst';
 
 const router = Router();
 router.use(requireAuth);
@@ -357,27 +358,6 @@ router.delete('/price-alerts/:apparelId', async (req: Request, res: Response) =>
     res.status(500).json({ error: 'internal' });
   }
 });
-
-/**
- * KST 정각 기준 오늘 날짜 (YYYY-MM-DD). 일별 스냅샷 키.
- * 정각이 되는 순간 새 일자로 넘어가, 새 행이 upsert 된다.
- */
-function kstDateKey(d: Date = new Date()): string {
-  // UTC ms → KST (UTC+9). offset 계산은 Date.UTC 와 동일한 방식.
-  const utcMs = d.getTime();
-  const kstMs = utcMs + 9 * 60 * 60 * 1000;
-  const kst = new Date(kstMs);
-  // KST 환산 후 UTC getter 가 KST 의 연/월/일 을 돌려준다.
-  const y = kst.getUTCFullYear();
-  const m = String(kst.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(kst.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-/** kstDateKey 의 'days 일 전' 일자. */
-function kstDateKeyShifted(daysBack: number): string {
-  return kstDateKey(new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000));
-}
 
 /**
  * 포트폴리오 합계 — userCard 중 snkrdunkApparelId 가 있는 항목을 실시간 시세로

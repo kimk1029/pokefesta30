@@ -1,173 +1,35 @@
 /**
  * SNKRDUNK 비공식 v1 JSON API 호출 (모바일).
  *
+ * 타입·파서·변환·로컬라이즈·다운샘플 등 순수 로직의 정본은 [[/shared/snkrdunk.ts]] —
+ * 이 파일은 re-export + 네이티브 fetch(timeout) 기반 fetcher + 모바일 전용
+ * 시세탭 헬퍼(PriceMode 등)만 보유. 웹과 규칙이 어긋나지 않게 재구현 금지.
+ *
  * 네이티브에서는 CORS 없이 직접 호출. Expo Web 빌드는 CORS로 차단되므로
  * 그 경우 Next.js 백엔드의 /api/snkrdunk/* 프록시를 거쳐야 함 (현재 미적용).
  */
+import {
+  SNKRDUNK_ORIGIN,
+  SNKRDUNK_BROWSE_KEYWORD,
+  isSingleUnitSale,
+  parseSnkrdunkSearchHtml,
+  toSnkrdunkApparel,
+  type RawApparel,
+  type RawApparelGroupPage,
+  type SnkrdunkApparel,
+  type SnkrdunkApparelGroupPage,
+  type SnkrdunkSalesChart,
+  type SnkrdunkSalesHistory,
+  type SnkrdunkSearchResult,
+} from '../../../shared/snkrdunk';
+import { headlinePriceFromHistory as sharedHeadlinePrice } from '../../../shared/snkrdunkPrice';
+
+export * from '../../../shared/snkrdunk';
 
 function abortAfter(ms: number): AbortSignal {
   const c = new AbortController();
   setTimeout(() => c.abort(), ms);
   return c.signal;
-}
-
-const SNKRDUNK_ORIGIN = 'https://snkrdunk.com';
-
-export interface SnkrdunkApparel {
-  id: number;
-  name: string;
-  localizedName: string;
-  imageUrl: string | null;
-  itemKind: 'single' | 'box';
-  minPrice: number;
-  displayPrice: string;
-  listingCount: number;
-  listingCountText: string;
-  productNumber: string;
-}
-
-interface RawApparel {
-  id: number;
-  name?: string;
-  localizedName?: string;
-  primaryMedia?: { imageUrl?: string };
-  displayPrice?: string;
-  minPrice?: number;
-  usedMinPrice?: number;
-  listingCount?: number;
-  usedListingCount?: number;
-  listingCountText?: string;
-  usedListingCountText?: string;
-  totalListingCount?: number;
-  totalListingCountText?: string;
-  productNumber?: string;
-}
-
-interface RawApparelGroupPage {
-  apparels?: RawApparel[];
-  apparelsCount?: number;
-}
-
-export interface SnkrdunkApparelGroupPage {
-  apparels: SnkrdunkApparel[];
-  apparelsCount: number;
-}
-
-function toApparel(raw: RawApparel, itemKind: 'single' | 'box' = 'box'): SnkrdunkApparel {
-  const newMin = raw.minPrice ?? 0;
-  const usedMin = raw.usedMinPrice ?? 0;
-  const useUsed = newMin <= 0 && usedMin > 0;
-  const totalListingCount = raw.totalListingCount ?? raw.listingCount ?? 0;
-  const totalListingCountText = raw.totalListingCountText ?? raw.listingCountText ?? '';
-  return {
-    id: raw.id,
-    name: raw.name ?? '',
-    localizedName: raw.localizedName ?? raw.name ?? '',
-    imageUrl: raw.primaryMedia?.imageUrl ?? null,
-    itemKind,
-    minPrice: useUsed ? usedMin : newMin,
-    displayPrice: raw.displayPrice ?? '',
-    listingCount: useUsed ? (raw.usedListingCount ?? totalListingCount) : totalListingCount,
-    listingCountText: useUsed ? (raw.usedListingCountText ?? totalListingCountText) : totalListingCountText,
-    productNumber: raw.productNumber ?? '',
-  };
-}
-
-export async function fetchSnkrdunkApparel(apparelId: number): Promise<SnkrdunkApparel | null> {
-  if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
-  try {
-    const res = await fetch(`${SNKRDUNK_ORIGIN}/v1/apparels/${apparelId}`, {
-      headers: {
-        Accept: 'application/json',
-        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
-      },
-      signal: abortAfter(8000),
-    });
-    if (!res.ok) return null;
-    const raw: RawApparel = await res.json();
-    // 싱글카드는 신품 시장이 없고 중고만 거래됨. 박스/팩은 반대.
-    const newMin = raw.minPrice ?? 0;
-    const usedMin = raw.usedMinPrice ?? 0;
-    const useUsed = newMin <= 0 && usedMin > 0;
-    return toApparel(raw, useUsed ? 'single' : 'box');
-  } catch {
-    return null;
-  }
-}
-
-export function snkrdunkApparelUrl(apparelId: number): string {
-  return `${SNKRDUNK_ORIGIN}/apparels/${apparelId}`;
-}
-
-/** 스니다 응답의 일본어 상대시간/단위/라벨을 한국어로 변환. */
-export function localizeSnkrdunkText(value: string | null | undefined): string {
-  if (!value) return '';
-  let v = String(value);
-  // 일본식 날짜 → 점 표기
-  v = v.replace(/(\d{4})年(\d{1,2})月(\d{1,2})日/g, '$1.$2.$3');
-  v = v.replace(/(\d{1,2})月(\d{1,2})日/g, '$1.$2');
-  // 상대 시간
-  v = v.replace(/(\d+)\s*秒前/g, '$1초 전');
-  v = v.replace(/(\d+)\s*分前/g, '$1분 전');
-  v = v.replace(/(\d+)\s*時間前/g, '$1시간 전');
-  v = v.replace(/(\d+)\s*日前/g, '$1일 전');
-  v = v.replace(/(\d+)\s*週間前/g, '$1주 전');
-  v = v.replace(/(\d+)\s*ヶ月前/g, '$1개월 전');
-  v = v.replace(/(\d+)\s*か月前/g, '$1개월 전');
-  v = v.replace(/(\d+)\s*年前/g, '$1년 전');
-  v = v.replace(/たった今/g, '방금');
-  v = v.replace(/今日/g, '오늘');
-  v = v.replace(/昨日/g, '어제');
-  // 수량 단위
-  v = v.replace(/(\d+)\s*個/g, '$1개');
-  v = v.replace(/(\d+)\s*枚/g, '$1장');
-  v = v.replace(/(\d+)\s*点/g, '$1점');
-  v = v.replace(/(\d+)\s*件/g, '$1건');
-  v = v.replace(/(\d+)\s*回/g, '$1회');
-  // 상태/라벨
-  v = v.replace(/中古/g, '중고');
-  v = v.replace(/新品/g, '새상품');
-  v = v.replace(/美品/g, '미품');
-  v = v.replace(/未開封/g, '미개봉');
-  v = v.replace(/開封済み/g, '개봉됨');
-  v = v.replace(/開封済/g, '개봉됨');
-  v = v.replace(/シュリンク付き/g, '슈링크 있음');
-  v = v.replace(/シュリンクあり/g, '슈링크 있음');
-  v = v.replace(/シュリンクなし/g, '슈링크 없음');
-  v = v.replace(/鑑定済み/g, '감정 완료');
-  v = v.replace(/鑑定品/g, '감정품');
-  v = v.replace(/通常版/g, '일반판');
-  v = v.replace(/プロモ/g, '프로모');
-  v = v.replace(/シングル/g, '싱글');
-  v = v.replace(/ボックス/g, '박스');
-  v = v.replace(/ハーフ/g, '하프');
-  v = v.replace(/状態/g, '상태');
-  v = v.replace(/良好/g, '양호');
-  v = v.replace(/折れ/g, '접힘');
-  v = v.replace(/擦れ/g, '긁힘');
-  v = v.replace(/キズあり/g, '흠집 있음');
-  v = v.replace(/キズなし/g, '흠집 없음');
-  v = v.replace(/最新/g, '최신');
-  v = v.replace(/発売/g, '발매');
-  v = v.replace(/送料込/g, '배송비 포함');
-  v = v.replace(/送料無料/g, '배송비 무료');
-  return v;
-}
-
-export interface SnkrdunkSaleEntry {
-  price: number;
-  date: string;
-  size: string;
-  condition: string;
-  label: string;
-}
-
-export interface SnkrdunkSalesHistory {
-  history: SnkrdunkSaleEntry[];
-}
-
-export interface SnkrdunkSalesChart {
-  points: Array<[number, number]>;
 }
 
 async function getJson<T>(path: string): Promise<T | null> {
@@ -186,6 +48,13 @@ async function getJson<T>(path: string): Promise<T | null> {
   }
 }
 
+export async function fetchSnkrdunkApparel(apparelId: number): Promise<SnkrdunkApparel | null> {
+  if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
+  const raw = await getJson<RawApparel>(`/v1/apparels/${apparelId}`);
+  if (!raw) return null;
+  return toSnkrdunkApparel(raw);
+}
+
 export async function fetchSnkrdunkApparelGroup(
   groupId: number,
   opts: { apparelCategoryId: 25 | 14; page?: number; perPage?: number },
@@ -198,7 +67,7 @@ export async function fetchSnkrdunkApparelGroup(
   );
   if (!raw) return null;
   return {
-    apparels: (raw.apparels ?? []).map((a) => toApparel(a, opts.apparelCategoryId === 25 ? 'single' : 'box')),
+    apparels: (raw.apparels ?? []).map((a) => toSnkrdunkApparel(a, opts.apparelCategoryId === 25 ? 'single' : 'box')),
     apparelsCount: raw.apparelsCount ?? 0,
   };
 }
@@ -233,10 +102,54 @@ export async function fetchSnkrdunkSalesHistory(
   apparelId: number,
 ): Promise<SnkrdunkSalesHistory | null> {
   if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
-  return getJson<SnkrdunkSalesHistory>(
+  const data = await getJson<SnkrdunkSalesHistory>(
     `/v1/apparels/${apparelId}/sales-history?size_id=0&page=1&per_page=20`,
   );
+  if (!data) return null;
+  // 웹과 동일 규칙 — 여러 장 묶음 체결은 단가 오염원이라 제외.
+  return { ...data, history: data.history.filter(isSingleUnitSale) };
 }
+
+export async function fetchSnkrdunkSalesChart(
+  apparelId: number,
+): Promise<SnkrdunkSalesChart | null> {
+  if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
+  const main = await getJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart`);
+  if (main && main.points && main.points.length > 0) return main;
+  return getJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart/used`);
+}
+
+export async function fetchSnkrdunkBrowse(page = 1): Promise<SnkrdunkSearchResult[]> {
+  return searchSnkrdunkByQuery(SNKRDUNK_BROWSE_KEYWORD, page);
+}
+
+/** Free-text search. `page` 로 스니덩 검색 페이지네이션(2,3…)을 직접 넘긴다 —
+ *  검색 화면 "더 보기"가 다음 페이지를 이어 받는 데 쓰인다. (legacy 컬렉션 카드의
+ *  apparelId 복구에도 사용 — 그 경우 page 생략 = 1페이지.) */
+export async function searchSnkrdunkByQuery(
+  query: string,
+  page = 1,
+): Promise<SnkrdunkSearchResult[]> {
+  if (!query || !query.trim()) return [];
+  const p = Number.isInteger(page) && page > 1 ? `&page=${page}` : '';
+  const url = `${SNKRDUNK_ORIGIN}/search?keywords=${encodeURIComponent(query.trim())}${p}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'text/html',
+        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
+      },
+      signal: abortAfter(10000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    return parseSnkrdunkSearchHtml(html);
+  } catch {
+    return [];
+  }
+}
+
+/* ── 모바일 전용 — 시세탭(싱글/PSA10 토글) 헬퍼 ─────────────────────── */
 
 /** Two market segments we surface on the price tab:
  *   - 'single' = un-graded "raw" cards (most users hold these)
@@ -334,50 +247,18 @@ export function recentTransactionMedian(
     : sorted[mid];
 }
 
-// 등급 판정 — snkrdunk [id] 상세의 isGradedBadge 와 동일.
-const HEADLINE_GRADED_RE = /PSA|BGS|CGC|SGC|ARS|ACE|BVG|HGA|以下|\d/i;
-
 /**
- * 시세상세 헤드라인과 동일한 '대표 시세' — 거래가 가장 많은 등급의 최근 체결가
- * (없으면 평균 → 최저매물 순 폴백). 홈 인기/급등 카드가 상세와 같은 가격을 보이도록.
+ * 시세상세 헤드라인과 동일한 '대표 시세' — 정본은 shared/snkrdunkPrice.ts 의
+ * headlinePriceFromHistory. 여기는 기존 모바일 시그니처(history 래퍼 객체) 호환 어댑터.
  */
 export function headlinePriceFromHistory(
   history: SnkrdunkSalesHistory | null | undefined,
   minPrice: number,
 ): number {
-  const list = history?.history ?? [];
-  const agg = (predicate: (badge: string) => boolean) => {
-    const matches = list
-      .filter((h) => typeof h.price === 'number' && h.price > 0)
-      .filter((h) => predicate((h.condition || h.label || '').trim()))
-      .map((h) => h.price);
-    if (matches.length === 0) return { recent: 0, avg: 0, count: 0 };
-    const top5 = matches.slice(0, 5);
-    return {
-      recent: matches[0],
-      avg: Math.round(top5.reduce((a, b) => a + b, 0) / top5.length),
-      count: matches.length,
-    };
-  };
-  const grades = [
-    agg((b) => /PSA\s*10\b/i.test(b)),
-    agg((b) => /PSA\s*9\b/i.test(b)),
-    agg((b) => !HEADLINE_GRADED_RE.test((b ?? '').trim())),
-  ];
-  const sel =
-    grades.slice().sort((a, b) => b.count - a.count).find((g) => g.count > 0) ??
-    grades[grades.length - 1];
-  return sel?.recent || sel?.avg || minPrice || 0;
+  return sharedHeadlinePrice(history?.history ?? [], minPrice);
 }
 
-export async function fetchSnkrdunkSalesChart(
-  apparelId: number,
-): Promise<SnkrdunkSalesChart | null> {
-  if (!Number.isInteger(apparelId) || apparelId <= 0) return null;
-  const main = await getJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart`);
-  if (main && main.points && main.points.length > 0) return main;
-  return getJson<SnkrdunkSalesChart>(`/v1/apparels/${apparelId}/sales-chart/used`);
-}
+/* ── 홈 추천 시드 ─────────────────────────────────────────────────── */
 
 export interface SnkrdunkCardSeed {
   apparelId: number;
@@ -393,101 +274,6 @@ export const SNKRDUNK_FEATURED_CARDS: SnkrdunkCardSeed[] = [
   { apparelId: 104636, shortName: '게코우가 & 조로아크 GX SR', category: 'SR' },
   { apparelId: 108050, shortName: '루피 P-033 (점프 부록)', category: '원피스' },
 ];
-
-// ────────────────────────────────────────────────────────────
-// 브라우즈 / 검색 (HTML 스크래핑)
-// ────────────────────────────────────────────────────────────
-export interface SnkrdunkSearchResult {
-  apparelId: number;
-  name: string;
-  imageUrl: string | null;
-  priceText: string;
-}
-
-// 메인 결과 그리드 타일은 `/apparels/{id}/used/{listingId}` 처럼 id 뒤에 경로가 더
-// 붙는다. 예전 정규식은 id 바로 뒤 `"` 만 매칭해 그리드를 통째로 놓치고 상단 추천
-// 캐러셀만 ~20개 잡혀 "조금밖에 안 나오던" 원인. → id 뒤 선택적 경로를 허용.
-const SEARCH_ITEM_RE =
-  /<a[^>]*href="https:\/\/snkrdunk\.com\/apparels\/(\d+)(?:\/[^"]*)?"[^>]*aria-label="([^"]*)"[^>]*>[\s\S]*?<img[^>]*src="([^"]+)"/g;
-
-/** 검색 한 페이지당 파싱 상한. 이 수만큼 차면 다음 페이지가 더 있다고 간주.
- *  캐러셀+그리드 합쳐 40을 넘길 수 있어 60으로 상향. */
-export const SNKRDUNK_SEARCH_LIMIT = 60;
-
-function decodeHtmlEntities(s: string): string {
-  return s
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>');
-}
-
-function parseSnkrdunkSearchHtml(html: string): SnkrdunkSearchResult[] {
-  const seen = new Set<number>();
-  const out: SnkrdunkSearchResult[] = [];
-  let m: RegExpExecArray | null;
-  const re = new RegExp(SEARCH_ITEM_RE.source, SEARCH_ITEM_RE.flags);
-  while ((m = re.exec(html)) !== null) {
-    const id = Number(m[1]);
-    if (!Number.isInteger(id) || seen.has(id)) continue;
-    seen.add(id);
-    const ariaLabel = decodeHtmlEntities(m[2]);
-    const sepIdx = ariaLabel.lastIndexOf(' - ¥');
-    const name = sepIdx > 0 ? ariaLabel.slice(0, sepIdx).trim() : ariaLabel.trim();
-    const priceText = sepIdx > 0 ? `¥${ariaLabel.slice(sepIdx + 4).trim()}` : '';
-    out.push({ apparelId: id, name, imageUrl: m[3] || null, priceText });
-    if (out.length >= SNKRDUNK_SEARCH_LIMIT) break;
-  }
-  return out;
-}
-
-export const SNKRDUNK_BROWSE_KEYWORD = 'ポケモンカード';
-
-export async function fetchSnkrdunkBrowse(page = 1): Promise<SnkrdunkSearchResult[]> {
-  const p = Number.isInteger(page) && page > 1 ? `&page=${page}` : '';
-  const url = `${SNKRDUNK_ORIGIN}/search?keywords=${encodeURIComponent(SNKRDUNK_BROWSE_KEYWORD)}${p}`;
-  try {
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'text/html',
-        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
-      },
-      signal: abortAfter(10000),
-    });
-    if (!res.ok) return [];
-    const html = await res.text();
-    return parseSnkrdunkSearchHtml(html);
-  } catch {
-    return [];
-  }
-}
-
-/** Free-text search. `page` 로 스니덩 검색 페이지네이션(2,3…)을 직접 넘긴다 —
- *  검색 화면 "더 보기"가 다음 페이지를 이어 받는 데 쓰인다. (legacy 컬렉션 카드의
- *  apparelId 복구에도 사용 — 그 경우 page 생략 = 1페이지.) */
-export async function searchSnkrdunkByQuery(
-  query: string,
-  page = 1,
-): Promise<SnkrdunkSearchResult[]> {
-  if (!query || !query.trim()) return [];
-  const p = Number.isInteger(page) && page > 1 ? `&page=${page}` : '';
-  const url = `${SNKRDUNK_ORIGIN}/search?keywords=${encodeURIComponent(query.trim())}${p}`;
-  try {
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'text/html',
-        'Accept-Language': 'ja,en-US;q=0.8,ko;q=0.7',
-      },
-      signal: abortAfter(10000),
-    });
-    if (!res.ok) return [];
-    const html = await res.text();
-    return parseSnkrdunkSearchHtml(html);
-  } catch {
-    return [];
-  }
-}
 
 /** Find the snkrdunk apparelId for a stored collection card. We need a
  *  CONFIDENT match — naive name-only search returns sibling prints (a
@@ -537,63 +323,4 @@ export async function recoverSnkrdunkApparelId(card: {
     if (best?.apparelId) return best.apparelId;
   }
   return null;
-}
-
-// ────────────────────────────────────────────────────────────
-// 차트 다운샘플링 (긴 기간을 한 화면에 보여주기 위해 주/월 평균)
-// ────────────────────────────────────────────────────────────
-export type PriceDownsampleUnit = 'raw' | 'weekly' | 'monthly';
-
-const _DAY_MS = 86_400_000;
-
-function pickDownsampleUnit(spanMs: number): PriceDownsampleUnit {
-  if (spanMs > 365 * _DAY_MS) return 'monthly';
-  if (spanMs > 60 * _DAY_MS) return 'weekly';
-  return 'raw';
-}
-
-export function priceDownsampleUnit(
-  points: Array<[number, number]>,
-): PriceDownsampleUnit {
-  if (points.length < 2) return 'raw';
-  let min = points[0][0];
-  let max = points[0][0];
-  for (const [t] of points) {
-    if (t < min) min = t;
-    if (t > max) max = t;
-  }
-  return pickDownsampleUnit(max - min);
-}
-
-export function priceUnitLabelKo(unit: PriceDownsampleUnit): string {
-  if (unit === 'monthly') return '월';
-  if (unit === 'weekly') return '주';
-  return '건';
-}
-
-export function downsamplePricePoints(
-  points: Array<[number, number]>,
-): Array<[number, number]> {
-  if (points.length < 2) return points.slice();
-  const sorted = [...points].sort((a, b) => a[0] - b[0]);
-  const spanMs = sorted[sorted.length - 1][0] - sorted[0][0];
-  const WEEK = 7 * _DAY_MS;
-  const MONTH = 30 * _DAY_MS;
-  const unit = pickDownsampleUnit(spanMs);
-  if (unit === 'raw') return sorted;
-  const bucket = unit === 'monthly' ? MONTH : WEEK;
-  const map = new Map<number, { sum: number; n: number }>();
-  for (const [ts, price] of sorted) {
-    const key = Math.floor(ts / bucket) * bucket;
-    const b = map.get(key);
-    if (b) {
-      b.sum += price;
-      b.n += 1;
-    } else {
-      map.set(key, { sum: price, n: 1 });
-    }
-  }
-  return [...map.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([key, b]) => [key, Math.round(b.sum / b.n)] as [number, number]);
 }

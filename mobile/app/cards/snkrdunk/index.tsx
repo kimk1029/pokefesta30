@@ -4,7 +4,7 @@
  * 카테고리 칩 · 최저가) + 전체 보기(/cards/snkrdunk/all) 링크.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
@@ -12,6 +12,7 @@ import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { LoadingState } from '@/components/cv/ListState';
+import { ThumbImage } from '@/components/cv/ThumbImage';
 import { fonts, space } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import {
@@ -194,13 +195,7 @@ export default function SnkrdunkLanding() {
                   inner={3}
                 >
                   <View style={{ flexDirection: 'row', gap: 12, padding: 12, alignItems: 'center' }}>
-                    <View style={{ width: 56, height: 78, backgroundColor: tc.pap2, borderColor: tc.ink, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                      {apparel?.imageUrl ? (
-                        <Image source={{ uri: apparel.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                      ) : (
-                        <Text style={{ fontSize: 22 }}>🃏</Text>
-                      )}
-                    </View>
+                    <ThumbImage uri={apparel?.imageUrl} style={{ width: 56, height: 78 }} borderColor={tc.ink} emojiSize={22} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       {seed.category ? (
                         <View style={{ alignSelf: 'flex-start', backgroundColor: CATEGORY_BG[seed.category], paddingHorizontal: 6, paddingVertical: 2 }}>

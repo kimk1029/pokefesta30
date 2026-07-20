@@ -4,7 +4,9 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { AppBarUser } from '@/components/AppBarUser';
+import { CardThumb } from '@/components/CardThumb';
 import { useCurrency } from '@/components/CurrencyProvider';
+import { PIXEL_BORDER } from '@/components/pixelBorder';
 import { useHomePrefs } from '@/components/HomePrefsProvider';
 import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
 import { PortfolioHero } from '@/components/PortfolioHero';
@@ -555,19 +557,15 @@ function PackHitsSectionBlock({ pack }: { pack: PackRow }) {
                 borderTop: `4px solid ${pack.bg}`,
               }}
             >
-              <div
+              <CardThumb
                 style={{
                   height: 92, background: 'var(--pap2)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
                 }}
-              >
-                {hit.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={hit.imageUrl} alt={hit.shortName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: 33 }}>🃏</span>
-                )}
-              </div>
+                src={hit.imageUrl}
+                alt={hit.shortName}
+                emojiSize={33}
+              />
               <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
                 <div
                   style={{
@@ -677,12 +675,12 @@ function PopularCardsSection({
               style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: i < arr.length - 1 ? '1px solid var(--line2)' : 'none', textDecoration: 'none', color: 'inherit' }}
             >
               <div className="num" style={{ width: 20, textAlign: 'center', fontSize: 13, fontWeight: 800, color: i < 3 ? 'var(--red)' : 'var(--ink4)' }}>{i + 1}</div>
-              <div style={{ width: 34, height: 46, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: 'var(--surf2)', display: 'grid', placeItems: 'center' }}>
-                {r.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.imageUrl} alt={r.shortName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (<span style={{ fontSize: 18 }}>🃏</span>)}
-              </div>
+              <CardThumb
+                style={{ width: 34, height: 46, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: 'var(--surf2)', display: 'grid', placeItems: 'center' }}
+                src={r.imageUrl}
+                alt={r.shortName}
+                emojiSize={18}
+              />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.shortName}</div>
                 <div style={{ fontSize: 11, color: 'var(--ink3)', marginTop: 3, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -725,22 +723,16 @@ function PopularCardsSection({
                 ...(isClean ? {} : { borderTop: `4px solid ${bg}` }),
               }}
             >
-              <div style={{
-                // 플랫 테마: 카드 면(--white)과 동일하게 — 이미지 띠가 회색 컨테이너처럼 떠 보이지 않게.
-                height: 92, background: isClean ? 'var(--white)' : 'var(--pap2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-              }}>
-                {r.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={r.imageUrl}
-                    alt={r.shortName}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <span style={{ fontSize: 33 }}>🃏</span>
-                )}
-              </div>
+              <CardThumb
+                style={{
+                  // 플랫 테마: 카드 면(--white)과 동일하게 — 이미지 띠가 회색 컨테이너처럼 떠 보이지 않게.
+                  height: 92, background: isClean ? 'var(--white)' : 'var(--pap2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                }}
+                src={r.imageUrl}
+                alt={r.shortName}
+                emojiSize={33}
+              />
               <div style={{
                 padding: '7px 8px 9px',
                 borderTop: isClean ? '1px solid var(--pap3)' : '3px solid var(--ink)',
@@ -751,7 +743,7 @@ function PopularCardsSection({
                     <span style={{
                       fontFamily: 'var(--f1)', fontSize: 9, padding: '2px 4px', display: 'inline-block',
                       background: bg, color: 'var(--white)', letterSpacing: 0.3,
-                      boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                      boxShadow: PIXEL_BORDER,
                     }}>{r.category}</span>
                   ) : null}
                 </div>

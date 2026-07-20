@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CardRegisterSheet, type RegisterCardInput } from '@/components/cards/CardRegisterSheet';
+import { CardThumb } from '@/components/CardThumb';
 import { useTheme } from '@/components/ThemeProvider';
 import { translate, translateKnownCardNameToKo } from '@/lib/cardTranslate';
 
@@ -709,7 +710,7 @@ export function ManualAddForm(_props: Props) {
                       border: `1.5px solid ${sel ? P.accent : P.line}`,
                     }}
                   >
-                    <div
+                    <CardThumb
                       style={{
                         position: 'relative',
                         width: 52,
@@ -719,19 +720,14 @@ export function ManualAddForm(_props: Props) {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 26,
                         flex: 'none',
                         overflow: 'hidden',
                         boxShadow: '0 3px 8px rgba(0,0,0,.14)',
                       }}
-                    >
-                      {c.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={c.imageUrl} alt={c.name ?? '카드'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <span>🃏</span>
-                      )}
-                    </div>
+                      src={c.imageUrl}
+                      alt={c.name ?? '카드'}
+                      emojiSize={26}
+                    />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14.5, fontWeight: 800, color: P.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {c.name ?? '이름 미상'}

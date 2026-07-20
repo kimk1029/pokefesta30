@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
+import { LoadingState } from '@/components/cv/ListState';
+import { MarketListRow } from '@/components/cv/MarketListRow';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { bunjangSearchUrl, fetchBunjangItems, type BunjangItem } from '@/services/marketplace';
@@ -188,11 +190,7 @@ export default function BunjangScreen() {
           </View>
         )}
 
-        {loading && !isEmpty && (
-          <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-            <ActivityIndicator color={tc.ink} />
-          </View>
-        )}
+        {loading && !isEmpty && <LoadingState />}
 
         {items.length > 0 && (
           <PixelPress onPress={() => Linking.openURL(bunjangSearchUrl(submitted))} bg={tc.ink} borderWidth={3} shadow={5}>
@@ -210,49 +208,24 @@ export default function BunjangScreen() {
 
 function MarketRow({ item, fav, onToggleFav }: { item: BunjangItem; fav: boolean; onToggleFav: () => void }) {
   const tc = useThemeColors();
-  const txt = useThemeTextVariant();
   return (
     // 웹 .shop-card 재현: 썸네일 84 + 본문(제목 / 가격 빨강 / 메타). 별은 우상단 오버레이.
-    <View style={{ position: 'relative' }}>
-      <PixelPress onPress={() => router.push(`/cards/bunjang/${item.pid}`)} bg={tc.white} borderWidth={3} shadow={6} hi={null} lo={null}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
-          <View
-            style={{
-              width: 84,
-              height: 84,
-              backgroundColor: tc.ink2,
-              borderColor: tc.ink,
-              borderWidth: 2,
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-            }}
-          >
-            {item.imageUrl ? (
-              <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-            ) : (
-              <Text style={{ fontSize: 30 }}>🃏</Text>
-            )}
-          </View>
-          <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
-            <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17, paddingRight: 22 }}>
-              {item.name}
-            </PixelText>
-            <PixelText variant={txt} size={14} color={tc.red} numberOfLines={1} style={{ marginTop: 7 }}>
-              {item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
-            </PixelText>
-            <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
-              📍 {item.location || '지역 미표기'}   ❤ {item.favCount}
-            </PixelText>
-          </View>
-        </View>
-      </PixelPress>
-      {/* 별 토글 — 우상단 오버레이 (행 onPress 보다 우선) */}
-      <Pressable onPress={onToggleFav} hitSlop={10} style={{ position: 'absolute', top: 8, right: 8, padding: 4, zIndex: 2 }}>
-        <Text style={{ fontSize: 20, lineHeight: 22, color: fav ? tc.gold : tc.ink4 }}>
-          {fav ? '★' : '☆'}
-        </Text>
-      </Pressable>
-    </View>
+    <MarketListRow
+      onPress={() => router.push(`/cards/bunjang/${item.pid}`)}
+      imageUrl={item.imageUrl}
+      title={item.name}
+      titlePaddingRight={22}
+      priceText={item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
+      metaText={`📍 ${item.location || '지역 미표기'}   ❤ ${item.favCount}`}
+      shadow={6}
+      rightSlot={
+        /* 별 토글 — 우상단 오버레이 (행 onPress 보다 우선) */
+        <Pressable onPress={onToggleFav} hitSlop={10} style={{ position: 'absolute', top: 8, right: 8, padding: 4, zIndex: 2 }}>
+          <Text style={{ fontSize: 20, lineHeight: 22, color: fav ? tc.gold : tc.ink4 }}>
+            {fav ? '★' : '☆'}
+          </Text>
+        </Pressable>
+      }
+    />
   );
 }

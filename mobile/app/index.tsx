@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, ScrollView, View, Pressable, Text, TextInput } from 'react-native';
+import { Animated, Easing, ScrollView, View, Pressable, Text, TextInput } from 'react-native';
 import Svg, { Rect, Path, Circle } from 'react-native-svg';
 import { router } from 'expo-router';
 import { AppBar, ABtn } from '@/components/AppBar';
@@ -10,6 +10,7 @@ import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { SectHd } from '@/components/cv/SectHd';
+import { ThumbImage } from '@/components/cv/ThumbImage';
 import { Chip } from '@/components/cv/Chip';
 import { RarBadge } from '@/components/cv/RarBadge';
 import { GradeBadge } from '@/components/cv/GradeBadge';
@@ -963,13 +964,7 @@ function PopularCardsSection({
               style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11, borderBottomColor: tc.pap3, borderBottomWidth: i < arr.length - 1 ? 1 : 0 }}
             >
               <PixelText variant={txt} size={12} weight="bold" color={i < 3 ? tc.red : tc.ink4} style={{ width: 18, textAlign: 'center' }}>{i + 1}</PixelText>
-              <View style={{ width: 34, height: 46, borderRadius: 6, overflow: 'hidden', backgroundColor: tc.pap2, alignItems: 'center', justifyContent: 'center' }}>
-                {data?.imageUrl ? (
-                  <Image source={{ uri: data.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                ) : (
-                  <Text style={{ fontSize: 16 }}>🃏</Text>
-                )}
-              </View>
+              <ThumbImage uri={data?.imageUrl} style={{ width: 34, height: 46, borderRadius: 6 }} emojiSize={16} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <PixelText variant={txt} size={13} weight="bold" color={tc.ink} numberOfLines={1}>{seed.shortName}</PixelText>
                 <PixelText variant={txt} size={10} color={tc.ink3} numberOfLines={1} style={{ marginTop: 3 }}>
@@ -1010,13 +1005,7 @@ function PopularCardsSection({
                 innerStyle={{ ...(flat ? {} : { borderTopWidth: 4, borderTopColor: bg }), height: 222 }}
               >
                 <View style={{ flex: 1 }}>
-                  <View style={{ height: 118, backgroundColor: tc.pap2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                    {data?.imageUrl ? (
-                      <Image source={{ uri: data.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                    ) : (
-                      <Text style={{ fontSize: 28 }}>🃏</Text>
-                    )}
-                  </View>
+                  <ThumbImage uri={data?.imageUrl} style={{ height: 118 }} emojiSize={28} />
                   <View style={{ padding: 8, flex: 1, ...(flat ? {} : { borderTopColor: tc.ink, borderTopWidth: 3 }) }}>
                     <View style={{ height: 18, marginBottom: 4 }}>
                       {seed.category ? (

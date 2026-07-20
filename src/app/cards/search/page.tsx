@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { CardThumb } from '@/components/CardThumb';
 import { TranslationTicker, type SearchRankItem } from '@/components/TranslationTicker';
+import { PIXEL_BORDER } from '@/components/pixelBorder';
 import { AppBar } from '@/components/ui/AppBar';
 import { Panel } from '@/components/ui/Panel';
 import { ListAdRow } from '@/components/ListAdRow';
@@ -264,7 +266,7 @@ function Badge({ children, emphasis }: { children: React.ReactNode; emphasis?: b
         color: emphasis ? 'var(--white)' : 'var(--ink)',
         fontFamily: 'var(--f1)',
         letterSpacing: 0.3,
-        boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+        boxShadow: PIXEL_BORDER,
       }}
     >
       {children}
@@ -289,8 +291,7 @@ function EbayList({ items }: { items: EbayItemSummary[] }) {
             padding: '8px 10px',
             background: 'var(--pap2)',
             textDecoration: 'none',
-            boxShadow:
-              '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+            boxShadow: PIXEL_BORDER,
           }}
         >
           {it.thumb ? (
@@ -473,27 +474,17 @@ function IllustratorCardTile({ c }: { c: IllustratorCard }) {
       style={{ overflow: 'hidden' }}
       pixelShadow="-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink),3px 3px 0 var(--ink)"
     >
-      <div
+      <CardThumb
         style={{
           aspectRatio: '63 / 88',
           background: 'var(--pap2)',
           overflow: 'hidden',
         }}
-      >
-        {img ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={img}
-            alt={c.name}
-            loading="lazy"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-        ) : (
-          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-            <span style={{ fontSize: 33 }}>🃏</span>
-          </div>
-        )}
-      </div>
+        src={img}
+        alt={c.name}
+        loading="lazy"
+        emojiSize={33}
+      />
       <div className="cv-card-divider" style={{ padding: '6px 8px 8px' }}>
         <div
           style={{

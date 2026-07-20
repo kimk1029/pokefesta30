@@ -1,9 +1,12 @@
 import Link from 'next/link';
+import { CardThumb } from '@/components/CardThumb';
 import { Price } from '@/components/Price';
+import { PIXEL_BORDER } from '@/components/pixelBorder';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
 import { SnkrdunkSearchBar } from '@/components/SnkrdunkSearchBar';
+import { shortenName as shortenNameShared } from '../../../../shared/util/shortenName';
 import { autoPriceSize } from '../../../../shared/util/autoPriceSize';
 import {
   downsamplePricePoints,
@@ -55,13 +58,9 @@ function inferCategory(name: string): SnkrdunkCardSeed['category'] | null {
 }
 
 /** "리자몽ex SAR (151) | ポケモンカードゲーム" 같은 긴 이름을 카드 라벨용으로 단축. */
-function shortenName(name: string): string {
-  const cut = name.split(/[|｜]/)[0].trim();
-  return cut.length > 28 ? cut.slice(0, 27) + '…' : cut;
-}
 
 function searchToSeed(r: SnkrdunkSearchResult): DisplaySeed {
-  const jp = shortenName(r.name);
+  const jp = shortenNameShared(r.name, 28);
   const curated = FEATURED_BY_ID.get(r.apparelId);
   if (curated) {
     return {
@@ -74,7 +73,7 @@ function searchToSeed(r: SnkrdunkSearchResult): DisplaySeed {
   // 일본어 원문을 한국어로 자동 번역 — 사전 미수록 단어는 원문 유지.
   return {
     apparelId: r.apparelId,
-    shortName: shortenName(translateKnownCardNameToKo(r.name)),
+    shortName: shortenNameShared(translateKnownCardNameToKo(r.name), 28),
     localizedName: jp,
     category: inferCategory(r.name),
   };
@@ -249,7 +248,7 @@ export default async function Page() {
               className="shop-card"
               style={{ textDecoration: 'none', color: 'inherit' }}
             >
-              <div
+              <CardThumb
                 className="sh-icon"
                 style={{
                   width: 88,
@@ -259,19 +258,9 @@ export default async function Page() {
                   overflow: 'hidden',
                   alignSelf: 'stretch',
                 }}
-              >
-                {apparel?.imageUrl ? (
-                  // 외부 이미지는 next/image 도메인 화이트리스트가 필요해서 일반 <img> 사용
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={apparel.imageUrl}
-                    alt={seed.shortName}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  />
-                ) : (
-                  <span style={{ fontSize: 37 }}>🃏</span>
-                )}
-              </div>
+                src={apparel?.imageUrl ?? null}
+                alt={seed.shortName}
+              />
               <div className="sh-main">
                 <div className="sh-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   {seed.category && (
@@ -283,8 +272,7 @@ export default async function Page() {
                         background: bg,
                         color: 'var(--white)',
                         letterSpacing: 0.5,
-                        boxShadow:
-                          '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                        boxShadow: PIXEL_BORDER,
                       }}
                     >
                       {seed.category}

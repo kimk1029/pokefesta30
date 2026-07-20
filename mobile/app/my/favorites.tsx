@@ -8,7 +8,6 @@
 import { useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { EmptyState, ErrorView, LoadingState } from '@/components/cv/ListState';
+import { SnkrdunkCardTile } from '@/components/cv/SnkrdunkCardTile';
 import { InlineLoginGate } from '@/components/InlineLoginGate';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useToast } from '@/components/ToastProvider';
@@ -130,39 +130,19 @@ export default function FavoritesScreen() {
             <View style={styles.grid}>
               {rows.map((r) => (
                 <View key={r.id} style={styles.gridItem}>
-                  <Pressable onPress={() => router.push(`/cards/snkrdunk/${r.snkrdunkApparelId}` as never)}>
-                    <View style={{ aspectRatio: 63 / 88, backgroundColor: tc.pap2, overflow: 'hidden' }}>
-                      {r.imageUrl ? (
-                        <Image source={{ uri: r.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                      ) : (
-                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                          <PixelText variant={txt} size={28}>🃏</PixelText>
-                        </View>
-                      )}
-                    </View>
-                    <View style={{ padding: 7, borderTopWidth: 3, borderTopColor: tc.ink }}>
-                      <PixelText variant="ko" size={10} numberOfLines={2}>
-                        {r.name ?? '(이름 없음)'}
-                      </PixelText>
-                      <View
-                        style={{
-                          marginTop: 5,
-                          paddingHorizontal: 5,
-                          paddingVertical: 2,
-                          backgroundColor: r.minPriceJpy > 0 ? tc.ink : tc.pap2,
-                          alignSelf: 'flex-start',
-                        }}
-                      >
-                        <PixelText
-                          variant={txt}
-                          size={10}
-                          color={r.minPriceJpy > 0 ? tc.gold : tc.ink3}
-                        >
-                          {r.minPriceJpy > 0 ? format(r.minPriceJpy) : '시세 없음'}
-                        </PixelText>
-                      </View>
-                    </View>
-                  </Pressable>
+                  <SnkrdunkCardTile
+                    plainPress
+                    onPress={() => router.push(`/cards/snkrdunk/${r.snkrdunkApparelId}` as never)}
+                    imageUrl={r.imageUrl}
+                    koName={r.name ?? '(이름 없음)'}
+                    priceText={r.minPriceJpy > 0 ? format(r.minPriceJpy) : null}
+                    priceChip
+                    thumbAspect={63 / 88}
+                    nameSize={10}
+                    nameBold={false}
+                    infoPadding={7}
+                    emojiSize={29}
+                  />
                   <Pressable onPress={() => onRemove(r.snkrdunkApparelId)} style={styles.removeBtn}>
                     <PixelText variant={txt} size={9} color={tc.red}>✕ 제거</PixelText>
                   </Pressable>

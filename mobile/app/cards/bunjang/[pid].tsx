@@ -3,11 +3,12 @@
  * 리스트에서 매물을 누르면 외부 링크 대신 이 화면으로 들어와 이미지·설명·시세를 본다.
  */
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, ScrollView, View } from 'react-native';
+import { Image, Linking, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelPress } from '@/components/cv/PixelPress';
+import { LoadingState } from '@/components/cv/ListState';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchBunjangProduct, type BunjangProduct } from '@/services/marketplace';
@@ -102,8 +103,8 @@ export default function BunjangDetailScreen() {
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <AppBar onBack={() => router.back()} title="우리 장터 시세" />
       {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={tc.ink} />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <LoadingState />
         </View>
       ) : error || !product ? (
         <View style={{ margin: 40, alignItems: 'center' }}>

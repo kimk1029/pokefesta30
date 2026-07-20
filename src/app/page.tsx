@@ -6,6 +6,7 @@ import { SNKRDUNK_FEATURED_CARDS, type SnkrdunkCardSeed } from '@/lib/snkrdunkCa
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
 import { classifySnkrdunkName, type SnkrdunkSalesHistory } from '@/lib/snkrdunk';
 import { trendChangePct, headlinePriceFromHistory } from '@/lib/snkrdunkPrice';
+import { shortenName } from '../../shared/util/shortenName';
 import { CARD_PACKS } from '@/lib/cardPacks';
 import { fetchMvcAuctionPage, type MvcAuctionItem } from '@/lib/navercafe';
 
@@ -37,10 +38,6 @@ function inferCategory(name: string): SnkrdunkCategory | null {
   return null;
 }
 
-function shortenName(name: string): string {
-  const cut = name.split(/[|｜]/)[0].trim();
-  return cut.length > 22 ? cut.slice(0, 21) + '…' : cut;
-}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();

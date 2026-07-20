@@ -1,3 +1,4 @@
+import { PIXEL_BORDER } from '@/components/pixelBorder';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -72,8 +73,7 @@ export default function Page() {
                       fontFamily: 'var(--f1)',
                       fontSize: 9,
                       letterSpacing: 0.5,
-                      boxShadow:
-                        '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                      boxShadow: PIXEL_BORDER,
                     }}
                   >
                     {TAG_STYLE[n.tag].label}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { TranslationTicker } from '@/components/TranslationTicker';
@@ -7,6 +7,7 @@ import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
 import { EmptyState } from '@/components/cv/ListState';
+import { MarketListRow } from '@/components/cv/MarketListRow';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import {
@@ -455,50 +456,14 @@ function FooterNote({ text }: { text: string }) {
 }
 
 function SnkrdunkRow({ hit }: { hit: Hit }) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
   return (
-    <PixelPress
+    <MarketListRow
       onPress={() => router.push(`/cards/snkrdunk/${hit.apparelId}` as never)}
-      bg={tc.white}
-      borderWidth={3}
-      shadow={5}
-      hi={null}
-      lo={null}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
-        <View
-          style={{
-            width: 84,
-            height: 84,
-            backgroundColor: tc.ink2,
-            borderColor: tc.ink,
-            borderWidth: 2,
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          {hit.imageUrl ? (
-            <Image source={{ uri: hit.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-          ) : (
-            <Text style={{ fontSize: 30 }}>🃏</Text>
-          )}
-        </View>
-        <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
-          <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17 }}>
-            {hit.koName}
-          </PixelText>
-          <PixelText variant={txt} size={14} color={tc.red} numberOfLines={1} style={{ marginTop: 7 }}>
-            {fmtYen(hit.minPrice)}
-          </PixelText>
-          <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
-            {hit.jpName}
-            {hit.listingCountText ? `   매물 ${hit.listingCountText}건` : ''}
-          </PixelText>
-        </View>
-      </View>
-    </PixelPress>
+      imageUrl={hit.imageUrl}
+      title={hit.koName}
+      priceText={fmtYen(hit.minPrice)}
+      metaText={`${hit.jpName}${hit.listingCountText ? `   매물 ${hit.listingCountText}건` : ''}`}
+    />
   );
 }
 
@@ -541,95 +506,26 @@ function KreamPanel({ query, items, loading }: { query: string; items: KreamItem
 }
 
 function KreamRow({ item }: { item: KreamItem }) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
   return (
-    <PixelPress
+    <MarketListRow
       onPress={() => Linking.openURL(item.productUrl)}
-      bg={tc.white}
-      borderWidth={3}
-      shadow={5}
-      hi={null}
-      lo={null}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
-        <View
-          style={{
-            width: 84,
-            height: 84,
-            backgroundColor: tc.ink2,
-            borderColor: tc.ink,
-            borderWidth: 2,
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-          ) : (
-            <Text style={{ fontSize: 30 }}>🃏</Text>
-          )}
-        </View>
-        <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
-          <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17 }}>
-            {item.name}
-          </PixelText>
-          <PixelText variant={txt} size={14} color={tc.red} numberOfLines={1} style={{ marginTop: 7 }}>
-            {item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
-          </PixelText>
-          <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
-            KREAM
-          </PixelText>
-        </View>
-      </View>
-    </PixelPress>
+      imageUrl={item.imageUrl}
+      title={item.name}
+      priceText={item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
+      metaText="KREAM"
+    />
   );
 }
 
 function BunjangRow({ item }: { item: BunjangItem }) {
-  const tc = useThemeColors();
-  const txt = useThemeTextVariant();
   return (
-    <PixelPress
+    <MarketListRow
       onPress={() => Linking.openURL(item.productUrl)}
-      bg={tc.white}
-      borderWidth={3}
-      shadow={5}
-      hi={null}
-      lo={null}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10 }}>
-        <View
-          style={{
-            width: 84,
-            height: 84,
-            backgroundColor: tc.ink2,
-            borderColor: tc.ink,
-            borderWidth: 2,
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-          ) : (
-            <Text style={{ fontSize: 30 }}>📦</Text>
-          )}
-        </View>
-        <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
-          <PixelText variant="ko" size={12} numberOfLines={2} style={{ lineHeight: 17 }}>
-            {item.name}
-          </PixelText>
-          <PixelText variant={txt} size={14} color={tc.red} numberOfLines={1} style={{ marginTop: 7 }}>
-            {item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
-          </PixelText>
-          <PixelText variant={txt} size={8} color={tc.ink3} numberOfLines={1} style={{ marginTop: 6 }}>
-            📍 {item.location || '지역 미표기'}   ❤ {item.favCount}
-          </PixelText>
-        </View>
-      </View>
-    </PixelPress>
+      imageUrl={item.imageUrl}
+      fallbackEmoji="📦"
+      title={item.name}
+      priceText={item.price > 0 ? `${item.price.toLocaleString('ko-KR')}원` : '가격문의'}
+      metaText={`📍 ${item.location || '지역 미표기'}   ❤ ${item.favCount}`}
+    />
   );
 }

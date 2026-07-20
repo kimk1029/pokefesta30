@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { Chip } from '@/components/cv/Chip';
+import { ThumbImage } from '@/components/cv/ThumbImage';
 import { colors } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 import { fetchSnkrdunkBrowse, type SnkrdunkSearchResult } from '@/services/snkrdunk';
@@ -183,30 +184,13 @@ export default function SnkrdunkAll() {
                 {String(index + 1).padStart(2, '0')}
               </PixelText>
             </View>
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                backgroundColor: tc.pap2,
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                borderColor: tc.ink,
-                borderWidth: 2,
-                marginLeft: 6,
-                marginRight: 10,
-              }}
-            >
-              {item.imageUrl ? (
-                <Image
-                  source={{ uri: item.imageUrl }}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Text style={{ fontSize: 18 }}>🃏</Text>
-              )}
-            </View>
+            <ThumbImage
+              uri={item.imageUrl}
+              size={44}
+              borderColor={tc.ink}
+              emojiSize={18}
+              style={{ marginLeft: 6, marginRight: 10 }}
+            />
             <View style={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
               <PixelText
                 variant="ko"

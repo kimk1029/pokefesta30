@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { DAILY_SNAPSHOT_STATE, kstDayStart } from '../lib/dailyPriceSnapshot.js';
+import { DAILY_SNAPSHOT_STATE } from '../lib/dailyPriceSnapshot.js';
+import { kstDateKey, kstDayStart } from '../../shared/kst';
 import {
   fetchSnkrdunkBrowse,
   fetchSnkrdunkSearch,
@@ -196,9 +197,8 @@ router.get('/apparels/:id/price-stats', async (req: Request, res: Response) => {
       samples: Number(r.samples),
     }));
     // 기간 평균: 최근 N일(달력 기준, KST) 중 값이 있는 날들의 평균. 값이 하루도 없으면 0.
-    const kstDateStr = (ts: number) => new Date(ts + 9 * 3600_000).toISOString().slice(0, 10);
     const avgOver = (n: number, pick: (d: (typeof daily)[number]) => number): number => {
-      const cutoff = kstDateStr(kstDayStart().getTime() - (n - 1) * 86_400_000);
+      const cutoff = kstDateKey(kstDayStart().getTime() - (n - 1) * 86_400_000);
       const vals = daily.filter((d) => d.date >= cutoff).map(pick).filter((v) => v > 0);
       return vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
     };

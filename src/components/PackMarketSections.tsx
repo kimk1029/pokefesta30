@@ -1,10 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { useCurrency } from '@/components/CurrencyProvider';
+import { PackGridCard } from '@/components/PackGridCard';
 import type { PackHitCard } from '@/lib/cardPackHits';
-import { autoPriceSize } from '../../shared/util/autoPriceSize';
 
 type SortKey = 'price-desc' | 'recent-sale' | 'listing-desc';
 
@@ -135,94 +133,20 @@ function MarketSection({
 }
 
 function MarketCard({ hit, packBg }: { hit: PackHitCard; packBg: string }) {
-  const { format } = useCurrency();
   // 번역된 koName 이 비어있거나 원문과 동일하면 일본어 별도 표기 생략 (중복 라인 방지).
   const koTitle = hit.koName || hit.shortName;
   const jpTitle = hit.name && hit.name !== koTitle ? hit.name : null;
-  const hasPrice = hit.minPrice > 0;
-  const priceStr = hasPrice ? format(hit.minPrice) : '시세 없음';
-  // 자릿수 기반 단계적 축소 — 다른 가격 박스(컬렉션·검색·스포트라이트)와 동일한
-  // 헬퍼. 박스(그리드 1/3 폭) 안에 줄임표 없이 다 표시되도록 min 7.
-  const priceFont = autoPriceSize(priceStr, 11, 7);
   return (
-    <Link
+    <PackGridCard
       href={`/cards/snkrdunk/${hit.apparelId}`}
-      className="pack-grid-card"
       style={{ borderTop: `4px solid ${packBg}` }}
-    >
-      <div
-        style={{
-          aspectRatio: '63 / 88',
-          background: 'var(--pap2)',
-          overflow: 'hidden',
-        }}
-      >
-        {hit.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={hit.imageUrl}
-            alt={koTitle}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-        ) : (
-          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-            <span style={{ fontSize: 37 }}>🃏</span>
-          </div>
-        )}
-      </div>
-      <div style={{ padding: '7px 8px 9px', borderTop: '3px solid var(--ink)' }}>
-        <div
-          style={{
-            fontFamily: 'var(--f1)', fontSize: 11, letterSpacing: 0.2, marginBottom: jpTitle ? 3 : 6,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            minHeight: 30,
-            lineHeight: 1.45,
-            wordBreak: 'keep-all',
-          }}
-        >
-          {koTitle}
-        </div>
-        {jpTitle ? (
-          <div
-            style={{
-              fontFamily: 'var(--f1)',
-              fontSize: 9,
-              color: 'var(--ink3)',
-              marginBottom: 6,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              lineHeight: 1.5,
-            }}
-          >
-            {jpTitle}
-          </div>
-        ) : null}
-        <div
-          style={{
-            display: 'inline-block',
-            maxWidth: '100%',
-            boxSizing: 'border-box',
-            padding: '3px 6px',
-            background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
-            color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
-            fontFamily: 'var(--f1)',
-            fontSize: priceFont,
-            letterSpacing: 0.3,
-            whiteSpace: 'nowrap',
-            // 줄임표 없이 다 표시 — fontSize 축소만으로 폭에 맞춤. 자르지 않음.
-            boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-          }}
-        >
-          {priceStr}
-        </div>
-        <div style={{ fontFamily: 'var(--f1)', fontSize: 9, color: 'var(--ink3)', marginTop: 5, letterSpacing: 0.3, minHeight: 12 }}>
-          {hit.lastSaleText ? `최근 ${hit.lastSaleText}` : hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
-        </div>
-      </div>
-    </Link>
+      image={hit.imageUrl}
+      title={koTitle}
+      subtitle={jpTitle}
+      priceJpy={hit.minPrice}
+      footer={
+        hit.lastSaleText ? `최근 ${hit.lastSaleText}` : hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'
+      }
+    />
   );
 }

@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '@/lib/apiClient';
+import { isSameKstDay, kstDateParts } from '../../../shared/kst';
 
 const NAVER_API = 'https://apis.naver.com';
 const CAFE_ORIGIN = 'https://cafe.naver.com';
@@ -102,27 +103,9 @@ function relativeTimeKo(ts: number): string {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function kstDateParts(now = Date.now()): { month: number; day: number } {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date(now));
-  return {
-    month: Number(parts.find((p) => p.type === 'month')?.value ?? 0),
-    day: Number(parts.find((p) => p.type === 'day')?.value ?? 0),
-  };
-}
-
-function isSameKstDay(ts: number): boolean {
-  if (!ts) return false;
-  const a = kstDateParts(ts);
-  const b = kstDateParts();
-  return a.month === b.month && a.day === b.day;
-}
-
 function isTodayDeadline(subject: string): boolean | null {
-  const today = kstDateParts();
+  const { m: month, d: day } = kstDateParts();
+  const today = { month, day };
   const re = /(\d{1,2})\s*[\/.월]\s*(\d{1,2})/g;
   let found = false;
   let m: RegExpExecArray | null;

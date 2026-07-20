@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useCurrency } from '@/components/CurrencyProvider';
 import { useTheme } from '@/components/ThemeProvider';
 import { isFlatTheme } from '@/lib/theme';
+import { CardThumb } from '@/components/CardThumb';
 import { ListAdRow } from '@/components/ListAdRow';
-import { autoPriceSize } from '../../../../../shared/util/autoPriceSize';
+import { PackGridCard } from '@/components/PackGridCard';
 import type { BunjangItem } from '@/lib/bunjang';
 import { kreamSearchUrl, type KreamItem } from '@/lib/kream';
 import { searchSnkrdunkPage, type HydratedHit } from './actions';
@@ -383,21 +383,13 @@ function KreamCard({ item }: { item: KreamItem }) {
       className="shop-card"
       style={{ textDecoration: 'none', color: 'inherit' }}
     >
-      <div
+      <CardThumb
         className="sh-icon"
         style={{ width: 84, height: 84, background: 'var(--ink2)', overflow: 'hidden', alignSelf: 'stretch' }}
-      >
-        {item.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.imageUrl}
-            alt={item.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-        ) : (
-          <span style={{ fontSize: 28, display: 'grid', placeItems: 'center', height: '100%' }}>🃏</span>
-        )}
-      </div>
+        src={item.imageUrl}
+        alt={item.name}
+        emojiSize={28}
+      />
       <div className="sh-main">
         <div
           className="sh-title"
@@ -427,21 +419,14 @@ function BunjangCard({ item }: { item: BunjangItem }) {
       className="shop-card"
       style={{ textDecoration: 'none', color: 'inherit' }}
     >
-      <div
+      <CardThumb
         className="sh-icon"
         style={{ width: 84, height: 84, background: 'var(--ink2)', overflow: 'hidden', alignSelf: 'stretch' }}
-      >
-        {item.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.imageUrl}
-            alt={item.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-        ) : (
-          <span style={{ fontSize: 28, display: 'grid', placeItems: 'center', height: '100%' }}>📦</span>
-        )}
-      </div>
+        src={item.imageUrl}
+        alt={item.name}
+        emoji="📦"
+        emojiSize={28}
+      />
       <div className="sh-main">
         <div
           className="sh-title"
@@ -485,113 +470,16 @@ function SearchHitCard({ hit }: { hit: HydratedHit }) {
   const isClean = isFlatTheme(theme);
   const koTitle = hit.koName || hit.jpName;
   const jpTitle = hit.jpName && hit.jpName !== koTitle ? hit.jpName : null;
-  const hasPrice = hit.minPrice > 0;
   return (
-    <Link
+    <PackGridCard
       href={`/cards/snkrdunk/${hit.apparelId}`}
-      className="pack-grid-card"
       style={isClean ? {} : { borderTop: `4px solid ${ACCENT}` }}
-    >
-      <div
-        style={{
-          aspectRatio: '63 / 88',
-          background: 'var(--pap2)',
-          overflow: 'hidden',
-        }}
-      >
-        {hit.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={hit.imageUrl}
-            alt={koTitle}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-        ) : (
-          <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-            <span style={{ fontSize: 37 }}>🃏</span>
-          </div>
-        )}
-      </div>
-      <div style={{ padding: '7px 8px 9px', borderTop: isClean ? '1px solid var(--pap3)' : '3px solid var(--ink)' }}>
-        <div
-          style={{
-            fontFamily: 'var(--f1)',
-            fontSize: 11,
-            letterSpacing: 0.2,
-            marginBottom: jpTitle ? 3 : 6,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            minHeight: 30,
-            lineHeight: 1.45,
-            wordBreak: 'keep-all',
-          }}
-        >
-          {koTitle}
-        </div>
-        {jpTitle ? (
-          <div
-            style={{
-              fontFamily: 'var(--f1)',
-              fontSize: 9,
-              color: 'var(--ink3)',
-              marginBottom: 6,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              lineHeight: 1.5,
-            }}
-          >
-            {jpTitle}
-          </div>
-        ) : null}
-        <PriceBox jpy={hit.minPrice} hasPrice={hasPrice} />
-        <div
-          style={{
-            fontFamily: 'var(--f1)',
-            fontSize: 9,
-            color: 'var(--ink3)',
-            marginTop: 5,
-            letterSpacing: 0.3,
-            minHeight: 12,
-          }}
-        >
-          {hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-/**
- * 금액 박스 — useCurrency 의 format 으로 표시 라벨을 미리 만들어 길이 기반
- * autoPriceSize 로 fontSize 결정. 컨테이너(부모 카드) 폭을 넘기지 않도록
- * maxWidth:100% + nowrap. 줄임표 없이 다 표시.
- */
-function PriceBox({ jpy, hasPrice }: { jpy: number; hasPrice: boolean }) {
-  const { format } = useCurrency();
-  const { theme } = useTheme();
-  const isClean = isFlatTheme(theme);
-  const label = hasPrice ? format(jpy) : '시세 없음';
-  return (
-    <div
-      style={{
-        display: 'inline-block',
-        maxWidth: '100%',
-        padding: '3px 6px',
-        background: hasPrice ? (isClean ? 'var(--accent)' : 'var(--ink)') : 'var(--pap2)',
-        color: hasPrice ? (isClean ? 'var(--white)' : 'var(--gold)') : 'var(--ink3)',
-        fontFamily: 'var(--f1)',
-        fontSize: autoPriceSize(label, 11, 7),
-        letterSpacing: 0.3,
-        whiteSpace: 'nowrap',
-        ...(isClean
-          ? { borderRadius: 'var(--r-sm)' }
-          : { boxShadow: '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)' }),
-      }}
-    >
-      {label}
-    </div>
+      flat={isClean}
+      image={hit.imageUrl}
+      title={koTitle}
+      subtitle={jpTitle}
+      priceJpy={hit.minPrice}
+      footer={hit.listingCountText ? `매물 ${hit.listingCountText}건` : '매물 없음'}
+    />
   );
 }

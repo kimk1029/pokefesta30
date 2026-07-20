@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CardPriceChart } from '@/components/CardPriceChart';
+import { PIXEL_BORDER } from '@/components/pixelBorder';
 import { AppBar } from '@/components/ui/AppBar';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusBar } from '@/components/ui/StatusBar';
@@ -223,8 +224,7 @@ export default async function Page() {
                       background: GRADE_BG[c.grade],
                       color: 'var(--white)',
                       letterSpacing: 0.5,
-                      boxShadow:
-                        '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                      boxShadow: PIXEL_BORDER,
                     }}
                   >
                     {c.grade}
@@ -256,8 +256,7 @@ export default async function Page() {
                       color: 'var(--ink2)',
                       letterSpacing: 0.3,
                       textDecoration: 'none',
-                      boxShadow:
-                        '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink),2px 2px 0 var(--ink)',
+                      boxShadow: `${PIXEL_BORDER},2px 2px 0 var(--ink)`,
                     }}
                   >
                     🇯🇵 スニダン で見る →

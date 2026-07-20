@@ -19,6 +19,7 @@
  *  - DAILY_SNAPSHOT_MAX_MS      1회 최대 실행시간(기본 6시간)
  */
 import { prisma } from './prisma.js';
+import { kstDayStart } from '../../shared/kst';
 import { recordPriceSnapshot } from './snkrdunkCatalog.js';
 import {
   fetchSnkrdunkApparel,
@@ -26,13 +27,6 @@ import {
   fetchSnkrdunkSalesChart,
 } from '@/lib/snkrdunk';
 import { computeApparelPrices } from '@/lib/snkrdunkPrice';
-
-const KST_OFFSET_MS = 9 * 3600_000;
-
-/** 오늘(KST) 자정에 해당하는 UTC 시각. KST 는 DST 없음 → 고정 +9h. */
-export function kstDayStart(now = Date.now()): Date {
-  return new Date(Math.floor((now + KST_OFFSET_MS) / 86_400_000) * 86_400_000 - KST_OFFSET_MS);
-}
 
 /** 다음 KST `hour`시 정각까지 남은 ms. */
 function msUntilNextKstHour(hour: number, now = Date.now()): number {

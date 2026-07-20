@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { CardThumb } from '@/components/CardThumb';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { usePriceMode } from '@/components/PriceModeProvider';
 import { Panel } from '@/components/ui/Panel';
@@ -369,14 +370,12 @@ export function CollectionScreen() {
                     const color = sliceColor(i);
                     return (
                       <div key={row.c.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 34, height: 34, flex: 'none', borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--pap2)', display: 'grid', placeItems: 'center' }}>
-                          {img ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={img} alt={cardName(row.c)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <span style={{ fontSize: 16 }}>🃏</span>
-                          )}
-                        </div>
+                        <CardThumb
+                          style={{ width: 34, height: 34, flex: 'none', borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--pap2)', display: 'grid', placeItems: 'center' }}
+                          src={img}
+                          alt={cardName(row.c)}
+                          emojiSize={16}
+                        />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                             <span style={{ fontFamily: 'var(--f1)', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cardName(row.c)}</span>
@@ -699,18 +698,18 @@ function CardGridItem({ row, rank, format, onRemove }: { row: Row; rank: number;
   const href = c.snkrdunkApparelId ? `/cards/snkrdunk/${c.snkrdunkApparelId}` : undefined;
   const body = (
     <>
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', background: img ? 'var(--pap2)' : FALLBACK_GRADS[rank % FALLBACK_GRADS.length], display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-        {img ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={img} alt={cardName(c)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <span style={{ fontSize: 42, filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.3))' }}>🃏</span>
-        )}
+      <CardThumb
+        style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', background: img ? 'var(--pap2)' : FALLBACK_GRADS[rank % FALLBACK_GRADS.length], display: 'grid', placeItems: 'center', overflow: 'hidden' }}
+        src={img}
+        alt={cardName(c)}
+        emojiSize={42}
+        emojiStyle={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,.3))' }}
+      >
         <div style={{ position: 'absolute', top: 8, left: 8, width: 22, height: 22, borderRadius: '50%', background: rankBadgeColor(rank), color: '#fff', fontSize: 12, fontWeight: 800, display: 'grid', placeItems: 'center', boxShadow: '0 2px 5px rgba(0,0,0,.25)' }}>
           {rank}
         </div>
         {c.graded && <GradedLabel company={c.gradeCompany} grade={c.gradeValue} />}
-      </div>
+      </CardThumb>
       <div style={{ padding: '7px 9px 9px' }}>
         <div style={{ fontFamily: 'var(--f1)', fontSize: 12, fontWeight: 800, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {cardName(c)}
@@ -755,14 +754,12 @@ function CardListItem({ row, format, last, onRemove }: { row: Row; format: (j: n
   return (
     <div style={{ position: 'relative', borderBottom: last ? 'none' : '1px solid var(--pap3)' }}>
       <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 20px 11px 2px', textDecoration: 'none', color: 'inherit' }}>
-        <div style={{ width: 48, height: 48, flex: 'none', borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--pap2)', display: 'grid', placeItems: 'center' }}>
-          {img ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={img} alt={cardName(c)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <span style={{ fontSize: 22 }}>🃏</span>
-          )}
-        </div>
+        <CardThumb
+          style={{ width: 48, height: 48, flex: 'none', borderRadius: 'var(--r-sm)', overflow: 'hidden', background: 'var(--pap2)', display: 'grid', placeItems: 'center' }}
+          src={img}
+          alt={cardName(c)}
+          emojiSize={22}
+        />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--f1)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cardName(c)}</div>
           <div style={{ fontFamily: 'var(--f1)', fontSize: 11, color: 'var(--ink3)', marginTop: 2 }}>{cardSub(c)}{qty > 1 ? ` · ×${qty}` : ''}</div>

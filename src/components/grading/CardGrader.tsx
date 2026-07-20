@@ -8,6 +8,7 @@ import { detectCardOuterPureJs } from './pureCardDetect';
 import { lookupPokemonSet } from '../../../shared/data/pokemonSetMap';
 import { REGISTER_CARD_STORAGE_KEY } from '@/components/cards/RegisterFromScan';
 import type { RegisterCardInput } from '@/components/cards/CardRegisterSheet';
+import { CardThumb } from '@/components/CardThumb';
 import { startRouteTransition } from '@/components/RouteProgress';
 import { matchCardFromOcr } from '@/lib/grading/matchCard';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
@@ -1210,7 +1211,7 @@ function CandidateRow({
       }}
     >
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <div
+        <CardThumb
           style={{
             width: 72,
             aspectRatio: '63 / 88',
@@ -1222,20 +1223,11 @@ function CandidateRow({
             overflow: 'hidden',
             flexShrink: 0,
           }}
-        >
-          {thumb ? (
-            // 외부 도메인(TCGdex/Snkrdunk) 이라 next/image 대신 일반 img 사용.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={thumb}
-              alt={koName}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              loading="lazy"
-            />
-          ) : (
-            <span style={{ fontSize: 26 }}>🃏</span>
-          )}
-        </div>
+          src={thumb}
+          alt={koName}
+          loading="lazy"
+          emojiSize={26}
+        />
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {snkr && (

@@ -6,6 +6,7 @@ import { PixelText } from '@/components/PixelText';
 import { CardThumb } from '@/components/cv/CardThumb';
 import { RarBadge } from '@/components/cv/RarBadge';
 import { GradeBadge } from '@/components/cv/GradeBadge';
+import { ThumbImage } from '@/components/cv/ThumbImage';
 import { Seg } from '@/components/cv/Seg';
 import { PixelFrame } from '@/components/cv/PixelFrame';
 import { PixelPress } from '@/components/cv/PixelPress';
@@ -221,28 +222,14 @@ export default function CardDetail() {
             so the frame doesn't eat into the image either. */}
         <View style={{ alignItems: 'center', marginBottom: 4 }}>
           <View style={{ width: '60%', maxWidth: 240 }}>
-            <View
-              style={{
-                width: '100%',
-                aspectRatio: 63 / 88,
-                position: 'relative',
-                backgroundColor: tc.pap3,
-                borderColor: tc.ink,
-                borderWidth: 2,
-                overflow: 'hidden',
-              }}
+            <ThumbImage
+              uri={card.imageUrl}
+              bg={tc.pap3}
+              borderColor={tc.ink}
+              emoji={card.emoji || '🃏'}
+              emojiSize={64}
+              style={{ width: '100%', aspectRatio: 63 / 88 }}
             >
-              {card.imageUrl ? (
-                <Image
-                  source={{ uri: card.imageUrl }}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 64 }}>{card.emoji || '🃏'}</Text>
-                </View>
-              )}
               {card.grade ? (
                 <View style={{ position: 'absolute', top: 6, right: 6 }}>
                   <GradeBadge g={card.grade} />
@@ -251,7 +238,7 @@ export default function CardDetail() {
               <View style={{ position: 'absolute', top: 6, left: 6 }}>
                 <RarBadge rar={card.rar} />
               </View>
-            </View>
+            </ThumbImage>
           </View>
         </View>
 

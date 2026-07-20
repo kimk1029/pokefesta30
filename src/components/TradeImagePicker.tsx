@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { PIXEL_BORDER } from '@/components/pixelBorder';
 
 interface Props {
   /** 현재 선택된 이미지 URL 목록 (컨트롤드) */
@@ -147,8 +148,7 @@ export function TradeImagePicker({
                 fontFamily: 'var(--f1)',
                 fontSize: 11,
                 lineHeight: 1,
-                boxShadow:
-                  '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
+                boxShadow: PIXEL_BORDER,
               }}
             >
               ✕

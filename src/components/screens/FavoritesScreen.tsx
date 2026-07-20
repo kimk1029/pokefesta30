@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCurrency } from '@/components/CurrencyProvider';
+import { PackGridCard } from '@/components/PackGridCard';
 import { AppBar } from '@/components/ui/AppBar';
 import { StatusBar } from '@/components/ui/StatusBar';
 import type { MyFavoriteRow } from '@/lib/queries';
@@ -140,81 +140,37 @@ function FavoriteCard({
   row: MyFavoriteRow;
   onRemove: (apparelId: number) => void;
 }) {
-  const { format } = useCurrency();
-  const hasPrice = row.minPriceJpy > 0;
   return (
-    <div className="pack-grid-card" style={{ borderTop: '4px solid var(--pur)' }}>
-      <Link
-        href={`/cards/snkrdunk/${row.snkrdunkApparelId}`}
-        style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
-      >
-        <div style={{ aspectRatio: '63 / 88', background: 'var(--pap2)', overflow: 'hidden' }}>
-          {row.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={row.imageUrl}
-              alt={row.name ?? ''}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            />
-          ) : (
-            <div style={{ display: 'grid', placeItems: 'center', width: '100%', height: '100%' }}>
-              <span style={{ fontSize: 37 }}>🃏</span>
-            </div>
-          )}
-        </div>
-        <div style={{ padding: '7px 8px 4px', borderTop: '3px solid var(--ink)' }}>
-          <div
-            style={{
-              fontFamily: 'var(--f1)',
-              fontSize: 10,
-              letterSpacing: 0.2,
-              marginBottom: 4,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              minHeight: 30,
-              lineHeight: 1.45,
-              wordBreak: 'keep-all',
-            }}
-          >
-            {row.name ?? '(이름 없음)'}
-          </div>
-          <div
-            style={{
-              display: 'inline-block',
-              padding: '3px 6px',
-              background: hasPrice ? 'var(--ink)' : 'var(--pap2)',
-              color: hasPrice ? 'var(--gold)' : 'var(--ink3)',
-              fontFamily: 'var(--f1)',
-              fontSize: 11,
-              letterSpacing: 0.3,
-              boxShadow:
-                '-1px 0 0 var(--ink),1px 0 0 var(--ink),0 -1px 0 var(--ink),0 1px 0 var(--ink)',
-            }}
-          >
-            {hasPrice ? format(row.minPriceJpy) : '시세 없음'}
-          </div>
-        </div>
-      </Link>
-      <button
-        type="button"
-        onClick={() => onRemove(row.snkrdunkApparelId)}
-        style={{
-          width: '100%',
-          padding: '6px 0',
-          background: 'var(--white)',
-          color: 'var(--red)',
-          fontFamily: 'var(--f1)',
-          fontSize: 9,
-          letterSpacing: 0.3,
-          border: 0,
-          borderTop: '3px solid var(--ink)',
-          cursor: 'pointer',
-        }}
-      >
-        ✕ 제거
-      </button>
-    </div>
+    <PackGridCard
+      href={`/cards/snkrdunk/${row.snkrdunkApparelId}`}
+      style={{ borderTop: '4px solid var(--pur)' }}
+      image={row.imageUrl}
+      title={row.name ?? '(이름 없음)'}
+      priceJpy={row.minPriceJpy}
+      fitPrice={false}
+      titleSize={10}
+      titleGap={4}
+      bodyPadding="7px 8px 4px"
+      actions={
+        <button
+          type="button"
+          onClick={() => onRemove(row.snkrdunkApparelId)}
+          style={{
+            width: '100%',
+            padding: '6px 0',
+            background: 'var(--white)',
+            color: 'var(--red)',
+            fontFamily: 'var(--f1)',
+            fontSize: 9,
+            letterSpacing: 0.3,
+            border: 0,
+            borderTop: '3px solid var(--ink)',
+            cursor: 'pointer',
+          }}
+        >
+          ✕ 제거
+        </button>
+      }
+    />
   );
 }
