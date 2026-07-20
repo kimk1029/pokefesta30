@@ -39,14 +39,9 @@ export const metadata: Metadata = {
   authors: [{ name: 'ARVOTCG' }],
   alternates: { canonical: '/' },
   manifest: '/manifest.webmanifest',
-  icons: {
-    icon: [
-      { url: '/app-icon.png', sizes: '512x512', type: 'image/png' },
-      { url: '/icon.svg', type: 'image/svg+xml' },
-    ],
-    apple: [{ url: '/app-icon.png', sizes: '512x512', type: 'image/png' }],
-    shortcut: ['/app-icon.png'],
-  },
+  // 파비콘/터치 아이콘은 app/{icon.svg,icon.png,apple-icon.png} 파일 컨벤션이 담당한다
+  // (Next 가 링크 태그를 자동 주입). 여기서 icons 를 선언하면 그쪽이 우선해 옛 아이콘이
+  // 남으므로 선언하지 않는다.
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
