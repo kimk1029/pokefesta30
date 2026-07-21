@@ -372,7 +372,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
   const boxDisplay = boxRows.length > 0 ? [...boxRows, ...boxRows] : [];
 
   return (
-    <div style={{ fontFamily: 'var(--f1)', background: P.bg, minHeight: '100%' }}>
+    <div className="pagebg" style={{ fontFamily: 'var(--f1)', background: P.bg }}>
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px 8px' }}>
         <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-.5px' }}>

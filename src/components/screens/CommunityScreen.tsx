@@ -247,7 +247,7 @@ export function CommunityScreen({ initialFeed, trades }: Props) {
   return (
     <>
       <StatusBar />
-      <div style={{ fontFamily: 'var(--f1)', background: P.pageBg, minHeight: '100%' }}>
+      <div className="pagebg" style={{ fontFamily: 'var(--f1)', background: P.pageBg }}>
         {/* header */}
         <div style={{ background: P.cardBg, position: 'sticky', top: 0, zIndex: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 16px' }}>

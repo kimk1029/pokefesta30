@@ -427,7 +427,7 @@ export function ManualAddForm(_props: Props) {
   /* ── 등록 시트 단계 ── */
   if (registering) {
     return (
-      <div style={{ background: P.pageBg, minHeight: '100%' }}>
+      <div className="pagebg" style={{ background: P.pageBg }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: `1px solid ${P.line}` }}>
           <button
             type="button"
@@ -466,7 +466,7 @@ export function ManualAddForm(_props: Props) {
   };
 
   return (
-    <div style={{ background: P.pageBg, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="pagebg" style={{ background: P.pageBg, display: 'flex', flexDirection: 'column' }}>
       {/* ── 헤더 + 입력 폼 (스크롤 시 상단 고정) ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 20, background: P.pageBg, borderBottom: `1px solid ${P.line}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px 8px' }}>

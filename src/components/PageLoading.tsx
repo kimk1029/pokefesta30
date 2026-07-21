@@ -1,14 +1,13 @@
 export function PageLoading() {
   return (
     <div
+      className="page-loading"
       style={{
         height: '100%',
         minHeight: 360,
         display: 'grid',
         placeItems: 'center',
         padding: 28,
-        background:
-          'radial-gradient(circle at 50% 28%, rgba(255,210,63,.38), transparent 34%), linear-gradient(180deg, var(--paper), var(--pap2))',
       }}
     >
       <div

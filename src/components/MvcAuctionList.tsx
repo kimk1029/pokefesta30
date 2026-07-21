@@ -392,7 +392,7 @@ export function MvcAuctionList({ initial }: Props) {
   const cafeUrl = `https://cafe.naver.com/${MVC_CAFE_URL}`;
 
   return (
-    <div style={{ fontFamily: 'var(--f1)', background: P.pageBg, minHeight: '100%', position: 'relative' }}>
+    <div className="pagebg" style={{ fontFamily: 'var(--f1)', background: P.pageBg, position: 'relative' }}>
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '8px 20px 12px', background: P.cardBg }}>
         <div style={{ flex: 1, fontSize: 24, fontWeight: 900, color: P.ink, letterSpacing: '-.6px' }}>경매</div>
