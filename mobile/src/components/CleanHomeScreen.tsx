@@ -524,11 +524,23 @@ export function CleanHomeScreen() {
     ) : (
       <Pressable
         onPress={onPress}
-        style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14 }}
+        style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14, borderWidth: 1, borderColor: P.line }}
       >
         {children}
       </Pressable>
     );
+
+  // 타일 여러 줄 설명 — 웹 QuickTile 과 동일한 "- " 불릿 + 행잉 인덴트.
+  const TileDescLines = ({ lines }: { lines: string[] }) => (
+    <View style={{ marginTop: 3 }}>
+      {lines.map((line) => (
+        <View key={line} style={{ flexDirection: 'row', gap: 5 }}>
+          <Text style={[ts(12, '400', P.ink2), { lineHeight: 18 }]}>-</Text>
+          <Text style={[ts(12, '400', P.ink2), { lineHeight: 18, flexShrink: 1 }]}>{line}</Text>
+        </View>
+      ))}
+    </View>
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
@@ -625,7 +637,7 @@ export function CleanHomeScreen() {
                 <Chevron size={16} color={P.chev} w={2.4} />
               </View>
               <Text style={[ts(16, '800', P.ink), { marginTop: 14 }]}>시세 확인</Text>
-              <Text style={[ts(12, '400', P.ink2), { marginTop: 3 }]}>박스별 힛카드 목록과 가격을 확인하세요</Text>
+              <TileDescLines lines={['박스별 힛카드 목록', '힛카드별 현재 시세 확인까지!']} />
             </ScanTile>
           </View>
         </View>

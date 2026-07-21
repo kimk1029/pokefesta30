@@ -20,5 +20,7 @@ TCG 카드 시세 서비스. 웹(Next.js, Vercel) + 모바일(Expo RN) + NAS 서
 3. **테마**: 웹은 CSS 변수, 앱은 tc/txt 훅 — 색 하드코딩 금지.
 4. **배포**: main push = 자동 배포 (웹→Vercel, server→NAS, schema→Supabase).
    변경 후 검증(tsc 3개 워크스페이스: 루트/server/mobile 각각 `npx tsc --noEmit`) → 커밋 → push.
+   **버전**: `githooks/pre-commit`이 커밋마다 package.json patch +1 → 상단 StatusBar `v1.1.x` 표시.
+   클론 후 1회 `git config core.hooksPath githooks` 필요. 버전을 수동으로 만지지 말 것.
 5. **스크레이퍼**: 안티봇 대상(KREAM 등)은 NAS server 라우트로만 (Vercel IP 차단됨).
 6. **삭제**: importer 0 을 실제 검색으로 확인하기 전엔 파일 삭제 금지.

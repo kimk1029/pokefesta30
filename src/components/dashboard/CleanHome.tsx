@@ -420,7 +420,7 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
             pixel={pixelTiles}
             href="/cards/packs"
             label="시세 확인"
-            desc="박스별 힛카드 목록과 가격을 확인하세요"
+            desc={['박스별 힛카드 목록', '힛카드별 현재 시세 확인까지!']}
             icon={
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={P.priceIcon} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
@@ -562,15 +562,15 @@ function QuickTile({
   P: Palette;
   href: string;
   label: string;
-  desc: string;
+  desc: string | string[];
   icon: ReactNode;
   pixel?: boolean;
 }) {
   // 픽셀 테마: .card 픽셀 박스 레시피(4면 ink 보더 + 하드 드롭섀도 + 노치 코너) + 클릭 시 눌림.
-  // 플랫(클린·다크): 기존 라운드 소프트 타일.
+  // 플랫(클린·다크): 라운드 소프트 타일 + 약한 보더.
   const baseStyle: CSSProperties = pixel
     ? { background: 'var(--white)', borderRadius: 0, padding: '16px 14px', textDecoration: 'none', color: 'inherit', display: 'block' }
-    : { background: P.tileBg, borderRadius: 16, padding: '16px 14px', textDecoration: 'none', color: 'inherit', display: 'block' };
+    : { background: P.tileBg, borderRadius: 16, padding: '16px 14px', textDecoration: 'none', color: 'inherit', display: 'block', border: `1px solid ${P.line}` };
   return (
     <Link href={href} className={pixel ? 'qtile-pixel' : undefined} style={baseStyle}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -580,7 +580,19 @@ function QuickTile({
         </svg>
       </div>
       <div style={{ fontSize: 16, fontWeight: 800, color: P.ink, marginTop: 14 }}>{label}</div>
-      <div style={{ fontSize: 12, color: P.ink2, marginTop: 3 }}>{desc}</div>
+      {Array.isArray(desc) ? (
+        // 여러 줄 설명 — "- " 불릿 + 행잉 인덴트로 줄별 정렬.
+        <div style={{ fontSize: 12, color: P.ink2, marginTop: 3, lineHeight: 1.55 }}>
+          {desc.map((line) => (
+            <div key={line} style={{ display: 'flex', gap: 5 }}>
+              <span aria-hidden>-</span>
+              <span>{line}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: P.ink2, marginTop: 3 }}>{desc}</div>
+      )}
     </Link>
   );
 }

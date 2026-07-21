@@ -26,14 +26,15 @@ const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.poke-30.com';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: '아르보TCG — 포켓몬 TCG 커뮤니티',
+    default: '아르보TCG — TCG 카드 시세·거래 커뮤니티',
     template: '%s · 아르보TCG',
   },
   description:
-    '포켓몬 TCG 카드 거래·시세 확인 + 30주년 행사 현장 상황 공유. 트레이너들을 위한 커뮤니티.',
+    '포켓몬·원피스·유희왕 TCG 카드 실시간 시세 검색과 박스별 힛카드 가격 확인, 카드 거래·컬렉션 관리까지. 아르보TCG(ARVOTCG)에서 한눈에.',
   keywords: [
-    '포켓몬 TCG', '포켓몬 카드 거래', '포켓몬 카드 시세',
-    '포켓몬 30주년', '포켓몬 페스타', '카드 시세 검색',
+    '아르보TCG', 'ARVOTCG', 'TCG 시세', '포켓몬 카드 시세', '포켓몬 TCG',
+    '원피스 카드 시세', '유희왕 카드 시세', '카드 거래', '힛카드', '카드 시세 검색',
+    'PSA 그레이딩', '카드 컬렉션',
   ],
   applicationName: '아르보TCG',
   authors: [{ name: 'ARVOTCG' }],
@@ -46,16 +47,16 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'ko_KR',
     url: SITE_URL,
-    siteName: '아르보TCG — 포켓몬 TCG 커뮤니티',
-    title: '아르보TCG — 포켓몬 TCG 커뮤니티',
+    siteName: '아르보TCG',
+    title: '아르보TCG — TCG 카드 시세·거래 커뮤니티',
     description:
-      'TCG 카드 거래 · 카드 시세 검색 · 행사 현장 정보 공유',
-    images: [{ url: '/meta.png', width: 1672, height: 941 }],
+      '포켓몬·원피스·유희왕 카드 실시간 시세 검색 · 박스별 힛카드 가격 · 카드 거래·컬렉션 관리',
+    images: [{ url: '/meta.png', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '아르보TCG — 포켓몬 TCG 커뮤니티',
-    description: 'TCG 카드 거래 · 시세 · 행사 정보 공유',
+    title: '아르보TCG — TCG 카드 시세·거래 커뮤니티',
+    description: 'TCG 카드 실시간 시세 검색 · 힛카드 가격 · 카드 거래',
     images: ['/meta.png'],
   },
   robots: {
@@ -109,15 +110,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               '@context': 'https://schema.org',
               '@type': 'Organization',
               name: '아르보TCG',
+              alternateName: 'ARVOTCG',
               url: SITE_URL,
               logo: `${SITE_URL}/app-icon.png`,
               description:
-                '포켓몬 TCG 카드 거래·시세 확인 + 30주년 행사 현장 상황 공유 커뮤니티',
+                '포켓몬·원피스·유희왕 TCG 카드 시세 검색·카드 거래·컬렉션 관리 커뮤니티',
             },
             {
               '@context': 'https://schema.org',
               '@type': 'WebSite',
-              name: '아르보TCG — 포켓몬 TCG 커뮤니티',
+              name: '아르보TCG — TCG 카드 시세·거래 커뮤니티',
+              alternateName: 'ARVOTCG',
               url: SITE_URL,
               inLanguage: 'ko-KR',
               potentialAction: {

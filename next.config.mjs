@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 /** @type {import('next').NextConfig} */
 // Express API/OCR server origin. Local dev defaults to the production Synology
 // host so `next dev` works without extra env setup; override with
@@ -5,8 +7,15 @@
 // server locally for back-end development.
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN ?? 'http://kimk1029.synology.me:3030';
 
+// 상단 StatusBar 버전 표시용 — package.json version 을 빌드 시점에 인라인.
+// 버전은 githooks/pre-commit 이 커밋마다 patch 자동 +1 한다.
+const { version: APP_VERSION } = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+);
+
 const nextConfig = {
   reactStrictMode: true,
+  env: { NEXT_PUBLIC_APP_VERSION: APP_VERSION },
   async redirects() {
     return [
       // /card 단수형 → /cards 복수형. 하위 경로(/card/grading, /card/search ...)도 동일.

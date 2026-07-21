@@ -1,0 +1,19 @@
+#!/bin/sh
+# 커밋마다 package.json patch 버전 자동 +1 (v1.1.1 → v1.1.2).
+# 상단 StatusBar 의 버전 표시(NEXT_PUBLIC_APP_VERSION, next.config.mjs)가
+# push→배포마다 올라가게 한다.
+#
+# 활성화(클론 후 1회): git config core.hooksPath githooks
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+node -e '
+const fs = require("fs");
+const p = JSON.parse(fs.readFileSync("package.json", "utf8"));
+const v = p.version.split(".").map(Number);
+v[2] += 1;
+p.version = v.join(".");
+fs.writeFileSync("package.json", JSON.stringify(p, null, 2) + "\n");
+console.log("[pre-commit] version -> v" + p.version);
+'
+git add package.json
