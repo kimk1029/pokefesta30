@@ -29,6 +29,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { uploadScanImage, CardScanError } from '@/services/cardScanApi';
 import { useToast } from '@/components/ToastProvider';
 import { api } from '@/lib/apiClient';
+import { trendChangePct } from '../../../shared/snkrdunkPrice';
 
 /**
  * 메인화면 — Claude Design 'ARVOTCG App' 프로토타입 레이아웃 (네이티브).
@@ -72,34 +73,8 @@ const CLEAN_PALETTE: Palette = {
 };
 
 /**
- * 판매 차트 포인트에서 '어제 대비' 등락률(%) — 최신 시세 vs 하루(24h) 전 시세.
- * 등급 스파이크(중앙값 2.5배 초과) 제외. 포인트는 [timestamp(ms), price] 형식.
- * 하루 전 포인트가 없으면 직전 체결로 폴백.
+ * '어제 대비' 등락률(%) — 정본 /shared/snkrdunkPrice.ts trendChangePct 사용 (웹 홈과 동일).
  */
-function trendChangePct(points: Array<[number, number]>): number | undefined {
-  const DAY_MS = 86_400_000;
-  const valid = (points ?? [])
-    .filter((p) => Array.isArray(p) && typeof p[0] === 'number' && typeof p[1] === 'number' && p[1] > 0)
-    .sort((a, b) => a[0] - b[0]);
-  if (valid.length < 2) return undefined;
-  const prices = valid.map((p) => p[1]).sort((a, b) => a - b);
-  const med = prices[Math.floor(prices.length / 2)];
-  const ceil = med > 0 ? med * 2.5 : Infinity;
-  const clean = valid.filter((p) => p[1] <= ceil);
-  if (clean.length < 2) return undefined;
-  const [lastTs, last] = clean[clean.length - 1];
-  const cutoff = lastTs - DAY_MS;
-  let prev: number | undefined;
-  for (let i = clean.length - 2; i >= 0; i--) {
-    if (clean[i][0] <= cutoff) {
-      prev = clean[i][1];
-      break;
-    }
-  }
-  if (prev === undefined) prev = clean[clean.length - 2][1];
-  if (prev <= 0) return undefined;
-  return ((last - prev) / prev) * 100;
-}
 
 function pctInfo(pct: number | undefined, P: Palette): { text: string; color: string } | null {
   if (pct == null || !Number.isFinite(pct)) return null;

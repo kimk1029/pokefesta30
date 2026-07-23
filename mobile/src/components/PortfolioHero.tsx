@@ -14,8 +14,42 @@ import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider'
 import { isAuthenticated, subscribeSession } from '@/lib/session';
 import { useCurrency } from '@/components/CurrencyProvider';
 import { useCollection } from '@/lib/collection';
-import { cardJpy, cardProfit } from '@/data/cardvault';
-import { fetchPortfolio, type PortfolioSummary } from '@/lib/myApi';
+import { cardJpy } from '@/data/cardvault';
+import { fetchMyCards, fetchPortfolio, type MyCardRow, type PortfolioSummary } from '@/lib/myApi';
+
+/** 구매금액/평가손익 합계(엔) — 웹 CollectionScreen totals 와 동일 산식. */
+export interface HeroTotals {
+  invested: number;
+  profit: number;
+}
+
+/** 서버 카드 행 → 웹 totals 산식: 기준가 = 구매가 ?? 등록가, 현재가 = 등급 일치 currentPriceJpy. */
+export function computeHeroTotals(cards: MyCardRow[], rate: number): HeroTotals {
+  let invested = 0;
+  let current = 0;
+  for (const c of cards) {
+    const qty = Math.max(1, c.qty || 1);
+    const buyJpy =
+      c.buyPrice != null && c.buyPrice > 0
+        ? c.buyCurrency === 'JPY'
+          ? c.buyPrice
+          : c.buyPrice / (rate || 1)
+        : null;
+    const basisJpy =
+      buyJpy ?? (c.registerPriceJpy != null && c.registerPriceJpy > 0 ? c.registerPriceJpy : null);
+    const curJpy =
+      (c.currentPriceJpy ?? 0) > 0
+        ? (c.currentPriceJpy as number)
+        : c.graded
+          ? c.pricePsa10Jpy ?? 0
+          : c.priceSingleJpy ?? 0;
+    if (basisJpy && curJpy > 0) {
+      invested += basisJpy * qty;
+      current += curJpy * qty;
+    }
+  }
+  return { invested, profit: current - invested };
+}
 
 /** 로그인 상태를 반응형으로 구독. */
 function useAuthed(): boolean {
@@ -29,7 +63,7 @@ function useAuthed(): boolean {
   return authed;
 }
 
-export function PortfolioHero() {
+export function PortfolioHero({ totals: totalsProp }: { totals?: HeroTotals | null } = {}) {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
   const authed = useAuthed();
@@ -48,22 +82,29 @@ export function PortfolioHero() {
     };
   }, [authed]);
 
-  // 매입가/평가손익 — 로컬 컬렉션에서 구매가 입력 카드만 집계(웹 totals 동일 컨셉).
+  // 구매금액/평가손익 — 웹 CollectionScreen totals 와 동일하게 서버 카드 행 기준.
+  // 부모(내 카드 화면)가 이미 with-prices 를 갖고 있으면 prop 으로 받고,
+  // 아니면(홈 등) 직접 조회. 로컬 캐시 집계는 더 이상 쓰지 않는다(웹은 서버 전용).
+  const [fetchedTotals, setFetchedTotals] = useState<HeroTotals | null>(null);
+  useEffect(() => {
+    if (!authed || totalsProp !== undefined) return;
+    let alive = true;
+    fetchMyCards()
+      .then((rows) => alive && setFetchedTotals(computeHeroTotals(rows, rate)))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [authed, totalsProp, rate]);
+
+  const totals = totalsProp !== undefined ? totalsProp : fetchedTotals;
+  const investedJpy = totals?.invested ?? 0;
+  const profitJpy = totals?.profit ?? 0;
+  const hasInvested = investedJpy > 0;
+
+  // 미로그인 폴백 표시용 로컬 합계(잠금 오버레이 뒤 배경 수치).
   const ownedAll = useCollection();
   const owned = ownedAll.filter((c) => !c.favorite);
-  const profitAgg = owned.reduce(
-    (a, c) => {
-      const p = cardProfit(c, 'single', rate);
-      a.invested += p.investedKrw;
-      a.profit += p.profitKrw;
-      return a;
-    },
-    { invested: 0, profit: 0 },
-  );
-  const investedJpy = rate > 0 ? profitAgg.invested / rate : 0;
-  const profitJpy = rate > 0 ? profitAgg.profit / rate : 0;
-  const hasInvested = profitAgg.invested > 0;
-
   const localTotalJpy = owned.reduce((a, c) => a + cardJpy(c, 'single', rate), 0);
   const totalJpy = port ? port.totalJpy : localTotalJpy;
   const totalCount = port ? port.totalCount : owned.length;

@@ -137,6 +137,19 @@ export default function MyCardsScreen() {
     return arr;
   }, [allRows, sort]);
 
+  // 히어로 구매금액/평가손익 — 웹 CollectionScreen totals 동일(allRows 기준 합산).
+  const heroTotals = useMemo(() => {
+    let invested = 0;
+    let current = 0;
+    for (const r of allRows) {
+      if (r.basisJpy && r.curJpy > 0) {
+        invested += r.basisJpy * r.qty;
+        current += r.curJpy * r.qty;
+      }
+    }
+    return { invested, profit: current - invested };
+  }, [allRows]);
+
   const handleRemove = useCallback(
     (id: number) => {
       Alert.alert('카드 삭제', '이 카드를 컬렉션에서 제거할까요?', [
@@ -174,7 +187,7 @@ export default function MyCardsScreen() {
     <View style={{ flex: 1, backgroundColor: tc.paper }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
         <CollectionHeader tc={tc} />
-        <PortfolioHero />
+        <PortfolioHero totals={heroTotals} />
         {loading && !data ? (
           <View style={{ paddingTop: 30 }}><LoadingState /></View>
         ) : error ? (

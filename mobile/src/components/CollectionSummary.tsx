@@ -47,19 +47,28 @@ export function CollectionSummary({
     return { d7: over(7), d30: over(30) };
   }, [port]);
 
-  // 누적 수익률 — 매입가 입력 카드의 basis 대비 현재가 (웹 totals 와 동일).
+  // 누적 수익률 — 웹 CollectionScreen totals 와 동일:
+  //  · 기준가 = 구매가 우선, 없으면 등록가(등록 시점 등급 기준 시세 스냅)
+  //  · 현재가 = 등급 일치 currentPriceJpy(PSA10/9/8→등급가, 타사→PSA10, 싱글→raw)
   const totals = useMemo(() => {
     let invested = 0;
     let current = 0;
     for (const c of cards) {
-      const cur = c.graded ? c.pricePsa10Jpy ?? 0 : c.priceSingleJpy ?? 0;
+      const cur =
+        (c.currentPriceJpy ?? 0) > 0
+          ? c.currentPriceJpy ?? 0
+          : c.graded
+            ? c.pricePsa10Jpy ?? 0
+            : c.priceSingleJpy ?? 0;
       const qty = Math.max(1, c.qty ?? 1);
-      const basis =
+      const buyJpy =
         c.buyPrice != null && c.buyPrice > 0
           ? c.buyCurrency === 'JPY'
             ? c.buyPrice
             : c.buyPrice / (rate || 1)
           : null;
+      const basis =
+        buyJpy ?? (c.registerPriceJpy != null && c.registerPriceJpy > 0 ? c.registerPriceJpy : null);
       if (basis && cur > 0) {
         invested += basis * qty;
         current += cur * qty;

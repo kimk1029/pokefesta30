@@ -10,6 +10,7 @@ import type { GameId } from '@/lib/gamePrefs';
 import { HeroSlider, type HeroSlideData } from '@/components/HeroSlider';
 import { HomeKoSearchBar } from '@/components/HomeKoSearchBar';
 import { translateKnownCardNameToKo } from '@/lib/cardTranslate';
+import { headlinePriceFromHistory, trendChangePct } from '@/lib/snkrdunkPrice';
 import type { SnkrdunkRow } from '@/components/dashboard/DashboardScreen';
 import type { MvcAuctionItem } from '@/lib/navercafe';
 
@@ -343,11 +344,42 @@ export function CleanHome({ heroBanners, snkrdunkRows = [], snkrdunkBoxRows = []
         ),
       ]);
       if (!alive) return;
+      // 검색 경로 행(추가 게임)에도 대표가·등락률을 채운다 — 포켓몬 seedToRow 와
+      // 동일한 소스(sales-history 헤드라인가 + sales-chart trendChangePct, 정본 /shared).
+      const enrichRow = async (row: SnkrdunkRow): Promise<SnkrdunkRow> => {
+        if (row.changePct !== undefined || row.recentPrice !== undefined) return row;
+        try {
+          const [cr, hr] = await Promise.all([
+            fetch(`/api/snkrdunk/apparels/${row.apparelId}/sales-chart`)
+              .then((r) => (r.ok ? r.json() : null))
+              .catch(() => null),
+            fetch(`/api/snkrdunk/apparels/${row.apparelId}/sales-history`)
+              .then((r) => (r.ok ? r.json() : null))
+              .catch(() => null),
+          ]);
+          const points = (cr as { data?: { points?: Array<[number, number]> } } | null)?.data?.points;
+          const history =
+            (hr as { data?: { history?: Parameters<typeof headlinePriceFromHistory>[0] } } | null)?.data
+              ?.history ?? [];
+          const recent = headlinePriceFromHistory(history, row.minPrice);
+          return {
+            ...row,
+            recentPrice: recent > 0 ? recent : undefined,
+            changePct: points ? trendChangePct(points) : undefined,
+          };
+        } catch {
+          return row;
+        }
+      };
+      const enrichedPopular = await Promise.all(
+        popularLists.map((list) => Promise.all(list.map(enrichRow))),
+      );
+      if (!alive) return;
       const withPokemon = (lists: SnkrdunkRow[][], pokemonRows: SnkrdunkRow[]) =>
         interleaveRows(
           enabledGames.includes('pokemon') ? [pokemonRows.slice(0, per), ...lists] : lists,
         ).slice(0, 10);
-      const popRows = withPokemon(popularLists, snkrdunkRows);
+      const popRows = withPokemon(enrichedPopular, snkrdunkRows);
       const boxRows2 = withPokemon(boxLists, snkrdunkBoxRows);
       if (popRows.length > 0) setMixPopular((p) => ({ ...p, [gamesKey]: popRows }));
       if (boxRows2.length > 0) setMixBox((p) => ({ ...p, [gamesKey]: boxRows2 }));

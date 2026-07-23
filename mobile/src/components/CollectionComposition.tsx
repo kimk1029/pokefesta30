@@ -1,7 +1,7 @@
 /**
  * 자산 구성 — 카드별 금액 비중(합계 100%) 도넛 + 리스트.
  * 웹 CollectionScreen cardWeights/donutSegments 와 동일 로직:
- * 평가액 = 등급 일치 시세(그레이딩=PSA10, 비그레이딩=싱글) × 수량,
+ * 평가액 = 등급 일치 시세(currentPriceJpy: PSA10/9/8→등급가, 타사→PSA10, 싱글→raw) × 수량,
  * 상위 8장 + 기타. 색 팔레트(SLICE)도 웹과 동일.
  */
 import { useMemo } from 'react';
@@ -25,9 +25,15 @@ function cardName(c: MyCardRow): string {
   return c.snkrdunkName || c.nickname || '이름 미상';
 }
 
-/** 카드 한 장의 평가액(엔) — 웹 allRows.value 동일: 등급 일치 시세 × 수량. */
+/** 카드 한 장의 평가액(엔) — 웹 allRows.value 동일:
+ *  등급 일치 currentPriceJpy(PSA10/9/8→등급가, 타사→PSA10, 싱글→raw) 우선. */
 function rowValue(c: MyCardRow): number {
-  const gradePrice = c.graded ? c.pricePsa10Jpy ?? 0 : c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0;
+  const gradePrice =
+    (c.currentPriceJpy ?? 0) > 0
+      ? c.currentPriceJpy ?? 0
+      : c.graded
+        ? c.pricePsa10Jpy ?? 0
+        : c.priceSingleJpy ?? c.snkrdunkMinPriceJpy ?? 0;
   const qty = Math.max(1, c.qty ?? 1);
   return gradePrice > 0 ? gradePrice * qty : 0;
 }
