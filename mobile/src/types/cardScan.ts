@@ -86,6 +86,10 @@ export interface CardScanResponse {
   /** True when the server actually used the AI/Vision path for this scan. */
   usedAi?: boolean;
   extracted?: ScanExtracted;
+  /** 카드 외곽/내곽 4점(업로드 이미지 픽셀 좌표) — 센터링(PSA 추정) 계산용.
+   *  웹 CardGrader 와 동일한 서버 응답 필드. */
+  outerQuad?: Array<{ x: number; y: number }> | null;
+  innerQuad?: Array<{ x: number; y: number }> | null;
   candidates: ScanCandidate[];
   /** Top-level snkrdunk match — same data as each candidate.snkrdunk. */
   snkrdunk?: SnkrdunkMatch | null;

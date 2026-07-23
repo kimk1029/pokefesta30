@@ -5,6 +5,7 @@ import { AppBar } from '@/components/AppBar';
 import { CardActions } from '@/components/CardActions';
 import { KreamCompare } from '@/components/cards/KreamCompare';
 import { MultiSourceKoPrice } from '@/components/cards/MultiSourceKoPrice';
+import { PriceAlertSection } from '@/components/cards/PriceAlertSection';
 import { PsaPopPanel } from '@/components/cards/PsaPopPanel';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
@@ -474,6 +475,13 @@ export default function SnkrdunkDetail() {
                 </View>
               </PixelFrame>
             </View>
+
+            {/* ── 가격 알림 — 웹 '가격 알림 · 앱 전용' 자리의 실제 구현 ── */}
+            <PriceAlertSection
+              apparelId={apparelId}
+              cardName={displayNameKo}
+              currentPriceJpy={rawRecent}
+            />
 
             <View style={{ alignItems: 'center', paddingVertical: 12 }}>
               <PixelText variant={txt} size={8} color={tc.ink3}>데이터 출처: snkrdunk.com (10분 캐시)</PixelText>

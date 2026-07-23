@@ -17,6 +17,15 @@ import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider'
 import { fetchInventory, fetchOripaBoxes, type OripaBox } from '@/lib/myApi';
 import { useAsync } from '@/lib/useAsync';
 import { issueOripaPass } from '@/lib/oripaPass';
+import { ORIPA_RESULTS } from '@/lib/data';
+
+/** 등급별 현황 칩 색 — 웹 OripaScreen STATS_GRADE_COLOR 동일. */
+const STATS_GRADE_COLOR: Record<'S' | 'A' | 'B' | 'C', string> = {
+  S: '#6B3FA0',
+  A: '#3A5BD9',
+  B: '#0D7377',
+  C: '#8C5A00',
+};
 
 export default function OripaListScreen() {
   const tc = useThemeColors();
@@ -56,6 +65,33 @@ export default function OripaListScreen() {
               </View>
             </>
           )}
+        </View>
+
+        {/* 최근 당첨 — 웹 OripaScreen 동일(정적 연출 데이터). */}
+        <View style={{ marginHorizontal: 14, marginTop: 18 }}>
+          <SectHd title="최근 당첨" />
+          <View style={{ gap: 6 }}>
+            {ORIPA_RESULTS.map((r) => (
+              <PixelFrame key={r.id} bg={tc.white} borderWidth={2} shadow={3}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8 }}>
+                  <PixelText variant={txt} size={14}>{r.user}</PixelText>
+                  <PixelText variant="ko" size={10} color={tc.ink} numberOfLines={1} style={{ flex: 1 }}>
+                    {r.emoji} {r.reward}
+                  </PixelText>
+                  <View
+                    style={{
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      backgroundColor: r.tier === 'legend' ? tc.pur : r.tier === 'rare' ? tc.blu : tc.ink3,
+                    }}
+                  >
+                    <PixelText variant={txt} size={7} color={tc.white}>{r.box}</PixelText>
+                  </View>
+                  <PixelText variant={txt} size={7} color={tc.ink3}>{r.time}</PixelText>
+                </View>
+              </PixelFrame>
+            ))}
+          </View>
         </View>
       </ScrollView>
 
@@ -116,13 +152,19 @@ function PurchaseModal({ box, onClose }: { box: OripaBox; onClose: () => void })
               </View>
 
               {/* 박스 요약 */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: tc.pap2, borderColor: tc.ink, borderWidth: 2, padding: 10 }}>
-                <PixelText variant={txt} size={24}>{box.emoji}</PixelText>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <PixelText variant="ko" size={11} weight="bold" color={tc.ink} numberOfLines={1}>{box.name}</PixelText>
-                  <PixelText variant="ko" size={9} color={tc.ink3} numberOfLines={2} style={{ marginTop: 3 }}>{box.desc}</PixelText>
+              <View style={{ backgroundColor: tc.pap2, borderColor: tc.ink, borderWidth: 2, padding: 10, gap: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <PixelText variant={txt} size={24}>{box.emoji}</PixelText>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <PixelText variant="ko" size={11} weight="bold" color={tc.ink} numberOfLines={1}>{box.name}</PixelText>
+                    <PixelText variant="ko" size={9} color={tc.ink3} numberOfLines={2} style={{ marginTop: 3 }}>{box.desc}</PixelText>
+                  </View>
                 </View>
+                {box.stats ? <GradeStatsRow stats={box.stats} /> : null}
               </View>
+
+              {/* 상품 미리보기 (DB 팩 prizes 가 있을 때만) — 웹 PrizePreview 패리티 */}
+              <PrizePreview prizes={box.prizes} />
 
               {/* 수량 선택 */}
               <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -176,6 +218,98 @@ function PurchaseModal({ box, onClose }: { box: OripaBox; onClose: () => void })
         </Pressable>
       </Pressable>
     </Modal>
+  );
+}
+
+/** 잔여 + 등급별(S/A/B/C) 뽑힘 현황 — 웹 BoxStatsRow/ModalStatsRow 패리티. */
+function GradeStatsRow({ stats }: { stats: NonNullable<OripaBox['stats']> }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 5,
+        paddingHorizontal: 8,
+        paddingVertical: 5,
+        backgroundColor: 'rgba(0,0,0,0.14)',
+      }}
+    >
+      <PixelText variant={txt} size={8} color={tc.ink}>
+        잔여 {stats.remaining}/{stats.total}
+      </PixelText>
+      <PixelText variant={txt} size={8} color={tc.ink3}>·</PixelText>
+      {(['S', 'A', 'B', 'C'] as const).map((g) => (
+        <View key={g} style={{ flexDirection: 'row', gap: 3, paddingHorizontal: 5, paddingVertical: 1, backgroundColor: STATS_GRADE_COLOR[g] }}>
+          <PixelText variant={txt} size={8} color={tc.white}>
+            {g} {stats.drawn[g]}
+          </PixelText>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** 등급 배지 색 (상품 미리보기) — 웹 PrizePreview GRADE_COLOR 대응. */
+const PRIZE_GRADE_COLOR: Record<string, string> = {
+  S: colors.red,
+  A: colors.blu,
+  B: colors.orn,
+  C: colors.grnDk,
+};
+
+/** 등급별 상품 리스트 + 가중치 % — 웹 OripaPurchaseModal PrizePreview 패리티. */
+function PrizePreview({ prizes }: { prizes?: OripaBox['prizes'] }) {
+  const tc = useThemeColors();
+  const txt = useThemeTextVariant();
+  if (!prizes || prizes.length === 0) return null;
+  const total = prizes.reduce((s, p) => s + (p.weight > 0 ? p.weight : 0), 0);
+  if (total <= 0) return null;
+
+  // 등급 우선(S→C) → 가중치 큰 순
+  const order = ['S', 'A', 'B', 'C'] as const;
+  const sorted = [...prizes].sort((a, b) => {
+    const oa = order.indexOf(a.grade);
+    const ob = order.indexOf(b.grade);
+    if (oa !== ob) return oa - ob;
+    return b.weight - a.weight;
+  });
+
+  return (
+    <View style={{ backgroundColor: tc.white, borderColor: tc.ink, borderWidth: 2, paddingHorizontal: 9, paddingVertical: 7 }}>
+      <PixelText variant={txt} size={9} color={tc.ink} style={{ marginBottom: 5 }}>
+        🎁 들어있는 상품
+      </PixelText>
+      <View style={{ gap: 3 }}>
+        {sorted.map((p, i) => {
+          const pct = Math.round((p.weight / total) * 100);
+          return (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View
+                style={{
+                  width: 15,
+                  height: 15,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: PRIZE_GRADE_COLOR[p.grade] ?? tc.ink3,
+                }}
+              >
+                <PixelText variant={txt} size={7} color={tc.white} weight="bold">{p.grade}</PixelText>
+              </View>
+              <PixelText variant={txt} size={11}>{p.emoji}</PixelText>
+              <PixelText variant="ko" size={9} color={tc.ink2} numberOfLines={1} style={{ flex: 1 }}>
+                {p.name}
+              </PixelText>
+              <PixelText variant={txt} size={8} color={tc.ink3}>
+                {pct >= 1 ? `${pct}%` : '<1%'}
+              </PixelText>
+            </View>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -236,12 +370,16 @@ function BoxCard({ box, onBuy }: { box: OripaBox; onBuy: () => void }) {
         </View>
 
         {box.stats ? (
-          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-            <View style={{ flex: 1, height: 8, backgroundColor: tc.ink, borderColor: tc.ink, borderWidth: 1 }}>
-              <View style={{ width: `${pct}%`, height: '100%', backgroundColor: tc.gold }} />
+          <>
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              <View style={{ flex: 1, height: 8, backgroundColor: tc.ink, borderColor: tc.ink, borderWidth: 1 }}>
+                <View style={{ width: `${pct}%`, height: '100%', backgroundColor: tc.gold }} />
+              </View>
+              <PixelText variant={txt} size={8} color={tc.ink}>{remaining}/{total}</PixelText>
             </View>
-            <PixelText variant={txt} size={8} color={tc.ink}>{remaining}/{total}</PixelText>
-          </View>
+            {/* 등급별 뽑힘 현황 — 웹 BoxStatsRow 패리티 */}
+            <GradeStatsRow stats={box.stats} />
+          </>
         ) : null}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

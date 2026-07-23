@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View, Pressable, TextInput, Text } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
@@ -24,12 +24,66 @@ import { useAuthed } from '@/lib/useAuthed';
 import { searchSnkrdunkByQuery } from '@/services/snkrdunk';
 import { koToJaServer, jaToKoBatch, jaToKoCached } from '@/lib/cardLang';
 import { createMyCard } from '@/lib/myApi';
+import { api } from '@/lib/apiClient';
 
 /** "¥2,000" → 2000. 못 읽으면 0. */
 function parseYen(t?: string): number {
   if (!t) return 0;
   const n = parseInt(t.replace(/[^0-9]/g, ''), 10);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/* ── 직접입력 결과 정렬/필터 — 웹 ManualAddForm 패리티 ── */
+
+type ManSortKey = 'rel' | 'rarity' | 'price' | 'volume';
+
+const MAN_SORT_LABEL: Record<ManSortKey, string> = {
+  rel: '관련도순',
+  rarity: '레어도순',
+  price: '비싼순',
+  volume: '거래량많은순',
+};
+
+/** 레어도 랭크 — 낮을수록 위. PROMO > UR > SAR > SR > AR > … (웹 RARITY_RANK 동일) */
+const MAN_RARITY_RANK: Record<string, number> = {
+  PROMO: 0,
+  UR: 1,
+  SAR: 2,
+  SR: 3,
+  AR: 4,
+  HR: 5,
+  SSR: 6,
+  CSR: 7,
+  CHR: 8,
+  RRR: 9,
+  RR: 10,
+};
+
+/** 카드명에서 레어도 토큰 추출. 프로모(프로모/PROMO/세트코드 -P)는 PROMO 로. */
+function manRarityOf(c: CardItem): string | null {
+  const raw = c.name ?? '';
+  const up = `${raw} ${c.set ?? ''}`.toUpperCase();
+  if (/프로모|PROMO/.test(raw) || /-P[\s\]\)]|-P$/.test(up)) return 'PROMO';
+  const m = up.match(/(?:^|[^A-Z0-9])(SAR|SSR|CSR|CHR|RRR|RR|UR|HR|AR|SR)(?![A-Z0-9])/);
+  return m ? m[1] : null;
+}
+
+/** 레어도 배지 색 — 데이터 색이라 테마 무관 고정 (웹 RARITY_BADGE 동일). */
+const MAN_RARITY_BADGE: Record<string, { fg: string; bg: string }> = {
+  PROMO: { fg: '#F5333F', bg: '#FFECEC' },
+  UR: { fg: '#2563EB', bg: '#E0EDFF' },
+  SAR: { fg: '#7C5CFC', bg: '#F4F1FF' },
+  SR: { fg: '#C2410C', bg: '#FFEDD5' },
+  AR: { fg: '#1E8E5A', bg: '#E3F6EC' },
+  HR: { fg: '#B8860B', bg: '#FBF3DA' },
+  RR: { fg: '#8E44AD', bg: '#F3EAFB' },
+};
+
+/** 세트 키 — 입력한 세트코드 우선, 없으면 이름의 "[SV4a 201/165]" 대괄호에서 추출. */
+function manSetKeyOf(c: CardItem): string | null {
+  if (c.set && c.set !== '-') return c.set.trim().toUpperCase();
+  const m = (c.name ?? '').toUpperCase().match(/\[([A-Z0-9\-]{2,10})[\s\]]/);
+  return m ? m[1] : null;
 }
 import type { GuideRect, ScanLanguage } from '@/types/cardScan';
 
@@ -110,6 +164,15 @@ function ScanScreenInner() {
     seen: new Set(),
     nextPage: 1,
   });
+  // 정렬/필터/단일 선택 — 웹 ManualAddForm 패리티. 관련도순 = 검색 API 순서 그대로.
+  const [manSort, setManSort] = useState<ManSortKey>('rel');
+  const [manRarityFilter, setManRarityFilter] = useState<string | null>(null);
+  const [manSetFilter, setManSetFilter] = useState<string | null>(null);
+  const [manMenu, setManMenu] = useState<'set' | 'rarity' | 'sort' | null>(null);
+  const [manSelectedIdx, setManSelectedIdx] = useState<number | null>(null);
+  // 거래량많은순 — 카탈로그 스냅샷의 출품수(listingCount). apparelId → count.
+  const [manVolumes, setManVolumes] = useState<Record<number, number>>({});
+  const manVolFetchedRef = useRef<Set<number>>(new Set());
 
   // 5단계 — 구매정보 입력 시트 상태. 카드 확인 직후 이 카드를 받아 띄운다.
   const [pendingCard, setPendingCard] = useState<CardItem | null>(null);
@@ -156,7 +219,8 @@ function ScanScreenInner() {
     setBuyCur(inferCardCurrency(card));
     setBuyQty(1);
     setSelfPulled(false);
-    setGraded(card.grade != null);
+    // 스캔 센터링 추정이 있으면 등급 토글 기본 ON (웹 CardRegisterSheet 동일).
+    setGraded(card.grade != null || !!card.gradeEstimate);
     setGradeCompany('PSA');
     setGradeValue(card.grade != null ? String(card.grade) : '');
     setMode('register');
@@ -254,6 +318,8 @@ function ScanScreenInner() {
       graded: card.graded ?? false,
       gradeCompany: card.gradeCompany ?? null,
       gradeValue: card.gradeValue ?? null,
+      gradeEstimate: card.gradeEstimate ?? null,
+      centeringScore: card.centeringScore ?? null,
     }).catch((e) => {
       console.warn('[scan] createMyCard 실패:', e?.message ?? e);
     });
@@ -328,6 +394,10 @@ function ScanScreenInner() {
     setManSearched(false);
     setManResults([]);
     setManHasMore(false);
+    setManSelectedIdx(null);
+    setManRarityFilter(null);
+    setManSetFilter(null);
+    setManMenu(null);
     try {
       const list: CardItem[] = [];
       // 1) TCGdex 정확 매칭 + 로컬 DB — 코드+번호가 있을 때만.
@@ -376,6 +446,74 @@ function ScanScreenInner() {
       setManSearching(false);
     }
   };
+
+  // 거래량많은순 선택 시 — 현재 결과의 카탈로그 스냅샷(출품수)을 배치로 로드.
+  useEffect(() => {
+    if (manSort !== 'volume') return;
+    const ids = manResults
+      .map((c) => c.snkrdunkApparelId)
+      .filter((n): n is number => typeof n === 'number' && n > 0)
+      .filter((n) => !manVolFetchedRef.current.has(n));
+    if (ids.length === 0) return;
+    ids.forEach((n) => manVolFetchedRef.current.add(n));
+    api<{ entries?: Record<string, { listingCount: number | null }> }>(
+      `/api/snkrdunk/catalog-entries?ids=${ids.join(',')}`,
+      { auth: false },
+    )
+      .then((j) => {
+        const add: Record<number, number> = {};
+        for (const [id, e] of Object.entries(j?.entries ?? {})) {
+          if (e?.listingCount != null) add[Number(id)] = e.listingCount;
+        }
+        if (Object.keys(add).length > 0) setManVolumes((prev) => ({ ...prev, ...add }));
+      })
+      .catch(() => {
+        // 카탈로그 미조회 실패 — 거래량 데이터 없이 원래 순서 유지
+      });
+  }, [manSort, manResults]);
+
+  // 필터 옵션 — 현재 결과에서 발견된 세트/레어도만 노출.
+  const manSetOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of manResults) {
+      const k = manSetKeyOf(c);
+      if (k) s.add(k);
+    }
+    return [...s].sort();
+  }, [manResults]);
+  const manRarityOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of manResults) {
+      const k = manRarityOf(c);
+      if (k) s.add(k);
+    }
+    return [...s].sort((a, b) => (MAN_RARITY_RANK[a] ?? 99) - (MAN_RARITY_RANK[b] ?? 99));
+  }, [manResults]);
+
+  // 표시 리스트 — 필터 → 정렬. idx 는 manResults 원본 인덱스(선택 상태 유지용).
+  const manDisplayed = useMemo(() => {
+    let rows = manResults.map((c, idx) => ({ c, idx }));
+    if (manSetFilter) rows = rows.filter((r) => manSetKeyOf(r.c) === manSetFilter);
+    if (manRarityFilter) rows = rows.filter((r) => manRarityOf(r.c) === manRarityFilter);
+    if (manSort === 'rarity') {
+      rows = [...rows].sort((a, b) => {
+        const ra = MAN_RARITY_RANK[manRarityOf(a.c) ?? ''] ?? 99;
+        const rb = MAN_RARITY_RANK[manRarityOf(b.c) ?? ''] ?? 99;
+        return ra - rb || a.idx - b.idx;
+      });
+    } else if (manSort === 'price') {
+      rows = [...rows].sort((a, b) => (b.c.price || -1) - (a.c.price || -1) || a.idx - b.idx);
+    } else if (manSort === 'volume') {
+      rows = [...rows].sort((a, b) => {
+        const va = a.c.snkrdunkApparelId != null ? (manVolumes[a.c.snkrdunkApparelId] ?? -1) : -1;
+        const vb = b.c.snkrdunkApparelId != null ? (manVolumes[b.c.snkrdunkApparelId] ?? -1) : -1;
+        return vb - va || a.idx - b.idx;
+      });
+    }
+    return rows;
+  }, [manResults, manSetFilter, manRarityFilter, manSort, manVolumes]);
+
+  const manSelected = manSelectedIdx != null ? (manResults[manSelectedIdx] ?? null) : null;
 
   /** "더보기" — 다음 페이지를 이어서 로드해 append. 새 항목이 없으면 버튼 숨김. */
   const loadMoreManual = async () => {
@@ -515,6 +653,7 @@ function ScanScreenInner() {
           </View>
         </ScrollView>
       ) : (
+      <>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 40 }}>
         {mode === 'choose' && (
           <>
@@ -751,32 +890,148 @@ function ScanScreenInner() {
               </PixelPress>
             </View>
 
-            {/* 검색 결과 리스트 → 선택 시 등록 시트로 */}
+            {/* 검색 결과 — 필터 칩 → 정렬 → 리스트(단일 선택 라디오). 웹 ManualAddForm 패리티 */}
             {manSearched && (
               <View style={{ gap: 8 }}>
-                <PixelText variant={txt} size={10} color={tc.ink3} style={{ letterSpacing: 1 }}>
-                  검색 결과 {manResults.length}건
-                </PixelText>
-                {manResults.map((c) => (
-                  <PixelPress key={c.id} onPress={() => goCardInfo(c, 'manual')} borderWidth={3} shadow={4}>
-                    {/* 썸네일 크게(카드 실물비 63:88), 컨테이너 여백 최소화. */}
-                    <View style={{ flexDirection: 'row', gap: 10, padding: 4, paddingRight: 8, alignItems: 'center' }}>
-                      <View style={{ width: 76, height: 106, borderColor: tc.ink, borderWidth: 2 }}>
-                        <CardThumb card={c} height={102} emojiSize={30} showLabel={false} />
+                {manResults.length > 0 && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    <Chip
+                      on={!manSetFilter && !manRarityFilter}
+                      onPress={() => { setManSetFilter(null); setManRarityFilter(null); setManMenu(null); }}
+                      size={9}
+                      px={9}
+                      py={6}
+                    >
+                      전체
+                    </Chip>
+                    {manSetOptions.length > 0 && (
+                      <Chip
+                        on={!!manSetFilter}
+                        onPress={() => setManMenu(manMenu === 'set' ? null : 'set')}
+                        size={9}
+                        px={9}
+                        py={6}
+                      >
+                        {`${manSetFilter ?? '세트'} ▾`}
+                      </Chip>
+                    )}
+                    {manRarityOptions.length > 0 && (
+                      <Chip
+                        on={!!manRarityFilter}
+                        onPress={() => setManMenu(manMenu === 'rarity' ? null : 'rarity')}
+                        size={9}
+                        px={9}
+                        py={6}
+                      >
+                        {`${manRarityFilter ?? '레어도'} ▾`}
+                      </Chip>
+                    )}
+                  </View>
+                )}
+                {manMenu === 'set' && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    <Chip on={!manSetFilter} onPress={() => { setManSetFilter(null); setManMenu(null); }} size={9} px={9} py={6}>
+                      전체 세트
+                    </Chip>
+                    {manSetOptions.map((s) => (
+                      <Chip key={s} on={manSetFilter === s} onPress={() => { setManSetFilter(s); setManMenu(null); }} size={9} px={9} py={6}>
+                        {s}
+                      </Chip>
+                    ))}
+                  </View>
+                )}
+                {manMenu === 'rarity' && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    <Chip on={!manRarityFilter} onPress={() => { setManRarityFilter(null); setManMenu(null); }} size={9} px={9} py={6}>
+                      전체 레어도
+                    </Chip>
+                    {manRarityOptions.map((r) => (
+                      <Chip key={r} on={manRarityFilter === r} onPress={() => { setManRarityFilter(r); setManMenu(null); }} size={9} px={9} py={6}>
+                        {r === 'PROMO' ? '프로모' : r}
+                      </Chip>
+                    ))}
+                  </View>
+                )}
+
+                {/* 결과 수 + 정렬 */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <PixelText variant={txt} size={10} color={tc.ink3} style={{ letterSpacing: 1 }}>
+                    검색 결과 {manDisplayed.length}건
+                    {manDisplayed.length !== manResults.length ? ` (전체 ${manResults.length})` : ''}
+                  </PixelText>
+                  <Pressable onPress={() => setManMenu(manMenu === 'sort' ? null : 'sort')}>
+                    <PixelText variant={txt} size={10} color={tc.ink}>
+                      {MAN_SORT_LABEL[manSort]} ▾
+                    </PixelText>
+                  </Pressable>
+                </View>
+                {manMenu === 'sort' && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    {(Object.keys(MAN_SORT_LABEL) as ManSortKey[]).map((k) => (
+                      <Chip key={k} on={manSort === k} onPress={() => { setManSort(k); setManMenu(null); }} size={9} px={9} py={6}>
+                        {MAN_SORT_LABEL[k]}
+                      </Chip>
+                    ))}
+                  </View>
+                )}
+
+                {manDisplayed.map(({ c, idx }) => {
+                  const sel = manSelectedIdx === idx;
+                  const rar = manRarityOf(c);
+                  const rarC = rar ? (MAN_RARITY_BADGE[rar] ?? { fg: '#8E8E93', bg: '#F2F2F4' }) : null;
+                  return (
+                    <PixelPress
+                      key={c.id}
+                      onPress={() => setManSelectedIdx(sel ? null : idx)}
+                      bg={sel ? tc.gold : tc.white}
+                      borderWidth={3}
+                      shadow={4}
+                    >
+                      {/* 썸네일 크게(카드 실물비 63:88), 컨테이너 여백 최소화. */}
+                      <View style={{ flexDirection: 'row', gap: 10, padding: 4, paddingRight: 10, alignItems: 'center' }}>
+                        <View style={{ width: 76, height: 106, borderColor: tc.ink, borderWidth: 2 }}>
+                          <CardThumb card={c} height={102} emojiSize={30} showLabel={false} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <PixelText variant="ko" size={11} weight="bold">{displayCardName(c.name)}</PixelText>
+                          <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 3 }}>
+                            {c.set} · {c.num}
+                          </PixelText>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
+                            {rar && rarC && (
+                              <View style={{ backgroundColor: rarC.bg, paddingHorizontal: 6, paddingVertical: 2 }}>
+                                <PixelText variant="ko" size={8} weight="bold" color={rarC.fg}>
+                                  {rar === 'PROMO' ? '프로모' : rar}
+                                </PixelText>
+                              </View>
+                            )}
+                            <View style={{ borderWidth: 1, borderColor: tc.ink4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                              <PixelText variant="ko" size={8} color={tc.ink2}>일본판</PixelText>
+                            </View>
+                            <PixelText variant={txt} size={9} color={c.price > 0 ? tc.grnDk : tc.ink3}>
+                              {priceLabel(c.price, inferCardCurrency(c))}
+                            </PixelText>
+                          </View>
+                        </View>
+                        {/* 단일 선택 라디오 — 웹과 동일한 선택 모델 */}
+                        <View
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 11,
+                            borderWidth: 2,
+                            borderColor: sel ? tc.ink : tc.ink4,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: tc.white,
+                          }}
+                        >
+                          {sel && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: tc.ink }} />}
+                        </View>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <PixelText variant="ko" size={11} weight="bold">{displayCardName(c.name)}</PixelText>
-                        <PixelText variant={txt} size={9} color={tc.ink3} style={{ marginTop: 3 }}>
-                          {c.set} · {c.num}
-                        </PixelText>
-                        <PixelText variant={txt} size={10} color={c.price > 0 ? tc.grnDk : tc.ink3} style={{ marginTop: 3 }}>
-                          {priceLabel(c.price, inferCardCurrency(c))}
-                        </PixelText>
-                      </View>
-                      <PixelText variant={txt} size={10} color={tc.blu}>선택 ▶</PixelText>
-                    </View>
-                  </PixelPress>
-                ))}
+                    </PixelPress>
+                  );
+                })}
                 {/* 더보기 — 다음 페이지 이어서 로드 */}
                 {manHasMore && (
                   <PixelPress onPress={loadMoreManual} disabled={manLoadingMore} borderWidth={3} shadow={4}>
@@ -1221,6 +1476,43 @@ function ScanScreenInner() {
           </>
         )}
       </ScrollView>
+      {/* 하단 고정 추가 바 — 웹 ManualAddForm sticky bar 패리티 */}
+      {mode === 'manual' && manSearched && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            borderTopWidth: 3,
+            borderTopColor: tc.ink,
+            backgroundColor: tc.paper,
+          }}
+        >
+          <View style={{ maxWidth: 120 }}>
+            <PixelText variant={txt} size={8} color={tc.ink3}>선택한 카드</PixelText>
+            <PixelText variant="ko" size={11} weight="bold" numberOfLines={1} style={{ marginTop: 2 }}>
+              {manSelected ? displayCardName(manSelected.name) : '선택 안 됨'}
+            </PixelText>
+          </View>
+          <PixelPress
+            wrapStyle={{ flex: 1 }}
+            disabled={!manSelected}
+            onPress={() => manSelected && openRegister(manSelected, 'manual')}
+            bg={manSelected ? tc.gold : tc.pap3}
+            hi={manSelected ? tc.goldLt : null}
+            lo={manSelected ? tc.goldDk : null}
+          >
+            <View style={{ paddingVertical: 13, alignItems: 'center' }}>
+              <PixelText variant={txt} size={11} weight="bold" color={manSelected ? tc.ink : tc.ink3}>
+                {manSelected ? '내 컬렉션에 추가' : '카드를 선택하세요'}
+              </PixelText>
+            </View>
+          </PixelPress>
+        </View>
+      )}
+      </>
       )}
     </View>
   );

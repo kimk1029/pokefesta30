@@ -11,6 +11,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { AppBar } from '@/components/AppBar';
 import { PixelText } from '@/components/PixelText';
 import { PixelFrame } from '@/components/cv/PixelFrame';
+import { PokeballSpinner } from '@/components/PokeballSpinner';
 import { useToast } from '@/components/ToastProvider';
 import { space } from '@/theme/tokens';
 import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
@@ -405,9 +406,14 @@ export default function OripaPlay() {
                   disabled={revealStage !== 'idle'}
                   style={{ alignSelf: 'stretch', backgroundColor: tc.red, borderColor: tc.ink, borderWidth: 2, paddingVertical: 12, alignItems: 'center', opacity: revealStage === 'idle' ? 1 : 0.7 }}
                 >
-                  <PixelText variant={txt} size={11} color={tc.white}>
-                    {revealStage === 'running' ? '뽑는 중...' : `▶ ${qty}장 오픈 ▶`}
-                  </PixelText>
+                  {revealStage === 'running' ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <PokeballSpinner size={18} />
+                      <PixelText variant={txt} size={11} color={tc.white}>뽑는 중...</PixelText>
+                    </View>
+                  ) : (
+                    <PixelText variant={txt} size={11} color={tc.white}>▶ {qty}장 오픈 ▶</PixelText>
+                  )}
                 </Pressable>
                 <Pressable onPress={clearSelection} disabled={revealStage !== 'idle'} hitSlop={6}>
                   <PixelText variant={txt} size={9} color={tc.ink3} style={{ textDecorationLine: 'underline', opacity: revealStage === 'idle' ? 1 : 0.4 }}>

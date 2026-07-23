@@ -51,6 +51,10 @@ export interface CardItem {
   gradeCompany?: string;
   /** 사용자가 입력한 실제 등급 값 — "10", "9.5" 등. */
   gradeValue?: string;
+  /** 스캔 센터링 자동 추정 등급 라벨 (예: "PSA 9 (Mint)") — 웹 RegisterCardInput 동일. */
+  gradeEstimate?: string;
+  /** 센터링 점수(가까운 변 %, 50 = 완벽 중앙). */
+  centeringScore?: number;
 }
 
 export interface MarketItem {

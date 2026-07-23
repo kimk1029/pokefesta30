@@ -134,6 +134,15 @@ export interface OripaBox {
   desc: string;
   price: number;
   odds: string;
+  /** 미리보기용 상품 리스트 (가중치 → % 변환은 UI 측). DB 팩이면 채워짐 — 웹 OripaBox 동일. */
+  prizes?: Array<{
+    grade: 'S' | 'A' | 'B' | 'C';
+    name: string;
+    emoji: string;
+    weight: number;
+    bg?: string;
+    imageUrl?: string;
+  }>;
   stats?: {
     total: number;
     remaining: number;
@@ -244,6 +253,9 @@ export interface CreateMyCardInput {
   graded?: boolean;
   gradeCompany?: string | null;
   gradeValue?: string | null;
+  /** 스캔 센터링 자동 추정 (웹 CardRegisterSheet 페이로드 동일). */
+  gradeEstimate?: string | null;
+  centeringScore?: number | null;
 }
 
 export function createMyCard(input: CreateMyCardInput): Promise<{ data: MyCardRow }> {
@@ -254,12 +266,16 @@ export function fetchPortfolio(): Promise<PortfolioSummary> {
   return api<{ data: PortfolioSummary }>('/api/me/portfolio').then((r) => r.data);
 }
 
+/* ── 가격 알림 — 시세가 목표가(JPY) 이하로 내려오면 서버 주기 체커가 메시지 발송. ── */
+
 export interface PriceAlertRow {
-  apparelId: number;
-  cardName: string | null;
+  id: string;
+  snkrdunkApparelId: number;
   targetPriceJpy: number;
+  cardName: string | null;
   /** 도달해 발송된 시각. null 이면 활성(설정 중). */
   triggeredAt: string | null;
+  createdAt: string;
 }
 
 /** 내 가격 알림 목록. 미설정/실패 시 빈 배열. */
@@ -267,6 +283,19 @@ export function fetchPriceAlerts(): Promise<PriceAlertRow[]> {
   return api<{ data: PriceAlertRow[] }>('/api/me/price-alerts')
     .then((r) => r.data ?? [])
     .catch(() => []);
+}
+
+/** 목표가 설정/변경 — 같은 카드는 upsert(재활성화). */
+export function createPriceAlert(input: {
+  snkrdunkApparelId: number;
+  targetPriceJpy: number;
+  cardName?: string | null;
+}): Promise<{ data: PriceAlertRow }> {
+  return api<{ data: PriceAlertRow }>('/api/me/price-alerts', { method: 'POST', body: input });
+}
+
+export function deletePriceAlert(apparelId: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/me/price-alerts/${apparelId}`, { method: 'DELETE' });
 }
 
 export function removeFavorite(apparelId: number): Promise<{ ok: boolean }> {

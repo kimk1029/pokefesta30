@@ -12,6 +12,12 @@ import type { CardScanResponse, ScanCandidate, GuideRect, ScanLanguage } from '@
 import { CARDS, type CardItem } from '@/data/cardvault';
 import { lookupPokemonSet } from '@/data/pokemonSetMap';
 import { localizeCardName } from '@/lib/cardNameKo';
+import {
+  computeCentering,
+  shrinkQuad,
+  toQuad,
+  type CenteringResult,
+} from '../../../../shared/cardCentering';
 
 interface Props {
   uri: string;
@@ -153,6 +159,15 @@ export function ScanPreview({
   const detected = phase === 'detected';
   const candidates = response?.candidates ?? [];
   const picked = candidates.find((c) => c.id === selectedId) ?? candidates[0];
+
+  // 센터링(PSA 추정) — 서버가 준 외곽/내곽 quad 로 자동 계산 (정본 /shared/cardCentering).
+  // 웹 CardGrader 는 핸들로 미세조정까지 지원 — 모바일은 자동 검출값 기반 추정만 표시.
+  const centering: CenteringResult | null = (() => {
+    const outer = toQuad(response?.outerQuad);
+    if (!outer) return null;
+    const inner = toQuad(response?.innerQuad) ?? shrinkQuad(outer, 0.045);
+    return computeCentering(outer, inner);
+  })();
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 14, paddingBottom: 80 }}>
@@ -306,6 +321,61 @@ export function ScanPreview({
       {/* Standalone info banner removed — info now lives inside the
           selected-candidate row (CandidateRow) below. */}
 
+      {/* 센터링 → PSA 추정 — 웹 /cards/grading 패리티(자동 검출값 기반). */}
+      {detected && centering ? (
+        <View style={{ marginHorizontal: 14, marginBottom: 14 }}>
+          <PixelFrame bg={colors.white} borderWidth={3} shadow={5}>
+            <View style={{ padding: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <PixelText variant="ko" size={10} color={colors.ink3} weight="bold">
+                  📐 센터링 추정
+                </PixelText>
+                <View
+                  style={{
+                    backgroundColor: centering.band.tone,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderColor: colors.ink,
+                    borderWidth: 2,
+                  }}
+                >
+                  <PixelText variant="ko" size={10} color={colors.white} weight="bold">
+                    {centering.band.label}
+                  </PixelText>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                {(
+                  [
+                    ['좌/우', centering.lrLabel, centering.worstAxis === 'L/R'],
+                    ['상/하', centering.tbLabel, centering.worstAxis === 'T/B'],
+                  ] as const
+                ).map(([label, value, worst]) => (
+                  <View
+                    key={label}
+                    style={{
+                      flex: 1,
+                      alignItems: 'center',
+                      gap: 3,
+                      paddingVertical: 7,
+                      backgroundColor: colors.pap2,
+                      borderWidth: 2,
+                      borderColor: worst ? centering.band.tone : colors.pap3,
+                    }}
+                  >
+                    <PixelText variant="ko" size={8} color={colors.ink3}>{label}</PixelText>
+                    <PixelText variant="pixel" size={11} color={colors.ink} weight="bold">{value}</PixelText>
+                  </View>
+                ))}
+              </View>
+              <PixelText variant="ko" size={8} color={colors.ink3} style={{ marginTop: 8, lineHeight: 13 }}>
+                자동 검출 기반 참고용 추정치 — 실제 PSA/BGS 등급과 다를 수 있어요.
+              </PixelText>
+            </View>
+          </PixelFrame>
+        </View>
+      ) : null}
+
       {phase === 'analyzing' ? (
         <View style={{ marginHorizontal: 14, paddingVertical: 18, alignItems: 'center' }}>
           {/* Retro game-style pixel progress bar. 16 chunky cells fill in
@@ -399,6 +469,11 @@ export function ScanPreview({
           onPress={() => {
             if (!picked) return;
             const card = candidateToCard(picked);
+            // 센터링 추정 결과를 카드에 실어 등록 시트까지 전달 (웹 goRegister 동일).
+            if (centering) {
+              card.gradeEstimate = centering.band.label;
+              card.centeringScore = centering.worstCloser;
+            }
             onConfirm(card, picked);
           }}
           disabled={!picked}
