@@ -17,9 +17,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { PixelText } from '@/components/PixelText';
-import { PixelFrame } from '@/components/cv/PixelFrame';
-import { useThemeColors, useTheme, useThemeTextVariant } from '@/components/ThemeProvider';
-import { isFlatTheme } from '@/lib/theme';
+import { useThemeColors, useThemeTextVariant } from '@/components/ThemeProvider';
 
 export interface HeroSlideData {
   cls: 'slide-a' | 'slide-b' | 'slide-c' | 'slide-d';
@@ -89,15 +87,14 @@ function hrefOf(s: HeroSlideData): string | null {
 export function HeroBanner({ slides }: { slides: HeroSlideData[] }) {
   const tc = useThemeColors();
   const txt = useThemeTextVariant();
-  const { theme } = useTheme();
-  const flat = isFlatTheme(theme);
-  // 플랫(클린·다크): 컨테이너 없이 슬라이드만, 웹처럼 세로로 큰 배너. 픽셀: 기존 프레임/높이.
-  const slideHeight = flat ? 168 : 104;
+  // 웹 홈과 동일: 모든 테마에서 컨테이너 보더 없이 좌우 풀블리드 + 세로로 큰 배너
+  // (색/폰트만 테마별로 다르게). 픽셀 프레임/작은 높이는 제거.
+  const slideHeight = 176;
   const router = useRouter();
   const scrollRef = useRef<ScrollView | null>(null);
   const [idx, setIdx] = useState(0);
-  // 프레임 인셋 때문에 실제 슬라이드 폭은 onLayout 으로 측정 (페이징 정확도 유지).
-  const [width, setWidth] = useState(Dimensions.get('window').width - 28);
+  // 풀블리드라 슬라이드 폭 = 화면 폭. onLayout 으로 실제 폭 재측정(페이징 정확도).
+  const [width, setWidth] = useState(Dimensions.get('window').width);
 
   // DB 배너 없으면 폴백 슬라이드 (웹과 동일하게 항상 영역 노출).
   const data = slides.length > 0 ? slides : FALLBACK_SLIDES;
@@ -151,7 +148,8 @@ export function HeroBanner({ slides }: { slides: HeroSlideData[] }) {
                 width,
                 height: slideHeight,
                 backgroundColor: bg,
-                padding: flat ? 18 : 13,
+                paddingVertical: 20,
+                paddingHorizontal: 20,
                 justifyContent: 'center',
                 opacity: pressed ? 0.9 : 1,
                 transform: [{ scale: pressed ? 0.98 : 1 }],
@@ -159,26 +157,26 @@ export function HeroBanner({ slides }: { slides: HeroSlideData[] }) {
             >
               {/* badge */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(0,0,0,0.22)', paddingHorizontal: 7, paddingVertical: 3, marginBottom: flat ? 8 : 4, borderRadius: flat ? 6 : 0 }}>
-                  <PixelText variant={txt} size={flat ? 10 : 9} weight="bold" color="#FFFFFF">{s.badge}</PixelText>
+                <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(0,0,0,0.22)', paddingHorizontal: 7, paddingVertical: 3, marginBottom: 9, borderRadius: 6 }}>
+                  <PixelText variant={txt} size={10} weight="bold" color="#FFFFFF">{s.badge}</PixelText>
                 </View>
                 {s.ctaHint ? (
-                  <PixelText variant={txt} size={flat ? 10 : 9} weight="bold" color="rgba(255,255,255,0.9)">{s.ctaHint}</PixelText>
+                  <PixelText variant={txt} size={10} weight="bold" color="rgba(255,255,255,0.9)">{s.ctaHint}</PixelText>
                 ) : null}
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: flat ? 14 : 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 <View style={{ flex: 1 }}>
-                  <PixelText variant={txt} size={flat ? 17 : 14} weight="bold" color="#FFFFFF" numberOfLines={2} style={{ lineHeight: flat ? 23 : 19 }}>
+                  <PixelText variant={txt} size={18} weight="bold" color="#FFFFFF" numberOfLines={2} style={{ lineHeight: 24 }}>
                     {s.title.replace(/\n/g, ' ')}
                   </PixelText>
-                  <PixelText variant={txt} size={flat ? 11.5 : 9} color="rgba(255,255,255,0.85)" numberOfLines={2} style={{ marginTop: flat ? 6 : 3, lineHeight: flat ? 17 : 14 }}>
+                  <PixelText variant={txt} size={12} color="rgba(255,255,255,0.85)" numberOfLines={2} style={{ marginTop: 7, lineHeight: 18 }}>
                     {s.sub.replace(/\n/g, ' ')}
                   </PixelText>
                 </View>
                 {s.visualType === 'image' ? (
-                  <Image source={{ uri: imageUri(s.visualValue) }} style={{ width: flat ? 78 : 56, height: flat ? 112 : 78, resizeMode: 'cover' }} />
+                  <Image source={{ uri: imageUri(s.visualValue) }} style={{ width: 86, height: 122, resizeMode: 'cover' }} />
                 ) : (
-                  <Text style={{ fontSize: flat ? 60 : 46, lineHeight: flat ? 68 : 52 }}>{s.visualValue}</Text>
+                  <Text style={{ fontSize: 64, lineHeight: 72 }}>{s.visualValue}</Text>
                 )}
               </View>
             </Pressable>
@@ -190,14 +188,8 @@ export function HeroBanner({ slides }: { slides: HeroSlideData[] }) {
 
   return (
     <View style={{ marginHorizontal: 0, marginBottom: 8 }}>
-      {/* 픽셀 테마: PixelFrame 입체 테두리 + 면색 여백 / 플랫(클린·다크): 컨테이너 없이 슬라이드만 */}
-      {flat ? (
-        track
-      ) : (
-        <PixelFrame bg={tc.pap2} inner={2} shadow={6}>
-          <View style={{ padding: 5 }}>{track}</View>
-        </PixelFrame>
-      )}
+      {/* 웹 홈과 동일 — 컨테이너 보더 없이 좌우 풀블리드 슬라이드만 (모든 테마 공통). */}
+      {track}
       {/* dots */}
       {data.length > 1 ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: 6 }}>

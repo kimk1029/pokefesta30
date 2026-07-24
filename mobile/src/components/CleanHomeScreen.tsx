@@ -143,8 +143,8 @@ function rankBadgeColor(rank: number): string {
 }
 
 /**
- * 카드 아트 — 클린/플랫: 컨테이너 없이 이미지만 떠 보이게(은은한 그림자).
- * 픽셀: 직각 모서리 + ink 테두리 + 단일 하드 드롭섀도(블러 0)로 픽셀 박스 느낌.
+ * 카드 아트 — 웹 홈과 동일: 컨테이너/보더 없이 이미지만 떠 보이게(둥근 모서리 + 은은한 그림자).
+ * 모든 테마 공통(색/폰트만 테마별로 다르고 아트 크롬은 동일).
  */
 function CardArt({
   imageUrl,
@@ -152,8 +152,6 @@ function CardArt({
   width,
   height,
   radius,
-  pixel,
-  ink,
   children,
 }: {
   imageUrl: string | null;
@@ -161,23 +159,17 @@ function CardArt({
   width: number;
   height: number;
   radius: number;
-  pixel?: boolean;
-  ink?: string;
   children?: ReactNode;
 }) {
-  // 픽셀: 모서리 0 + ink 보더 2 + 하드 드롭섀도(offset 만, 블러 0). 플랫: 둥근 모서리 + 은은한 소프트 섀도.
-  // Android elevation 은 둥근 이미지 뒤에 '사각' 그림자 박스를 그려 컨테이너처럼 보이므로 플랫에선 끈다.
-  const r = pixel ? 0 : radius;
-  const shadow = pixel
-    ? ({ shadowColor: ink ?? '#16161a', shadowOpacity: 1, shadowRadius: 0, shadowOffset: { width: 3, height: 3 }, elevation: 0 } as const)
-    : ({ shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 0 } as const);
-  const pixelBorder = pixel ? { borderWidth: 2, borderColor: ink ?? '#16161a' } : null;
+  // 둥근 모서리 + 소프트 드롭섀도, 보더 없음. Android elevation 은 둥근 이미지 뒤에 '사각'
+  // 그림자 박스를 그려 컨테이너처럼 보이므로 끈다.
+  const shadow = { shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 0 } as const;
   return (
     <View style={{ position: 'relative', width, height }}>
       {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={{ width, height, borderRadius: r, ...pixelBorder, ...shadow }} resizeMode="cover" />
+        <Image source={{ uri: imageUrl }} style={{ width, height, borderRadius: radius, ...shadow }} resizeMode="cover" />
       ) : (
-        <View style={{ width, height, borderRadius: r, ...pixelBorder, backgroundColor: FALLBACK_BG[fallbackIdx % FALLBACK_BG.length], alignItems: 'center', justifyContent: 'center', ...shadow }}>
+        <View style={{ width, height, borderRadius: radius, backgroundColor: FALLBACK_BG[fallbackIdx % FALLBACK_BG.length], alignItems: 'center', justifyContent: 'center', ...shadow }}>
           <Text style={{ fontSize: 40 }}>🃏</Text>
         </View>
       )}
@@ -489,17 +481,19 @@ export function CleanHomeScreen() {
   );
 
   // 빠른 스캔 타일 컨테이너 — 픽셀: 직각 PixelPress(white) / 플랫: 둥근 소프트 타일.
+  // 두 타일의 세로 높이를 같게: 설명 줄 수가 달라도 동일 minHeight 로 맞춘다(웹 grid stretch 대응).
+  const TILE_MIN_H = 118;
   const ScanTile = ({ onPress, children }: { onPress: () => void; children: ReactNode }) =>
     pixel ? (
       <View style={{ flex: 1 }}>
         <PixelPress onPress={onPress} borderWidth={3} shadow={5} inner={3} bg={tc.white}>
-          <View style={{ paddingVertical: 14, paddingHorizontal: 13 }}>{children}</View>
+          <View style={{ paddingVertical: 14, paddingHorizontal: 13, minHeight: TILE_MIN_H }}>{children}</View>
         </PixelPress>
       </View>
     ) : (
       <Pressable
         onPress={onPress}
-        style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14, borderWidth: 1, borderColor: P.line }}
+        style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14, borderWidth: 1, borderColor: P.line, minHeight: TILE_MIN_H }}
       >
         {children}
       </Pressable>
@@ -630,12 +624,11 @@ export function CleanHomeScreen() {
               gap={14}
               renderItem={({ seed, data }, idx) => (
                 <Pressable onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}>
-                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={idx} width={100} height={138} radius={11} pixel={pixel} ink={tc.ink}>
+                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={idx} width={100} height={138} radius={11}>
                     <View
                       style={{
-                        position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: pixel ? 0 : 11,
+                        position: 'absolute', top: 6, left: 6, width: 22, height: 22, borderRadius: 11,
                         backgroundColor: rankBadgeColor(idx + 1), alignItems: 'center', justifyContent: 'center',
-                        ...(pixel ? { borderWidth: 2, borderColor: tc.ink } : null),
                       }}
                     >
                       <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{idx + 1}</Text>
@@ -666,7 +659,7 @@ export function CleanHomeScreen() {
               gap={14}
               renderItem={({ seed, data }, idx) => (
                 <Pressable onPress={() => router.push(`/cards/snkrdunk/${seed.apparelId}` as never)}>
-                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={idx} width={100} height={100} radius={13} pixel={pixel} ink={tc.ink} />
+                  <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={idx} width={100} height={100} radius={13} />
                   <Text numberOfLines={1} style={[ts(12.5, '700', P.ink), { marginTop: 9 }]}>{seed.shortName}</Text>
                   <Text style={[ts(11, '400', P.ink2), { marginTop: 3 }]}>
                     평균 시세 <Text style={ts(11, '800', P.rise)}>{fmtPrice(data?.minPrice ?? 0)}</Text>
@@ -701,7 +694,7 @@ export function CleanHomeScreen() {
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: P.line }}
                   >
                     <Text style={[ts(15, '800', i < 3 ? P.rise : P.ink), { width: 14, textAlign: 'center' }]}>{i + 1}</Text>
-                    <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={i} width={46} height={46} radius={9} pixel={pixel} ink={tc.ink} />
+                    <CardArt imageUrl={data?.imageUrl ?? null} fallbackIdx={i} width={46} height={46} radius={9} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text numberOfLines={1} style={ts(14, '700', P.ink)}>{seed.shortName}</Text>
                       <Text numberOfLines={1} style={[ts(12, '400', P.ink3), { marginTop: 2 }]}>{seed.category ?? '카드'}</Text>
