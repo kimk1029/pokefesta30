@@ -296,6 +296,9 @@ export function CleanHomeScreen() {
 
   const fmtPrice = (jpy: number) => (jpy > 0 ? format(jpy) : '—');
 
+  // 빠른스캔 두 타일의 공통 높이(측정된 최댓값). onTileLayout 이 되먹인다.
+  const [tileH, setTileH] = useState(0);
+
   // 홈 검색 — 직접 타이핑 → 검색 화면에 결과(?q=).
   const [homeQuery, setHomeQuery] = useState('');
   const submitSearch = () => {
@@ -481,19 +484,27 @@ export function CleanHomeScreen() {
   );
 
   // 빠른 스캔 타일 컨테이너 — 픽셀: 직각 PixelPress(white) / 플랫: 둥근 소프트 타일.
-  // 두 타일의 세로 높이를 같게: 설명 줄 수가 달라도 동일 minHeight 로 맞춘다(웹 grid stretch 대응).
-  const TILE_MIN_H = 118;
+  // 두 타일의 세로 높이를 같게: 설명 줄 수가 달라도 실제 콘텐츠 높이를 측정해 큰 쪽에
+  // 맞춘다(웹 grid stretch 대응). 고정 minHeight 는 더 큰 타일이 그 값을 넘으면 어긋나서,
+  // onLayout 으로 최댓값을 잡아 양쪽에 minHeight 로 되먹인다(=max 로 수렴, 무한루프 없음).
+  const onTileLayout = (h: number) => setTileH((prev) => (h > prev + 0.5 ? h : prev));
   const ScanTile = ({ onPress, children }: { onPress: () => void; children: ReactNode }) =>
     pixel ? (
       <View style={{ flex: 1 }}>
         <PixelPress onPress={onPress} borderWidth={3} shadow={5} inner={3} bg={tc.white}>
-          <View style={{ paddingVertical: 14, paddingHorizontal: 13, minHeight: TILE_MIN_H }}>{children}</View>
+          <View
+            onLayout={(e) => onTileLayout(e.nativeEvent.layout.height)}
+            style={{ paddingVertical: 14, paddingHorizontal: 13, minHeight: tileH || undefined }}
+          >
+            {children}
+          </View>
         </PixelPress>
       </View>
     ) : (
       <Pressable
         onPress={onPress}
-        style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14, borderWidth: 1, borderColor: P.line, minHeight: TILE_MIN_H }}
+        onLayout={(e) => onTileLayout(e.nativeEvent.layout.height)}
+        style={{ flex: 1, backgroundColor: P.tileBg, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 14, borderWidth: 1, borderColor: P.line, minHeight: tileH || undefined }}
       >
         {children}
       </Pressable>
